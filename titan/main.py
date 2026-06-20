@@ -55,6 +55,8 @@ class TitanSystem:
         self._license_store = None
         self._compliance_engine = None
         self._compliance_audit = None
+        # Recovery layer (production recovery)
+        self._recovery_manager = None
 
         # State
         self._running = False
@@ -249,6 +251,30 @@ class TitanSystem:
         )
         logger.info("✓ API Server initialized")
 
+        # 15. Recovery Manager (production recovery layer)
+        from titan.recovery import RecoveryManager
+        self._recovery_manager = RecoveryManager(
+            db=self._db,
+            redis=self._redis,
+            broker=self._broker,
+            execution=self._execution,
+            ceo=self._ceo,
+            weighting=self._weighting,
+            risk=self._risk,
+            alert_manager=self._alerts,
+            checkpoint_interval_s=30.0,
+            reconcile_interval_s=60.0,
+        )
+        await self._recovery_manager.initialize()
+        # Crash recovery: load last known state
+        last_state = await self._recovery_manager.load_last_known_state()
+        if last_state:
+            await self._recovery_manager.restore_state(last_state)
+            logger.info("✓ Recovery: state restored from last checkpoint")
+        else:
+            logger.info("✓ Recovery: cold start (no previous checkpoint)")
+        logger.info("✓ Recovery Manager initialized")
+
         elapsed = time.time() - self._start_time
         logger.info(f"═══ TITAN XAU AI — READY ({elapsed:.1f}s) ═══")
 
@@ -283,6 +309,11 @@ class TitanSystem:
         )
         server = uvicorn.Server(config)
         self._tasks.append(asyncio.create_task(server.serve()))
+
+        # Start Recovery Manager (watchdog + checkpoint + reconcile loops)
+        if self._recovery_manager:
+            await self._recovery_manager.start()
+            logger.info("✓ Recovery Manager started (watchdog + checkpoint + reconcile)")
 
         logger.info("All services started. System running.")
 
@@ -423,6 +454,14 @@ class TitanSystem:
         """Graceful shutdown."""
         logger.info("═══ TITAN XAU AI — SHUTTING DOWN ═══")
         self._running = False
+
+        # Stop Recovery Manager FIRST (saves final checkpoint)
+        if self._recovery_manager:
+            try:
+                await self._recovery_manager.stop()
+                logger.info("✓ Recovery Manager stopped (final checkpoint saved)")
+            except Exception as e:
+                logger.error(f"Recovery Manager shutdown error: {e}")
 
         # Cancel all tasks
         for task in self._tasks:
