@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Cost Intelligence — Validation Logic</title>
+<style>
+  @page { size: 1600px 900px; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #ffffff; font-family: 'Tinos','FreeSerif',serif; color: #14213D; }
+  .canvas { width: 1600px; height: 900px; padding: 50px 60px; box-sizing: border-box; }
+  .title-bar { display: flex; align-items: baseline; gap: 18px; border-bottom: 2px solid #14213D; padding-bottom: 12px; margin-bottom: 24px; }
+  .title-bar .num { font-size: 48px; font-weight: 900; color: #C8102E; line-height: 1; }
+  .title-bar h1 { font-size: 26px; font-weight: 700; margin: 0; }
+  .title-bar .sub { font-size: 13px; color: #4A5568; margin-left: auto; font-family: 'JetBrains Mono',monospace; }
+  svg { display: block; margin: 0 auto; background: #FAFBFC; border: 1px solid #E2E8F0; }
+  .table { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-top: 14px; }
+  .table th { background: #14213D; color: #ffffff; padding: 6px 8px; text-align: left; font-weight: 700; }
+  .table td { padding: 5px 8px; border-bottom: 1px solid #E2E8F0; }
+  .table tr:nth-child(even) td { background: #F8FAFC; }
+  .table .mod { color: #14213D; font-family: 'JetBrains Mono',monospace; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="title-bar">
+    <span class="num">05</span>
+    <h1>Validation Logic — Pre-Trade Cost Checks &amp; Post-Trade Verification</h1>
+    <span class="sub">8 pre-trade checks · 6 post-trade validations · all audited</span>
+  </div>
+  <svg width="1480" height="100" viewBox="0 0 1480 100">
+    <rect x="40" y="20" width="1440" height="60" fill="#14213D"/>
+    <text x="760" y="45" text-anchor="middle" fill="#ffffff" font-size="14" font-weight="700" font-family="Tinos">Validation Logic: 8 Pre-Trade Checks + 6 Post-Trade Verifications</text>
+    <text x="760" y="65" text-anchor="middle" fill="#C8102E" font-size="10" font-family="JetBrains Mono">pre-trade: reject if cost invalid · post-trade: alert if realized ≠ expected</text>
+  </svg>
+  <table class="table" style="margin-top: 24px;">
+    <tr><th>Category</th><th>ID</th><th>Validation Check</th><th>Threshold</th><th>Pass Action</th><th>Fail Action</th><th>Audit Code</th></tr>
+    <tr><td class="mod" rowspan="8">PRE-TRADE</td><td>V1</td><td>Spread within expected range</td><td>spread_bps ≤ μ + 3σ (1000-tick)</td><td>Proceed</td><td>REJECT · wait for spread normalization</td><td>V_SPREAD_ANOMALY</td></tr>
+    <tr><td>V2</td><td>Commission matches BrokerProfile</td><td>comm_bps == profile.commission_rate</td><td>Proceed</td><td>REJECT · alert broker fee change</td><td>V_COMM_MISMATCH</td></tr>
+    <tr><td>V3</td><td>Swap projection valid for hold time</td><td>swap_bps ≤ max_swap_bps (10 bps)</td><td>Proceed</td><td>REJECT · hold time too costly</td><td>V_SWAP_EXCESSIVE</td></tr>
+    <tr><td>V4</td><td>Slippage model has sufficient data</td><td>≥ 50 historical fills for calibration</td><td>Proceed</td><td>Use conservative model (sqrt-impact)</td><td>V_SLIP_INSUFFICIENT_DATA</td></tr>
+    <tr><td>V5</td><td>Latency within budget</td><td>expected_latency ≤ p95 baseline</td><td>Proceed</td><td>REJECT · latency too high for edge</td><td>V_LATENCY_EXCEEDED</td></tr>
+    <tr><td>V6</td><td>Expected edge > 0 after all costs</td><td>signal_edge - total_cost > 0</td><td>Proceed</td><td>NO TRADE · negative edge</td><td>V_NEGATIVE_EDGE</td></tr>
+    <tr><td>V7</td><td>Expected edge > min_edge (safety margin)</td><td>net_edge > 3.0 bps</td><td>Full size</td><td>REDUCE SIZE · thin edge</td><td>V_THIN_EDGE</td></tr>
+    <tr><td>V8</td><td>Broker BQS acceptable for this signal</td><td>broker BQS ≥ 60</td><td>Proceed</td><td>Route to higher-BQS broker</td><td>V_LOW_BQS</td></tr>
+    <tr><td class="mod" rowspan="6">POST-TRADE</td><td>V9</td><td>Realized spread ≤ expected + 2σ</td><td>realized ≤ μ + 2σ</td><td>Log</td><td>Alert P2 · spread spike detected</td><td>V_SPREAD_SPIKE</td></tr>
+    <tr><td>V10</td><td>Realized slippage ≤ predicted × 1.5</td><td>realized ≤ 1.5 × predicted</td><td>Log</td><td>Alert P2 · retrain slippage model</td><td>V_SLIPPAGE_BREACH</td></tr>
+    <tr><td>V11</td><td>Realized latency ≤ p99 baseline</td><td>realized ≤ p99</td><td>Log</td><td>Alert P2 · investigate broker/network</td><td>V_LATENCY_SPIKE</td></tr>
+    <tr><td>V12</td><td>Realized commission matches profile</td><td>realized == profile rate</td><td>Log</td><td>Alert P1 · broker changed fees silently</td><td>V_COMM_CHANGE_DETECTED</td></tr>
+    <tr><td>V13</td><td>Total realized cost ≤ expected × 1.5</td><td>realized_total ≤ 1.5 × expected_total</td><td>Log</td><td>Alert P2 · cost model degrading</td><td>V_TOTAL_COST_BREACH</td></tr>
+    <tr><td>V14</td><td>EQS score ≥ 40 (not CRITICAL)</td><td>EQS ≥ 40</td><td>Log</td><td>Alert P1 · auto-pause strategy</td><td>V_EQS_CRITICAL</td></tr>
+  </table>
+</div>
+</body>
+</html>

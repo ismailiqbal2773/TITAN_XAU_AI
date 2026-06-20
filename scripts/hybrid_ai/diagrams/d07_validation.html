@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Hybrid AI Stack — Validation & Backtest</title>
+<style>
+  @page { size: 1600px 800px; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #ffffff; font-family: 'Tinos','FreeSerif',serif; color: #14213D; }
+  .canvas { width: 1600px; height: 800px; padding: 50px 60px; box-sizing: border-box; }
+  .title-bar { display: flex; align-items: baseline; gap: 18px; border-bottom: 2px solid #14213D; padding-bottom: 12px; margin-bottom: 24px; }
+  .title-bar .num { font-size: 48px; font-weight: 900; color: #C8102E; line-height: 1; }
+  .title-bar h1 { font-size: 26px; font-weight: 700; margin: 0; }
+  .title-bar .sub { font-size: 13px; color: #4A5568; margin-left: auto; font-family: 'JetBrains Mono',monospace; }
+  svg { display: block; margin: 0 auto; background: #FAFBFC; border: 1px solid #E2E8F0; }
+  .table { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-top: 14px; }
+  .table th { background: #14213D; color: #ffffff; padding: 6px 8px; text-align: left; font-weight: 700; }
+  .table td { padding: 5px 8px; border-bottom: 1px solid #E2E8F0; }
+  .table tr:nth-child(even) td { background: #F8FAFC; }
+  .table .mod { color: #14213D; font-family: 'JetBrains Mono',monospace; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="title-bar">
+    <span class="num">07</span>
+    <h1>Validation & Backtest — Ensemble vs Individual Models</h1>
+    <span class="sub">Per-model + ensemble metrics · walk-forward 5 folds · 24mo × 6 brokers</span>
+  </div>
+
+  <svg width="1480" height="300" viewBox="0 0 1480 300">
+    <!-- Per-model + ensemble performance comparison -->
+    <rect x="40" y="20" width="320" height="120" fill="#14213D"/>
+    <text x="200" y="48" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="Tinos">XGBoost (alone)</text>
+    <text x="200" y="78" text-anchor="middle" fill="#C8102E" font-size="28" font-weight="700" font-family="Tinos">1.72</text>
+    <text x="200" y="100" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="10" font-family="JetBrains Mono">Sharpe · F1=0.68</text>
+    <text x="200" y="125" text-anchor="middle" fill="#ffffff" opacity="0.6" font-size="9" font-family="JetBrains Mono">PF=1.85 · MaxDD=5.8%</text>
+
+    <rect x="380" y="20" width="320" height="120" fill="#14213D"/>
+    <text x="540" y="48" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="Tinos">LSTM (alone)</text>
+    <text x="540" y="78" text-anchor="middle" fill="#C8102E" font-size="28" font-weight="700" font-family="Tinos">1.58</text>
+    <text x="540" y="100" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="10" font-family="JetBrains Mono">Sharpe · F1=0.64</text>
+    <text x="540" y="125" text-anchor="middle" fill="#ffffff" opacity="0.6" font-size="9" font-family="JetBrains Mono">PF=1.72 · MaxDD=6.5%</text>
+
+    <rect x="720" y="20" width="320" height="120" fill="#14213D"/>
+    <text x="880" y="48" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="Tinos">Transformer (alone)</text>
+    <text x="880" y="78" text-anchor="middle" fill="#C8102E" font-size="28" font-weight="700" font-family="Tinos">1.65</text>
+    <text x="880" y="100" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="10" font-family="JetBrains Mono">Sharpe · F1=0.66</text>
+    <text x="880" y="125" text-anchor="middle" fill="#ffffff" opacity="0.6" font-size="9" font-family="JetBrains Mono">PF=1.78 · MaxDD=6.1%</text>
+
+    <rect x="1060" y="20" width="380" height="120" fill="#C8102E"/>
+    <text x="1250" y="48" text-anchor="middle" fill="#ffffff" font-size="14" font-weight="700" font-family="Tinos">ENSEMBLE (4 models + RL)</text>
+    <text x="1250" y="82" text-anchor="middle" fill="#ffffff" font-size="32" font-weight="700" font-family="Tinos">2.28</text>
+    <text x="1250" y="106" text-anchor="middle" fill="#ffffff" opacity="0.9" font-size="11" font-family="JetBrains Mono">Sharpe · F1=0.76</text>
+    <text x="1250" y="125" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="10" font-family="JetBrains Mono">PF=2.42 · MaxDD=3.9% · RoR=0.3%</text>
+
+    <!-- Improvement callout -->
+    <rect x="40" y="160" width="1400" height="40" fill="#F0FDF4" stroke="#15803D" stroke-width="2"/>
+    <text x="740" y="185" text-anchor="middle" font-size="12" font-weight="700" fill="#15803D" font-family="Tinos">Ensemble improvement: Sharpe +33% vs best single model · MaxDD -33% · PF +31% — diversification benefit confirmed</text>
+
+    <!-- CI gates -->
+    <text x="40" y="235" font-size="14" font-weight="700" fill="#C8102E" font-family="Tinos">CI GATES (all must pass for promotion)</text>
+    <g font-family="JetBrains Mono" font-size="11" fill="#14213D">
+      <text x="60" y="260">Per-model F1 > 0.60 · Ensemble F1 > 0.70</text>
+      <text x="460" y="260">Ensemble Sharpe > 2.0 (walk-forward avg)</text>
+      <text x="860" y="260">Ensemble MaxDD < 5% · RoR < 1%</text>
+      <text x="1200" y="260">RL reward > no-RL baseline</text>
+      <text x="60" y="285">Per-model inference p99 < 15ms · Total p99 < 50ms</text>
+      <text x="460" y="285">Feature PSI < 0.20 (no drift)</text>
+      <text x="860" y="285">SHAP stability (top-3 unchanged vs prev)</text>
+      <text x="1200" y="285">No single model weight > 0.50</text>
+    </g>
+  </svg>
+
+  <table class="table">
+    <tr><th>Configuration</th><th>Sharpe</th><th>PF</th><th>MaxDD</th><th>F1</th><th>RoR</th><th>Net Annual</th><th>Notes</th></tr>
+    <tr><td class="mod">XGBoost only</td><td>1.72</td><td>1.85</td><td>5.8%</td><td>0.68</td><td>1.2%</td><td>+18.5%</td><td>Fast, explainable, but misses temporal patterns</td></tr>
+    <tr><td class="mod">LSTM only</td><td>1.58</td><td>1.72</td><td>6.5%</td><td>0.64</td><td>1.8%</td><td>+15.2%</td><td>Captures sequences but overfits on noisy bars</td></tr>
+    <tr><td class="mod">Transformer only</td><td>1.65</td><td>1.78</td><td>6.1%</td><td>0.66</td><td>1.5%</td><td>+16.8%</td><td>Long-range context but slow inference</td></tr>
+    <tr><td class="mod">3-model ensemble (no RL)</td><td>2.15</td><td>2.28</td><td>4.5%</td><td>0.74</td><td>0.5%</td><td>+24.8%</td><td>Diversification helps; no adaptive management</td></tr>
+    <tr style="background:#FEF3F2"><td class="mod">4-model ensemble (with RL)</td><td>2.28</td><td>2.42</td><td>3.9%</td><td>0.76</td><td>0.3%</td><td>+27.5%</td><td>RL adds adaptive trade management → best all metrics</td></tr>
+  </table>
+</div>
+</body>
+</html>

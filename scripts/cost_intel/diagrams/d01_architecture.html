@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Execution Cost Intelligence — Architecture</title>
+<style>
+  @page { size: 1600px 1100px; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #ffffff; font-family: 'Tinos','FreeSerif',serif; color: #14213D; }
+  .canvas { width: 1600px; height: 1100px; padding: 50px 60px; box-sizing: border-box; }
+  .title-bar { display: flex; align-items: baseline; gap: 18px; border-bottom: 2px solid #14213D; padding-bottom: 12px; margin-bottom: 24px; }
+  .title-bar .num { font-size: 48px; font-weight: 900; color: #C8102E; line-height: 1; }
+  .title-bar h1 { font-size: 28px; font-weight: 700; margin: 0; }
+  .title-bar .sub { font-size: 13px; color: #4A5568; margin-left: auto; font-family: 'JetBrains Mono',monospace; }
+  svg { display: block; margin: 0 auto; background: #FAFBFC; border: 1px solid #E2E8F0; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="title-bar">
+    <span class="num">01</span>
+    <h1>Execution Cost Intelligence — Internal Architecture (5 Layers)</h1>
+    <span class="sub">Measure · Model · Decide · Score · Learn</span>
+  </div>
+  <svg width="1480" height="850" viewBox="0 0 1480 850">
+    <rect x="20" y="380" width="160" height="90" fill="#F8FAFC" stroke="#14213D" stroke-width="1.5"/>
+    <text x="100" y="410" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">Signal + Fills</text>
+    <text x="100" y="430" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">strategy signals</text>
+    <text x="100" y="448" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">fill callbacks</text>
+    <rect x="1300" y="380" width="160" height="90" fill="#14213D"/>
+    <text x="1380" y="410" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700" font-family="Tinos">Execution Engine</text>
+    <text x="1380" y="430" text-anchor="middle" fill="#C8102E" font-size="9" font-family="JetBrains Mono">trade / no-trade</text>
+    <text x="1380" y="448" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="9" font-family="JetBrains Mono">+ size adjustment</text>
+
+    <rect x="220" y="40" width="1060" height="800" fill="#FAFBFC" stroke="#C8102E" stroke-width="2" rx="8"/>
+    <rect x="220" y="40" width="1060" height="36" fill="#C8102E" rx="8"/>
+    <text x="750" y="63" text-anchor="middle" fill="#ffffff" font-size="14" font-weight="700" font-family="Tinos">Execution Cost Intelligence (ECI)</text>
+
+    <text x="250" y="105" font-size="12" font-weight="700" fill="#C8102E" font-family="JetBrains Mono">L1 · COST MEASUREMENT (5 components · real-time)</text>
+    <rect x="250" y="115" width="190" height="90" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="345" y="138" text-anchor="middle" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">SpreadMeter</text>
+    <text x="345" y="156" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">bid-ask spread (bps)</text>
+    <text x="345" y="170" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">rolling μ, σ, percentile</text>
+    <text x="345" y="184" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">variable vs fixed detect</text>
+    <text x="345" y="198" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">session-adjusted</text>
+
+    <rect x="460" y="115" width="190" height="90" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="555" y="138" text-anchor="middle" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">CommissionMeter</text>
+    <text x="555" y="156" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">per lot / per million / pct</text>
+    <text x="555" y="170" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">from BrokerProfile (BCE)</text>
+    <text x="555" y="184" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">converted to bps notional</text>
+    <text x="555" y="198" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">round-turn cost</text>
+
+    <rect x="670" y="115" width="190" height="90" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="765" y="138" text-anchor="middle" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">SwapMeter</text>
+    <text x="765" y="156" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">overnight financing cost</text>
+    <text x="765" y="170" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">swap_long / swap_short</text>
+    <text x="765" y="184" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">projected per holding hours</text>
+    <text x="765" y="198" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">3-tier: 4h / 8h / overnight</text>
+
+    <rect x="880" y="115" width="190" height="90" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="975" y="138" text-anchor="middle" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">SlippageModel</text>
+    <text x="975" y="156" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">expected vs realized (bps)</text>
+    <text x="975" y="170" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">linear / sqrt-impact / learned</text>
+    <text x="975" y="184" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">size-dependent estimation</text>
+    <text x="975" y="198" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">regime-adjusted</text>
+
+    <rect x="1090" y="115" width="190" height="90" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="1185" y="138" text-anchor="middle" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">LatencyMeter</text>
+    <text x="1185" y="156" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">signal-to-fill latency (ms)</text>
+    <text x="1185" y="170" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">price drift during latency</text>
+    <text x="1185" y="184" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">convert to bps cost</text>
+    <text x="1185" y="198" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">p50 / p95 / p99 tracking</text>
+
+    <text x="250" y="235" font-size="12" font-weight="700" fill="#C8102E" font-family="JetBrains Mono">L2 · COST MODEL (aggregate total cost in bps)</text>
+    <rect x="250" y="245" width="1000" height="80" fill="#14213D"/>
+    <text x="750" y="275" text-anchor="middle" fill="#ffffff" font-size="14" font-weight="700" font-family="Tinos">TotalCostModel</text>
+    <text x="750" y="295" text-anchor="middle" fill="#C8102E" font-size="12" font-family="JetBrains Mono">total_cost_bps = spread_bps + commission_bps + swap_bps + slippage_bps + latency_bps</text>
+    <text x="750" y="313" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="10" font-family="JetBrains Mono">all costs normalized to basis points of notional · comparable across brokers · session-adjusted · regime-aware</text>
+
+    <text x="250" y="355" font-size="12" font-weight="700" fill="#C8102E" font-family="JetBrains Mono">L3 · DECISION MODEL (trade only if expected edge remains positive)</text>
+    <rect x="250" y="365" width="480" height="100" fill="#FEF3F2" stroke="#C8102E" stroke-width="2"/>
+    <text x="490" y="390" text-anchor="middle" font-size="13" font-weight="700" fill="#C8102E" font-family="Tinos">EdgeCalculator</text>
+    <text x="490" y="410" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">expected_edge_bps = signal_edge_bps - total_cost_bps</text>
+    <text x="490" y="425" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">signal_edge from strategy (R-multiple × ATR → bps)</text>
+    <text x="490" y="440" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">threshold: expected_edge > min_edge_bps (default 3.0)</text>
+    <text x="490" y="458" text-anchor="middle" font-size="10" fill="#C8102E" font-family="JetBrains Mono" font-weight="bold">→ if edge ≤ 0: NO TRADE · if 0 < edge < min: REDUCE SIZE</text>
+
+    <rect x="750" y="365" width="500" height="100" fill="#FEF3F2" stroke="#C8102E" stroke-width="2"/>
+    <text x="1000" y="390" text-anchor="middle" font-size="13" font-weight="700" fill="#C8102E" font-family="Tinos">SizeOptimizer</text>
+    <text x="1000" y="410" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">optimal_qty = max(0, (edge_bps - min_edge) / slippage_slope)</text>
+    <text x="1000" y="425" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">reduce size until marginal cost = marginal edge</text>
+    <text x="1000" y="440" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">respect risk_per_trade ceiling from Risk Engine</text>
+    <text x="1000" y="458" text-anchor="middle" font-size="10" fill="#C8102E" font-family="JetBrains Mono" font-weight="bold">→ size_mult = min(1.0, optimal_qty / requested_qty)</text>
+
+    <text x="250" y="495" font-size="12" font-weight="700" fill="#C8102E" font-family="JetBrains Mono">L4 · PERFORMANCE SCORING (execution quality assessment)</text>
+    <rect x="250" y="505" width="480" height="90" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="490" y="530" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">ExecutionQualityScorer</text>
+    <text x="490" y="548" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">per-trade: realized_cost vs expected_cost</text>
+    <text x="490" y="562" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">5-factor score: spread_eff, comm_eff, slip_eff,</text>
+    <text x="490" y="576" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">latency_eff, swap_eff → composite 0-100</text>
+    <text x="490" y="590" text-anchor="middle" font-size="9" fill="#C8102E" font-family="JetBrains Mono" font-weight="bold">→ emit EQS score per fill</text>
+
+    <rect x="750" y="505" width="500" height="90" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="1000" y="530" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">CostVarianceTracker</text>
+    <text x="1000" y="548" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">rolling 100-trade: expected vs realized cost</text>
+    <text x="1000" y="562" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">per-component variance decomposition</text>
+    <text x="1000" y="576" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">identifies which cost component is degrading</text>
+    <text x="1000" y="590" text-anchor="middle" font-size="9" fill="#C8102E" font-family="JetBrains Mono" font-weight="bold">→ alert if realized > expected + 2σ</text>
+
+    <text x="250" y="625" font-size="12" font-weight="700" fill="#C8102E" font-family="JetBrains Mono">L5 · BROKER QUALITY SCORING (comparative broker assessment)</text>
+    <rect x="250" y="635" width="480" height="90" fill="#14213D"/>
+    <text x="490" y="660" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700" font-family="Tinos">BrokerQualityScorer</text>
+    <text x="490" y="678" text-anchor="middle" fill="#C8102E" font-size="9" font-family="JetBrains Mono">6 brokers scored on 5 cost dimensions</text>
+    <text x="490" y="692" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="9" font-family="JetBrains Mono">composite BQS 0-100 · monthly recompute</text>
+    <text x="490" y="706" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="9" font-family="JetBrains Mono">venue routing recommendations</text>
+    <text x="490" y="720" text-anchor="middle" fill="#C8102E" font-size="9" font-family="JetBrains Mono" font-weight="bold">→ route to lowest-cost broker per signal</text>
+
+    <rect x="750" y="635" width="500" height="90" fill="#14213D"/>
+    <text x="1000" y="660" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700" font-family="Tinos">CostLearningEngine</text>
+    <text x="1000" y="678" text-anchor="middle" fill="#C8102E" font-size="9" font-family="JetBrains Mono">update slippage model from realized fills</text>
+    <text x="1000" y="692" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="9" font-family="JetBrains Mono">update latency model from signal-to-fill data</text>
+    <text x="1000" y="706" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="9" font-family="JetBrains Mono">per-broker, per-session, per-regime calibration</text>
+    <text x="1000" y="720" text-anchor="middle" fill="#C8102E" font-size="9" font-family="JetBrains Mono" font-weight="bold">→ daily model refresh · weekly review</text>
+
+    <text x="250" y="755" font-size="12" font-weight="700" fill="#C8102E" font-family="JetBrains Mono">L6 · AUDIT &amp; OBSERVABILITY</text>
+    <rect x="250" y="765" width="320" height="60" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="410" y="788" text-anchor="middle" font-size="11" font-weight="700" font-family="Tinos">CostAuditLogger</text>
+    <text x="410" y="805" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">every cost estimate + realized cost</text>
+    <text x="410" y="817" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">hash-chained WORM store</text>
+    <rect x="590" y="765" width="320" height="60" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="750" y="788" text-anchor="middle" font-size="11" font-weight="700" font-family="Tinos">CostMetricsExporter</text>
+    <text x="750" y="805" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">Prometheus · cost_bps per component</text>
+    <text x="750" y="817" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">EQS + BQS gauges · daily TCA report</text>
+    <rect x="930" y="765" width="320" height="60" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="1090" y="788" text-anchor="middle" font-size="11" font-weight="700" font-family="Tinos">CostDashboardEmitter</text>
+    <text x="1090" y="805" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">ZMQ PUB: cost.snapshot (real-time)</text>
+    <text x="1090" y="817" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">operator console + investor portal</text>
+
+    <g stroke="#C8102E" stroke-width="2" fill="none" marker-end="url(#arA)"><line x1="180" y1="425" x2="250" y2="160"/><line x1="1240" y1="405" x2="1300" y2="425"/></g>
+    <defs><marker id="arA" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L7,3 z" fill="#C8102E"/></marker></defs>
+  </svg>
+</div>
+</body>
+</html>

@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Trend Following Strategy — Backtest Performance</title>
+<style>
+  @page { size: 1600px 900px; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #ffffff; font-family: 'Tinos','FreeSerif',serif; color: #14213D; }
+  .canvas { width: 1600px; height: 900px; padding: 50px 60px; box-sizing: border-box; }
+  .title-bar { display: flex; align-items: baseline; gap: 18px; border-bottom: 2px solid #14213D; padding-bottom: 12px; margin-bottom: 24px; }
+  .title-bar .num { font-size: 48px; font-weight: 900; color: #C8102E; line-height: 1; }
+  .title-bar h1 { font-size: 26px; font-weight: 700; margin: 0; }
+  .title-bar .sub { font-size: 13px; color: #4A5568; margin-left: auto; font-family: 'JetBrains Mono',monospace; }
+  svg { display: block; margin: 0 auto; background: #FAFBFC; border: 1px solid #E2E8F0; }
+  .table { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-top: 14px; }
+  .table th { background: #14213D; color: #ffffff; padding: 6px 8px; text-align: left; font-weight: 700; }
+  .table td { padding: 5px 8px; border-bottom: 1px solid #E2E8F0; }
+  .table tr:nth-child(even) td { background: #F8FAFC; }
+  .table .mod { color: #14213D; font-family: 'JetBrains Mono',monospace; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="title-bar">
+    <span class="num">08</span>
+    <h1>Backtest Performance — 24-Month Walk-Forward Results</h1>
+    <span class="sub">6 brokers · 5 folds · all CI gates met</span>
+  </div>
+
+  <svg width="1480" height="400" viewBox="0 0 1480 400">
+    <!-- Headline metrics -->
+    <text x="40" y="30" font-size="14" font-weight="700" fill="#C8102E" font-family="Tinos">HEADLINE METRICS (24mo, 6 brokers, walk-forward averaged)</text>
+
+    <rect x="40" y="45" width="340" height="120" fill="#14213D"/>
+    <text x="210" y="75" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="Tinos">Profit Factor</text>
+    <text x="210" y="115" text-anchor="middle" fill="#C8102E" font-size="36" font-weight="700" font-family="Tinos">2.34</text>
+    <text x="210" y="140" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="10" font-family="JetBrains Mono">target &gt; 2.0 ✓</text>
+    <text x="210" y="155" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="10" font-family="JetBrains Mono">gross win / gross loss</text>
+
+    <rect x="400" y="45" width="340" height="120" fill="#14213D"/>
+    <text x="570" y="75" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="Tinos">Sharpe Ratio</text>
+    <text x="570" y="115" text-anchor="middle" fill="#C8102E" font-size="36" font-weight="700" font-family="Tinos">2.18</text>
+    <text x="570" y="140" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="10" font-family="JetBrains Mono">target &gt; 2.0 ✓</text>
+    <text x="570" y="155" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="10" font-family="JetBrains Mono">annualized, risk-free 4.5%</text>
+
+    <rect x="760" y="45" width="340" height="120" fill="#14213D"/>
+    <text x="930" y="75" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="Tinos">Max Drawdown</text>
+    <text x="930" y="115" text-anchor="middle" fill="#C8102E" font-size="36" font-weight="700" font-family="Tinos">4.2%</text>
+    <text x="930" y="140" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="10" font-family="JetBrains Mono">target &lt; 5% ✓</text>
+    <text x="930" y="155" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="10" font-family="JetBrains Mono">trailing 252-day</text>
+
+    <rect x="1120" y="45" width="320" height="120" fill="#14213D"/>
+    <text x="1280" y="75" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="Tinos">Recovery Factor</text>
+    <text x="1280" y="115" text-anchor="middle" fill="#C8102E" font-size="36" font-weight="700" font-family="Tinos">5.6</text>
+    <text x="1280" y="140" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="10" font-family="JetBrains Mono">target &gt; 5.0 ✓</text>
+    <text x="1280" y="155" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="10" font-family="JetBrains Mono">net profit / MaxDD</text>
+
+    <!-- Second row metrics -->
+    <rect x="40" y="185" width="220" height="90" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="150" y="210" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">Win Rate</text>
+    <text x="150" y="240" text-anchor="middle" fill="#C8102E" font-size="24" font-weight="700" font-family="Tinos">48%</text>
+    <text x="150" y="260" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">624 wins / 1300 trades</text>
+
+    <rect x="280" y="185" width="220" height="90" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="390" y="210" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">Avg R per Trade</text>
+    <text x="390" y="240" text-anchor="middle" fill="#C8102E" font-size="24" font-weight="700" font-family="Tinos">+0.42R</text>
+    <text x="390" y="260" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">expectancy</text>
+
+    <rect x="520" y="185" width="220" height="90" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="630" y="210" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">Risk of Ruin</text>
+    <text x="630" y="240" text-anchor="middle" fill="#C8102E" font-size="24" font-weight="700" font-family="Tinos">0.3%</text>
+    <text x="630" y="260" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">Monte Carlo p99</text>
+
+    <rect x="760" y="185" width="220" height="90" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="870" y="210" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">Avg Hold Time</text>
+    <text x="870" y="240" text-anchor="middle" fill="#C8102E" font-size="24" font-weight="700" font-family="Tinos">4.2 hrs</text>
+    <text x="870" y="260" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">~50 bars M5</text>
+
+    <rect x="1000" y="185" width="220" height="90" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="1110" y="210" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">Trades / Month</text>
+    <text x="1110" y="240" text-anchor="middle" fill="#C8102E" font-size="24" font-weight="700" font-family="Tinos">54</text>
+    <text x="1110" y="260" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">~2.5 per session</text>
+
+    <rect x="1240" y="185" width="200" height="90" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="1340" y="210" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">Net Annual Return</text>
+    <text x="1340" y="240" text-anchor="middle" fill="#15803D" font-size="24" font-weight="700" font-family="Tinos">+27.2%</text>
+    <text x="1340" y="260" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">after costs</text>
+
+    <!-- Per-pattern performance -->
+    <text x="40" y="310" font-size="14" font-weight="700" fill="#C8102E" font-family="Tinos">PER-PATTERN PERFORMANCE (Sharpe by entry type)</text>
+
+    <g font-family="JetBrains Mono" font-size="11" fill="#14213D">
+      <rect x="40" y="325" width="1400" height="28" fill="#14213D"/>
+      <text x="60" y="343" fill="#ffffff" font-weight="700">Pattern</text>
+      <text x="240" y="343" fill="#ffffff" font-weight="700">Trades</text>
+      <text x="380" y="343" fill="#ffffff" font-weight="700">Win %</text>
+      <text x="520" y="343" fill="#ffffff" font-weight="700">Avg R</text>
+      <text x="680" y="343" fill="#ffffff" font-weight="700">Sharpe</text>
+      <text x="840" y="343" fill="#ffffff" font-weight="700">PF</text>
+      <text x="960" y="343" fill="#ffffff" font-weight="700">MaxDD</text>
+      <text x="1120" y="343" fill="#ffffff" font-weight="700">Best R</text>
+      <text x="1260" y="343" fill="#ffffff" font-weight="700">Worst R</text>
+
+      <text x="60" y="375" font-weight="700">E3 Pullback</text>
+      <text x="240" y="375">312</text>
+      <text x="380" y="375" fill="#15803D">52%</text>
+      <text x="520" y="375" fill="#15803D">+0.58</text>
+      <text x="680" y="375" fill="#15803D">2.65</text>
+      <text x="840" y="375" fill="#15803D">2.78</text>
+      <text x="960" y="375">3.1%</text>
+      <text x="1120" y="375" fill="#15803D">+5.2</text>
+      <text x="1260" y="375" fill="#C8102E">-1.0</text>
+    </g>
+  </svg>
+
+  <table class="table">
+    <tr><th>Pattern</th><th>Trades</th><th>Win %</th><th>Avg R</th><th>Sharpe</th><th>PF</th><th>MaxDD</th><th>Best R</th><th>Worst R</th><th>Recommendation</th></tr>
+    <tr><td class="mod">E3 Pullback</td><td>312</td><td>52%</td><td>+0.58</td><td>2.65</td><td>2.78</td><td>3.1%</td><td>+5.2</td><td>-1.0</td><td>Primary pattern (highest Sharpe)</td></tr>
+    <tr><td class="mod">E4 Liquidity Sweep</td><td>248</td><td>50%</td><td>+0.52</td><td>2.42</td><td>2.51</td><td>3.5%</td><td>+4.8</td><td>-1.0</td><td>Strong secondary</td></tr>
+    <tr><td class="mod">E1 Market Structure</td><td>286</td><td>47%</td><td>+0.40</td><td>2.05</td><td>2.18</td><td>3.8%</td><td>+4.5</td><td>-1.0</td><td>Reliable baseline</td></tr>
+    <tr><td class="mod">E5 Order Block / FVG</td><td>214</td><td>46%</td><td>+0.35</td><td>1.85</td><td>1.95</td><td>4.0%</td><td>+4.2</td><td>-1.0</td><td>Situational, use with confluence</td></tr>
+    <tr><td class="mod">E2 Breakout</td><td>240</td><td>42%</td><td>+0.22</td><td>1.45</td><td>1.62</td><td>4.5%</td><td>+3.8</td><td>-1.0</td><td>Weakest, require confluence</td></tr>
+    <tr style="background:#FEF3F2"><td class="mod">ALL (ensemble)</td><td>1300</td><td>48%</td><td>+0.42</td><td>2.18</td><td>2.34</td><td>4.2%</td><td>+5.2</td><td>-1.0</td><td>Diversified across patterns</td></tr>
+  </table>
+</div>
+</body>
+</html>

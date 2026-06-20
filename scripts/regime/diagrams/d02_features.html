@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Regime Detection — Feature Engineering Pipeline</title>
+<style>
+  @page { size: 1600px 1100px; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #ffffff; font-family: 'Tinos','FreeSerif',serif; color: #14213D; }
+  .canvas { width: 1600px; height: 1100px; padding: 50px 60px; box-sizing: border-box; }
+  .title-bar { display: flex; align-items: baseline; gap: 18px; border-bottom: 2px solid #14213D; padding-bottom: 12px; margin-bottom: 24px; }
+  .title-bar .num { font-size: 48px; font-weight: 900; color: #C8102E; line-height: 1; }
+  .title-bar h1 { font-size: 26px; font-weight: 700; margin: 0; }
+  .title-bar .sub { font-size: 13px; color: #4A5568; margin-left: auto; font-family: 'JetBrains Mono',monospace; }
+  svg { display: block; margin: 0 auto; background: #FAFBFC; border: 1px solid #E2E8F0; }
+  .table { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-top: 14px; }
+  .table th { background: #14213D; color: #ffffff; padding: 6px 8px; text-align: left; font-weight: 700; }
+  .table td { padding: 5px 8px; border-bottom: 1px solid #E2E8F0; }
+  .table tr:nth-child(even) td { background: #F8FAFC; }
+  .table .mod { color: #14213D; font-family: 'JetBrains Mono',monospace; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="title-bar">
+    <span class="num">02</span>
+    <h1>Feature Engineering Pipeline — 7 Engineered Features</h1>
+    <span class="sub">Raw bars/ticks → normalized feature vector</span>
+  </div>
+
+  <svg width="1480" height="640" viewBox="0 0 1480 640">
+    <defs>
+      <marker id="arF" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
+        <path d="M0,0 L0,6 L7,3 z" fill="#14213D"/>
+      </marker>
+    </defs>
+
+    <!-- Raw input -->
+    <rect x="40" y="40" width="200" height="60" fill="#14213D"/>
+    <text x="140" y="65" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700" font-family="Tinos">Raw OHLCV bars</text>
+    <text x="140" y="83" text-anchor="middle" fill="#C8102E" font-size="9" font-family="JetBrains Mono">M1 / M5 / M15 / H1</text>
+
+    <rect x="40" y="120" width="200" height="60" fill="#F8FAFC" stroke="#14213D"/>
+    <text x="140" y="145" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">Tick stream</text>
+    <text x="140" y="163" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">bid/ask/vol/ts</text>
+
+    <rect x="40" y="200" width="200" height="60" fill="#F8FAFC" stroke="#14213D"/>
+    <text x="140" y="225" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">News events</text>
+    <text x="140" y="243" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">FOMC/NFP/CPI ±24h</text>
+
+    <line x1="240" y1="70" x2="290" y2="70" stroke="#14213D" stroke-width="2" marker-end="url(#arF)"/>
+    <line x1="240" y1="150" x2="290" y2="150" stroke="#14213D" stroke-width="2" marker-end="url(#arF)"/>
+    <line x1="240" y1="230" x2="290" y2="230" stroke="#14213D" stroke-width="2" marker-end="url(#arF)"/>
+
+    <!-- 7 feature cards (in grid) -->
+    <text x="290" y="30" font-size="13" font-weight="700" fill="#C8102E" font-family="Tinos">FEATURE EXTRACTION (7 features, parallel)</text>
+
+    <!-- ADX -->
+    <rect x="290" y="40" width="200" height="100" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="390" y="62" text-anchor="middle" font-size="12" font-weight="700" fill="#C8102E" font-family="Tinos">F1 · ADX</text>
+    <text x="390" y="78" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">14-period · Wilder</text>
+    <text x="390" y="92" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">+DI / -DI decomposition</text>
+    <text x="390" y="106" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">range: [0, 100]</text>
+    <text x="390" y="120" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">∈: trend strength</text>
+    <text x="390" y="133" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">⟶ TREND</text>
+
+    <!-- ATR -->
+    <rect x="500" y="40" width="200" height="100" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="600" y="62" text-anchor="middle" font-size="12" font-weight="700" fill="#C8102E" font-family="Tinos">F2 · ATR</text>
+    <text x="600" y="78" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">14-period · Wilder</text>
+    <text x="600" y="92" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">True Range = max(H-L,</text>
+    <text x="600" y="106" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">  |H-Pc|, |L-Pc|)</text>
+    <text x="600" y="120" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">normalized: ATR/price</text>
+    <text x="600" y="133" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">⟶ VOLATILE</text>
+
+    <!-- EMA Slope -->
+    <rect x="710" y="40" width="200" height="100" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="810" y="62" text-anchor="middle" font-size="12" font-weight="700" fill="#C8102E" font-family="Tinos">F3 · EMA Slope</text>
+    <text x="810" y="78" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">EMA(20) angle</text>
+    <text x="810" y="92" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">slope = arctan(ΔEMA/Δt)</text>
+    <text x="810" y="106" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">normalized: [-π/2, π/2]</text>
+    <text x="810" y="120" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">+ = uptrend · - = down</text>
+    <text x="810" y="133" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">⟶ TREND direction</text>
+
+    <!-- Hurst -->
+    <rect x="920" y="40" width="200" height="100" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="1020" y="62" text-anchor="middle" font-size="12" font-weight="700" fill="#C8102E" font-family="Tinos">F4 · Hurst Exponent</text>
+    <text x="1020" y="78" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">R/S analysis · 100-bar</text>
+    <text x="1020" y="92" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">H &lt; 0.5 → mean-reverting</text>
+    <text x="1020" y="106" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">H = 0.5 → random walk</text>
+    <text x="1020" y="120" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">H &gt; 0.5 → trending</text>
+    <text x="1020" y="133" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">⟶ TREND vs RANGE</text>
+
+    <!-- Bollinger Width -->
+    <rect x="1130" y="40" width="200" height="100" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="1230" y="62" text-anchor="middle" font-size="12" font-weight="700" fill="#C8102E" font-family="Tinos">F5 · Bollinger Width</text>
+    <text x="1230" y="78" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">20-period · 2σ</text>
+    <text x="1230" y="92" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">BW = (upper - lower) / mid</text>
+    <text x="1230" y="106" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">percentile vs 252-bar</text>
+    <text x="1230" y="120" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">expansion vs contraction</text>
+    <text x="1230" y="133" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">⟶ VOLATILE / RANGE</text>
+
+    <!-- Realized Vol -->
+    <rect x="290" y="170" width="240" height="100" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="410" y="192" text-anchor="middle" font-size="12" font-weight="700" fill="#C8102E" font-family="Tinos">F6 · Realized Volatility</text>
+    <text x="410" y="208" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">30-bar log-return std dev</text>
+    <text x="410" y="222" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">σ_annual = σ_bar × √252</text>
+    <text x="410" y="236" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">rolling window · EMA-decayed</text>
+    <text x="410" y="250" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">baseline vol regime</text>
+    <text x="410" y="263" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">⟶ VOLATILE</text>
+
+    <!-- Volume Analysis -->
+    <rect x="540" y="170" width="240" height="100" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="660" y="192" text-anchor="middle" font-size="12" font-weight="700" fill="#C8102E" font-family="Tinos">F7 · Volume Analysis</text>
+    <text x="660" y="208" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">tick volume + OBV</text>
+    <text x="660" y="222" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">VWAP deviation</text>
+    <text x="660" y="236" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">vol z-score (50-bar)</text>
+    <text x="660" y="250" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">spike = z &gt; 2.0</text>
+    <text x="660" y="263" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">⟶ NEWS / VOLATILE</text>
+
+    <!-- News Sentiment -->
+    <rect x="790" y="170" width="240" height="100" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="910" y="192" text-anchor="middle" font-size="12" font-weight="700" fill="#C8102E" font-family="Tinos">F8 · News Sentiment</text>
+    <text x="910" y="208" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">min-to-event (proximity)</text>
+    <text x="910" y="222" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">impact tier (H/M/L)</text>
+    <text x="910" y="236" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">surprise = actual - forecast</text>
+    <text x="910" y="250" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">NLP sentiment score [-1, +1]</text>
+    <text x="910" y="263" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">⟶ NEWS (veto override)</text>
+
+    <!-- Normalizer -->
+    <rect x="1040" y="170" width="290" height="100" fill="#FEF3F2" stroke="#C8102E" stroke-width="2"/>
+    <text x="1185" y="192" text-anchor="middle" font-size="12" font-weight="700" fill="#C8102E" font-family="Tinos">Feature Normalizer</text>
+    <text x="1185" y="210" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">rolling z-score (252-bar window)</text>
+    <text x="1185" y="224" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">winsorize at 1% / 99% percentiles</text>
+    <text x="1185" y="238" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">per-session recompute (drift)</text>
+    <text x="1185" y="252" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">fill-forward on missing</text>
+    <text x="1185" y="265" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">→ 8-dim feature vector</text>
+
+    <!-- Arrows from features to normalizer -->
+    <g stroke="#14213D" stroke-width="1.5" fill="none" opacity="0.7" marker-end="url(#arF)">
+      <line x1="490" y1="90" x2="1040" y2="200"/>
+      <line x1="700" y1="90" x2="1040" y2="210"/>
+      <line x1="910" y1="90" x2="1040" y2="220"/>
+      <line x1="1120" y1="90" x2="1185" y2="170"/>
+      <line x1="530" y1="220" x2="1040" y2="220"/>
+      <line x1="780" y1="220" x2="1040" y2="230"/>
+      <line x1="1030" y1="220" x2="1040" y2="220"/>
+    </g>
+
+    <!-- Output -->
+    <rect x="290" y="310" width="1040" height="60" fill="#14213D"/>
+    <text x="810" y="335" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="Tinos">Feature Vector (8-dim, normalized)</text>
+    <text x="810" y="355" text-anchor="middle" fill="#C8102E" font-size="10" font-family="JetBrains Mono">[ADX_z, ATR_z, EMA_slope_z, Hurst_z, BBW_z, RealVol_z, VolAnalysis_z, NewsSentiment_z]</text>
+
+    <line x1="1185" y1="270" x2="1185" y2="310" stroke="#14213D" stroke-width="2" marker-end="url(#arF)"/>
+
+    <!-- Quality gates -->
+    <text x="40" y="420" font-size="13" font-weight="700" fill="#C8102E" font-family="Tinos">FEATURE QUALITY GATES (CI-enforced)</text>
+
+    <rect x="40" y="440" width="1290" height="180" fill="#F8FAFC" stroke="#14213D"/>
+    <g font-family="JetBrains Mono" font-size="11" fill="#14213D">
+      <text x="60" y="465" font-weight="700">Gate</text>
+      <text x="220" y="465" font-weight="700">Description</text>
+      <text x="700" y="465" font-weight="700">Threshold</text>
+      <text x="950" y="465" font-weight="700">Cadence</text>
+      <text x="1150" y="465" font-weight="700">Failure Action</text>
+
+      <text x="60" y="490">Stationarity</text>
+      <text x="220" y="490">ADF test on each feature series</text>
+      <text x="700" y="490">p-value &lt; 0.05</text>
+      <text x="950" y="490">Daily</text>
+      <text x="1150" y="490">Log warning · recompute window</text>
+
+      <text x="60" y="515">Correlation</text>
+      <text x="220" y="515">Pairwise Pearson between features</text>
+      <text x="700" y="515">|ρ| &lt; 0.85</text>
+      <text x="950" y="515">Weekly</text>
+      <text x="1150" y="515">Drop redundant feature</text>
+
+      <text x="60" y="540">Drift (PSI)</text>
+      <text x="220" y="540">Population Stability Index vs train</text>
+      <text x="700" y="540">PSI &lt; 0.20</text>
+      <text x="950" y="540">Daily</text>
+      <text x="1150" y="540">Alert · retrain model</text>
+
+      <text x="60" y="565">Coverage</text>
+      <text x="220" y="565">Non-NaN ratio per feature</text>
+      <text x="700" y="565">&gt; 99.5%</text>
+      <text x="950" y="565">Hourly</text>
+      <text x="1150" y="565">Investigate data feed</text>
+
+      <text x="60" y="590">Range</text>
+      <text x="220" y="590">Z-scored features in [-4, +4]</text>
+      <text x="700" y="590">99% within</text>
+      <text x="950" y="590">Per inference</text>
+      <text x="1150" y="590">Clip · flag outlier</text>
+
+      <text x="60" y="613">Latency</text>
+      <text x="220" y="613">Feature compute end-to-end</text>
+      <text x="700" y="613">p99 &lt; 50 ms</text>
+      <text x="950" y="613">Continuous</text>
+      <text x="1150" y="613">Throttle non-critical features</text>
+    </g>
+  </svg>
+
+  <table class="table">
+    <tr><th>Feature</th><th>Formula</th><th>Range</th><th>Primary Regime Signal</th><th>Update Cadence</th></tr>
+    <tr><td class="mod">F1 ADX</td><td>Wilder 14-period · smoothed +DI/-DI</td><td>[0, 100]</td><td>TREND (ADX &gt; 25 = trending)</td><td>Per bar close</td></tr>
+    <tr><td class="mod">F2 ATR</td><td>Wilder 14-period · normalized by price</td><td>[0, ~0.05]</td><td>VOLATILE (high ATR percentile)</td><td>Per bar close</td></tr>
+    <tr><td class="mod">F3 EMA Slope</td><td>arctan(ΔEMA(20) / Δt) in radians</td><td>[-π/2, +π/2]</td><td>TREND direction (sign)</td><td>Per bar close</td></tr>
+    <tr><td class="mod">F4 Hurst Exponent</td><td>R/S analysis over 100-bar window</td><td>[0, 1]</td><td>H &gt; 0.5 = TREND, H &lt; 0.5 = RANGE</td><td>Per bar close (100-bar recomputation)</td></tr>
+    <tr><td class="mod">F5 Bollinger Width</td><td>(upper - lower) / mid · 20-period 2σ</td><td>[0, ~1.0]</td><td>VOLATILE (wide) / RANGE (narrow)</td><td>Per bar close</td></tr>
+    <tr><td class="mod">F6 Realized Vol</td><td>30-bar log-return σ · annualized</td><td>[0, ~2.0]</td><td>VOLATILE (baseline vol regime)</td><td>Per bar close</td></tr>
+    <tr><td class="mod">F7 Volume Analysis</td><td>tick vol z-score (50-bar) + OBV + VWAP dev</td><td>[-4, +4] (z-scored)</td><td>NEWS / VOLATILE (spike detection)</td><td>Per tick (rolling)</td></tr>
+    <tr><td class="mod">F8 News Sentiment</td><td>proximity + impact tier + surprise + NLP score</td><td>[-1, +1] composite</td><td>NEWS (veto override)</td><td>Per event + per bar</td></tr>
+  </table>
+</div>
+</body>
+</html>

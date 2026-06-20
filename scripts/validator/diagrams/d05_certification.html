@@ -1,0 +1,84 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>d05</title>
+<link href="https://fonts.googleapis.com/css2?family=Tinos:wght@400;700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { width: 1600px; height: 1000px; background: #ffffff; font-family: 'Inter', sans-serif; color: #14213D; padding: 50px 60px; }
+.h-title { font-family: 'Tinos', serif; font-size: 30px; font-weight: 900; letter-spacing: -0.5px; }
+.h-sub { font-family: 'Inter', sans-serif; font-size: 13px; color: #4A5568; margin-top: 4px; }
+.h-rule { width: 80px; height: 3px; background: #C8102E; margin: 14px 0 30px 0; }
+
+.flow { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; margin-top: 16px; }
+.step { background: #F8FAFC; border: 1px solid #CBD5E1; border-top: 3px solid #14213D; border-radius: 6px; padding: 14px 12px; position: relative; min-height: 180px; }
+.step .n { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C8102E; font-weight: 700; letter-spacing: 1.5px; }
+.step .t { font-family: 'Tinos', serif; font-size: 13px; font-weight: 700; color: #14213D; margin: 4px 0 6px 0; line-height: 1.2; }
+.step .d { font-family: 'Inter', sans-serif; font-size: 9.5px; color: #4A5568; line-height: 1.4; }
+.step .out { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #14213D; padding: 4px 6px; background: #F1F5F9; border-radius: 3px; margin-top: 6px; display: inline-block; }
+.step.final { background: #14213D; color: #fff; border-color: #C8102E; border-top-color: #C8102E; }
+.step.final .n { color: #C8102E; }
+.step.final .t { color: #fff; }
+.step.final .d { color: #94A3B8; }
+.step.final .out { background: #C8102E; color: #fff; }
+.step .arrow { position: absolute; right: -8px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; background: #C8102E; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; z-index: 2; }
+.step:last-child .arrow { display: none; }
+
+.gates { margin-top: 28px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.gate { padding: 16px 20px; border-radius: 6px; border-left: 4px solid; }
+.gate .g-lbl { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 2px; font-weight: 700; }
+.gate .g-h { font-family: 'Tinos', serif; font-size: 18px; font-weight: 900; margin-top: 4px; }
+.gate .g-d { font-family: 'Inter', sans-serif; font-size: 10.5px; margin-top: 6px; line-height: 1.5; }
+.gate.certified { background: #DCFCE7; border-color: #15803D; }
+.gate.certified .g-lbl, .gate.certified .g-h { color: #15803D; }
+.gate.certified .g-d { color: #14213D; }
+.gate.conditional { background: #FEF3C7; border-color: #B45309; }
+.gate.conditional .g-lbl, .gate.conditional .g-h { color: #B45309; }
+.gate.conditional .g-d { color: #14213D; }
+.gate.rejected { background: #FEE2E2; border-color: #C8102E; }
+.gate.rejected .g-lbl, .gate.rejected .g-h { color: #C8102E; }
+.gate.rejected .g-d { color: #14213D; }
+
+.signoff { margin-top: 22px; padding: 16px 20px; background: #14213D; color: #fff; border-radius: 6px; display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 18px; }
+.signoff .role { border-left: 2px solid #C8102E; padding-left: 12px; }
+.signoff .role .r { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C8102E; letter-spacing: 1.5px; font-weight: 700; }
+.signoff .role .n { font-family: 'Tinos', serif; font-size: 13px; font-weight: 700; margin-top: 4px; }
+.signoff .role .a { font-family: 'Inter', sans-serif; font-size: 9.5px; color: #94A3B8; margin-top: 2px; }
+</style></head>
+<body>
+<div class="h-title">Final Certification Workflow</div>
+<div class="h-sub">7-step pipeline · 3 decision gates · 4-role sign-off chain · End-to-end runtime &lt; 2 minutes</div>
+<div class="h-rule"></div>
+
+<div class="flow">
+  <div class="step"><div class="n">STEP 01</div><div class="t">Pre-flight Check</div><div class="d">Verify environment: VPS connectivity, MT5 terminal running, license JWT valid, network latency &lt; 100 ms.</div><div class="out">env_ok</div><div class="arrow">→</div></div>
+  <div class="step"><div class="n">STEP 02</div><div class="t">Suite Registry Load</div><div class="d">Initialize 8 suite descriptors, load 144 check definitions from spec/manifest.yaml, resolve rule engine.</div><div class="out">registry_ready</div><div class="arrow">→</div></div>
+  <div class="step"><div class="n">STEP 03</div><div class="t">Parallel Suite Execution</div><div class="d">Run all 8 suites concurrently via asyncio. Each suite reports its own pass/fail/score with sub-30s timeout.</div><div class="out">8 results</div><div class="arrow">→</div></div>
+  <div class="step"><div class="n">STEP 04</div><div class="t">Rule Engine Evaluation</div><div class="d">Apply severity gates: critical veto, major caps, minor thresholds. Compute per-suite score and aggregate.</div><div class="out">score + verdict</div><div class="arrow">→</div></div>
+  <div class="step"><div class="n">STEP 05</div><div class="t">Stability Verification</div><div class="d">Repeat full sweep 3 times, 60 s apart. If any run differs from others → flaky → veto. Confirm 3 stable PASS.</div><div class="out">stable_pass</div><div class="arrow">→</div></div>
+  <div class="step"><div class="n">STEP 06</div><div class="t">Certification Decision</div><div class="d">Apply 3-band gate: CERTIFIED / CONDITIONAL / REJECTED. Generate certification report PDF + JSON manifest.</div><div class="out">cert_report</div><div class="arrow">→</div></div>
+  <div class="step final"><div class="n">STEP 07</div><div class="t">Sign-off & Dispatch</div><div class="d">4-role digital sign-off (Eng / Risk / Compliance / CTO). Dispatch to PagerDuty, S3 archive, trading gate.</div><div class="out">TRADE_AUTH</div></div>
+</div>
+
+<div class="gates">
+  <div class="gate certified">
+    <div class="g-lbl">CERTIFIED · GREEN</div>
+    <div class="g-h">Trade Authorized</div>
+    <div class="g-d">Score ≥ 85 · 0 critical · ≤ 6 major · 3 stable runs. Trading gate opens. Revalidation cadence: every 7 days OR on any module hot-reload.</div>
+  </div>
+  <div class="gate conditional">
+    <div class="g-lbl">CONDITIONAL · AMBER</div>
+    <div class="g-h">Trade with Daily Recheck</div>
+    <div class="g-d">Score 70–84 OR 1 critical with documented waiver. Trading authorized for 24 h. Mandatory revalidation every 24 h. CTO sign-off required.</div>
+  </div>
+  <div class="gate rejected">
+    <div class="g-lbl">REJECTED · RED</div>
+    <div class="g-h">Trade Halted</div>
+    <div class="g-d">Score &lt; 70 OR ≥ 2 critical OR flaky. Trading gate locked. Existing positions flattened per risk engine. Engineering escalation within 1 h.</div>
+  </div>
+</div>
+
+<div class="signoff">
+  <div class="role"><div class="r">ROLE 1</div><div class="n">Engineering Lead</div><div class="a">Technical correctness of suites</div></div>
+  <div class="role"><div class="r">ROLE 2</div><div class="n">Risk Officer</div><div class="a">Risk suite + capital adequacy</div></div>
+  <div class="role"><div class="r">ROLE 3</div><div class="n">Compliance</div><div class="a">Licensing + audit trail</div></div>
+  <div class="role"><div class="r">ROLE 4</div><div class="n">CTO / Designate</div><div class="a">Final authority + override</div></div>
+</div>
+</body></html>

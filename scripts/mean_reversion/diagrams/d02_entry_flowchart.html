@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Mean Reversion Strategy — Entry Logic Flowchart</title>
+<style>
+  @page { size: 1400px 1700px; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #ffffff; font-family: 'Tinos','FreeSerif',serif; color: #14213D; }
+  .canvas { width: 1400px; height: 1700px; padding: 50px 60px; box-sizing: border-box; }
+  .title-bar { display: flex; align-items: baseline; gap: 18px; border-bottom: 2px solid #14213D; padding-bottom: 12px; margin-bottom: 24px; }
+  .title-bar .num { font-size: 48px; font-weight: 900; color: #C8102E; line-height: 1; }
+  .title-bar h1 { font-size: 26px; font-weight: 700; margin: 0; }
+  .title-bar .sub { font-size: 13px; color: #4A5568; margin-left: auto; font-family: 'JetBrains Mono',monospace; }
+  svg { display: block; margin: 0 auto; background: #FAFBFC; border: 1px solid #E2E8F0; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="title-bar">
+    <span class="num">02</span>
+    <h1>Entry Logic Flowchart — Mean Reversion Score Computation</h1>
+    <span class="sub">Regime gate → 4 indicators → composite MR score → threshold → signal</span>
+  </div>
+
+  <svg width="1280" height="1500" viewBox="0 0 1280 1500">
+    <defs>
+      <marker id="ar2" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#14213D"/></marker>
+      <marker id="ar2R" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#C8102E"/></marker>
+      <marker id="ar2G" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#15803D"/></marker>
+    </defs>
+
+    <ellipse cx="640" cy="40" rx="160" ry="24" fill="#14213D"/>
+    <text x="640" y="46" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="Tinos">START — M5 bar close</text>
+    <line x1="640" y1="64" x2="640" y2="92" stroke="#14213D" stroke-width="2" marker-end="url(#ar2)"/>
+
+    <polygon points="640,95 820,140 640,185 460,140" fill="#FEF3F2" stroke="#C8102E" stroke-width="2"/>
+    <text x="640" y="130" text-anchor="middle" font-size="11" font-weight="700" font-family="Tinos">regime == RANGE</text>
+    <text x="640" y="148" text-anchor="middle" font-size="11" font-weight="700" font-family="Tinos">∧ confidence &gt; 0.65?</text>
+    <text x="640" y="165" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">P(TREND) &lt; 0.25 · P(VOL) &lt; 0.20</text>
+    <line x1="640" y1="185" x2="640" y2="210" stroke="#14213D" stroke-width="2" marker-end="url(#ar2)"/>
+    <text x="650" y="200" font-size="11" fill="#15803D" font-family="JetBrains Mono">YES</text>
+    <line x1="820" y1="140" x2="950" y2="140" stroke="#C8102E" stroke-width="2" marker-end="url(#ar2R)"/>
+    <text x="870" y="132" font-size="11" fill="#C8102E" font-family="JetBrains Mono">NO</text>
+    <rect x="950" y="120" width="220" height="50" fill="#14213D"/>
+    <text x="1060" y="142" text-anchor="middle" fill="#ffffff" font-size="11" font-weight="700">WAIT</text>
+    <text x="1060" y="158" text-anchor="middle" fill="#C8102E" font-size="9" font-family="JetBrains Mono">NOT_RANGE</text>
+
+    <rect x="500" y="215" width="280" height="70" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="640" y="240" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">2. RANGE QUALITY CHECK</text>
+    <text x="640" y="258" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">BBW pct &lt; 40% · ADX &lt; 20 · Hurst &lt; 0.45</text>
+    <text x="640" y="272" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">confirm this is a TRADEABLE range</text>
+    <line x1="640" y1="285" x2="640" y2="310" stroke="#14213D" stroke-width="2" marker-end="url(#ar2)"/>
+
+    <polygon points="640,315 820,360 640,405 460,360" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="640" y="358" text-anchor="middle" font-size="11" font-weight="700" font-family="Tinos">range quality OK?</text>
+    <line x1="640" y1="405" x2="640" y2="430" stroke="#14213D" stroke-width="2" marker-end="url(#ar2)"/>
+    <text x="650" y="420" font-size="11" fill="#15803D" font-family="JetBrains Mono">YES</text>
+    <line x1="820" y1="360" x2="950" y2="360" stroke="#C8102E" stroke-width="2" marker-end="url(#ar2R)"/>
+    <text x="870" y="352" font-size="11" fill="#C8102E" font-family="JetBrains Mono">NO</text>
+    <rect x="950" y="340" width="220" height="50" fill="#14213D"/>
+    <text x="1060" y="362" text-anchor="middle" fill="#ffffff" font-size="11" font-weight="700">WAIT</text>
+    <text x="1060" y="378" text-anchor="middle" fill="#C8102E" font-size="9" font-family="JetBrains Mono">POOR_RANGE</text>
+
+    <rect x="500" y="435" width="280" height="60" fill="#14213D"/>
+    <text x="640" y="460" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700" font-family="Tinos">3. COMPUTE 4 INDICATORS</text>
+    <text x="640" y="478" text-anchor="middle" fill="#C8102E" font-size="10" font-family="JetBrains Mono">BB · RSI · ATR · Hurst (parallel)</text>
+    <line x1="640" y1="495" x2="640" y2="520" stroke="#14213D" stroke-width="2" marker-end="url(#ar2)"/>
+
+    <!-- 4 indicator cards -->
+    <rect x="200" y="525" width="220" height="120" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="310" y="548" text-anchor="middle" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">Bollinger Bands</text>
+    <text x="220" y="570" font-size="9" fill="#4A5568" font-family="JetBrains Mono">%B = (price-lower)/(upper-lower)</text>
+    <text x="220" y="586" font-size="9" fill="#4A5568" font-family="JetBrains Mono">%B &lt; 0.05 → strong oversold</text>
+    <text x="220" y="602" font-size="9" fill="#4A5568" font-family="JetBrains Mono">%B &gt; 0.95 → strong overbought</text>
+    <text x="220" y="618" font-size="9" fill="#4A5568" font-family="JetBrains Mono">score = |%B - 0.5| × 2</text>
+    <text x="220" y="636" font-size="9" fill="#C8102E" font-family="JetBrains Mono">weight: 0.30</text>
+
+    <rect x="440" y="525" width="220" height="120" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="550" y="548" text-anchor="middle" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">RSI</text>
+    <text x="460" y="570" font-size="9" fill="#4A5568" font-family="JetBrains Mono">14-period Wilder RSI</text>
+    <text x="460" y="586" font-size="9" fill="#4A5568" font-family="JetBrains Mono">RSI &lt; 30 → oversold (long)</text>
+    <text x="460" y="602" font-size="9" fill="#4A5568" font-family="JetBrains Mono">RSI &gt; 70 → overbought (short)</text>
+    <text x="460" y="618" font-size="9" fill="#4A5568" font-family="JetBrains Mono">score = |RSI - 50| / 50</text>
+    <text x="460" y="636" font-size="9" fill="#C8102E" font-family="JetBrains Mono">weight: 0.30</text>
+
+    <rect x="680" y="525" width="220" height="120" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="790" y="548" text-anchor="middle" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">ATR</text>
+    <text x="700" y="570" font-size="9" fill="#4A5568" font-family="JetBrains Mono">14-period · normalized</text>
+    <text x="700" y="586" font-size="9" fill="#4A5568" font-family="JetBrains Mono">ATR pct &lt; 60% = tradeable</text>
+    <text x="700" y="602" font-size="9" fill="#4A5568" font-family="JetBrains Mono">lower ATR = better MR</text>
+    <text x="700" y="618" font-size="9" fill="#4A5568" font-family="JetBrains Mono">score = 1 - (atr_pct / 0.6)</text>
+    <text x="700" y="636" font-size="9" fill="#C8102E" font-family="JetBrains Mono">weight: 0.20</text>
+
+    <rect x="920" y="525" width="220" height="120" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="1030" y="548" text-anchor="middle" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">Hurst Exponent</text>
+    <text x="940" y="570" font-size="9" fill="#4A5568" font-family="JetBrains Mono">R/S analysis · 100-bar</text>
+    <text x="940" y="586" font-size="9" fill="#4A5568" font-family="JetBrains Mono">H &lt; 0.5 = mean-reverting</text>
+    <text x="940" y="602" font-size="9" fill="#4A5568" font-family="JetBrains Mono">lower H = stronger MR</text>
+    <text x="940" y="618" font-size="9" fill="#4A5568" font-family="JetBrains Mono">score = (0.5 - H) / 0.5</text>
+    <text x="940" y="636" font-size="9" fill="#C8102E" font-family="JetBrains Mono">weight: 0.20</text>
+
+    <line x1="310" y1="645" x2="580" y2="680" stroke="#14213D" stroke-width="1.5" marker-end="url(#ar2)"/>
+    <line x1="550" y1="645" x2="610" y2="680" stroke="#14213D" stroke-width="1.5" marker-end="url(#ar2)"/>
+    <line x1="790" y1="645" x2="670" y2="680" stroke="#14213D" stroke-width="1.5" marker-end="url(#ar2)"/>
+    <line x1="1030" y1="645" x2="700" y2="680" stroke="#14213D" stroke-width="1.5" marker-end="url(#ar2)"/>
+
+    <rect x="460" y="680" width="360" height="70" fill="#14213D"/>
+    <text x="640" y="705" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="Tinos">4. COMPUTE MR SCORE</text>
+    <text x="640" y="725" text-anchor="middle" fill="#C8102E" font-size="10" font-family="JetBrains Mono">MR = 0.30·BB + 0.30·RSI + 0.20·ATR + 0.20·Hurst</text>
+    <text x="640" y="740" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="9" font-family="JetBrains Mono">range: [0, 1] · 1.0 = perfect MR setup</text>
+    <line x1="640" y1="750" x2="640" y2="775" stroke="#14213D" stroke-width="2" marker-end="url(#ar2)"/>
+
+    <polygon points="640,780 820,825 640,870 460,825" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="640" y="818" text-anchor="middle" font-size="11" font-weight="700" font-family="Tinos">MR_score &gt; 0.65?</text>
+    <text x="640" y="835" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">threshold for initial entry</text>
+    <line x1="640" y1="870" x2="640" y2="895" stroke="#14213D" stroke-width="2" marker-end="url(#ar2)"/>
+    <text x="650" y="885" font-size="11" fill="#15803D" font-family="JetBrains Mono">YES</text>
+    <line x1="820" y1="825" x2="950" y2="825" stroke="#C8102E" stroke-width="2" marker-end="url(#ar2R)"/>
+    <text x="870" y="817" font-size="11" fill="#C8102E" font-family="JetBrains Mono">NO</text>
+    <rect x="950" y="805" width="220" height="50" fill="#14213D"/>
+    <text x="1060" y="827" text-anchor="middle" fill="#ffffff" font-size="11" font-weight="700">WAIT</text>
+    <text x="1060" y="843" text-anchor="middle" fill="#C8102E" font-size="9" font-family="JetBrains Mono">WEAK_SIGNAL</text>
+
+    <rect x="500" y="900" width="280" height="60" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="640" y="925" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">5. DETERMINE DIRECTION</text>
+    <text x="640" y="943" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">price &lt; lower BB ∧ RSI &lt; 30 → LONG</text>
+    <text x="640" y="957" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">price &gt; upper BB ∧ RSI &gt; 70 → SHORT</text>
+    <line x1="640" y1="960" x2="640" y2="985" stroke="#14213D" stroke-width="2" marker-end="url(#ar2)"/>
+
+    <rect x="500" y="990" width="280" height="60" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="640" y="1015" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">6. SET STOP + TARGET</text>
+    <text x="640" y="1033" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">stop = entry ± 1.5 × ATR</text>
+    <text x="640" y="1047" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">target = BB mid (20-SMA)</text>
+    <line x1="640" y1="1050" x2="640" y2="1075" stroke="#14213D" stroke-width="2" marker-end="url(#ar2)"/>
+
+    <rect x="500" y="1080" width="280" height="60" fill="#FEF3F2" stroke="#C8102E" stroke-width="2"/>
+    <text x="640" y="1105" text-anchor="middle" font-size="12" font-weight="700" fill="#C8102E" font-family="Tinos">7. RISK GATE CHECK</text>
+    <text x="640" y="1123" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">concurrent &lt; 2 · daily loss &lt; 1.5%</text>
+    <text x="640" y="1137" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">recovery level OK · margin &gt; 35%</text>
+    <line x1="640" y1="1140" x2="640" y2="1165" stroke="#14213D" stroke-width="2" marker-end="url(#ar2)"/>
+
+    <polygon points="640,1170 820,1215 640,1260 460,1215" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="640" y="1213" text-anchor="middle" font-size="11" font-weight="700" font-family="Tinos">risk approved?</text>
+    <line x1="640" y1="1260" x2="640" y2="1285" stroke="#15803D" stroke-width="2" marker-end="url(#ar2G)"/>
+    <text x="650" y="1275" font-size="11" fill="#15803D" font-family="JetBrains Mono">YES</text>
+    <line x1="820" y1="1215" x2="950" y2="1215" stroke="#C8102E" stroke-width="2" marker-end="url(#ar2R)"/>
+    <text x="870" y="1207" font-size="11" fill="#C8102E" font-family="JetBrains Mono">NO</text>
+    <rect x="950" y="1195" width="220" height="50" fill="#14213D"/>
+    <text x="1060" y="1217" text-anchor="middle" fill="#ffffff" font-size="11" font-weight="700">REJECT</text>
+    <text x="1060" y="1233" text-anchor="middle" fill="#C8102E" font-size="9" font-family="JetBrains Mono">RISK_REJECT</text>
+
+    <rect x="500" y="1290" width="280" height="60" fill="#14213D"/>
+    <text x="640" y="1315" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700" font-family="Tinos">8. COMPUTE POSITION SIZE</text>
+    <text x="640" y="1333" text-anchor="middle" fill="#C8102E" font-size="10" font-family="JetBrains Mono">risk% = 0.8% × conf × recovery × vol</text>
+    <text x="640" y="1347" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="9" font-family="JetBrains Mono">recovery = {1.0, 1.3, 1.6} by level</text>
+    <line x1="640" y1="1350" x2="640" y2="1375" stroke="#14213D" stroke-width="2" marker-end="url(#ar2)"/>
+
+    <ellipse cx="640" cy="1410" rx="200" ry="26" fill="#15803D"/>
+    <text x="640" y="1417" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="Tinos">END — Emit MR Signal to Execution</text>
+  </svg>
+</div>
+</body>
+</html>

@@ -1,0 +1,111 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>d05</title>
+<link href="https://fonts.googleapis.com/css2?family=Tinos:wght@400;700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { width: 1600px; height: 1200px; background: #ffffff; font-family: 'Inter', sans-serif; color: #14213D; padding: 50px 60px; }
+.h-title { font-family: 'Tinos', serif; font-size: 30px; font-weight: 900; letter-spacing: -0.5px; }
+.h-sub { font-family: 'Inter', sans-serif; font-size: 13px; color: #4A5568; margin-top: 4px; }
+.h-rule { width: 80px; height: 3px; background: #C8102E; margin: 14px 0 24px 0; }
+
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+
+.card { border: 1px solid #CBD5E1; border-radius: 6px; overflow: hidden; }
+.card-head { padding: 12px 18px; color: #fff; font-family: 'Tinos', serif; font-size: 14px; font-weight: 700; }
+.card.green .card-head { background: #15803D; }
+.card.yellow .card-head { background: #B45309; }
+.card.red .card-head { background: #C8102E; }
+.card.actions .card-head { background: #14213D; }
+.card-body { padding: 12px 16px; }
+
+.status-row { padding: 8px 0; border-bottom: 1px dashed #CBD5E1; }
+.status-row:last-child { border-bottom: none; }
+.status-row .k { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #4A5568; font-weight: 700; }
+.status-row .v { font-family: 'Inter', sans-serif; font-size: 10.5px; color: #14213D; margin-top: 2px; line-height: 1.5; }
+.status-row .v b { color: #14213D; }
+
+.actions-list { padding: 0; }
+.action { padding: 10px 0; border-bottom: 1px dashed #CBD5E1; }
+.action:last-child { border-bottom: none; }
+.action .head { display: flex; justify-content: space-between; align-items: center; }
+.action .id { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C8102E; font-weight: 700; }
+.action .trigger { font-family: 'JetBrains Mono', monospace; font-size: 8.5px; padding: 2px 6px; border-radius: 2px; color: #fff; font-weight: 700; }
+.trigger.yellow { background: #B45309; }
+.trigger.red { background: #C8102E; }
+.action .t { font-family: 'Tinos', serif; font-size: 12.5px; font-weight: 700; color: #14213D; margin: 3px 0 4px 0; }
+.action .d { font-family: 'Inter', sans-serif; font-size: 10px; color: #4A5568; line-height: 1.5; }
+.action .d b { color: #14213D; }
+.action .effect { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #14213D; margin-top: 4px; padding: 5px 9px; background: #F1F5F9; border-left: 2px solid #C8102E; border-radius: 2px; line-height: 1.5; }
+.action .effect b { color: #C8102E; }
+
+.matrix { margin-top: 22px; }
+table { width: 100%; border-collapse: collapse; }
+th { background: #14213D; color: #fff; padding: 9px 12px; text-align: left; font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 1px; }
+td { padding: 9px 12px; border-bottom: 1px solid #E2E8F0; font-family: 'Inter', sans-serif; font-size: 10.5px; vertical-align: top; }
+tr:nth-child(even) td { background: #F8FAFC; }
+td.status { font-family: 'JetBrains Mono', monospace; font-weight: 700; text-align: center; font-size: 11px; padding: 6px 8px; border-radius: 2px; color: #fff; }
+td.status.green { background: #15803D; }
+td.status.yellow { background: #B45309; }
+td.status.red { background: #C8102E; }
+td.c { font-family: 'JetBrains Mono', monospace; color: #14213D; font-size: 9.5px; }
+</style></head>
+<body>
+<div class="h-title">Decision Layer &amp; Control Actions</div>
+<div class="h-sub">3-band system status → 5 control actions · automated · audited · reversible (except emergency)</div>
+<div class="h-rule"></div>
+
+<div class="cols">
+  <div class="card green">
+    <div class="card-head">GREEN STATUS — System Healthy</div>
+    <div class="card-body">
+      <div class="status-row"><div class="k">CRITERIA</div><div class="v">OverallHealth ≥ 85 AND all sub-scores ≥ 80 AND 0 critical detectors firing</div></div>
+      <div class="status-row"><div class="k">MODEL INFLUENCE</div><div class="v"><b>Normal weights</b> — ensemble voter uses design weights (25% each)</div></div>
+      <div class="status-row"><div class="k">RISK MODE</div><div class="v"><b>Normal</b> — full position sizing, standard stops</div></div>
+      <div class="status-row"><div class="k">TRADING</div><div class="v"><b>Live trading authorized</b> — all strategies active</div></div>
+      <div class="status-row"><div class="k">ALERTS</div><div class="v">P3 informational · Slack #titan-ceo only</div></div>
+    </div>
+  </div>
+  <div class="card yellow">
+    <div class="card-head">YELLOW STATUS — Caution / Degrading</div>
+    <div class="card-body">
+      <div class="status-row"><div class="k">CRITERIA</div><div class="v">OverallHealth 70-84 OR any sub-score 70-79 OR 1+ detectors firing (non-critical)</div></div>
+      <div class="status-row"><div class="k">MODEL INFLUENCE</div><div class="v"><b>Reduced 25-50%</b> on flagged models · ensemble voter downweights</div></div>
+      <div class="status-row"><div class="k">RISK MODE</div><div class="v"><b>Defensive</b> — position size ×0.75, stops widened 1.25×</div></div>
+      <div class="status-row"><div class="k">TRADING</div><div class="v"><b>Live trading continues</b> at reduced size · no new strategies activated</div></div>
+      <div class="status-row"><div class="k">ALERTS</div><div class="v">P2 · PagerDuty + Slack · 15-min re-evaluation</div></div>
+    </div>
+  </div>
+
+  <div class="card red">
+    <div class="card-head">RED STATUS — Critical / Emergency</div>
+    <div class="card-body">
+      <div class="status-row"><div class="k">CRITERIA</div><div class="v">OverallHealth &lt; 70 OR RiskScore &lt; 70 OR any critical detector firing OR kill-switch triggered</div></div>
+      <div class="status-row"><div class="k">MODEL INFLUENCE</div><div class="v"><b>Failing models disabled</b> · ensemble may operate with 2/4 models if quorum still met</div></div>
+      <div class="status-row"><div class="k">RISK MODE</div><div class="v"><b>Emergency</b> — positions flattened &lt;500ms · capital preservation mode 24h</div></div>
+      <div class="status-row"><div class="k">TRADING</div><div class="v"><b>HALTED</b> — no new entries · existing positions managed defensively</div></div>
+      <div class="status-row"><div class="k">ALERTS</div><div class="v">P1 · PagerDuty immediate · CTO + Risk Officer paged</div></div>
+    </div>
+  </div>
+  <div class="card actions">
+    <div class="card-head">5 Control Actions</div>
+    <div class="card-body">
+      <div class="action"><div class="head"><div class="id">ACTION-1</div><div class="trigger yellow">YELLOW</div></div><div class="t">Reduce Model Influence</div><div class="d">Downweight flagged model in ensemble voter by 25-50%. <b>Reversible</b> when score recovers.</div><div class="effect"><b>Effect:</b> ensemble weight × 0.5-0.75 · quorum re-evaluated</div></div>
+      <div class="action"><div class="head"><div class="id">ACTION-2</div><div class="trigger green">GREEN</div></div><div class="t">Increase Model Influence</div><div class="d">Restore weight to design value after recovery. <b>Staircase</b>: 50%→75%→100% over 3 cycles.</div><div class="effect"><b>Effect:</b> weight restored · 3-cycle staircase verification</div></div>
+      <div class="action"><div class="head"><div class="id">ACTION-3</div><div class="trigger red">RED</div></div><div class="t">Disable Failing Model</div><div class="d">Hard-disable model in ensemble. Requires <b>manual re-enable</b> after review. Quorum check.</div><div class="effect"><b>Effect:</b> model weight = 0 · quorum drops to 3/4 · manual re-enable required</div></div>
+      <div class="action"><div class="head"><div class="id">ACTION-4</div><div class="trigger red">RED</div></div><div class="t">Emergency Risk Reduction</div><div class="d">Trigger risk engine <b>emergency mode</b>: flatten positions &lt;500ms, halt new entries, 24h protective.</div><div class="effect"><b>Effect:</b> risk mode = EMERGENCY · flatten &lt;500ms · 24h protective</div></div>
+      <div class="action"><div class="head"><div class="id">ACTION-5</div><div class="trigger red">RED</div></div><div class="t">Capital Preservation Mode</div><div class="d">Sustained RED (&gt;30min): <b>flatten all + 24h no-trade</b>. Resume only after manual sign-off.</div><div class="effect"><b>Effect:</b> all flat · 24h no new entries · manual resume required</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="matrix">
+  <table>
+    <thead><tr><th style="width:80px">STATUS</th><th style="width:180px">TRIGGER</th><th style="width:200px">MODEL ACTIONS</th><th style="width:200px">RISK ACTIONS</th><th style="width:160px">TRADING</th><th style="width:120px">ALERT</th></tr></thead>
+    <tbody>
+      <tr><td class="status green">GREEN</td><td>Health ≥ 85 · 0 detectors</td><td class="c">Normal weights (25% each)</td><td class="c">Normal mode · full size</td><td class="c">Live trading</td><td class="c">P3 Slack</td></tr>
+      <tr><td class="status yellow">YELLOW</td><td>Health 70-84 · 1+ detector</td><td class="c">Reduce flagged 25-50%</td><td class="c">Defensive · size ×0.75</td><td class="c">Reduced size</td><td class="c">P2 PagerDuty</td></tr>
+      <tr><td class="status red">RED</td><td>Health &lt; 70 · critical detector</td><td class="c">Disable failing · quorum check</td><td class="c">Emergency · flatten &lt;500ms</td><td class="c">HALTED</td><td class="c">P1 PagerDuty</td></tr>
+      <tr><td class="status red">RED+PRESERVE</td><td>RED &gt; 30min sustained</td><td class="c">All non-critical disabled</td><td class="c">Capital preservation · 24h flat</td><td class="c">HALTED 24h</td><td class="c">P1 + CTO paged</td></tr>
+    </tbody>
+  </table>
+</div>
+</body></html>

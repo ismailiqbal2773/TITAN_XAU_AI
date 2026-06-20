@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Retraining Framework — Architecture</title>
+<style>
+  @page { size: 1600px 1100px; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #ffffff; font-family: 'Tinos','FreeSerif',serif; color: #14213D; }
+  .canvas { width: 1600px; height: 1100px; padding: 50px 60px; box-sizing: border-box; }
+  .title-bar { display: flex; align-items: baseline; gap: 18px; border-bottom: 2px solid #14213D; padding-bottom: 12px; margin-bottom: 24px; }
+  .title-bar .num { font-size: 48px; font-weight: 900; color: #C8102E; line-height: 1; }
+  .title-bar h1 { font-size: 28px; font-weight: 700; margin: 0; }
+  .title-bar .sub { font-size: 13px; color: #4A5568; margin-left: auto; font-family: 'JetBrains Mono',monospace; }
+  svg { display: block; margin: 0 auto; background: #FAFBFC; border: 1px solid #E2E8F0; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="title-bar">
+    <span class="num">01</span>
+    <h1>Retraining Framework — Internal Architecture (5 Layers)</h1>
+    <span class="sub">Schedule · Drift · Retrain · Champion-Challenger · Governance</span>
+  </div>
+  <svg width="1480" height="850" viewBox="0 0 1480 850">
+    <rect x="220" y="40" width="1060" height="800" fill="#FAFBFC" stroke="#C8102E" stroke-width="2" rx="8"/>
+    <rect x="220" y="40" width="1060" height="36" fill="#C8102E" rx="8"/>
+    <text x="750" y="63" text-anchor="middle" fill="#ffffff" font-size="14" font-weight="700" font-family="Tinos">Retraining Framework (RTF)</text>
+
+    <!-- L1 Schedule -->
+    <text x="250" y="105" font-size="12" font-weight="700" fill="#C8102E" font-family="JetBrains Mono">L1 · RETRAIN SCHEDULER</text>
+    <rect x="250" y="115" width="490" height="80" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="495" y="140" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">WeeklyRetrainer</text>
+    <text x="495" y="158" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">Sunday 22:00 UTC · XGBoost + LSTM + Transformer</text>
+    <text x="495" y="172" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">24mo rolling data · walk-forward 5 folds · ~6h total</text>
+    <text x="495" y="186" text-anchor="middle" font-size="9" fill="#C8102E" font-family="JetBrains Mono" font-weight="bold">→ new model version → validation → canary</text>
+
+    <rect x="760" y="115" width="490" height="80" fill="#FEFBEB" stroke="#B45309" stroke-width="2"/>
+    <text x="1005" y="140" text-anchor="middle" font-size="12" font-weight="700" fill="#B45309" font-family="Tinos">MonthlyRetrainer</text>
+    <text x="1005" y="158" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">1st Sunday · RL (PPO) + HMM retrain</text>
+    <text x="1005" y="172" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">10k RL episodes + 90-day HMM session data · ~12h</text>
+    <text x="1005" y="186" text-anchor="middle" font-size="9" fill="#C8102E" font-family="JetBrains Mono" font-weight="bold">→ heavier compute · separate validation track</text>
+
+    <!-- L2 Drift Detection -->
+    <text x="250" y="225" font-size="12" font-weight="700" fill="#C8102E" font-family="JetBrains Mono">L2 · DRIFT &amp; DECAY DETECTION (continuous)</text>
+    <rect x="250" y="235" width="320" height="90" fill="#FEF3F2" stroke="#C8102E" stroke-width="2"/>
+    <text x="410" y="258" text-anchor="middle" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">ModelDriftDetector</text>
+    <text x="410" y="276" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">PSI per feature (daily)</text>
+    <text x="410" y="290" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">PSI > 0.20 = alert · > 0.25 = auto-retrain</text>
+    <text x="410" y="304" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">concept drift: F1 drop > 10%</text>
+    <text x="410" y="318" text-anchor="middle" font-size="9" fill="#C8102E" font-family="JetBrains Mono" font-weight="bold">→ triggers emergency retrain</text>
+
+    <rect x="590" y="235" width="320" height="90" fill="#FEF3F2" stroke="#C8102E" stroke-width="2"/>
+    <text x="750" y="258" text-anchor="middle" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">PerformanceDecayDetector</text>
+    <text x="750" y="276" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">rolling 100-trade Sharpe vs baseline</text>
+    <text x="750" y="290" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">drop > 15% = alert · > 25% = emergency</text>
+    <text x="750" y="304" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">per-model: XGBoost, LSTM, Transformer, RL</text>
+    <text x="750" y="318" text-anchor="middle" font-size="9" fill="#C8102E" font-family="JetBrains Mono" font-weight="bold">→ triggers retrain + weight rebalance</text>
+
+    <rect x="930" y="235" width="320" height="90" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="1090" y="258" text-anchor="middle" font-size="11" font-weight="700" font-family="Tinos">DataQualityMonitor</text>
+    <text x="1090" y="276" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">NaN rate · outlier rate · feed staleness</text>
+    <text x="1090" y="290" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">feature coverage > 99.5%</text>
+    <text x="1090" y="304" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">label quality (forward returns sanity)</text>
+    <text x="1090" y="318" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">blocks retrain if data quality fails</text>
+
+    <!-- L3 Retrain Pipeline -->
+    <text x="250" y="355" font-size="12" font-weight="700" fill="#C8102E" font-family="JetBrains Mono">L3 · RETRAIN PIPELINE (automated · CI-gated)</text>
+    <rect x="250" y="365" width="320" height="80" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="410" y="388" text-anchor="middle" font-size="11" font-weight="700" font-family="Tinos">DataPreparation</text>
+    <text x="410" y="406" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">24mo × 6 brokers · feature engineering</text>
+    <text x="410" y="420" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">label construction · 80/10/10 split</text>
+    <text x="410" y="438" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">data quality gate (blocks if fail)</text>
+
+    <rect x="590" y="365" width="320" height="80" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="750" y="388" text-anchor="middle" font-size="11" font-weight="700" font-family="Tinos">ModelTrainer</text>
+    <text x="750" y="406" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">parallel: XGBoost + LSTM + Transformer</text>
+    <text x="750" y="420" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">walk-forward 5 folds · hyperparameter search</text>
+    <text x="750" y="438" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">Optuna TPE · 200 trials per model</text>
+
+    <rect x="930" y="365" width="320" height="80" fill="#FEF3F2" stroke="#C8102E" stroke-width="2"/>
+    <text x="1090" y="388" text-anchor="middle" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">ValidationGate</text>
+    <text x="1090" y="406" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">per-model F1 > 0.60 · ensemble Sharpe > 2.0</text>
+    <text x="1090" y="420" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">Sharpe drop < 5% vs champion</text>
+    <text x="1090" y="438" text-anchor="middle" font-size="9" fill="#C8102E" font-family="JetBrains Mono" font-weight="bold">→ FAIL = reject · PASS = promote to challenger</text>
+
+    <!-- L4 Champion-Challenger -->
+    <text x="250" y="475" font-size="12" font-weight="700" fill="#C8102E" font-family="JetBrains Mono">L4 · CHAMPION-CHALLENGER (A/B testing · canary deploy)</text>
+    <rect x="250" y="485" width="320" height="90" fill="#14213D"/>
+    <text x="410" y="510" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700" font-family="Tinos">ChampionModel</text>
+    <text x="410" y="530" text-anchor="middle" fill="#C8102E" font-size="10" font-family="JetBrains Mono">current production model</text>
+    <text x="410" y="545" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="9" font-family="JetBrains Mono">100% traffic · versioned in MLflow</text>
+    <text x="410" y="560" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="9" font-family="JetBrains Mono">rollback target if challenger fails</text>
+
+    <rect x="590" y="485" width="320" height="90" fill="#FEFBEB" stroke="#B45309" stroke-width="2"/>
+    <text x="750" y="510" text-anchor="middle" font-size="12" font-weight="700" fill="#B45309" font-family="Tinos">ChallengerModel</text>
+    <text x="750" y="530" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">newly retrained model</text>
+    <text x="750" y="545" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">canary: 10% → A/B: 50% → promote: 100%</text>
+    <text x="750" y="560" text-anchor="middle" font-size="9" fill="#C8102E" font-family="JetBrains Mono" font-weight="bold">must beat champion on Sharpe + DD</text>
+
+    <rect x="930" y="485" width="320" height="90" fill="#14213D"/>
+    <text x="1090" y="510" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700" font-family="Tinos">VersionController</text>
+    <text x="1090" y="530" text-anchor="middle" fill="#C8102E" font-size="10" font-family="JetBrains Mono">MLflow registry · full version history</text>
+    <text x="1090" y="545" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="9" font-family="JetBrains Mono">rollback in < 30s (previous version)</text>
+    <text x="1090" y="560" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="9" font-family="JetBrains Mono">audit: every promote/rollback logged</text>
+
+    <!-- L5 Governance -->
+    <text x="250" y="605" font-size="12" font-weight="700" fill="#C8102E" font-family="JetBrains Mono">L5 · GOVERNANCE &amp; MONITORING</text>
+    <rect x="250" y="615" width="320" height="80" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="410" y="638" text-anchor="middle" font-size="11" font-weight="700" font-family="Tinos">GovernanceBoard</text>
+    <text x="410" y="656" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">CTO + Lead Quant + Risk Officer</text>
+    <text x="410" y="670" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">monthly review · quarterly audit</text>
+    <text x="410" y="684" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">approval for Aggressive mode changes</text>
+
+    <rect x="590" y="615" width="320" height="80" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="750" y="638" text-anchor="middle" font-size="11" font-weight="700" font-family="Tinos">RetrainMonitor</text>
+    <text x="750" y="656" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">training progress · GPU utilization</text>
+    <text x="750" y="670" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">validation metrics · canary performance</text>
+    <text x="750" y="684" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">auto-rollback on Sharpe drop > 10%</text>
+
+    <rect x="930" y="615" width="320" height="80" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="1090" y="638" text-anchor="middle" font-size="11" font-weight="700" font-family="Tinos">AuditTrail</text>
+    <text x="1090" y="656" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">every retrain · every promote · every rollback</text>
+    <text x="1090" y="670" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">model lineage (data → features → model)</text>
+    <text x="1090" y="684" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">hash-chained WORM store · immutable</text>
+
+    <!-- Timeline -->
+    <text x="250" y="725" font-size="12" font-weight="700" fill="#C8102E" font-family="JetBrains Mono">L6 · RETRAIN CALENDAR (recurring schedule)</text>
+    <rect x="250" y="735" width="1000" height="80" fill="#F8FAFC" stroke="#14213D"/>
+    <g font-family="JetBrains Mono" font-size="10" fill="#4A5568">
+      <text x="270" y="760">Weekly (Sun 22:00 UTC):</text>
+      <text x="500" y="760" fill="#14213D" font-weight="bold">XGBoost (15min) → LSTM (2h) → Transformer (4h) → Validation (30min) → Total ~6h</text>
+      <text x="270" y="780">Monthly (1st Sun):</text>
+      <text x="500" y="780" fill="#B45309" font-weight="bold">RL PPO (8h) + HMM retrain (30min) → Validation (1h) → Total ~12h</text>
+      <text x="270" y="800">Emergency (triggered):</text>
+      <text x="500" y="800" fill="#C8102E" font-weight="bold">PSI > 0.25 or F1 drop > 15% → immediate retrain + canary skip</text>
+    </g>
+  </svg>
+</div>
+</body>
+</html>

@@ -1,0 +1,139 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>d05</title>
+<link href="https://fonts.googleapis.com/css2?family=Tinos:wght@400;700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { width: 1600px; height: 1100px; background: #ffffff; font-family: 'Inter', sans-serif; color: #14213D; padding: 50px 60px; }
+.h-title { font-family: 'Tinos', serif; font-size: 30px; font-weight: 900; letter-spacing: -0.5px; }
+.h-sub { font-family: 'Inter', sans-serif; font-size: 13px; color: #4A5568; margin-top: 4px; }
+.h-rule { width: 80px; height: 3px; background: #C8102E; margin: 14px 0 24px 0; }
+
+.cols { display: grid; grid-template-columns: 1.1fr 1fr; gap: 22px; }
+
+.report-card { border: 1px solid #CBD5E1; border-radius: 6px; overflow: hidden; }
+.report-head { background: #14213D; color: #fff; padding: 12px 18px; }
+.report-head .lbl { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C8102E; letter-spacing: 2px; font-weight: 700; }
+.report-head .t { font-family: 'Tinos', serif; font-size: 15px; font-weight: 700; margin-top: 2px; }
+.report-body { padding: 14px 18px; }
+.report-row { display: grid; grid-template-columns: 130px 1fr; gap: 12px; padding: 7px 0; border-bottom: 1px dashed #E2E8F0; font-family: 'Inter', sans-serif; font-size: 10.5px; }
+.report-row:last-child { border-bottom: none; }
+.report-row .k { font-family: 'JetBrains Mono', monospace; font-size: 9.5px; font-weight: 700; color: #14213D; letter-spacing: 0.5px; }
+.report-row .v { color: #4A5568; line-height: 1.5; }
+.report-row .v b { color: #C8102E; }
+
+.tiers-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-top: 16px; }
+.tier { background: #F8FAFC; border: 1px solid #CBD5E1; border-top: 3px solid #14213D; border-radius: 6px; padding: 12px; }
+.tier.exec { border-top-color: #C8102E; }
+.tier.reg { border-top-color: #B45309; }
+.tier .aud { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C8102E; font-weight: 700; letter-spacing: 1.5px; }
+.tier .t { font-family: 'Tinos', serif; font-size: 13px; font-weight: 700; color: #14213D; margin: 4px 0 6px 0; }
+.tier .d { font-family: 'Inter', sans-serif; font-size: 9.5px; color: #4A5568; line-height: 1.5; }
+.tier .fmt { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #14213D; margin-top: 6px; padding-top: 6px; border-top: 1px dashed #CBD5E1; }
+
+.dist-card { background: #14213D; color: #fff; border-radius: 6px; padding: 16px 18px; }
+.dist-card .lbl { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #C8102E; letter-spacing: 2px; font-weight: 700; }
+.dist-card .h { font-family: 'Tinos', serif; font-size: 14px; font-weight: 700; margin-top: 4px; }
+
+.chart-table { width: 100%; margin-top: 12px; border-collapse: collapse; }
+.chart-table th { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #94A3B8; letter-spacing: 1.5px; text-align: left; padding: 6px 8px; border-bottom: 1px solid #4A5568; }
+.chart-table td { font-family: 'Inter', sans-serif; font-size: 10.5px; padding: 6px 8px; border-bottom: 1px solid #2D3748; }
+.chart-table td.metric { font-weight: 700; color: #fff; }
+.chart-table td.val { font-family: 'JetBrains Mono', monospace; }
+.chart-table td.pass { color: #15803D; font-family: 'JetBrains Mono', monospace; font-weight: 700; }
+
+.histogram { margin-top: 14px; padding-top: 12px; border-top: 1px solid #4A5568; }
+.histogram .lbl { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C8102E; letter-spacing: 1.5px; font-weight: 700; }
+.bar-row { display: grid; grid-template-columns: 60px 1fr 50px; gap: 8px; align-items: center; margin-top: 6px; font-family: 'JetBrains Mono', monospace; font-size: 9px; }
+.bar-row .name { color: #94A3B8; }
+.bar-row .track { background: rgba(255,255,255,0.08); height: 12px; border-radius: 2px; overflow: hidden; }
+.bar-row .fill { height: 100%; background: linear-gradient(90deg, #14213D 0%, #C8102E 100%); }
+.bar-row .val { color: #C8102E; font-weight: 700; text-align: right; }
+
+.footer-block { margin-top: 18px; padding: 14px 18px; background: #F1F5F9; border-left: 4px solid #C8102E; border-radius: 4px; }
+.footer-block .lbl { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C8102E; letter-spacing: 2px; font-weight: 700; }
+.footer-block .row { display: grid; grid-template-columns: 120px 1fr; gap: 10px; padding: 4px 0; font-family: 'Inter', sans-serif; font-size: 10.5px; }
+.footer-block .row .k { font-family: 'JetBrains Mono', monospace; font-size: 9.5px; font-weight: 700; color: #14213D; }
+.footer-block .row .v { color: #4A5568; line-height: 1.5; }
+.footer-block .row .v b { color: #14213D; }
+</style></head>
+<body>
+<div class="h-title">Reporting System &amp; Worked Example</div>
+<div class="h-sub">3-tier reporting · S3 archived 7 years · distribution histograms visualize strategy robustness</div>
+<div class="h-rule"></div>
+
+<div class="cols">
+  <div>
+    <div class="report-card">
+      <div class="report-head"><div class="lbl">REPORTING PIPELINE</div><div class="t">Generation · Archive · Dispatch</div></div>
+      <div class="report-body">
+        <div class="report-row"><div class="k">ARCHIVE</div><div class="v">All reports to <b>s3://titan-mc/{strategy}/{version}/{timestamp}/</b> · 7-year retention · RSA-2048 signed manifest</div></div>
+        <div class="report-row"><div class="k">DISPATCH</div><div class="v">PagerDuty (P1 for REJECT, P3 for PASS) · Slack #titan-mc · Email to stakeholders · Live dashboard</div></div>
+        <div class="report-row"><div class="k">VERSIONING</div><div class="v">4-tuple: <b>strategy + data + cost-profile + engine + seed</b>. Full reproducibility — same tuple = identical sims.</div></div>
+        <div class="report-row"><div class="k">COMPARISON</div><div class="v">Each MC compared against last 5 MC runs of same strategy. <b>&gt; 5 pp Survival Score drop</b> = regression P1 alert.</div></div>
+        <div class="report-row"><div class="k">CADENCE</div><div class="v">Pre-deployment (mandatory) · Quarterly scheduled · On-demand via CLI / REST</div></div>
+      </div>
+    </div>
+    <div style="margin-top:16px">
+      <div class="tiers-grid">
+        <div class="tier exec">
+          <div class="aud">EXECUTIVE</div>
+          <div class="t">1-page brief</div>
+          <div class="d">Verdict, Survival Score headline, P5/P50/P95 metrics, distribution histogram thumbnail, comparison to last 5 MC runs.</div>
+          <div class="fmt">PDF · 1 page</div>
+        </div>
+        <div class="tier">
+          <div class="aud">TECHNICAL</div>
+          <div class="t">Full sim dump</div>
+          <div class="d">All 10k sim results, per-dimension sensitivity, equity curve samples, percentile distributions, parameter robustness.</div>
+          <div class="fmt">PDF + JSON · 15-25 pp</div>
+        </div>
+        <div class="tier reg">
+          <div class="aud">REGULATORY</div>
+          <div class="t">Audit trail</div>
+          <div class="d">Random seed, methodology, distribution parameters, reproducibility manifest, sign-off chain.</div>
+          <div class="fmt">PDF · 8-12 pp</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="dist-card">
+    <div class="lbl">WORKED EXAMPLE · TREND v3.2 MC</div>
+    <div class="h">10,000 simulations · 742 trades each · seed = 42</div>
+    <table class="chart-table">
+      <thead><tr><th>Metric</th><th>P5</th><th>P25</th><th>P50</th><th>P75</th><th>P95</th><th>Verdict</th></tr></thead>
+      <tbody>
+        <tr><td class="metric">Sharpe</td><td class="val">1.12</td><td class="val">1.78</td><td class="val">2.14</td><td class="val">2.51</td><td class="val">3.02</td><td class="pass">PASS</td></tr>
+        <tr><td class="metric">Max DD</td><td class="val">8.4%</td><td class="val">6.8%</td><td class="val">5.4%</td><td class="val">4.1%</td><td class="val">2.9%</td><td class="pass">PASS</td></tr>
+        <tr><td class="metric">CAGR</td><td class="val">12.1%</td><td class="val">22.4%</td><td class="val">32.7%</td><td class="val">44.2%</td><td class="val">58.6%</td><td class="pass">PASS</td></tr>
+        <tr><td class="metric">Final Equity</td><td class="val">1.14×</td><td class="val">1.27×</td><td class="val">1.41×</td><td class="val">1.58×</td><td class="val">1.84×</td><td class="pass">PASS</td></tr>
+        <tr><td class="metric">Profit Factor</td><td class="val">1.42</td><td class="val">1.68</td><td class="val">1.84</td><td class="val">2.04</td><td class="val">2.38</td><td class="pass">PASS</td></tr>
+      </tbody>
+    </table>
+    <div class="histogram">
+      <div class="lbl">SURVIVAL SCORE HISTOGRAM (10 BINS)</div>
+      <div class="bar-row"><div class="name">&lt;80</div><div class="track"><div class="fill" style="width:1%"></div></div><div class="val">0.1%</div></div>
+      <div class="bar-row"><div class="name">80-85</div><div class="track"><div class="fill" style="width:2%"></div></div><div class="val">0.4%</div></div>
+      <div class="bar-row"><div class="name">85-90</div><div class="track"><div class="fill" style="width:8%"></div></div><div class="val">1.8%</div></div>
+      <div class="bar-row"><div class="name">90-95</div><div class="track"><div class="fill" style="width:18%"></div></div><div class="val">3.5%</div></div>
+      <div class="bar-row"><div class="name">95-100</div><div class="track"><div class="fill" style="width:95%"></div></div><div class="val">94.2%</div></div>
+    </div>
+    <div style="margin-top:14px;padding-top:12px;border-top:1px solid #4A5568;display:grid;grid-template-columns:1fr 1fr;gap:12px;font-family:'JetBrains Mono',monospace;font-size:10.5px">
+      <div>Survival Score: <span style="color:#C8102E;font-weight:700">96.1%</span></div>
+      <div>Risk of Ruin: <span style="color:#15803D;font-weight:700">0.3%</span></div>
+      <div>Verdict: <span style="background:#15803D;color:#fff;padding:2px 8px;border-radius:2px;font-weight:700">CERTIFIED</span></div>
+      <div>Spread sens: <span style="color:#15803D">-2.1 pp at 2×</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="footer-block">
+  <div class="lbl">REPORT CONTENTS — TECHNICAL TIER (FULL DETAIL)</div>
+  <div class="row"><div class="k">SECTION 1</div><div class="v"><b>MC configuration</b> — sim count (10,000), seed, randomization dimensions enabled, distribution parameters per dimension.</div></div>
+  <div class="row"><div class="k">SECTION 2</div><div class="v"><b>Percentile distribution table</b> — P5/P25/P50/P75/P95 for Sharpe, MDD, CAGR, Final Equity, Profit Factor, Recovery Factor.</div></div>
+  <div class="row"><div class="k">SECTION 3</div><div class="v"><b>Survival Score breakdown</b> — total sims, sims profitable, sims within MDD, sims within Sharpe, sims meeting all 3.</div></div>
+  <div class="row"><div class="k">SECTION 4</div><div class="v"><b>Per-dimension sensitivity</b> — Survival Score when only trade-order shuffled, only slippage randomized, only spread randomized. Isolates fragility source.</div></div>
+  <div class="row"><div class="k">SECTION 5</div><div class="v"><b>Equity curve samples</b> — 5 sample equity curves (P5, P25, P50, P75, P95) for visual inspection of path-dependency.</div></div>
+  <div class="row"><div class="k">SECTION 6</div><div class="v"><b>Histograms</b> — Sharpe distribution, MDD distribution, Final Equity distribution (10 bins each).</div></div>
+  <div class="row"><div class="k">SECTION 7</div><div class="v"><b>Certification verdict</b> — 3-band decision, Survival Score, hard veto triggers fired (if any), waiver IDs (if any).</div></div>
+</div>
+</body></html>

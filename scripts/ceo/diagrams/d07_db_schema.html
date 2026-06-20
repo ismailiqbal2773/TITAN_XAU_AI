@@ -1,0 +1,166 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>d07</title>
+<link href="https://fonts.googleapis.com/css2?family=Tinos:wght@400;700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { width: 1600px; height: 1300px; background: #ffffff; font-family: 'Inter', sans-serif; color: #14213D; padding: 50px 60px; }
+.h-title { font-family: 'Tinos', serif; font-size: 30px; font-weight: 900; letter-spacing: -0.5px; }
+.h-sub { font-family: 'Inter', sans-serif; font-size: 13px; color: #4A5568; margin-top: 4px; }
+.h-rule { width: 80px; height: 3px; background: #C8102E; margin: 14px 0 24px 0; }
+
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+
+.schema-card { border: 1px solid #CBD5E1; border-radius: 6px; overflow: hidden; }
+.schema-head { background: #14213D; color: #fff; padding: 12px 18px; }
+.schema-head .lbl { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C8102E; letter-spacing: 2px; font-weight: 700; }
+.schema-head .t { font-family: 'Tinos', serif; font-size: 14px; font-weight: 700; margin-top: 2px; }
+.schema-body { padding: 12px 14px; }
+
+.table { background: #F8FAFC; border: 1px solid #CBD5E1; border-left: 3px solid #14213D; border-radius: 4px; padding: 10px 12px; margin-bottom: 10px; }
+.table.audit { border-left-color: #C8102E; }
+.table .head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.table .n { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #C8102E; font-weight: 700; }
+.table .purpose { font-family: 'Inter', sans-serif; font-size: 9px; color: #4A5568; font-style: italic; }
+.table .cols-list { font-family: 'JetBrains Mono', monospace; font-size: 8.5px; color: #14213D; line-height: 1.7; }
+.table .cols-list .pk { color: #C8102E; font-weight: 700; }
+.table .cols-list .fk { color: #B45309; font-weight: 700; }
+.table .cols-list .idx { color: #15803D; font-weight: 700; }
+.table .retention { font-family: 'JetBrains Mono', monospace; font-size: 8.5px; color: #14213D; margin-top: 6px; padding-top: 6px; border-top: 1px dashed #CBD5E1; }
+.table .retention b { color: #C8102E; }
+
+.summary { margin-top: 22px; padding: 16px 20px; background: #14213D; color: #fff; border-radius: 6px; }
+.summary .lbl { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #C8102E; letter-spacing: 2px; font-weight: 700; }
+.summary .h { font-family: 'Tinos', serif; font-size: 15px; font-weight: 700; margin-top: 4px; }
+.summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 12px; }
+.scell { padding: 10px 12px; background: rgba(255,255,255,0.08); border-left: 2px solid #4ADE80; border-radius: 3px; }
+.scell .v { font-family: 'Tinos', serif; font-size: 20px; font-weight: 900; color: #4ADE80; }
+.scell .d { font-family: 'Inter', sans-serif; font-size: 9.5px; opacity: 0.85; margin-top: 2px; line-height: 1.4; }
+</style></head>
+<body>
+<div class="h-title">Database Schema — 10 PostgreSQL Tables</div>
+<div class="h-sub">Time-series health scores + audit log · 7-year retention · partitioned by month · TimescaleDB hypertables</div>
+<div class="h-rule"></div>
+
+<div class="cols">
+  <div class="schema-card">
+    <div class="schema-head"><div><div class="lbl">TIME-SERIES SCORES (6 TABLES)</div><div class="t">Health scores per cycle</div></div></div>
+    <div class="schema-body">
+      <div class="table">
+        <div class="head"><div class="n">model_health_scores</div><div class="purpose">per-model per-cycle</div></div>
+        <div class="cols-list">
+<span class="pk">id</span> BIGSERIAL PK · <span class="idx">timestamp</span> TIMESTAMPTZ · model_id VARCHAR(32) · <br>
+score DECIMAL(5,2) · status VARCHAR(8) · sharpe DECIMAL(6,3) · sortino DECIMAL(6,3)<br>
+profit_factor DECIMAL(6,3) · win_rate DECIMAL(5,4) · max_dd DECIMAL(6,4)<br>
+recovery_factor DECIMAL(6,3) · window_size INT · <span class="idx">created_at</span> TIMESTAMPTZ<br>
+<span class="idx">INDEX:</span> (model_id, timestamp DESC) · <span class="idx">INDEX:</span> (timestamp)
+        </div>
+        <div class="retention"><b>Retention:</b> 90 days hot + 7 years cold (S3 Parquet)</div>
+      </div>
+      <div class="table">
+        <div class="head"><div class="n">execution_quality_scores</div><div class="purpose">per-cycle system-wide</div></div>
+        <div class="cols-list">
+<span class="pk">id</span> BIGSERIAL PK · <span class="idx">timestamp</span> TIMESTAMPTZ · score DECIMAL(5,2)<br>
+status VARCHAR(8) · latency_p99_ms INT · slippage_p50 DECIMAL(6,4)<br>
+slippage_p99 DECIMAL(6,4) · fill_rate DECIMAL(5,4) · requote_rate DECIMAL(5,4)
+        </div>
+        <div class="retention"><b>Retention:</b> 90 days hot + 7 years cold</div>
+      </div>
+      <div class="table">
+        <div class="head"><div class="n">risk_scores</div><div class="purpose">per-cycle system-wide</div></div>
+        <div class="cols-list">
+<span class="pk">id</span> BIGSERIAL PK · <span class="idx">timestamp</span> TIMESTAMPTZ · score DECIMAL(5,2)<br>
+status VARCHAR(8) · mdd_pct DECIMAL(6,4) · exposure_pct DECIMAL(6,4)<br>
+margin_level_pct DECIMAL(6,3) · risk_utilization DECIMAL(5,4)
+        </div>
+        <div class="retention"><b>Retention:</b> 90 days hot + 7 years cold</div>
+      </div>
+      <div class="table">
+        <div class="head"><div class="n">broker_quality_scores</div><div class="purpose">per-broker per-cycle</div></div>
+        <div class="cols-list">
+<span class="pk">id</span> BIGSERIAL PK · <span class="idx">timestamp</span> TIMESTAMPTZ · broker_id VARCHAR(32)<br>
+score DECIMAL(5,2) · status VARCHAR(8) · spread_dev DECIMAL(6,4)<br>
+slippage_dev DECIMAL(6,4) · fill_rate DECIMAL(5,4) · reconnect_count INT
+        </div>
+        <div class="retention"><b>Retention:</b> 90 days hot + 7 years cold</div>
+      </div>
+      <div class="table">
+        <div class="head"><div class="n">regime_confidence_scores</div><div class="purpose">per-cycle system-wide</div></div>
+        <div class="cols-list">
+<span class="pk">id</span> BIGSERIAL PK · <span class="idx">timestamp</span> TIMESTAMPTZ · score DECIMAL(5,2)<br>
+status VARCHAR(8) · current_regime VARCHAR(16) · vote_agreement DECIMAL(5,4)<br>
+transition_confidence DECIMAL(5,4) · regime_strategy_perf DECIMAL(6,3)
+        </div>
+        <div class="retention"><b>Retention:</b> 90 days hot + 7 years cold</div>
+      </div>
+      <div class="table">
+        <div class="head"><div class="n">system_health_scores</div><div class="purpose">per-cycle aggregate</div></div>
+        <div class="cols-list">
+<span class="pk">id</span> BIGSERIAL PK · <span class="idx">timestamp</span> TIMESTAMPTZ · score DECIMAL(5,2)<br>
+status VARCHAR(8) · min_model_health DECIMAL(5,2) · risk_score DECIMAL(5,2)<br>
+eqs DECIMAL(5,2) · regime_conf DECIMAL(5,2) · min_bqs DECIMAL(5,2)<br>
+cycle_duration_ms INT
+        </div>
+        <div class="retention"><b>Retention:</b> 90 days hot + 7 years cold</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="schema-card">
+    <div class="schema-head"><div><div class="lbl">AUDIT LOG (4 TABLES) — IMMUTABLE</div><div class="t">Events, actions, status changes</div></div></div>
+    <div class="schema-body">
+      <div class="table audit">
+        <div class="head"><div class="n">system_status_changes</div><div class="purpose">GREEN/YELLOW/RED transitions</div></div>
+        <div class="cols-list">
+<span class="pk">id</span> BIGSERIAL PK · <span class="idx">timestamp</span> TIMESTAMPTZ · <br>
+from_status VARCHAR(16) · to_status VARCHAR(16) · trigger_reason TEXT<br>
+overall_health DECIMAL(5,2) · signed_hash CHAR(64)  <span class="idx">-- tamper-evident</span>
+        </div>
+        <div class="retention"><b>Retention:</b> 7 years · WORM lock · append-only</div>
+      </div>
+      <div class="table audit">
+        <div class="head"><div class="n">control_actions</div><div class="purpose">every CEO action</div></div>
+        <div class="cols-list">
+<span class="pk">id</span> BIGSERIAL PK · <span class="idx">timestamp</span> TIMESTAMPTZ · <br>
+action_type VARCHAR(32)  <span class="idx">-- REDUCE/DISABLE/EMERGENCY/PRESERVE</span><br>
+target_model VARCHAR(32) NULL · target_broker VARCHAR(32) NULL<br>
+parameters JSONB · trigger_score DECIMAL(5,2) · trigger_reason TEXT<br>
+result VARCHAR(16) · executed_by VARCHAR(16)  <span class="idx">-- CEO/MANUAL</span><br>
+signed_hash CHAR(64)
+        </div>
+        <div class="retention"><b>Retention:</b> 7 years · WORM lock</div>
+      </div>
+      <div class="table audit">
+        <div class="head"><div class="n">detection_events</div><div class="purpose">every detector firing</div></div>
+        <div class="cols-list">
+<span class="pk">id</span> BIGSERIAL PK · <span class="idx">timestamp</span> TIMESTAMPTZ · <br>
+detector_id VARCHAR(32)  <span class="idx">-- D1-D8</span><br>
+severity VARCHAR(8)  <span class="idx">-- CRITICAL/MAJOR/MINOR</span><br>
+target VARCHAR(64) · metric_value DECIMAL(10,4) · threshold DECIMAL(10,4)<br>
+message TEXT · window_size INT
+        </div>
+        <div class="retention"><b>Retention:</b> 7 years · WORM lock</div>
+      </div>
+      <div class="table audit">
+        <div class="head"><div class="n">model_influence_changes</div><div class="purpose">weight changes per model</div></div>
+        <div class="cols-list">
+<span class="pk">id</span> BIGSERIAL PK · <span class="idx">timestamp</span> TIMESTAMPTZ · <br>
+model_id VARCHAR(32) · from_weight DECIMAL(5,4) · to_weight DECIMAL(5,4)<br>
+reason VARCHAR(64) · <span class="fk">action_id</span> BIGINT REFERENCES control_actions(id)<br>
+signed_hash CHAR(64)
+        </div>
+        <div class="retention"><b>Retention:</b> 7 years · WORM lock</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="summary">
+  <div class="lbl">DATABASE SUMMARY</div>
+  <div class="h">10 tables · 6 time-series + 4 audit (immutable) · TimescaleDB hypertables · monthly partitioning</div>
+  <div class="summary-grid">
+    <div class="scell"><div class="v">10</div><div class="d">Total tables (6 scores + 4 audit)</div></div>
+    <div class="scell"><div class="v">90d</div><div class="d">Hot retention (PostgreSQL)</div></div>
+    <div class="scell"><div class="v">7y</div><div class="d">Cold retention (S3 Parquet, WORM)</div></div>
+    <div class="scell"><div class="v">~50MB</div><div class="d">Storage per month (estimated)</div></div>
+  </div>
+</div>
+</body></html>

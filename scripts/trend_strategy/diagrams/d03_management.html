@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Trend Following Strategy — Trade Management</title>
+<style>
+  @page { size: 1600px 1100px; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #ffffff; font-family: 'Tinos','FreeSerif',serif; color: #14213D; }
+  .canvas { width: 1600px; height: 1100px; padding: 50px 60px; box-sizing: border-box; }
+  .title-bar { display: flex; align-items: baseline; gap: 18px; border-bottom: 2px solid #14213D; padding-bottom: 12px; margin-bottom: 24px; }
+  .title-bar .num { font-size: 48px; font-weight: 900; color: #C8102E; line-height: 1; }
+  .title-bar h1 { font-size: 26px; font-weight: 700; margin: 0; }
+  .title-bar .sub { font-size: 13px; color: #4A5568; margin-left: auto; font-family: 'JetBrains Mono',monospace; }
+  svg { display: block; margin: 0 auto; background: #FAFBFC; border: 1px solid #E2E8F0; }
+  .table { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-top: 14px; }
+  .table th { background: #14213D; color: #ffffff; padding: 6px 8px; text-align: left; font-weight: 700; }
+  .table td { padding: 5px 8px; border-bottom: 1px solid #E2E8F0; }
+  .table tr:nth-child(even) td { background: #F8FAFC; }
+  .table .mod { color: #14213D; font-family: 'JetBrains Mono',monospace; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="title-bar">
+    <span class="num">03</span>
+    <h1>Trade Management — Break Even · Partial Close · Dynamic Trail</h1>
+    <span class="sub">R-multiple based · 3-stage scale-out · ATR chandelier trail</span>
+  </div>
+
+  <svg width="1480" height="640" viewBox="0 0 1480 640">
+    <defs>
+      <marker id="ar3" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
+        <path d="M0,0 L0,6 L7,3 z" fill="#14213D"/>
+      </marker>
+      <marker id="ar3G" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
+        <path d="M0,0 L0,6 L7,3 z" fill="#15803D"/>
+      </marker>
+    </defs>
+
+    <!-- Trade lifecycle horizontal -->
+    <text x="40" y="30" font-size="14" font-weight="700" fill="#C8102E" font-family="Tinos">(a) Trade Lifecycle — R-Multiple Stages</text>
+
+    <!-- Stage 1: Entry -->
+    <rect x="40" y="50" width="200" height="100" fill="#14213D"/>
+    <text x="140" y="78" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="Tinos">ENTRY</text>
+    <text x="140" y="100" text-anchor="middle" fill="#C8102E" font-size="11" font-family="JetBrains Mono">0R (zero profit)</text>
+    <text x="140" y="118" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="9" font-family="JetBrains Mono">qty = 100% of position</text>
+    <text x="140" y="132" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="9" font-family="JetBrains Mono">stop = entry - 1R (long)</text>
+    <text x="140" y="146" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="9" font-family="JetBrains Mono">risk = 1.0% equity</text>
+
+    <line x1="240" y1="100" x2="290" y2="100" stroke="#14213D" stroke-width="2" marker-end="url(#ar3)"/>
+
+    <!-- Stage 2: +1R Break Even -->
+    <rect x="290" y="50" width="200" height="100" fill="#FEFBEB" stroke="#B45309" stroke-width="2"/>
+    <text x="390" y="78" text-anchor="middle" font-size="13" font-weight="700" fill="#B45309" font-family="Tinos">+1R · BREAK EVEN</text>
+    <text x="390" y="100" text-anchor="middle" fill="#C8102E" font-size="11" font-family="JetBrains Mono">price moves +1R</text>
+    <text x="390" y="118" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">qty unchanged (100%)</text>
+    <text x="390" y="132" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">stop → entry + spread</text>
+    <text x="390" y="146" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">zero-loss zone locked</text>
+
+    <line x1="490" y1="100" x2="540" y2="100" stroke="#14213D" stroke-width="2" marker-end="url(#ar3)"/>
+
+    <!-- Stage 3: +2R Partial 1 -->
+    <rect x="540" y="50" width="200" height="100" fill="#F0FDF4" stroke="#15803D" stroke-width="2"/>
+    <text x="640" y="78" text-anchor="middle" font-size="13" font-weight="700" fill="#15803D" font-family="Tinos">+2R · PARTIAL 1</text>
+    <text x="640" y="100" text-anchor="middle" fill="#C8102E" font-size="11" font-family="JetBrains Mono">close 50% of position</text>
+    <text x="640" y="118" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">realize +2R × 50% = +1R banked</text>
+    <text x="640" y="132" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">stop → entry + 1R (lock +1R)</text>
+    <text x="640" y="146" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">runner: 50% remains</text>
+
+    <line x1="740" y1="100" x2="790" y2="100" stroke="#14213D" stroke-width="2" marker-end="url(#ar3)"/>
+
+    <!-- Stage 4: +3R Partial 2 -->
+    <rect x="790" y="50" width="200" height="100" fill="#F0FDF4" stroke="#15803D" stroke-width="2"/>
+    <text x="890" y="78" text-anchor="middle" font-size="13" font-weight="700" fill="#15803D" font-family="Tinos">+3R · PARTIAL 2</text>
+    <text x="890" y="100" text-anchor="middle" fill="#C8102E" font-size="11" font-family="JetBrains Mono">close 25% of original</text>
+    <text x="890" y="118" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">realize +3R × 25% = +0.75R banked</text>
+    <text x="890" y="132" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">stop → +2R (lock +2R on runner)</text>
+    <text x="890" y="146" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">runner: 25% remains</text>
+
+    <line x1="990" y1="100" x2="1040" y2="100" stroke="#14213D" stroke-width="2" marker-end="url(#ar3)"/>
+
+    <!-- Stage 5: Trailing -->
+    <rect x="1040" y="50" width="200" height="100" fill="#14213D"/>
+    <text x="1140" y="78" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="Tinos">+3R to ∞ · TRAIL</text>
+    <text x="1140" y="100" text-anchor="middle" fill="#C8102E" font-size="11" font-family="JetBrains Mono">dynamic ATR trail</text>
+    <text x="1140" y="118" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="9" font-family="JetBrains Mono">trail = 2.5 × ATR(14)</text>
+    <text x="1140" y="132" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="9" font-family="JetBrains Mono">ratchet: never widens</text>
+    <text x="1140" y="146" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="9" font-family="JetBrains Mono">tightens as profit grows</text>
+
+    <line x1="1240" y1="100" x2="1290" y2="100" stroke="#14213D" stroke-width="2" marker-end="url(#ar3)"/>
+
+    <!-- Stage 6: Exit -->
+    <rect x="1290" y="50" width="150" height="100" fill="#C8102E"/>
+    <text x="1365" y="78" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="Tinos">EXIT</text>
+    <text x="1365" y="100" text-anchor="middle" fill="#ffffff" font-size="11" font-family="JetBrains Mono">trail hit OR</text>
+    <text x="1365" y="116" text-anchor="middle" fill="#ffffff" font-size="11" font-family="JetBrains Mono">regime change</text>
+    <text x="1365" y="134" text-anchor="middle" fill="#ffffff" opacity="0.9" font-size="9" font-family="JetBrains Mono">close remaining 25%</text>
+    <text x="1365" y="146" text-anchor="middle" fill="#ffffff" opacity="0.9" font-size="9" font-family="JetBrains Mono">audit final R-multiple</text>
+
+    <!-- (b) PnL Scenarios -->
+    <text x="40" y="200" font-size="14" font-weight="700" fill="#C8102E" font-family="Tinos">(b) PnL Outcome Scenarios (per 1R = 1% equity risk)</text>
+
+    <!-- Scenario A: Stop at entry -->
+    <rect x="40" y="220" width="460" height="160" fill="#FEF3F2" stroke="#C8102E" stroke-width="2"/>
+    <text x="270" y="245" text-anchor="middle" font-size="13" font-weight="700" fill="#C8102E" font-family="Tinos">Scenario A: Stopped at -1R (before BE)</text>
+    <text x="60" y="270" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Entry: 100% @ 0R</text>
+    <text x="60" y="288" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Stop hit: -1R × 100% = -1.00R</text>
+    <text x="60" y="306" font-size="10" fill="#4A5568" font-family="JetBrains Mono">→ PnL = -1.00R (-1.00% equity)</text>
+    <text x="60" y="330" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Frequency (backtest): 38% of trades</text>
+    <text x="60" y="350" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Expectancy contribution: -0.38R</text>
+    <text x="60" y="370" font-size="10" fill="#C8102E" font-weight="700" font-family="JetBrains Mono">Risk: controlled (1R max loss)</text>
+
+    <!-- Scenario B: Break even -->
+    <rect x="520" y="220" width="460" height="160" fill="#FEFBEB" stroke="#B45309" stroke-width="2"/>
+    <text x="750" y="245" text-anchor="middle" font-size="13" font-weight="700" fill="#B45309" font-family="Tinos">Scenario B: Break Even (after +1R)</text>
+    <text x="540" y="270" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Entry: 100% @ 0R</text>
+    <text x="540" y="288" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Price hits +1R · stop moved to entry</text>
+    <text x="540" y="306" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Stop hit at entry: 0R × 100% = 0.00R</text>
+    <text x="540" y="324" font-size="10" fill="#4A5568" font-family="JetBrains Mono">→ PnL = 0.00R (0% equity)</text>
+    <text x="540" y="348" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Frequency (backtest): 22% of trades</text>
+    <text x="540" y="368" font-size="10" fill="#B45309" font-weight="700" font-family="JetBrains Mono">Risk: eliminated (zero-loss zone)</text>
+
+    <!-- Scenario C: Partial profit -->
+    <rect x="1000" y="220" width="440" height="160" fill="#F0FDF4" stroke="#15803D" stroke-width="2"/>
+    <text x="1220" y="245" text-anchor="middle" font-size="13" font-weight="700" fill="#15803D" font-family="Tinos">Scenario C: Partial Profit (+2R hit, then stopped)</text>
+    <text x="1020" y="270" font-size="10" fill="#4A5568" font-family="JetBrains Mono">+2R: close 50% → +1.00R banked</text>
+    <text x="1020" y="288" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Stop (at +1R) hits on runner: +1R × 50% = +0.50R</text>
+    <text x="1020" y="306" font-size="10" fill="#4A5568" font-family="JetBrains Mono">→ PnL = +1.50R (+1.50% equity)</text>
+    <text x="1020" y="330" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Frequency (backtest): 18% of trades</text>
+    <text x="1020" y="350" font-size="10" fill="#15803D" font-weight="700" font-family="JetBrains Mono">Outcome: profitable (1.5R gain)</text>
+
+    <!-- Scenario D: Full runner -->
+    <rect x="40" y="400" width="640" height="160" fill="#F0FDF4" stroke="#15803D" stroke-width="2"/>
+    <text x="360" y="425" text-anchor="middle" font-size="13" font-weight="700" fill="#15803D" font-family="Tinos">Scenario D: Full Runner (trail hit at +5R)</text>
+    <text x="60" y="450" font-size="10" fill="#4A5568" font-family="JetBrains Mono">+2R: close 50% → +1.00R banked</text>
+    <text x="60" y="468" font-size="10" fill="#4A5568" font-family="JetBrains Mono">+3R: close 25% → +0.75R banked</text>
+    <text x="60" y="486" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Trail hits at +5R: +5R × 25% = +1.25R</text>
+    <text x="60" y="504" font-size="10" fill="#4A5568" font-family="JetBrains Mono">→ PnL = +3.00R (+3.00% equity)</text>
+    <text x="60" y="528" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Frequency (backtest): 14% of trades</text>
+    <text x="60" y="548" font-size="10" fill="#15803D" font-weight="700" font-family="JetBrains Mono">Outcome: highly profitable (3R gain)</text>
+
+    <!-- Scenario E: Whipsaw -->
+    <rect x="700" y="400" width="440" height="160" fill="#FEFBEB" stroke="#B45309" stroke-width="2"/>
+    <text x="920" y="425" text-anchor="middle" font-size="13" font-weight="700" fill="#B45309" font-family="Tinos">Scenario E: Whipsaw (BE hit, then reverses)</text>
+    <text x="720" y="450" font-size="10" fill="#4A5568" font-family="JetBrains Mono">+1R: BE triggered (stop → entry)</text>
+    <text x="720" y="468" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Price reverses to entry · stop hit</text>
+    <text x="720" y="486" font-size="10" fill="#4A5568" font-family="JetBrains Mono">→ PnL = 0.00R (0% equity)</text>
+    <text x="720" y="510" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Frequency (backtest): 8% of trades</text>
+    <text x="720" y="530" font-size="10" fill="#B45309" font-weight="700" font-family="JetBrains Mono">Cost: opportunity (would've been -1R without BE)</text>
+
+    <!-- Expectancy summary -->
+    <rect x="1180" y="400" width="260" height="160" fill="#14213D"/>
+    <text x="1310" y="425" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="Tinos">EXPECTANCY</text>
+    <text x="1200" y="450" fill="#C8102E" font-size="10" font-family="JetBrains Mono" font-weight="700">E[R] = Σ P(scenario) × R</text>
+    <text x="1200" y="472" fill="#ffffff" font-size="10" font-family="JetBrains Mono">= 0.38×(-1) + 0.22×0 +</text>
+    <text x="1200" y="488" fill="#ffffff" font-size="10" font-family="JetBrains Mono">  0.18×(+1.5) + 0.14×(+3) +</text>
+    <text x="1200" y="504" fill="#ffffff" font-size="10" font-family="JetBrains Mono">  0.08×0</text>
+    <text x="1200" y="528" fill="#C8102E" font-size="12" font-family="JetBrains Mono" font-weight="700">= +0.45R per trade</text>
+    <text x="1200" y="548" fill="#ffffff" opacity="0.8" font-size="9" font-family="JetBrains Mono">+0.45% equity per trade avg</text>
+  </svg>
+
+  <table class="table">
+    <tr><th>Stage</th><th>Trigger</th><th>Action</th><th>Position Remaining</th><th>Stop Level</th><th>Realized R</th></tr>
+    <tr><td class="mod">Entry</td><td>Signal approved by risk gate</td><td>Open position (100% of computed size)</td><td>100%</td><td>entry - 1R (long) / entry + 1R (short)</td><td>0R</td></tr>
+    <tr><td class="mod">+1R Break Even</td><td>Price moves +1R from entry</td><td>Move stop to entry + spread</td><td>100% (no close)</td><td>entry ± spread</td><td>0R (locked)</td></tr>
+    <tr><td class="mod">+2R Partial 1</td><td>Price moves +2R from entry</td><td>Close 50% of position</td><td>50%</td><td>entry + 1R (lock +1R on runner)</td><td>+1.00R banked</td></tr>
+    <tr><td class="mod">+3R Partial 2</td><td>Price moves +3R from entry</td><td>Close 25% of original position</td><td>25%</td><td>entry + 2R (lock +2R on runner)</td><td>+0.75R banked (cumulative +1.75R)</td></tr>
+    <tr><td class="mod">+3R to ∞ Trail</td><td>Price continues in favor</td><td>Dynamic ATR(14) × 2.5 trailing stop (ratchet only)</td><td>25%</td><td>price - 2.5×ATR (long), never widens</td><td>accumulates</td></tr>
+    <tr><td class="mod">Exit</td><td>Trail hit OR regime change (not TREND)</td><td>Close remaining 25% at market</td><td>0%</td><td>—</td><td>final R realized</td></tr>
+  </table>
+</div>
+</body>
+</html>

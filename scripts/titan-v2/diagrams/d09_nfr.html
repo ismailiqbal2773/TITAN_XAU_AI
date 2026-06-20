@@ -1,0 +1,129 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>d09</title>
+<link href="https://fonts.googleapis.com/css2?family=Tinos:wght@400;700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { width: 1600px; height: 1100px; background: #ffffff; font-family: 'Inter', sans-serif; color: #14213D; padding: 50px 60px; }
+.h-title { font-family: 'Tinos', serif; font-size: 30px; font-weight: 900; letter-spacing: -0.5px; }
+.h-sub { font-family: 'Inter', sans-serif; font-size: 13px; color: #4A5568; margin-top: 4px; }
+.h-rule { width: 80px; height: 3px; background: #C8102E; margin: 14px 0 24px 0; }
+
+.cols { display: grid; grid-template-columns: 1.1fr 1fr; gap: 22px; }
+
+.latency-card { border: 1px solid #CBD5E1; border-radius: 6px; overflow: hidden; }
+.lat-head { background: #14213D; color: #fff; padding: 12px 18px; }
+.lat-head .lbl { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C8102E; letter-spacing: 2px; font-weight: 700; }
+.lat-head .t { font-family: 'Tinos', serif; font-size: 14px; font-weight: 700; margin-top: 2px; }
+.lat-body { padding: 16px 18px; }
+.lat-row { display: grid; grid-template-columns: 150px 1fr 80px; gap: 12px; padding: 9px 0; border-bottom: 1px solid #E2E8F0; align-items: center; font-family: 'Inter', sans-serif; font-size: 11px; }
+.lat-row:last-child { border-bottom: none; }
+.lat-row .name { font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; color: #14213D; }
+.lat-row .track { background: #F1F5F9; height: 14px; border-radius: 2px; overflow: hidden; position: relative; }
+.lat-row .fill { height: 100%; background: linear-gradient(90deg, #14213D 0%, #C8102E 100%); }
+.lat-row .val { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #C8102E; text-align: right; font-weight: 700; }
+.lat-row .pct { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #4A5568; text-align: right; }
+
+.budget { margin-top: 16px; padding: 12px 16px; background: #F1F5F9; border-left: 4px solid #C8102E; border-radius: 4px; }
+.budget .lbl { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C8102E; letter-spacing: 2px; font-weight: 700; }
+.budget .v { font-family: 'Tinos', serif; font-size: 22px; font-weight: 900; color: #14213D; margin-top: 4px; }
+.budget .d { font-family: 'Inter', sans-serif; font-size: 10px; color: #4A5568; margin-top: 3px; }
+
+.nfr-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.nfr-card { border: 1px solid #CBD5E1; border-left: 3px solid #14213D; border-radius: 4px; padding: 11px 13px; background: #F8FAFC; }
+.nfr-card.risk { border-left-color: #C8102E; }
+.nfr-card.dr { border-left-color: #B45309; }
+.nfr-card.obs { border-left-color: #15803D; }
+.nfr-card.sec { border-left-color: #14213D; }
+.nfr-card.lic { border-left-color: #C8102E; }
+.nfr-card .lbl { font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 700; letter-spacing: 1.5px; }
+.nfr-card.risk .lbl { color: #C8102E; }
+.nfr-card.dr .lbl { color: #B45309; }
+.nfr-card.obs .lbl { color: #15803D; }
+.nfr-card.sec .lbl { color: #14213D; }
+.nfr-card.lic .lbl { color: #C8102E; }
+.nfr-card .t { font-family: 'Tinos', serif; font-size: 13px; font-weight: 700; color: #14213D; margin: 3px 0 5px 0; }
+.nfr-card .metrics { font-family: 'Inter', sans-serif; font-size: 9.5px; color: #4A5568; line-height: 1.5; }
+.nfr-card .metrics b { color: #14213D; }
+</style></head>
+<body>
+<div class="h-title">NFRs — Latency Budget + Risk + DR + Observability + Security + Licensing</div>
+<div class="h-sub">6 non-functional requirements · institutional-grade targets · measured in production · quarterly reviewed</div>
+<div class="h-rule"></div>
+
+<div class="cols">
+  <div class="latency-card">
+    <div class="lat-head"><div class="lbl">NFR-1 · LATENCY BUDGET</div><div class="t">Signal-to-broker path · 142 ms P99 / 150 ms budget</div></div>
+    <div class="lat-body">
+      <div class="lat-row"><div class="name">Tick ingest</div><div class="track"><div class="fill" style="width:5%"></div></div><div class="val">2 ms</div></div>
+      <div class="lat-row"><div class="name">Feature eng</div><div class="track"><div class="fill" style="width:18%"></div></div><div class="val">8 ms</div></div>
+      <div class="lat-row"><div class="name">Regime detect</div><div class="track"><div class="fill" style="width:27%"></div></div><div class="val">12 ms</div></div>
+      <div class="lat-row"><div class="name">AI ensemble</div><div class="track"><div class="fill" style="width:67%"></div></div><div class="val">95 ms</div></div>
+      <div class="lat-row"><div class="name">Risk gate</div><div class="track"><div class="fill" style="width:9%"></div></div><div class="val">4 ms</div></div>
+      <div class="lat-row"><div class="name">Exec dispatch</div><div class="track"><div class="fill" style="width:15%"></div></div><div class="val">21 ms</div></div>
+      <div class="lat-row" style="border-top:2px solid #14213D;padding-top:12px;margin-top:4px"><div class="name" style="color:#C8102E">TOTAL P99</div><div class="track"><div class="fill" style="width:95%;background:#C8102E"></div></div><div class="val" style="color:#C8102E">142 ms</div></div>
+    </div>
+    <div class="budget">
+      <div class="lbl">BUDGET · SAFETY MARGIN</div>
+      <div class="v">150 ms · 8 ms margin</div>
+      <div class="d">If any stage exceeds 2× budget, downstream sees "stale signal" flag → risk veto</div>
+    </div>
+  </div>
+
+  <div class="nfr-grid">
+    <div class="nfr-card risk">
+      <div class="lbl">NFR-2 · RISK CONTROLS</div>
+      <div class="t">Capital preservation</div>
+      <div class="metrics">
+<b>MDD &lt; 5%</b> · institutional hard floor<br>
+<b>Kill-switch &lt; 500 ms</b> · flatten all<br>
+<b>Per-trade risk ≤ 1%</b> · equity<br>
+<b>Margin alert @ 200%</b> · ML<br>
+<b>12 controls</b> · 4 modes (Normal/Aggressive/Defensive/Emergency)<br>
+<b>Correlation ρ ≥ 0.85</b> → hedge flag
+      </div>
+    </div>
+    <div class="nfr-card dr">
+      <div class="lbl">NFR-3 · DISASTER RECOVERY</div>
+      <div class="t">RPO 60s · RTO 5m · 99.9%</div>
+      <div class="metrics">
+<b>RPO ≤ 60 s</b> · max data loss<br>
+<b>RTO ≤ 5 min</b> · max downtime<br>
+<b>3 missed beats</b> → auto-failover<br>
+<b>Active-passive</b> · Zone A (London) / Zone B (Frankfurt)<br>
+<b>State sync 100 ms</b> · DR VPS warm<br>
+<b>Quarterly DR drill</b> · mandatory
+      </div>
+    </div>
+    <div class="nfr-card obs">
+      <div class="lbl">NFR-4 · OBSERVABILITY</div>
+      <div class="t">Full system visibility</div>
+      <div class="metrics">
+<b>12 Prometheus metrics</b> · gauges + counters<br>
+<b>Grafana dashboards</b> · 8 panels<br>
+<b>OpenTelemetry traces</b> · distributed<br>
+<b>Loki logs</b> · structured JSON · 30-day<br>
+<b>PagerDuty alerts</b> · P1-P3 severity<br>
+<b>Audit S3 archive</b> · 7-year retention
+      </div>
+    </div>
+    <div class="nfr-card sec">
+      <div class="lbl">NFR-5 · SECURITY &amp; AUTH</div>
+      <div class="t">Defense in depth</div>
+      <div class="metrics">
+<b>mTLS</b> · all internal RPC<br>
+<b>JWT + RBAC</b> · external API<br>
+<b>AES-256</b> · at-rest encryption<br>
+<b>TLS 1.3</b> · transport encryption<br>
+<b>HSM-backed</b> · signing keys<br>
+<b>SOC2 audit</b> · annual · 3rd party
+      </div>
+    </div>
+    <div class="nfr-card lic" style="grid-column:1/3">
+      <div class="lbl">NFR-6 · LICENSING HOOKS</div>
+      <div class="t">Commercial enforcement at every layer</div>
+      <div class="metrics">
+<b>License check</b> · startup + every 1 h heartbeat · <b>3 tiers</b> (Starter $12k / Pro $48k / Enterprise $180k) · <b>Feature gate</b> per tier · <b>Hardware lock</b> (CPUID + MB ID + Windows SID) · <b>RSA-4096 JWT</b> · <b>5 anti-crack layers</b> (obfuscation, tamper, anti-debug, anti-VM, behavioral) · <b>Revocation</b> &lt; 1 h via heartbeat · <b>Offline activation</b> · <b>7-day grace</b> on heartbeat failure → graceful shutdown
+      </div>
+    </div>
+  </div>
+</div>
+</body></html>

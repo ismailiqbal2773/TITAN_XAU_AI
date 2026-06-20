@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Hybrid AI Stack — Monitoring Framework</title>
+<style>
+  @page { size: 1600px 1100px; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #ffffff; font-family: 'Tinos','FreeSerif',serif; color: #14213D; }
+  .canvas { width: 1600px; height: 1100px; padding: 50px 60px; box-sizing: border-box; }
+  .title-bar { display: flex; align-items: baseline; gap: 18px; border-bottom: 2px solid #14213D; padding-bottom: 12px; margin-bottom: 24px; }
+  .title-bar .num { font-size: 48px; font-weight: 900; color: #C8102E; line-height: 1; }
+  .title-bar h1 { font-size: 26px; font-weight: 700; margin: 0; }
+  .title-bar .sub { font-size: 13px; color: #4A5568; margin-left: auto; font-family: 'JetBrains Mono',monospace; }
+  svg { display: block; margin: 0 auto; background: #FAFBFC; border: 1px solid #E2E8F0; }
+  .table { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-top: 14px; }
+  .table th { background: #14213D; color: #ffffff; padding: 6px 8px; text-align: left; font-weight: 700; }
+  .table td { padding: 5px 8px; border-bottom: 1px solid #E2E8F0; }
+  .table tr:nth-child(even) td { background: #F8FAFC; }
+  .table .mod { color: #14213D; font-family: 'JetBrains Mono',monospace; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="title-bar">
+    <span class="num">06</span>
+    <h1>Monitoring Framework — 4 Monitors · Real-Time + Daily</h1>
+    <span class="sub">Drift · Performance · Explainability · Health</span>
+  </div>
+
+  <svg width="1480" height="640" viewBox="0 0 1480 640">
+    <!-- 4 monitor cards -->
+    <rect x="40" y="20" width="330" height="280" fill="#F0FDF4" stroke="#14213D" stroke-width="2"/>
+    <rect x="40" y="20" width="330" height="36" fill="#14213D"/>
+    <text x="205" y="42" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="JetBrains Mono">1. Drift Monitor</text>
+    <text x="60" y="75" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">Feature Drift Detection</text>
+    <text x="60" y="95" font-size="10" fill="#4A5568" font-family="JetBrains Mono">PSI per feature (daily)</text>
+    <text x="60" y="110" font-size="10" fill="#4A5568" font-family="JetBrains Mono">threshold: PSI > 0.20 = alert</text>
+    <text x="60" y="125" font-size="10" fill="#4A5568" font-family="JetBrains Mono">PSI > 0.25 = auto-retrain</text>
+    <text x="60" y="150" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">Concept Drift Detection</text>
+    <text x="60" y="170" font-size="10" fill="#4A5568" font-family="JetBrains Mono">rolling 100-trade accuracy</text>
+    <text x="60" y="185" font-size="10" fill="#4A5568" font-family="JetBrains Mono">vs 1000-trade baseline</text>
+    <text x="60" y="200" font-size="10" fill="#4A5568" font-family="JetBrains Mono">drop > 10% = concept drift</text>
+    <text x="60" y="225" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">Data Quality</text>
+    <text x="60" y="245" font-size="10" fill="#4A5568" font-family="JetBrains Mono">NaN rate · outlier rate</text>
+    <text x="60" y="260" font-size="10" fill="#4A5568" font-family="JetBrains Mono">feed staleness (&gt;5s = alert)</text>
+    <text x="60" y="280" font-size="10" fill="#4A5568" font-family="JetBrains Mono">feature coverage (&gt;99.5%)</text>
+
+    <rect x="390" y="20" width="330" height="280" fill="#F0FDF4" stroke="#14213D" stroke-width="2"/>
+    <rect x="390" y="20" width="330" height="36" fill="#14213D"/>
+    <text x="555" y="42" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="JetBrains Mono">2. Performance Monitor</text>
+    <text x="410" y="75" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">Per-Model Accuracy</text>
+    <text x="410" y="95" font-size="10" fill="#4A5568" font-family="JetBrains Mono">F1 score (rolling 100 trades)</text>
+    <text x="410" y="110" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Brier score (calibration)</text>
+    <text x="410" y="125" font-size="10" fill="#4A5568" font-family="JetBrains Mono">per-class precision/recall</text>
+    <text x="410" y="150" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">Ensemble Performance</text>
+    <text x="410" y="170" font-size="10" fill="#4A5568" font-family="JetBrains Mono">ensemble Sharpe (rolling 252)</text>
+    <text x="410" y="185" font-size="10" fill="#4A5568" font-family="JetBrains Mono">PF · MaxDD · RoR (monthly)</text>
+    <text x="410" y="200" font-size="10" fill="#4A5568" font-family="JetBrains Mono">RL avg episode reward</text>
+    <text x="410" y="225" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">Weight Effectiveness</text>
+    <text x="410" y="245" font-size="10" fill="#4A5568" font-family="JetBrains Mono">per-model Sharpe contribution</text>
+    <text x="410" y="260" font-size="10" fill="#4A5568" font-family="JetBrains Mono">weight rebalancing alerts</text>
+    <text x="410" y="280" font-size="10" fill="#4A5568" font-family="JetBrains Mono">correlation between models</text>
+
+    <rect x="740" y="20" width="330" height="280" fill="#F0FDF4" stroke="#14213D" stroke-width="2"/>
+    <rect x="740" y="20" width="330" height="36" fill="#14213D"/>
+    <text x="905" y="42" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="JetBrains Mono">3. Explainability Monitor</text>
+    <text x="760" y="75" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">SHAP Distribution</text>
+    <text x="760" y="95" font-size="10" fill="#4A5568" font-family="JetBrains Mono">XGBoost SHAP per feature</text>
+    <text x="760" y="110" font-size="10" fill="#4A5568" font-family="JetBrains Mono">rolling mean ± std tracking</text>
+    <text x="760" y="125" font-size="10" fill="#4A5568" font-family="JetBrains Mono">shift > 2σ = alert</text>
+    <text x="760" y="150" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">Attention Visualization</text>
+    <text x="760" y="170" font-size="10" fill="#4A5568" font-family="JetBrains Mono">LSTM attention heatmap</text>
+    <text x="760" y="185" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Transformer multi-head map</text>
+    <text x="760" y="200" font-size="10" fill="#4A5568" font-family="JetBrains Mono">daily snapshot to Grafana</text>
+    <text x="760" y="225" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">RL Action Distribution</text>
+    <text x="760" y="245" font-size="10" fill="#4A5568" font-family="JetBrains Mono">hold/close/trim/add ratio</text>
+    <text x="760" y="260" font-size="10" fill="#4A5568" font-family="JetBrains Mono">anomaly: add > 20% = alert</text>
+    <text x="760" y="280" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Q-value distribution</text>
+
+    <rect x="1090" y="20" width="330" height="280" fill="#FEF3F2" stroke="#C8102E" stroke-width="2"/>
+    <rect x="1090" y="20" width="330" height="36" fill="#C8102E"/>
+    <text x="1255" y="42" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="JetBrains Mono">4. Health Monitor</text>
+    <text x="1110" y="75" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">Inference Latency</text>
+    <text x="1110" y="95" font-size="10" fill="#4A5568" font-family="JetBrains Mono">p50/p95/p99 per model</text>
+    <text x="1110" y="110" font-size="10" fill="#4A5568" font-family="JetBrains Mono">budget: p99 < 50ms total</text>
+    <text x="1110" y="125" font-size="10" fill="#4A5568" font-family="JetBrains Mono">spike: p99 > 100ms = alert</text>
+    <text x="1110" y="150" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">Resource Utilization</text>
+    <text x="1110" y="170" font-size="10" fill="#4A5568" font-family="JetBrains Mono">GPU util · GPU memory</text>
+    <text x="1110" y="185" font-size="10" fill="#4A5568" font-family="JetBrains Mono">CPU per core · RAM RSS</text>
+    <text x="1110" y="200" font-size="10" fill="#4A5568" font-family="JetBrains Mono">disk I/O (model load)</text>
+    <text x="1110" y="225" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">Model Version & Rollback</text>
+    <text x="1110" y="245" font-size="10" fill="#4A5568" font-family="JetBrains Mono">active version per model</text>
+    <text x="1110" y="260" font-size="10" fill="#4A5568" font-family="JetBrains Mono">last deploy time</text>
+    <text x="1110" y="280" font-size="10" fill="#4A5568" font-family="JetBrains Mono">rollback count (30-day)</text>
+
+    <!-- Alert routing -->
+    <text x="40" y="340" font-size="14" font-weight="700" fill="#C8102E" font-family="Tinos">ALERT ROUTING (all 4 monitors → unified alerting)</text>
+
+    <rect x="40" y="360" width="340" height="100" fill="#14213D"/>
+    <text x="210" y="385" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700" font-family="Tinos">P1 — PagerDuty + Slack</text>
+    <text x="60" y="410" font-size="10" fill="#C8102E" font-family="JetBrains Mono">· model performance drop > 15%</text>
+    <text x="60" y="425" font-size="10" fill="#C8102E" font-family="JetBrains Mono">· GPU failure</text>
+    <text x="60" y="440" font-size="10" fill="#C8102E" font-family="JetBrains Mono">· ensemble halt (2+ models down)</text>
+    <text x="60" y="455" font-size="10" fill="#C8102E" font-family="JetBrains Mono">· concept drift confirmed</text>
+
+    <rect x="400" y="360" width="340" height="100" fill="#14213D"/>
+    <text x="570" y="385" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700" font-family="Tinos">P2 — Email + Slack</text>
+    <text x="420" y="410" font-size="10" fill="#B45309" font-family="JetBrains Mono">· feature PSI > 0.20</text>
+    <text x="420" y="425" font-size="10" fill="#B45309" font-family="JetBrains Mono">· inference p99 > 50ms (sustained)</text>
+    <text x="420" y="440" font-size="10" fill="#B45309" font-family="JetBrains Mono">· weight rebalancing triggered</text>
+    <text x="420" y="455" font-size="10" fill="#B45309" font-family="JetBrains Mono">· SHAP distribution shift > 2σ</text>
+
+    <rect x="760" y="360" width="340" height="100" fill="#14213D"/>
+    <text x="930" y="385" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700" font-family="Tinos">P3 — Log + Dashboard</text>
+    <text x="780" y="410" font-size="10" fill="#4A5568" font-family="JetBrains Mono">· daily performance report</text>
+    <text x="780" y="425" font-size="10" fill="#4A5568" font-family="JetBrains Mono">· attention map snapshot</text>
+    <text x="780" y="440" font-size="10" fill="#4A5568" font-family="JetBrains Mono">· RL action distribution</text>
+    <text x="780" y="455" font-size="10" fill="#4A5568" font-family="JetBrains Mono">· model version info</text>
+
+    <rect x="1120" y="360" width="300" height="100" fill="#14213D"/>
+    <text x="1270" y="385" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700" font-family="Tinos">Auto-Mitigation</text>
+    <text x="1140" y="410" font-size="10" fill="#C8102E" font-family="JetBrains Mono">· PSI > 0.25 → auto-retrain</text>
+    <text x="1140" y="425" font-size="10" fill="#C8102E" font-family="JetBrains Mono">· timeout → skip model</text>
+    <text x="1140" y="440" font-size="10" fill="#C8102E" font-family="JetBrains Mono">· GPU fail → CPU fallback</text>
+    <text x="1140" y="455" font-size="10" fill="#C8102E" font-family="JetBrains Mono">· perf drop → weight to floor</text>
+
+    <!-- Dashboard -->
+    <text x="40" y="510" font-size="14" font-weight="700" fill="#C8102E" font-family="Tinos">GRAFANA DASHBOARD (operator-facing, real-time)</text>
+
+    <rect x="40" y="530" width="1400" height="80" fill="#F8FAFC" stroke="#14213D"/>
+    <g font-family="JetBrains Mono" font-size="10" fill="#4A5568">
+      <text x="60" y="555">Panel 1: Current regime + ARDS confidence</text>
+      <text x="60" y="575">Panel 2: 4-model vote matrix (real-time)</text>
+      <text x="60" y="595">Panel 3: Ensemble confidence gauge (0-1)</text>
+      <text x="400" y="555">Panel 4: Per-model F1 (rolling 100-trade)</text>
+      <text x="400" y="575">Panel 5: SHAP top-3 features (live)</text>
+      <text x="400" y="595">Panel 6: RL action history (last 50)</text>
+      <text x="740" y="555">Panel 7: Inference latency p50/p99 (per model)</text>
+      <text x="740" y="575">Panel 8: Feature PSI (per feature, daily)</text>
+      <text x="740" y="595">Panel 9: Model versions + last deploy</text>
+      <text x="1080" y="555">Panel 10: Ensemble Sharpe (rolling 252-bar)</text>
+      <text x="1080" y="575">Panel 11: Attention heatmap (Transformer)</text>
+      <text x="1080" y="595">Panel 12: Alert log (last 24h)</text>
+    </g>
+  </svg>
+
+  <table class="table">
+    <tr><th>Monitor</th><th>Metric</th><th>Cadence</th><th>Threshold</th><th>Alert Level</th><th>Auto-Action</th></tr>
+    <tr><td class="mod" rowspan="3">Drift</td><td>Feature PSI</td><td>Daily</td><td>PSI > 0.20</td><td>P2</td><td>PSI > 0.25 → auto-retrain</td></tr>
+    <tr><td>Concept drift (accuracy drop)</td><td>Daily</td><td>drop > 10%</td><td>P1</td><td>Emergency retrain</td></tr>
+    <tr><td>Data quality (NaN/staleness)</td><td>Continuous</td><td>NaN > 0.5% · stale > 5s</td><td>P2</td><td>Investigate feed</td></tr>
+    <tr><td class="mod" rowspan="3">Performance</td><td>Per-model F1</td><td>Per 100 trades</td><td>F1 < 0.60 · drop > 15%</td><td>P1 (drop) / P2 (low)</td><td>Weight → 0.10 floor</td></tr>
+    <tr><td>Ensemble Sharpe</td><td>Rolling 252-bar</td><td>< 1.5</td><td>P2</td><td>Investigate + retrain</td></tr>
+    <tr><td>RL episode reward</td><td>Per episode</td><td>< baseline (no-RL)</td><td>P2</td><td>RL retrain</td></tr>
+    <tr><td class="mod" rowspan="3">Explainability</td><td>SHAP distribution shift</td><td>Daily</td><td>shift > 2σ</td><td>P2</td><td>Investigate feature change</td></tr>
+    <tr><td>Attention map anomaly</td><td>Daily snapshot</td><td>Visual inspection</td><td>P3</td><td>Log for review</td></tr>
+    <tr><td>RL action distribution</td><td>Per 100 trades</td><td>ADD > 20%</td><td>P2</td><td>Investigate RL policy</td></tr>
+    <tr><td class="mod" rowspan="3">Health</td><td>Inference p99</td><td>Continuous</td><td>p99 > 50ms · spike > 100ms</td><td>P2 (50ms) / P1 (100ms)</td><td>Skip slow model</td></tr>
+    <tr><td>GPU utilization</td><td>Continuous</td><td>> 95% sustained · 0% (failure)</td><td>P2 / P1</td><td>Auto-restart / CPU fallback</td></tr>
+    <tr><td>Model version</td><td>Per deploy</td><td>—</td><td>P3 (log)</td><td>—</td></tr>
+  </table>
+</div>
+</body>
+</html>

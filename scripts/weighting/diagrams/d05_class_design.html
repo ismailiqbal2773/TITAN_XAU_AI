@@ -1,0 +1,96 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>d05</title>
+<link href="https://fonts.googleapis.com/css2?family=Tinos:wght@400;700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { width: 1600px; height: 1400px; background: #ffffff; font-family: 'Inter', sans-serif; color: #14213D; padding: 50px 60px; }
+.h-title { font-family: 'Tinos', serif; font-size: 30px; font-weight: 900; letter-spacing: -0.5px; }
+.h-sub { font-family: 'Inter', sans-serif; font-size: 13px; color: #4A5568; margin-top: 4px; }
+.h-rule { width: 80px; height: 3px; background: #C8102E; margin: 14px 0 24px 0; }
+
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+
+.uml-card { border: 1px solid #CBD5E1; border-radius: 6px; overflow: hidden; }
+.uml-head { background: #14213D; color: #fff; padding: 10px 16px; font-family: 'Tinos', serif; font-size: 13px; font-weight: 700; }
+.uml-body { padding: 12px 14px; }
+.class-box { border: 1.5px solid #14213D; border-radius: 4px; margin-bottom: 10px; background: #fff; }
+.class-name { background: #14213D; color: #fff; padding: 5px 10px; font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; }
+.class-name .st { font-style: italic; color: #C8102E; font-weight: 400; font-size: 9px; margin-left: 4px; }
+.class-section { padding: 5px 10px; border-top: 1px solid #CBD5E1; font-family: 'JetBrains Mono', monospace; font-size: 8.5px; line-height: 1.6; color: #14213D; }
+.class-section .attr { color: #4A5568; }
+.class-section .pub { color: #15803D; }
+.class-section .priv { color: #C8102E; }
+
+.relation { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C8102E; text-align: center; margin: 3px 0; font-weight: 700; }
+
+.iface-card { background: #F8FAFC; border: 1px solid #CBD5E1; border-left: 3px solid #B45309; border-radius: 4px; padding: 8px 12px; margin-bottom: 8px; }
+.iface-card .n { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #B45309; font-weight: 700; }
+.iface-card .t { font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; color: #14213D; margin-top: 2px; }
+.iface-card .methods { font-family: 'JetBrains Mono', monospace; font-size: 8.5px; color: #4A5568; margin-top: 4px; line-height: 1.6; }
+.iface-card .methods .pub { color: #15803D; }
+
+.note { margin-top: 18px; padding: 12px 16px; background: #F1F5F9; border-left: 4px solid #C8102E; border-radius: 4px; font-family: 'Inter', sans-serif; font-size: 11px; color: #14213D; line-height: 1.6; }
+.note b { color: #C8102E; }
+</style></head>
+<body>
+<div class="h-title">Class Design — UML</div>
+<div class="h-sub">12 classes · 3 interfaces · Python 3.12 · mypy --strict · Strategy + Observer + Factory patterns</div>
+<div class="h-rule"></div>
+
+<div class="cols">
+  <div class="uml-card">
+    <div class="uml-head">Core Engine &amp; Orchestration</div>
+    <div class="uml-body">
+      <div class="class-box">
+        <div class="class-name">WeightingEngine <span class="st">«main orchestrator»</span></div>
+        <div class="class-section"><div class="attr">- metrics_calc_: MetricsCalculator</div><div class="attr">- algorithms_: dict[str, IWeightingAlgorithm]</div><div class="attr">- meta_bandit_: MetaBandit</div><div class="attr">- ceo_interface_: ICEOSupervisor</div><div class="attr">- cycle_task_: asyncio.Task</div></div>
+        <div class="class-section"><div class="pub">+</div> async start() / stop() → None</div><div class="class-section"><div class="pub">+</div> async run_cycle() → ModelWeights</div><div class="class-section"><div class="pub">+</div> get_current_weights() → ModelWeights</div><div class="class-section"><div class="priv">-</div> async _ingest_inputs() → WeightingInputs</div><div class="class-section"><div class="priv">-</div> async _apply_ceo_directives(weights) → ModelWeights</div><div class="class-section"><div class="priv">-</div> async _feedback_loop(outcome) → None</div></div>
+      </div>
+      <div class="relation">↑ uses</div>
+      <div class="class-box">
+        <div class="class-name">MetricsCalculator</div>
+        <div class="class-section"><div class="attr">- windows_: dict[ModelId, dict[Metric, RollingWindow]]</div></div>
+        <div class="class-section"><div class="pub">+</div> compute_all(inputs: WeightingInputs) → ModelMetrics</div><div class="class-section"><div class="pub">+</div> compute_accuracy(model_id) → float</div><div class="class-section"><div class="pub">+</div> compute_profit_factor(model_id) → float</div><div class="class-section"><div class="pub">+</div> compute_sharpe(model_id) → float</div><div class="class-section"><div class="pub">+</div> compute_dd_contribution(model_id) → float</div><div class="class-section"><div class="pub">+</div> compute_slippage_sensitivity(model_id) → float</div><div class="class-section"><div class="pub">+</div> compute_latency_sensitivity(model_id) → float</div><div class="class-section"><div class="pub">+</div> compute_regime_performance(model_id) → float</div></div>
+      </div>
+      <div class="class-box">
+        <div class="class-name">MetaBandit</div>
+        <div class="class-section"><div class="attr">- posteriors_: dict[Regime, dict[AlgoId, BetaDist]]</div><div class="attr">- quality_history_: deque</div></div>
+        <div class="class-section"><div class="pub">+</div> select_algorithm(regime: Regime) → AlgoId</div><div class="class-section"><div class="pub">+</div> update(algo_id, regime, quality: float) → None</div><div class="class-section"><div class="priv">-</div> _sample_posterior(regime, algo) → float</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="uml-card">
+    <div class="uml-head">4 Algorithms + Interfaces + Data</div>
+    <div class="uml-body">
+      <div class="class-box">
+        <div class="class-name">BayesianWeighting <span class="st">: IWeightingAlgorithm</span></div>
+        <div class="class-section"><div class="attr">- priors_: dict[ModelId, BetaDist]</div></div>
+        <div class="class-section"><div class="pub">+</div> compute_weights(metrics, inputs) → ModelWeights</div><div class="class-section"><div class="pub">+</div> update(model_id, outcome) → None</div></div>
+      </div>
+      <div class="class-box">
+        <div class="class-name">WeightedVoting <span class="st">: IWeightingAlgorithm</span></div>
+        <div class="class-section"><div class="attr">- lambda_: float = 2.0</div><div class="attr">- ewma_sharpe_: dict[ModelId, float]</div></div>
+        <div class="class-section"><div class="pub">+</div> compute_weights(metrics, inputs) → ModelWeights</div></div>
+      </div>
+      <div class="class-box">
+        <div class="class-name">ThompsonSamplingMAB <span class="st">: IWeightingAlgorithm</span></div>
+        <div class="class-section"><div class="attr">- arms_: dict[ModelId, BetaDist]</div><div class="attr">- tau_: float = 0.5</div></div>
+        <div class="class-section"><div class="pub">+</div> compute_weights(metrics, inputs) → ModelWeights</div><div class="class-section"><div class="pub">+</div> update(model_id, reward) → None</div></div>
+      </div>
+      <div class="class-box">
+        <div class="class-name">OnlineLinearRegression <span class="st">: IWeightingAlgorithm</span></div>
+        <div class="class-section"><div class="attr">- weights_: np.ndarray  # 4×7</div><div class="attr">- lr_: float = 0.01</div><div class="attr">- epoch_: int = 0</div></div>
+        <div class="class-section"><div class="pub">+</div> compute_weights(metrics, inputs) → ModelWeights</div><div class="class-section"><div class="pub">+</div> update(gradient: np.ndarray) → None</div></div>
+      </div>
+      <div class="relation">↑ implements</div>
+      <div class="iface-card"><div class="n">«interface»</div><div class="t">IWeightingAlgorithm</div><div class="methods"><span class="pub">+</span> compute_weights(metrics, inputs) → ModelWeights<br><span class="pub">+</span> update(model_id, outcome) → None</div></div>
+      <div class="iface-card"><div class="n">«interface»</div><div class="t">ICEOSupervisor</div><div class="methods"><span class="pub">+</span> get_influence_caps() → dict[ModelId, float]<br><span class="pub">+</span> get_disabled_models() → set[ModelId]<br><span class="pub">+</span> get_system_status() → SystemStatus</div></div>
+      <div class="iface-card"><div class="n">«interface»</div><div class="t">IEnsembleVoter</div><div class="methods"><span class="pub">+</span> async set_weights(weights: ModelWeights) → None</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="note">
+<b>Design Patterns:</b> <b>Strategy</b> (IWeightingAlgorithm — 4 interchangeable algorithms), <b>Observer</b> (WeightingEngine subscribes to trade outcomes + CEO directives), <b>Factory</b> (AlgorithmFactory creates algorithm from config), <b>Meta-Strategy</b> (MetaBandit selects strategy). <b>All classes fully typed (mypy --strict).</b> Zero GPU dependency — all computation is NumPy vectorized. <b>Zero external service calls</b> — fully offline. The MetaBandit is the key innovation: it treats algorithms themselves as bandit arms, automatically selecting the best algorithm per regime without human tuning.
+</div>
+</body></html>

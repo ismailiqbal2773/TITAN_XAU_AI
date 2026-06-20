@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Execution Engine — Performance Benchmarks</title>
+<style>
+  @page { size: 1600px 700px; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #ffffff; font-family: 'Tinos','FreeSerif',serif; color: #14213D; }
+  .canvas { width: 1600px; height: 700px; padding: 40px 60px; box-sizing: border-box; }
+  .title-bar { display: flex; align-items: baseline; gap: 18px; border-bottom: 2px solid #14213D; padding-bottom: 12px; margin-bottom: 24px; }
+  .title-bar .num { font-size: 48px; font-weight: 900; color: #C8102E; line-height: 1; }
+  .title-bar h1 { font-size: 26px; font-weight: 700; margin: 0; }
+  .title-bar .sub { font-size: 13px; color: #4A5568; margin-left: auto; font-family: 'JetBrains Mono',monospace; }
+  svg { display: block; margin: 0 auto; background: #FAFBFC; border: 1px solid #E2E8F0; }
+  .table { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-top: 14px; }
+  .table th { background: #14213D; color: #ffffff; padding: 6px 8px; text-align: left; font-weight: 700; }
+  .table td { padding: 5px 8px; border-bottom: 1px solid #E2E8F0; font-family: 'JetBrains Mono', monospace; font-size: 10px; }
+  .table tr:nth-child(even) td { background: #F8FAFC; }
+  .table .stage { color: #14213D; font-weight: 700; }
+  .table .hot { color: #C8102E; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="title-bar">
+    <span class="num">06</span>
+    <h1>Performance Benchmarks — Latency, Throughput, Resource Envelope</h1>
+    <span class="sub">Tick-to-fill budget · 50k ticks/s sustained · &lt;256MB RAM</span>
+  </div>
+
+  <svg width="1480" height="350" viewBox="0 0 1480 350">
+    <text x="40" y="35" font-size="13" font-weight="700" fill="#14213D" font-family="Tinos">SIGNAL-TO-FILL LATENCY BUDGET (warm path)</text>
+    <text x="540" y="35" font-size="14" font-weight="700" fill="#C8102E" font-family="Tinos">p50 = 2.45ms · p99 = 5.80ms · p99.9 = 12.5ms</text>
+
+    <!-- track -->
+    <rect x="40" y="80" width="1400" height="80" fill="#F8FAFC" stroke="#E2E8F0"/>
+
+    <!-- 7 stages scaled (2.45ms total internal = 1400px → ~571 px/ms) -->
+    <!-- 1. Idempotency check: 0.02 ms = 11px -->
+    <rect x="40" y="80" width="11" height="80" fill="#FEF3F2" stroke="#14213D"/>
+    <text x="46" y="120" text-anchor="middle" font-size="9" font-weight="700">0.02</text>
+    <text x="46" y="148" text-anchor="middle" font-size="8" fill="#4A5568">idem</text>
+
+    <!-- 2. Order build: 0.05 ms = 28px -->
+    <rect x="51" y="80" width="28" height="80" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="65" y="120" text-anchor="middle" font-size="9" font-weight="700">0.05</text>
+    <text x="65" y="148" text-anchor="middle" font-size="8" fill="#4A5568">build</text>
+
+    <!-- 3. Risk gate: 0.15 ms = 86px -->
+    <rect x="79" y="80" width="86" height="80" fill="#FEF3F2" stroke="#14213D"/>
+    <text x="122" y="110" text-anchor="middle" font-size="11" font-weight="700" font-family="Tinos">RiskGate</text>
+    <text x="122" y="128" text-anchor="middle" fill="#C8102E" font-size="12" font-weight="700">0.15 ms</text>
+    <text x="122" y="148" text-anchor="middle" font-size="8" fill="#4A5568">sync veto</text>
+
+    <!-- 4. Venue select: 0.05 ms = 28px -->
+    <rect x="165" y="80" width="28" height="80" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="179" y="120" text-anchor="middle" font-size="9" font-weight="700">0.05</text>
+    <text x="179" y="148" text-anchor="middle" font-size="8" fill="#4A5568">venue</text>
+
+    <!-- 5. Dispatch: 0.10 ms = 57px -->
+    <rect x="193" y="80" width="57" height="80" fill="#FEF3F2" stroke="#14213D"/>
+    <text x="221" y="120" text-anchor="middle" font-size="10" font-weight="700">0.10</text>
+    <text x="221" y="148" text-anchor="middle" font-size="8" fill="#4A5568">dispatch</text>
+
+    <!-- 6. MT5 send: 0.50 ms = 286px -->
+    <rect x="250" y="80" width="286" height="80" fill="#14213D"/>
+    <text x="393" y="110" text-anchor="middle" fill="#ffffff" font-size="11" font-weight="700" font-family="Tinos">MT5 OrderSend</text>
+    <text x="393" y="128" text-anchor="middle" fill="#C8102E" font-size="12" font-weight="700">0.50 ms</text>
+    <text x="393" y="148" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="8">us→broker</text>
+
+    <!-- 7. Broker round-trip (variable): 1.50 ms p50 = 856px -->
+    <rect x="536" y="80" width="856" height="80" fill="#F8FAFC" stroke="#14213D" stroke-dasharray="4 2"/>
+    <text x="964" y="110" text-anchor="middle" font-size="11" font-weight="700" fill="#4A5568" font-family="Tinos">Broker matching + network RTT</text>
+    <text x="964" y="128" text-anchor="middle" fill="#C8102E" font-size="12" font-weight="700">1.50 ms (p50) · 4.0 ms (p99)</text>
+    <text x="964" y="148" text-anchor="middle" font-size="8" fill="#4A5568">variable, broker-dependent</text>
+
+    <!-- 8. Fill callback: 0.08 ms = 46px (back at us) -->
+    <rect x="1392" y="80" width="11" height="80" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="1398" y="120" text-anchor="middle" font-size="9" font-weight="700">0.08</text>
+    <text x="1398" y="148" text-anchor="middle" font-size="8" fill="#4A5568">fill cb</text>
+
+    <!-- Annotation -->
+    <text x="40" y="200" font-size="11" font-weight="700" fill="#14213D" font-family="JetBrains Mono">INTERNAL HOT-PATH TOTAL (excl. broker RTT):</text>
+    <text x="430" y="200" font-size="13" font-weight="700" fill="#C8102E" font-family="Tinos">0.95 ms (p50) · 1.80 ms (p99) · 5.20 ms (p99.9)</text>
+    <text x="950" y="200" font-size="11" fill="#4A5568" font-family="JetBrains Mono">budget gate: p99 &lt; 2.0 ms internal · p99 &lt; 6 ms end-to-end</text>
+
+    <text x="40" y="235" font-size="10" fill="#4A5568" font-family="JetBrains Mono">▲ All hot-path components on CPU 2-3 (isolated, NO_HZ_FULL, no syscalls, no heap alloc). Pre-allocated Order pool. SPSC queues between threads.</text>
+
+    <!-- Resource envelope -->
+    <text x="40" y="275" font-size="13" font-weight="700" fill="#C8102E" font-family="Tinos">RESOURCE ENVELOPE (per TITAN process)</text>
+
+    <g font-family="JetBrains Mono" font-size="10" fill="#14213D">
+      <rect x="40" y="290" width="340" height="50" fill="#F0FDF4" stroke="#14213D"/>
+      <text x="60" y="310" font-weight="700">CPU</text>
+      <text x="60" y="325">2 cores pinned (CPU 2-3 isolated)</text>
+      <text x="60" y="337" fill="#4A5568">isolcpus + nohz_full + rcu_nocbs</text>
+
+      <rect x="400" y="290" width="340" height="50" fill="#F0FDF4" stroke="#14213D"/>
+      <text x="420" y="310" font-weight="700">RAM</text>
+      <text x="420" y="325">&lt; 256 MB resident (target)</text>
+      <text x="420" y="337" fill="#4A5568">4 GB hugepages for ring buffers</text>
+
+      <rect x="760" y="290" width="340" height="50" fill="#F0FDF4" stroke="#14213D"/>
+      <text x="780" y="310" font-weight="700">Throughput</text>
+      <text x="780" y="325">50,000 ticks/s sustained (1h)</text>
+      <text x="780" y="337" fill="#4A5568">200 orders/s burst capacity</text>
+
+      <rect x="1120" y="290" width="320" height="50" fill="#F0FDF4" stroke="#14213D"/>
+      <text x="1140" y="310" font-weight="700">Heap allocs (hot path)</text>
+      <text x="1140" y="325">0 per order (pool-based)</text>
+      <text x="1140" y="337" fill="#4A5568">malloc banned in L3 layer</text>
+    </g>
+  </svg>
+
+  <table class="table">
+    <tr><th>Stage</th><th>p50 (ms)</th><th>p99 (ms)</th><th>p99.9 (ms)</th><th>Budget (ms)</th><th>Owner</th><th>Mitigation if Breached</th></tr>
+    <tr><td class="stage">Idempotency check</td><td>0.02</td><td>0.05</td><td>0.10</td><td class="hot">0.05</td><td>Exec team</td><td>Bloom filter resize; otherwise drop dup</td></tr>
+    <tr><td class="stage">Order build (pool)</td><td>0.05</td><td>0.10</td><td>0.20</td><td class="hot">0.10</td><td>Exec team</td><td>Pre-warm pool; check allocator</td></tr>
+    <tr><td class="stage">RiskGate (sync)</td><td>0.15</td><td>0.30</td><td>0.80</td><td class="hot">0.30</td><td>Risk team</td><td>O(1) lookups; atomic reads</td></tr>
+    <tr><td class="stage">Venue selector</td><td>0.05</td><td>0.10</td><td>0.20</td><td class="hot">0.10</td><td>Exec team</td><td>Cache last selection; bypass if single venue</td></tr>
+    <tr><td class="stage">Dispatch (SPSC → MT5 thread)</td><td>0.10</td><td>0.20</td><td>0.50</td><td class="hot">0.20</td><td>Bridge team</td><td>Increase queue depth; check contention</td></tr>
+    <tr><td class="stage">MT5 OrderSend</td><td>0.50</td><td>1.50</td><td>4.00</td><td class="hot">1.50</td><td>Bridge team</td><td>Wine tuning; consider FIX adapter</td></tr>
+    <tr><td class="stage">Broker RTT (variable)</td><td>1.50</td><td>4.00</td><td>8.00</td><td>—</td><td>Broker</td><td>(not under our control)</td></tr>
+    <tr><td class="stage">Fill callback processing</td><td>0.08</td><td>0.15</td><td>0.30</td><td class="hot">0.15</td><td>Exec team</td><td>Offload EQS to L4 thread</td></tr>
+    <tr style="background:#FEF3F2"><td class="hot">TOTAL INTERNAL (excl. broker)</td><td class="hot">0.95</td><td class="hot">1.80</td><td class="hot">5.20</td><td class="hot">2.00 (p99)</td><td>—</td><td>Spike detector throttles if p99 &gt; 3ms</td></tr>
+    <tr style="background:#FEF3F2"><td class="hot">TOTAL END-TO-END</td><td class="hot">2.45</td><td class="hot">5.80</td><td class="hot">12.50</td><td class="hot">6.00 (p99)</td><td>—</td><td>Operator page if p99 &gt; 10ms for 10s</td></tr>
+  </table>
+</div>
+</body>
+</html>

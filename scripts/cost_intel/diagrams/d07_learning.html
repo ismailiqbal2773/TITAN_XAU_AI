@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Cost Intelligence — Learning &amp; Adaptation</title>
+<style>
+  @page { size: 1600px 800px; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #ffffff; font-family: 'Tinos','FreeSerif',serif; color: #14213D; }
+  .canvas { width: 1600px; height: 800px; padding: 50px 60px; box-sizing: border-box; }
+  .title-bar { display: flex; align-items: baseline; gap: 18px; border-bottom: 2px solid #14213D; padding-bottom: 12px; margin-bottom: 24px; }
+  .title-bar .num { font-size: 48px; font-weight: 900; color: #C8102E; line-height: 1; }
+  .title-bar h1 { font-size: 26px; font-weight: 700; margin: 0; }
+  .title-bar .sub { font-size: 13px; color: #4A5568; margin-left: auto; font-family: 'JetBrains Mono',monospace; }
+  svg { display: block; margin: 0 auto; background: #FAFBFC; border: 1px solid #E2E8F0; }
+  .table { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-top: 14px; }
+  .table th { background: #14213D; color: #ffffff; padding: 6px 8px; text-align: left; font-weight: 700; }
+  .table td { padding: 5px 8px; border-bottom: 1px solid #E2E8F0; }
+  .table tr:nth-child(even) td { background: #F8FAFC; }
+  .table .mod { color: #14213D; font-family: 'JetBrains Mono',monospace; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="title-bar">
+    <span class="num">07</span>
+    <h1>Cost Learning Engine — Adaptive Model Calibration</h1>
+    <span class="sub">Slippage model · latency model · per-broker · per-session · per-regime</span>
+  </div>
+  <svg width="1480" height="400" viewBox="0 0 1480 400">
+    <defs><marker id="ar7" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L7,3 z" fill="#14213D"/></marker></defs>
+
+    <text x="40" y="30" font-size="14" font-weight="700" fill="#C8102E" font-family="Tinos">LEARNING LOOP — Every fill updates the cost models</text>
+    <rect x="40" y="50" width="280" height="100" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="180" y="75" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">1. Fill Arrives</text>
+    <text x="60" y="100" font-size="10" fill="#4A5568" font-family="JetBrains Mono">realized spread, slippage,</text>
+    <text x="60" y="115" font-size="10" fill="#4A5568" font-family="JetBrains Mono">latency, commission, swap</text>
+    <text x="60" y="135" font-size="10" fill="#4A5568" font-family="JetBrains Mono">+ broker, session, regime</text>
+    <line x1="320" y1="100" x2="360" y2="100" stroke="#14213D" stroke-width="2" marker-end="url(#ar7)"/>
+
+    <rect x="360" y="50" width="280" height="100" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="500" y="75" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">2. Compare Expected vs Realized</text>
+    <text x="380" y="100" font-size="10" fill="#4A5568" font-family="JetBrains Mono">per-component variance:</text>
+    <text x="380" y="115" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Δspread, Δslip, Δlatency,</text>
+    <text x="380" y="130" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Δcomm, Δswap</text>
+    <text x="380" y="145" font-size="10" fill="#C8102E" font-family="JetBrains Mono" font-weight="bold">→ identifies which model is off</text>
+    <line x1="640" y1="100" x2="680" y2="100" stroke="#14213D" stroke-width="2" marker-end="url(#ar7)"/>
+
+    <rect x="680" y="50" width="280" height="100" fill="#FEF3F2" stroke="#C8102E" stroke-width="2"/>
+    <text x="820" y="75" text-anchor="middle" font-size="12" font-weight="700" fill="#C8102E" font-family="Tinos">3. Update Models</text>
+    <text x="700" y="100" font-size="10" fill="#4A5568" font-family="JetBrains Mono">slippage_model: EMA update</text>
+    <text x="700" y="115" font-size="10" fill="#4A5568" font-family="JetBrains Mono">latency_model: p50/p95/p99 update</text>
+    <text x="700" y="130" font-size="10" fill="#4A5568" font-family="JetBrains Mono">spread_model: session-conditional μ,σ</text>
+    <text x="700" y="145" font-size="10" fill="#4A5568" font-family="JetBrains Mono">per-broker calibration</text>
+    <line x1="960" y1="100" x2="1000" y2="100" stroke="#14213D" stroke-width="2" marker-end="url(#ar7)"/>
+
+    <rect x="1000" y="50" width="280" height="100" fill="#14213D"/>
+    <text x="1140" y="75" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700" font-family="Tinos">4. Updated Cost Estimates</text>
+    <text x="1020" y="100" fill="#ffffff" font-size="10" opacity="0.8" font-family="JetBrains Mono">more accurate spread_bps</text>
+    <text x="1020" y="115" fill="#ffffff" font-size="10" opacity="0.8" font-family="JetBrains Mono">more accurate slip_bps</text>
+    <text x="1020" y="130" fill="#ffffff" font-size="10" opacity="0.8" font-family="JetBrains Mono">more accurate latency_bps</text>
+    <text x="1020" y="145" fill="#C8102E" font-size="10" font-family="JetBrains Mono" font-weight="bold">→ better edge decisions next trade</text>
+
+    <line x1="1140" y1="150" x2="1140" y2="190" stroke="#14213D" stroke-width="2" marker-end="url(#ar7)"/>
+    <path d="M 1140 190 Q 600 220 180 190" stroke="#14213D" stroke-width="2" fill="none" marker-end="url(#ar7)" stroke-dasharray="4 2"/>
+    <text x="600" y="215" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">▲ feedback loop: next signal uses updated models → better cost estimates → better edge decisions</text>
+
+    <text x="40" y="260" font-size="14" font-weight="700" fill="#C8102E" font-family="Tinos">MODEL CALIBRATION DETAILS</text>
+    <rect x="40" y="280" width="1400" height="80" fill="#F8FAFC" stroke="#14213D"/>
+    <g font-family="JetBrains Mono" font-size="10" fill="#4A5568">
+      <text x="60" y="305">Slippage model: per-broker × per-regime × per-session. EMA update (α=0.05) on each fill. 3 models: linear (small size), sqrt-impact (medium), learned (large).</text>
+      <text x="60" y="325">Latency model: per-broker p50/p95/p99 (rolling 1000-fill). Decompose: internal latency (signal→dispatch) + broker latency (dispatch→fill).</text>
+      <text x="60" y="345">Spread model: per-broker × per-session × per-regime. Rolling 1000-tick μ, σ. Detect spread widening patterns (pre-news, session open/close).</text>
+    </g>
+  </svg>
+  <table class="table">
+    <tr><th>Model</th><th>Update Trigger</th><th>Update Method</th><th>Granularity</th><th>Retention</th><th>Validation</th></tr>
+    <tr><td class="mod">Slippage Model</td><td>Every fill</td><td>EMA (α=0.05) on (qty, realized_slip) pair</td><td>Per-broker × per-regime × per-session</td><td>Rolling 1000 fills</td><td>MAPE ≤ 30% (rolling 100)</td></tr>
+    <tr><td class="mod">Latency Model</td><td>Every fill</td><td>Rolling p50/p95/p99 update</td><td>Per-broker (internal + broker decomposed)</td><td>Rolling 1000 fills</td><td>p99 within 1.5× of predicted</td></tr>
+    <tr><td class="mod">Spread Model</td><td>Every tick (continuous)</td><td>Rolling μ, σ (1000-tick window)</td><td>Per-broker × per-session × per-regime</td><td>Rolling 1000 ticks</td><td>±2σ contains 95% of spreads</td></tr>
+    <tr><td class="mod">Commission Model</td><td>Every fill (verify)</td><td>Compare actual vs BrokerProfile</td><td>Per-broker (static, from BCE)</td><td>Current profile</td><td>Actual == profile (alert if ≠)</td></tr>
+    <tr><td class="mod">Swap Model</td><td>Every fill (verify)</td><td>Compare actual vs projected</td><td>Per-broker × per-direction</td><td>Current profile</td><td>Actual == projected (alert if ≠)</td></tr>
+  </table>
+</div>
+</body>
+</html>

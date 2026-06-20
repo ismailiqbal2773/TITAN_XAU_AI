@@ -1,0 +1,127 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>d05</title>
+<link href="https://fonts.googleapis.com/css2?family=Tinos:wght@400;700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { width: 1600px; height: 1000px; background: #ffffff; font-family: 'Inter', sans-serif; color: #14213D; padding: 50px 60px; }
+.h-title { font-family: 'Tinos', serif; font-size: 30px; font-weight: 900; letter-spacing: -0.5px; }
+.h-sub { font-family: 'Inter', sans-serif; font-size: 13px; color: #4A5568; margin-top: 4px; }
+.h-rule { width: 80px; height: 3px; background: #C8102E; margin: 14px 0 24px 0; }
+
+.cols { display: grid; grid-template-columns: 1.1fr 1fr; gap: 22px; }
+
+.report-card { border: 1px solid #CBD5E1; border-radius: 6px; overflow: hidden; }
+.report-head { background: #14213D; color: #fff; padding: 12px 18px; }
+.report-head .lbl { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C8102E; letter-spacing: 2px; font-weight: 700; }
+.report-head .t { font-family: 'Tinos', serif; font-size: 16px; font-weight: 700; margin-top: 3px; }
+.report-body { padding: 12px 16px; }
+.report-row { display: grid; grid-template-columns: 130px 1fr; gap: 12px; padding: 6px 0; border-bottom: 1px dashed #E2E8F0; font-family: 'Inter', sans-serif; font-size: 10.5px; }
+.report-row:last-child { border-bottom: none; }
+.report-row .k { font-family: 'JetBrains Mono', monospace; font-size: 9.5px; font-weight: 700; color: #14213D; letter-spacing: 0.5px; }
+.report-row .v { color: #4A5568; line-height: 1.5; }
+.report-row .v b { color: #C8102E; }
+
+.reports-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+.rep-card { background: #F8FAFC; border: 1px solid #CBD5E1; border-top: 3px solid #14213D; border-radius: 6px; padding: 12px; }
+.rep-card.exec { border-top-color: #C8102E; }
+.rep-card.reg { border-top-color: #B45309; }
+.rep-card .aud { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C8102E; font-weight: 700; letter-spacing: 1.5px; }
+.rep-card .t { font-family: 'Tinos', serif; font-size: 13px; font-weight: 700; color: #14213D; margin: 4px 0 6px 0; }
+.rep-card .d { font-family: 'Inter', sans-serif; font-size: 9.5px; color: #4A5568; line-height: 1.5; }
+.rep-card .fmt { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #14213D; margin-top: 6px; padding-top: 6px; border-top: 1px dashed #CBD5E1; }
+
+.failure-card { background: #14213D; color: #fff; border-radius: 6px; overflow: hidden; }
+.failure-head { padding: 12px 18px; background: #C8102E; }
+.failure-head .lbl { font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 2px; font-weight: 700; }
+.failure-head .t { font-family: 'Tinos', serif; font-size: 16px; font-weight: 700; margin-top: 3px; }
+.failure-body { padding: 14px 18px; }
+.band { margin-bottom: 12px; padding: 10px 14px; border-radius: 4px; border-left: 3px solid; }
+.band.pass { background: #15803D; border-color: #4ADE80; }
+.band.cond { background: #B45309; border-color: #FCD34D; }
+.band.fail { background: #C8102E; border-color: #FCA5A5; }
+.band .v { font-family: 'Tinos', serif; font-size: 16px; font-weight: 900; }
+.band .d { font-family: 'Inter', sans-serif; font-size: 10px; margin-top: 3px; line-height: 1.4; }
+
+.crit-list { margin-top: 14px; }
+.crit-list .lbl { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C8102E; letter-spacing: 2px; font-weight: 700; }
+.crit-row { display: grid; grid-template-columns: 80px 1fr; gap: 10px; padding: 6px 0; border-bottom: 1px dashed #4A5568; font-family: 'Inter', sans-serif; font-size: 10.5px; }
+.crit-row .sev { font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 2px; text-align: center; }
+.crit-row .sev.crit { background: #C8102E; color: #fff; }
+.crit-row .sev.maj { background: #B45309; color: #fff; }
+.crit-row .sev.min { background: #4A5568; color: #fff; }
+.crit-row .desc { color: #E2E8F0; line-height: 1.5; }
+.crit-row .desc b { color: #C8102E; }
+</style></head>
+<body>
+<div class="h-title">Reporting System &amp; Failure Criteria</div>
+<div class="h-sub">3-tier report distribution · 3-band certification · 10 critical/major/minor failure rules</div>
+<div class="h-rule"></div>
+
+<div class="cols">
+  <div>
+    <div class="report-card">
+      <div class="report-head"><div class="lbl">REPORTING SYSTEM</div><div class="t">3-Tier Report Distribution</div></div>
+      <div class="report-body">
+        <div class="report-row"><div class="k">ARCHIVE</div><div class="v">All reports archived to <b>S3://titan-backtests/{strategy}/{version}/{timestamp}/</b> with 7-year retention. RSA-2048 signed manifest.</div></div>
+        <div class="report-row"><div class="k">DISPATCH</div><div class="v">Auto-dispatched via PagerDuty (engineering), Slack #titan-backtests (ops), email (stakeholders). Live dashboard at <b>https://titan.io/backtests</b>.</div></div>
+        <div class="report-row"><div class="k">VERSIONING</div><div class="v">Every backtest pinned to: strategy version + data version + cost-profile version + engine version. Full reproducibility.</div></div>
+        <div class="report-row"><div class="k">COMPARISON</div><div class="v">Each run compared against last 5 runs of same strategy. Regression detection: &gt; 15% score drop = P1 alert.</div></div>
+      </div>
+    </div>
+
+    <div style="margin-top:18px">
+      <div class="reports-grid">
+        <div class="rep-card exec">
+          <div class="aud">EXECUTIVE</div>
+          <div class="t">1-page brief</div>
+          <div class="d">Verdict, headline metrics (Sharpe/MDD/CAGR), cost drag, regime breakdown, comparison to benchmark. For CTO / portfolio manager.</div>
+          <div class="fmt">PDF · 1 page</div>
+        </div>
+        <div class="rep-card">
+          <div class="aud">TECHNICAL</div>
+          <div class="t">Full metrics dump</div>
+          <div class="d">All 24 metrics, per-trade ledger, equity curve, drawdown profile, regime attribution, cost breakdown, parameter sensitivity.</div>
+          <div class="fmt">PDF + JSON · 15-30 pp</div>
+        </div>
+        <div class="rep-card reg">
+          <div class="aud">REGULATORY</div>
+          <div class="t">Audit trail</div>
+          <div class="d">Data lineage, methodology, assumptions, cost calibration evidence, reproducibility manifest. For compliance / external audit.</div>
+          <div class="fmt">PDF · 8-12 pp</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="failure-card">
+    <div class="failure-head"><div class="lbl">FAILURE CRITERIA</div><div class="t">3-Band Verdict + Hard Veto Triggers</div></div>
+    <div class="failure-body">
+      <div class="band pass">
+        <div class="v">PASS · CERTIFIED</div>
+        <div class="d">All metrics in target band. Cost drag ≤ 35%. Realistic CAGR ≥ 35%. MDD ≤ 12%. Sharpe ≥ 2.0. 0 critical failures.</div>
+      </div>
+      <div class="band cond">
+        <div class="v">CONDITIONAL</div>
+        <div class="d">1-2 metrics outside target, no critical failures. Strategy approved for paper / small-capital live with daily revalidation. Re-backtest in 7 days.</div>
+      </div>
+      <div class="band fail">
+        <div class="v">REJECT · VETO</div>
+        <div class="d">Any critical failure, or &gt; 2 major failures, or aggregate score &lt; 65. Strategy not approved for live capital. Engineering review required.</div>
+      </div>
+
+      <div class="crit-list">
+        <div class="lbl">HARD VETO TRIGGERS (10)</div>
+        <div class="crit-row"><div class="sev crit">CRIT-01</div><div class="desc"><b>Sharpe &lt; 1.5</b>: insufficient risk-adjusted return. Strategy is no better than buy-hold.</div></div>
+        <div class="crit-row"><div class="sev crit">CRIT-02</div><div class="desc"><b>MDD &gt; 20%</b>: unacceptable drawdown. Capital preservation failure.</div></div>
+        <div class="crit-row"><div class="sev crit">CRIT-03</div><div class="desc"><b>Cost drag &gt; 50%</b>: more than half of edge lost to costs. Strategy is unviable.</div></div>
+        <div class="crit-row"><div class="sev crit">CRIT-04</div><div class="desc"><b>Negative CAGR</b>: strategy loses money over 12 months. Fundamental flaw.</div></div>
+        <div class="crit-row"><div class="sev crit">CRIT-05</div><div class="desc"><b>Lookahead bias detected</b>: strategy uses future data. Critical methodological error.</div></div>
+        <div class="crit-row"><div class="sev maj">MAJ-01</div><div class="desc"><b>Profit factor &lt; 1.3</b>: marginal edge, vulnerable to cost drift.</div></div>
+        <div class="crit-row"><div class="sev maj">MAJ-02</div><div class="desc"><b>Win rate &lt; 45%</b>: low hit rate, depends on outsized winners (fragile).</div></div>
+        <div class="crit-row"><div class="sev maj">MAJ-03</div><div class="desc"><b>Regime concentration &gt; 70%</b>: profit from 1 regime only. Not robust.</div></div>
+        <div class="crit-row"><div class="sev maj">MAJ-04</div><div class="desc"><b>Trades &lt; 200 in 12 months</b>: insufficient sample for statistical confidence.</div></div>
+        <div class="crit-row"><div class="sev min">MIN-01</div><div class="desc"><b>Calmar &lt; 2.0</b>: drawdown-to-return ratio suboptimal. Advisory only.</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+</body></html>

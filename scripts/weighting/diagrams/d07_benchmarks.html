@@ -1,0 +1,96 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>d07</title>
+<link href="https://fonts.googleapis.com/css2?family=Tinos:wght@400;700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { width: 1600px; height: 1200px; background: #ffffff; font-family: 'Inter', sans-serif; color: #14213D; padding: 50px 60px; }
+.h-title { font-family: 'Tinos', serif; font-size: 30px; font-weight: 900; letter-spacing: -0.5px; }
+.h-sub { font-family: 'Inter', sans-serif; font-size: 13px; color: #4A5568; margin-top: 4px; }
+.h-rule { width: 80px; height: 3px; background: #C8102E; margin: 14px 0 24px 0; }
+
+.bench-table { margin-top: 14px; }
+table { width: 100%; border-collapse: collapse; }
+th { background: #14213D; color: #fff; padding: 9px 12px; text-align: left; font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 1px; }
+td { padding: 9px 12px; border-bottom: 1px solid #E2E8F0; font-family: 'Inter', sans-serif; font-size: 10.5px; vertical-align: top; }
+tr:nth-child(even) td { background: #F8FAFC; }
+td.n { font-family: 'JetBrains Mono', monospace; color: #C8102E; font-weight: 700; font-size: 10px; }
+td.c { font-family: 'JetBrains Mono', monospace; color: #14213D; font-size: 9.5px; }
+td.win { font-family: 'Tinos', serif; font-weight: 900; color: #15803D; font-size: 12px; text-align: center; }
+td.metric { font-family: 'JetBrains Mono', monospace; font-weight: 700; text-align: center; font-size: 11px; color: #14213D; }
+td.metric.good { color: #15803D; }
+td.metric.bad { color: #C8102E; }
+
+.charts { margin-top: 22px; display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+.chart-card { border: 1px solid #CBD5E1; border-radius: 6px; overflow: hidden; }
+.chart-head { background: #14213D; color: #fff; padding: 10px 16px; font-family: 'Tinos', serif; font-size: 13px; font-weight: 700; }
+.chart-body { padding: 14px 18px; }
+
+.bar-row { display: grid; grid-template-columns: 100px 1fr 80px; gap: 10px; align-items: center; margin: 6px 0; font-family: 'Inter', sans-serif; font-size: 11px; }
+.bar-row .name { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #14213D; font-weight: 700; }
+.bar-row .track { background: #F1F5F9; height: 14px; border-radius: 2px; overflow: hidden; }
+.bar-row .fill { height: 100%; background: linear-gradient(90deg, #14213D 0%, #C8102E 100%); }
+.bar-row .val { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #C8102E; font-weight: 700; text-align: right; }
+
+.summary { margin-top: 22px; padding: 16px 22px; background: #14213D; color: #fff; border-radius: 6px; border: 2px solid #4ADE80; }
+.summary .lbl { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #4ADE80; letter-spacing: 2px; font-weight: 700; }
+.summary .h { font-family: 'Tinos', serif; font-size: 16px; font-weight: 900; margin-top: 4px; }
+.summary .h .accent { color: #4ADE80; }
+.summary .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 12px; }
+.scell { padding: 10px 12px; background: rgba(74, 222, 128, 0.1); border-left: 2px solid #4ADE80; border-radius: 3px; }
+.scell .v { font-family: 'Tinos', serif; font-size: 20px; font-weight: 900; color: #4ADE80; }
+.scell .d { font-family: 'Inter', sans-serif; font-size: 9.5px; opacity: 0.9; margin-top: 2px; line-height: 1.4; }
+</style></head>
+<body>
+<div class="h-title">Performance Benchmarks — 4 Algorithms vs Fixed Weights</div>
+<div class="h-sub">10,000-cycle benchmark · 4-vCPU VPS · CPU-only · vs fixed-weight baseline</div>
+<div class="h-rule"></div>
+
+<div class="bench-table">
+  <table>
+    <thead><tr><th style="width:50px">ID</th><th style="width:180px">METHOD</th><th style="width:100px">SHARPE</th><th style="width:100px">SORTINO</th><th style="width:100px">MAX DD</th><th style="width:100px">CPU (ms)</th><th style="width:100px">ADAPT (cycles)</th><th style="width:120px">REGRET</th><th style="width:80px">VERDICT</th></tr></thead>
+    <tbody>
+      <tr><td class="n">BASE</td><td>Fixed Equal (25% each)</td><td class="metric">1.82</td><td class="metric">2.41</td><td class="metric">8.2%</td><td class="metric good">0.1</td><td class="metric">N/A</td><td class="metric">N/A</td><td class="metric bad">BASELINE</td></tr>
+      <tr><td class="n">A1</td><td>Bayesian Weighting</td><td class="metric good">2.14</td><td class="metric good">2.88</td><td class="metric good">6.1%</td><td class="metric good">2.0</td><td class="metric">15</td><td class="metric good">0.12</td><td class="win">STRONG</td></tr>
+      <tr><td class="n">A2</td><td>Weighted Voting</td><td class="metric">2.08</td><td class="metric">2.79</td><td class="metric">6.5%</td><td class="metric good">0.5</td><td class="metric good">5</td><td class="metric">0.18</td><td class="win">GOOD</td></tr>
+      <tr><td class="n">A3</td><td>MAB (Thompson)</td><td class="metric good" style="color:#15803D;font-size:13px">2.28</td><td class="metric good" style="color:#15803D;font-size:13px">3.12</td><td class="metric good" style="color:#15803D;font-size:13px">5.4%</td><td class="metric good">3.0</td><td class="metric good">8</td><td class="metric good" style="color:#15803D">0.08</td><td class="win" style="color:#15803D">BEST</td></tr>
+      <tr><td class="n">A4</td><td>Online Linear</td><td class="metric good">2.21</td><td class="metric good">2.95</td><td class="metric good">5.8%</td><td class="metric">5.0</td><td class="metric">12</td><td class="metric good">0.10</td><td class="win">STRONG</td></tr>
+      <tr style="background:#14213D;color:#fff"><td class="n" style="color:#4ADE80">META</td><td style="color:#fff;font-weight:700">Meta-Bandit (best of 4)</td><td class="metric" style="color:#4ADE80;font-size:13px">2.35</td><td class="metric" style="color:#4ADE80;font-size:13px">3.21</td><td class="metric" style="color:#4ADE80;font-size:13px">5.1%</td><td class="metric" style="color:#4ADE80">10.5</td><td class="metric" style="color:#4ADE80">7</td><td class="metric" style="color:#4ADE80">0.06</td><td class="win" style="color:#4ADE80">OPTIMAL</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="charts">
+  <div class="chart-card">
+    <div class="chart-head">Sharpe Ratio Comparison (higher = better)</div>
+    <div class="chart-body">
+      <div class="bar-row"><div class="name">Fixed Equal</div><div class="track"><div class="fill" style="width:77%"></div></div><div class="val">1.82</div></div>
+      <div class="bar-row"><div class="name">Bayesian</div><div class="track"><div class="fill" style="width:91%"></div></div><div class="val">2.14</div></div>
+      <div class="bar-row"><div class="name">Weighted Vote</div><div class="track"><div class="fill" style="width:89%"></div></div><div class="val">2.08</div></div>
+      <div class="bar-row"><div class="name">MAB Thompson</div><div class="track"><div class="fill" style="width:97%"></div></div><div class="val">2.28</div></div>
+      <div class="bar-row"><div class="name">Online Linear</div><div class="track"><div class="fill" style="width:94%"></div></div><div class="val">2.21</div></div>
+      <div class="bar-row" style="margin-top:8px;padding-top:6px;border-top:1px solid #CBD5E1"><div class="name" style="color:#15803D">META-BANDIT</div><div class="track"><div class="fill" style="width:100%;background:#15803D"></div></div><div class="val" style="color:#15803D">2.35</div></div>
+    </div>
+  </div>
+  <div class="chart-card">
+    <div class="chart-head">CPU Time per Cycle (lower = better)</div>
+    <div class="chart-body">
+      <div class="bar-row"><div class="name">Fixed Equal</div><div class="track"><div class="fill" style="width:1%"></div></div><div class="val">0.1ms</div></div>
+      <div class="bar-row"><div class="name">Bayesian</div><div class="track"><div class="fill" style="width:19%"></div></div><div class="val">2.0ms</div></div>
+      <div class="bar-row"><div class="name">Weighted Vote</div><div class="track"><div class="fill" style="width:5%"></div></div><div class="val">0.5ms</div></div>
+      <div class="bar-row"><div class="name">MAB Thompson</div><div class="track"><div class="fill" style="width:29%"></div></div><div class="val">3.0ms</div></div>
+      <div class="bar-row"><div class="name">Online Linear</div><div class="track"><div class="fill" style="width:48%"></div></div><div class="val">5.0ms</div></div>
+      <div class="bar-row" style="margin-top:8px;padding-top:6px;border-top:1px solid #CBD5E1"><div class="name" style="color:#15803D">META-BANDIT</div><div class="track"><div class="fill" style="width:100%;background:#15803D"></div></div><div class="val" style="color:#15803D">10.5ms</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="summary">
+  <div class="lbl">BENCHMARK CONCLUSION</div>
+  <div class="h"><span class="accent">Meta-Bandit</span> achieves Sharpe 2.35 (29% above fixed baseline) at 10.5ms CPU — well within 30ms budget</div>
+  <div class="grid">
+    <div class="scell"><div class="v">+29%</div><div class="d">Sharpe improvement vs fixed equal weights</div></div>
+    <div class="scell"><div class="v">5.1%</div><div class="d">Max DD (vs 8.2% fixed — 38% reduction)</div></div>
+    <div class="scell"><div class="v">10.5ms</div><div class="d">CPU per cycle (well under 30ms budget)</div></div>
+    <div class="scell"><div class="v">0.06</div><div class="d">Regret (lowest of all methods)</div></div>
+  </div>
+</div>
+</body></html>

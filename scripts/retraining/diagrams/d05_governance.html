@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Retraining Framework — Governance & Monitoring</title>
+<style>
+  @page { size: 1600px 900px; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #ffffff; font-family: 'Tinos','FreeSerif',serif; color: #14213D; }
+  .canvas { width: 1600px; height: 900px; padding: 50px 60px; box-sizing: border-box; }
+  .title-bar { display: flex; align-items: baseline; gap: 18px; border-bottom: 2px solid #14213D; padding-bottom: 12px; margin-bottom: 24px; }
+  .title-bar .num { font-size: 48px; font-weight: 900; color: #C8102E; line-height: 1; }
+  .title-bar h1 { font-size: 26px; font-weight: 700; margin: 0; }
+  .title-bar .sub { font-size: 13px; color: #4A5568; margin-left: auto; font-family: 'JetBrains Mono',monospace; }
+  svg { display: block; margin: 0 auto; background: #FAFBFC; border: 1px solid #E2E8F0; }
+  .table { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-top: 14px; }
+  .table th { background: #14213D; color: #ffffff; padding: 6px 8px; text-align: left; font-weight: 700; }
+  .table td { padding: 5px 8px; border-bottom: 1px solid #E2E8F0; }
+  .table tr:nth-child(even) td { background: #F8FAFC; }
+  .table .mod { color: #14213D; font-family: 'JetBrains Mono',monospace; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="title-bar">
+    <span class="num">05</span>
+    <h1>Governance &amp; Monitoring Framework</h1>
+    <span class="sub">Approval matrix · audit trail · 12-panel dashboard · alert routing</span>
+  </div>
+  <svg width="1480" height="500" viewBox="0 0 1480 500">
+    <text x="40" y="30" font-size="14" font-weight="700" fill="#C8102E" font-family="Tinos">(a) Governance Board &amp; Approval Matrix</text>
+
+    <rect x="40" y="50" width="680" height="200" fill="#F0FDF4" stroke="#14213D" stroke-width="2"/>
+    <rect x="40" y="50" width="680" height="32" fill="#14213D"/>
+    <text x="380" y="70" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="JetBrains Mono">GOVERNANCE BOARD</text>
+    <g font-family="JetBrains Mono" font-size="11" fill="#4A5568">
+      <text x="60" y="105" font-weight="700" fill="#C8102E">Members:</text>
+      <text x="60" y="125">· CTO (chair · final approval authority)</text>
+      <text x="60" y="140">· Lead Quant (model review · technical sign-off)</text>
+      <text x="60" y="155">· Risk Officer (risk parameter review · DD limits)</text>
+      <text x="60" y="170">· ML Engineer (training pipeline · infra)</text>
+      <text x="60" y="195" font-weight="700" fill="#C8102E">Cadence:</text>
+      <text x="60" y="215">· Monthly model review (1st Monday · 1h)</text>
+      <text x="60" y="230">· Quarterly full audit (model lineage · data · governance)</text>
+      <text x="60" y="245">· Emergency review (within 4h of emergency retrain)</text>
+    </g>
+
+    <rect x="740" y="50" width="700" height="200" fill="#F8FAFC" stroke="#14213D"/>
+    <rect x="740" y="50" width="700" height="32" fill="#14213D"/>
+    <text x="1090" y="70" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="JetBrains Mono">APPROVAL MATRIX</text>
+    <g font-family="JetBrains Mono" font-size="10" fill="#4A5568">
+      <text x="760" y="100" font-weight="700">Action</text>
+      <text x="1000" y="100" font-weight="700">Required Approval</text>
+      <text x="1280" y="100" font-weight="700">SLA</text>
+
+      <text x="760" y="125">Weekly retrain (scheduled)</text><text x="1000" y="125">Automatic (CI gate)</text><text x="1280" y="125">None (auto)</text>
+      <text x="760" y="145">Monthly retrain (RL + HMM)</text><text x="1000" y="145">Lead Quant review</text><text x="1280" y="145">4h</text>
+      <text x="760" y="165">Emergency retrain (drift)</text><text x="1000" y="165">Automatic + post-hoc review</text><text x="1280" y="165">Immediate</text>
+      <text x="760" y="185">Promote challenger → champion</text><text x="1000" y="185">Automatic (A/B gate)</text><text x="1280" y="185">None (auto)</text>
+      <text x="760" y="205">Rollback (auto)</text><text x="1000" y="205">Automatic</text><text x="1280" y="205">< 30s</text>
+      <text x="760" y="225">Rollback (manual)</text><text x="1000" y="225">2-person (TRADER + SUPERVISOR)</text><text x="1280" y="225">< 5min</text>
+      <text x="760" y="245">Risk mode change (→ Aggressive)</text><text x="1000" y="245">SUPERVISOR + RISK OFFICER</text><text x="1280" y="245">1h</text>
+    </g>
+
+    <text x="40" y="290" font-size="14" font-weight="700" fill="#C8102E" font-family="Tinos">(b) Monitoring Dashboard &amp; Alert Routing</text>
+
+    <rect x="40" y="310" width="1400" height="160" fill="#F8FAFC" stroke="#14213D"/>
+    <g font-family="JetBrains Mono" font-size="10" fill="#4A5568">
+      <text x="60" y="335" font-weight="700" fill="#C8102E">GRAFANA DASHBOARD (12 panels · real-time)</text>
+      <text x="60" y="360">Panel 1: Active model versions (champion + challenger)</text>
+      <text x="60" y="375">Panel 2: PSI per feature (daily trend)</text>
+      <text x="60" y="390">Panel 3: Per-model F1 (rolling 100-trade)</text>
+      <text x="60" y="405">Panel 4: Ensemble Sharpe (rolling 252-bar)</text>
+      <text x="60" y="420">Panel 5: Retrain calendar (next scheduled)</text>
+      <text x="60" y="435">Panel 6: Champion vs challenger A/B comparison</text>
+      <text x="760" y="360">Panel 7: Rollback history (30-day)</text>
+      <text x="760" y="375">Panel 8: Training progress (if retraining)</text>
+      <text x="760" y="390">Panel 9: GPU utilization (training + inference)</text>
+      <text x="760" y="405">Panel 10: Model weight distribution (ensemble)</text>
+      <text x="760" y="420">Panel 11: RL action distribution (rolling 100)</text>
+      <text x="760" y="435">Panel 12: Alert log (last 24h · all severities)</text>
+      <text x="60" y="460" fill="#C8102E" font-weight="bold">Alerts: P1 (PagerDuty) · P2 (email) · P3 (log only) · auto-mitigation: PSI>0.25 → retrain, rollback < 30s</text>
+    </g>
+  </svg>
+  <table class="table">
+    <tr><th>Governance Element</th><th>Description</th><th>Frequency</th><th>Owner</th><th>Audit</th></tr>
+    <tr><td class="mod">Model Review Board</td><td>CTO + Lead Quant + Risk Officer + ML Engineer review model performance, drift, and retrain schedule</td><td>Monthly (1st Monday)</td><td>CTO (chair)</td><td>Minutes stored in audit log</td></tr>
+    <tr><td class="mod">Quarterly Audit</td><td>Full model lineage review: data → features → model → metrics → decisions</td><td>Quarterly</td><td>Lead Quant</td><td>Audit report to CTO + board</td></tr>
+    <tr><td class="mod">Emergency Review</td><td>Post-hoc review of emergency retrain: cause, action, outcome, prevention</td><td>Within 4h of emergency</td><td>CTO + Lead Quant</td><td>Postmortem document</td></tr>
+    <tr><td class="mod">Approval Matrix</td><td>Defines who must approve each action (auto / Lead Quant / 2-person / board)</td><td>Enforced per action</td><td>System-enforced</td><td>Every approval logged</td></tr>
+    <tr><td class="mod">Audit Trail</td><td>Hash-chained immutable log: every retrain, promote, rollback, mode change</td><td>Continuous</td><td>System</td><td>WORM S3 · immutable</td></tr>
+    <tr><td class="mod">Model Lineage</td><td>Data version → feature version → model version → metrics → deploy decision</td><td>Per retrain</td><td>MLflow + audit</td><td>Full reproducibility</td></tr>
+  </table>
+</div>
+</body>
+</html>

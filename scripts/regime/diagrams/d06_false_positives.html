@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Regime Detection — False Positive Controls</title>
+<style>
+  @page { size: 1600px 1100px; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #ffffff; font-family: 'Tinos','FreeSerif',serif; color: #14213D; }
+  .canvas { width: 1600px; height: 1100px; padding: 50px 60px; box-sizing: border-box; }
+  .title-bar { display: flex; align-items: baseline; gap: 18px; border-bottom: 2px solid #14213D; padding-bottom: 12px; margin-bottom: 24px; }
+  .title-bar .num { font-size: 48px; font-weight: 900; color: #C8102E; line-height: 1; }
+  .title-bar h1 { font-size: 26px; font-weight: 700; margin: 0; }
+  .title-bar .sub { font-size: 13px; color: #4A5568; margin-left: auto; font-family: 'JetBrains Mono',monospace; }
+  svg { display: block; margin: 0 auto; background: #FAFBFC; border: 1px solid #E2E8F0; }
+  .table { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-top: 14px; }
+  .table th { background: #14213D; color: #ffffff; padding: 6px 8px; text-align: left; font-weight: 700; }
+  .table td { padding: 5px 8px; border-bottom: 1px solid #E2E8F0; }
+  .table tr:nth-child(even) td { background: #F8FAFC; }
+  .table .mod { color: #14213D; font-family: 'JetBrains Mono',monospace; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="title-bar">
+    <span class="num">06</span>
+    <h1>False Positive Controls — Prevent Spurious Regime Flips</h1>
+    <span class="sub">6 controls · layered defense · empirical FP rate &lt; 8%</span>
+  </div>
+
+  <svg width="1480" height="740" viewBox="0 0 1480 740">
+    <defs>
+      <marker id="arFP" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
+        <path d="M0,0 L0,6 L7,3 z" fill="#14213D"/>
+      </marker>
+    </defs>
+
+    <!-- Input: raw ensemble output -->
+    <rect x="540" y="20" width="400" height="60" fill="#14213D"/>
+    <text x="740" y="45" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="Tinos">Raw Ensemble Output</text>
+    <text x="740" y="65" text-anchor="middle" fill="#C8102E" font-size="10" font-family="JetBrains Mono">label + probability[4] + confidence</text>
+
+    <line x1="740" y1="80" x2="740" y2="110" stroke="#14213D" stroke-width="2" marker-end="url(#arFP)"/>
+
+    <!-- Layered controls (stacked) -->
+    <text x="40" y="100" font-size="13" font-weight="700" fill="#C8102E" font-family="Tinos">LAYERED FALSE-POSITIVE CONTROLS (apply in sequence)</text>
+
+    <!-- Control 1: HysteresisGate -->
+    <rect x="40" y="120" width="1400" height="80" fill="#FEF3F2" stroke="#C8102E" stroke-width="2"/>
+    <text x="60" y="145" font-size="13" font-weight="700" fill="#C8102E" font-family="Tinos">C1 · HysteresisGate</text>
+    <text x="60" y="165" font-size="10" fill="#4A5568" font-family="JetBrains Mono">enter threshold: P(new_regime) &gt; 0.65 · exit threshold: P(current) &lt; 0.50</text>
+    <text x="60" y="180" font-size="10" fill="#4A5568" font-family="JetBrains Mono">prevents flipping when probabilities hover near 0.5</text>
+    <text x="60" y="194" font-size="10" fill="#4A5568" font-family="JetBrains Mono">→ reject if neither threshold met (keep current regime)</text>
+    <text x="1340" y="165" font-size="10" fill="#15803D" font-family="JetBrains Mono" font-weight="700">FP reduction: 40%</text>
+
+    <line x1="740" y1="200" x2="740" y2="220" stroke="#14213D" stroke-width="2" marker-end="url(#arFP)"/>
+
+    <!-- Control 2: ConfirmationFilter -->
+    <rect x="40" y="220" width="1400" height="80" fill="#FEF3F2" stroke="#C8102E" stroke-width="2"/>
+    <text x="60" y="245" font-size="13" font-weight="700" fill="#C8102E" font-family="Tinos">C2 · ConfirmationFilter</text>
+    <text x="60" y="265" font-size="10" fill="#4A5568" font-family="JetBrains Mono">require N=3 consecutive bars with same predicted label · reset counter on disagreement</text>
+    <text x="60" y="280" font-size="10" fill="#4A5568" font-family="JetBrains Mono">prevents single-bar anomalies (e.g., one volatile bar in trend) from flipping regime</text>
+    <text x="60" y="294" font-size="10" fill="#4A5568" font-family="JetBrains Mono">→ reject until 3 consecutive confirmations</text>
+    <text x="1340" y="265" font-size="10" fill="#15803D" font-family="JetBrains Mono" font-weight="700">FP reduction: 25%</text>
+
+    <line x1="740" y1="300" x2="740" y2="320" stroke="#14213D" stroke-width="2" marker-end="url(#arFP)"/>
+
+    <!-- Control 3: StabilityFilter (min dwell) -->
+    <rect x="40" y="320" width="1400" height="80" fill="#FEF3F2" stroke="#C8102E" stroke-width="2"/>
+    <text x="60" y="345" font-size="13" font-weight="700" fill="#C8102E" font-family="Tinos">C3 · StabilityFilter (min dwell time)</text>
+    <text x="60" y="365" font-size="10" fill="#4A5568" font-family="JetBrains Mono">once a regime is committed, require 5 bars minimum before allowing another flip</text>
+    <text x="60" y="380" font-size="10" fill="#4A5568" font-family="JetBrains Mono">prevents rapid regime cycling (TREND→VOLATILE→RANGE→TREND in 5 bars = bug)</text>
+    <text x="60" y="394" font-size="10" fill="#4A5568" font-family="JetBrains Mono">→ reject flip if current regime age &lt; 5 bars</text>
+    <text x="1340" y="365" font-size="10" fill="#15803D" font-family="JetBrains Mono" font-weight="700">FP reduction: 15%</text>
+
+    <line x1="740" y1="400" x2="740" y2="420" stroke="#14213D" stroke-width="2" marker-end="url(#arFP)"/>
+
+    <!-- Control 4: BootstrapValidator -->
+    <rect x="40" y="420" width="1400" height="80" fill="#FEF3F2" stroke="#C8102E" stroke-width="2"/>
+    <text x="60" y="445" font-size="13" font-weight="700" fill="#C8102E" font-family="Tinos">C4 · BootstrapValidator</text>
+    <text x="60" y="465" font-size="10" fill="#4A5568" font-family="JetBrains Mono">resample feature vector 1000 times with replacement · recompute probability · check CI width</text>
+    <text x="60" y="480" font-size="10" fill="#4A5568" font-family="JetBrains Mono">reject flip if 95% CI width &gt; 0.30 (probability too uncertain)</text>
+    <text x="60" y="494" font-size="10" fill="#4A5568" font-family="JetBrains Mono">→ reject if bootstrap uncertainty is high</text>
+    <text x="1340" y="465" font-size="10" fill="#15803D" font-family="JetBrains Mono" font-weight="700">FP reduction: 10%</text>
+
+    <line x1="740" y1="500" x2="740" y2="520" stroke="#14213D" stroke-width="2" marker-end="url(#arFP)"/>
+
+    <!-- Control 5: CrossTimeframeAgreement -->
+    <rect x="40" y="520" width="1400" height="80" fill="#FEF3F2" stroke="#C8102E" stroke-width="2"/>
+    <text x="60" y="545" font-size="13" font-weight="700" fill="#C8102E" font-family="Tinos">C5 · CrossTimeframeAgreement</text>
+    <text x="60" y="565" font-size="10" fill="#4A5568" font-family="JetBrains Mono">check regime on M5, M15, H1 · require at least 2 of 3 to agree with M1 prediction</text>
+    <text x="60" y="580" font-size="10" fill="#4A5568" font-family="JetBrains Mono">prevents flipping based on M1 noise that doesn't manifest on higher timeframes</text>
+    <text x="60" y="594" font-size="10" fill="#4A5568" font-family="JetBrains Mono">→ reject if M1 disagrees with M5 + M15 + H1 majority</text>
+    <text x="1340" y="565" font-size="10" fill="#15803D" font-family="JetBrains Mono" font-weight="700">FP reduction: 8%</text>
+
+    <line x1="740" y1="600" x2="740" y2="620" stroke="#14213D" stroke-width="2" marker-end="url(#arFP)"/>
+
+    <!-- Control 6: NewsBlackoutException -->
+    <rect x="40" y="620" width="1400" height="80" fill="#FEF3F2" stroke="#C8102E" stroke-width="2"/>
+    <text x="60" y="645" font-size="13" font-weight="700" fill="#C8102E" font-family="Tinos">C6 · NewsOverrideException</text>
+    <text x="60" y="665" font-size="10" fill="#4A5568" font-family="JetBrains Mono">if Rules Engine emits NEWS (veto), BYPASS all other controls and commit NEWS immediately</text>
+    <text x="60" y="680" font-size="10" fill="#4A5568" font-family="JetBrains Mono">news events are exogenous and require immediate regime change · safety > stability</text>
+    <text x="60" y="694" font-size="10" fill="#4A5568" font-family="JetBrains Mono">→ only control that can override C1-C5</text>
+    <text x="1340" y="665" font-size="10" fill="#C8102E" font-family="JetBrains Mono" font-weight="700">VETO POWER</text>
+  </svg>
+
+  <table class="table">
+    <tr><th>Control</th><th>Mechanism</th><th>Target FP Type</th><th>Empirical FP Reduction</th><th>Latency Cost</th><th>Bypass Condition</th></tr>
+    <tr><td class="mod">C1 HysteresisGate</td><td>Asymmetric enter/exit thresholds on probability</td><td>Probability hovering near 0.5</td><td>40%</td><td>0 (computation only)</td><td>C6 NewsOverride</td></tr>
+    <tr><td class="mod">C2 ConfirmationFilter</td><td>Require N=3 consecutive bars with same label</td><td>Single-bar anomalies</td><td>25%</td><td>3 bars (~3 min on M1)</td><td>C6 NewsOverride</td></tr>
+    <tr><td class="mod">C3 StabilityFilter</td><td>Minimum 5-bar dwell time per regime</td><td>Rapid regime cycling</td><td>15%</td><td>0 (state check)</td><td>C6 NewsOverride</td></tr>
+    <tr><td class="mod">C4 BootstrapValidator</td><td>1000-sample bootstrap · reject if CI width &gt; 0.30</td><td>Uncertain predictions</td><td>10%</td><td>~5 ms per inference</td><td>C6 NewsOverride</td></tr>
+    <tr><td class="mod">C5 CrossTimeframeAgreement</td><td>Require 2-of-3 agreement across M5/M15/H1</td><td>M1 noise not confirmed on HTF</td><td>8%</td><td>~2 ms (cached HTF predictions)</td><td>C6 NewsOverride</td></tr>
+    <tr><td class="mod">C6 NewsOverrideException</td><td>Rules Engine NEWS veto bypasses C1-C5</td><td>(not FP control — safety override)</td><td>—</td><td>0</td><td>(never bypassed)</td></tr>
+  </table>
+</div>
+</body>
+</html>

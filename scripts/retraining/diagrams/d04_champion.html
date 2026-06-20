@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Retraining Framework — Champion-Challenger & Version Control</title>
+<style>
+  @page { size: 1600px 1000px; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #ffffff; font-family: 'Tinos','FreeSerif',serif; color: #14213D; }
+  .canvas { width: 1600px; height: 1000px; padding: 50px 60px; box-sizing: border-box; }
+  .title-bar { display: flex; align-items: baseline; gap: 18px; border-bottom: 2px solid #14213D; padding-bottom: 12px; margin-bottom: 24px; }
+  .title-bar .num { font-size: 48px; font-weight: 900; color: #C8102E; line-height: 1; }
+  .title-bar h1 { font-size: 26px; font-weight: 700; margin: 0; }
+  .title-bar .sub { font-size: 13px; color: #4A5568; margin-left: auto; font-family: 'JetBrains Mono',monospace; }
+  svg { display: block; margin: 0 auto; background: #FAFBFC; border: 1px solid #E2E8F0; }
+  .table { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-top: 14px; }
+  .table th { background: #14213D; color: #ffffff; padding: 6px 8px; text-align: left; font-weight: 700; }
+  .table td { padding: 5px 8px; border-bottom: 1px solid #E2E8F0; }
+  .table tr:nth-child(even) td { background: #F8FAFC; }
+  .table .mod { color: #14213D; font-family: 'JetBrains Mono',monospace; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="title-bar">
+    <span class="num">04</span>
+    <h1>Champion-Challenger &amp; Version Control</h1>
+    <span class="sub">A/B testing · canary deploy · rollback < 30s · MLflow registry</span>
+  </div>
+  <svg width="1480" height="500" viewBox="0 0 1480 500">
+    <text x="40" y="30" font-size="14" font-weight="700" fill="#C8102E" font-family="Tinos">(a) Champion-Challenger Lifecycle</text>
+
+    <rect x="40" y="50" width="200" height="120" fill="#14213D"/>
+    <text x="140" y="80" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700" font-family="Tinos">CHAMPION</text>
+    <text x="140" y="100" text-anchor="middle" fill="#C8102E" font-size="10" font-family="JetBrains Mono">100% traffic</text>
+    <text x="140" y="118" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="9" font-family="JetBrains Mono">current production</text>
+    <text x="140" y="135" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="9" font-family="JetBrains Mono">version: v2026.06.12</text>
+    <text x="140" y="155" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="9" font-family="JetBrains Mono">Sharpe: 2.28</text>
+
+    <line x1="240" y1="110" x2="320" y2="110" stroke="#14213D" stroke-width="2" marker-end="url(#ar4)"/>
+
+    <rect x="320" y="50" width="200" height="120" fill="#FEFBEB" stroke="#B45309" stroke-width="2"/>
+    <text x="420" y="80" text-anchor="middle" font-size="12" font-weight="700" fill="#B45309" font-family="Tinos">CHALLENGER</text>
+    <text x="420" y="100" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">canary 10% (1h)</text>
+    <text x="420" y="118" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">→ A/B 50% (24h)</text>
+    <text x="420" y="135" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">version: v2026.06.19</text>
+    <text x="420" y="155" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">must beat champion</text>
+
+    <line x1="520" y1="110" x2="600" y2="110" stroke="#14213D" stroke-width="2" marker-end="url(#ar4)"/>
+
+    <polygon points="600,110 660,80 720,110 660,140" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="660" y="115" text-anchor="middle" font-size="10" font-weight="700">beats?</text>
+
+    <line x1="720" y1="110" x2="780" y2="80" stroke="#15803D" stroke-width="2" marker-end="url(#ar4G)"/>
+    <text x="740" y="75" font-size="10" fill="#15803D">YES</text>
+    <rect x="780" y="50" width="200" height="80" fill="#15803D"/>
+    <text x="880" y="80" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700" font-family="Tinos">PROMOTE</text>
+    <text x="880" y="100" text-anchor="middle" fill="#ffffff" font-size="10" font-family="JetBrains Mono">challenger → champion</text>
+    <text x="880" y="115" text-anchor="middle" fill="#ffffff" font-size="9" font-family="JetBrains Mono">100% traffic · old archived</text>
+
+    <line x1="720" y1="110" x2="780" y2="140" stroke="#C8102E" stroke-width="2" marker-end="url(#ar4R)"/>
+    <text x="740" y="155" font-size="10" fill="#C8102E">NO</text>
+    <rect x="780" y="130" width="200" height="60" fill="#C8102E"/>
+    <text x="880" y="155" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700" font-family="Tinos">ARCHIVE</text>
+    <text x="880" y="175" text-anchor="middle" fill="#ffffff" font-size="9" font-family="JetBrains Mono">challenger → MLflow archive</text>
+
+    <!-- Rollback -->
+    <text x="40" y="220" font-size="14" font-weight="700" fill="#C8102E" font-family="Tinos">(b) Rollback Support (&lt; 30 seconds)</text>
+
+    <rect x="40" y="240" width="680" height="160" fill="#FEF3F2" stroke="#C8102E" stroke-width="2"/>
+    <text x="380" y="265" text-anchor="middle" font-size="13" font-weight="700" fill="#C8102E" font-family="Tinos">ROLLBACK TRIGGERS</text>
+    <g font-family="JetBrains Mono" font-size="11" fill="#4A5568">
+      <text x="60" y="295">1. Canary Sharpe drop > 10% (auto, immediate)</text>
+      <text x="60" y="315">2. A/B test Sharpe drop > 5% (auto, immediate)</text>
+      <text x="60" y="335">3. Post-promote Sharpe drop > 15% (auto, within 1h)</text>
+      <text x="60" y="355">4. EQS < 40 CRITICAL for 5+ trades (auto)</text>
+      <text x="60" y="375">5. Manual operator rollback (2-person rule)</text>
+      <text x="60" y="395" fill="#C8102E" font-weight="bold">→ Rollback: revert to previous champion version in < 30s</text>
+    </g>
+
+    <rect x="740" y="240" width="700" height="160" fill="#F0FDF4" stroke="#14213D" stroke-width="2"/>
+    <text x="1090" y="265" text-anchor="middle" font-size="13" font-weight="700" font-family="Tinos">ROLLBACK MECHANISM</text>
+    <g font-family="JetBrains Mono" font-size="11" fill="#4A5568">
+      <text x="760" y="295">MLflow stores ALL model versions (champion + archived challengers)</text>
+      <text x="760" y="315">Rollback = load previous champion's artifacts from MLflow</text>
+      <text x="760" y="335">Model files pre-cached on inference nodes (no download)</text>
+      <text x="760" y="355">Atomic swap: new_model = old_champion (pointer change)</text>
+      <text x="760" y="375">Latency: < 30s (model load + cache warm + traffic switch)</text>
+      <text x="760" y="395" fill="#15803D" font-weight="bold">→ Zero downtime · zero data loss · fully audited</text>
+    </g>
+
+    <defs>
+      <marker id="ar4" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L7,3 z" fill="#14213D"/></marker>
+      <marker id="ar4R" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L7,3 z" fill="#C8102E"/></marker>
+      <marker id="ar4G" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L7,3 z" fill="#15803D"/></marker>
+    </defs>
+  </svg>
+  <table class="table">
+    <tr><th>Feature</th><th>Mechanism</th><th>Latency</th><th>Trigger</th><th>Audit</th></tr>
+    <tr><td class="mod">Version Control</td><td>MLflow registry: all versions stored with metrics, artifacts, lineage</td><td>— (storage)</td><td>Every retrain produces a new version</td><td>Model lineage: data → features → model → metrics</td></tr>
+    <tr><td class="mod">Canary Deploy</td><td>10% traffic to challenger for 1 hour</td><td>Instant (traffic split)</td><td>Challenger passes validation gate</td><td>Canary metrics logged separately</td></tr>
+    <tr><td class="mod">A/B Test</td><td>50% traffic to challenger for 24 hours</td><td>Instant (traffic split)</td><td>Canary passes (no Sharpe drop > 10%)</td><td>Statistical comparison logged</td></tr>
+    <tr><td class="mod">Promote</td><td>Challenger → Champion (100% traffic)</td><td>Instant (pointer swap)</td><td>Challenger beats champion on Sharpe + DD + F1</td><td>Audit: old champion archived as rollback target</td></tr>
+    <tr><td class="mod">Rollback</td><td>Revert to previous champion from MLflow cache</td><td>< 30 seconds</td><td>Sharpe drop > 10% (canary) / > 5% (A/B) / > 15% (post-promote) / manual</td><td>Audit: rollback reason + timestamp + operator</td></tr>
+    <tr><td class="mod">Emergency Promote</td><td>Skip canary/A-B, direct 100% deploy</td><td>Instant</td><td>Emergency retrain (PSI > 0.25 or F1 drop > 15%)</td><td>Audit: emergency flag + trigger reason</td></tr>
+  </table>
+</div>
+</body>
+</html>

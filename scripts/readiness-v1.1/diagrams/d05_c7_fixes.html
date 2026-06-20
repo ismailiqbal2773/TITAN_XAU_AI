@@ -1,0 +1,90 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>d05</title>
+<link href="https://fonts.googleapis.com/css2?family=Tinos:wght@400;700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { width: 1600px; height: 1200px; background: #ffffff; font-family: 'Inter', sans-serif; color: #14213D; padding: 50px 60px; }
+.h-title { font-family: 'Tinos', serif; font-size: 30px; font-weight: 900; letter-spacing: -0.5px; }
+.h-sub { font-family: 'Inter', sans-serif; font-size: 13px; color: #4A5568; margin-top: 4px; }
+.h-rule { width: 80px; height: 3px; background: #C8102E; margin: 14px 0 24px 0; }
+
+.summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 14px; }
+.scell { background: #14213D; color: #fff; padding: 14px 16px; border-radius: 6px; }
+.scell .lbl { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C8102E; letter-spacing: 2px; font-weight: 700; }
+.scell .v { font-family: 'Tinos', serif; font-size: 26px; font-weight: 900; margin-top: 4px; color: #4ADE80; }
+.scell .d { font-family: 'Inter', sans-serif; font-size: 10px; opacity: 0.85; margin-top: 4px; line-height: 1.4; }
+
+.breakdown { margin-top: 22px; }
+table { width: 100%; border-collapse: collapse; }
+th { background: #14213D; color: #fff; padding: 9px 12px; text-align: left; font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 1px; }
+td { padding: 9px 12px; border-bottom: 1px solid #E2E8F0; font-family: 'Inter', sans-serif; font-size: 10.5px; vertical-align: top; }
+tr:nth-child(even) td { background: #F8FAFC; }
+td.n { font-family: 'JetBrains Mono', monospace; color: #C8102E; font-weight: 700; font-size: 10px; }
+td.t { font-family: 'Tinos', serif; color: #14213D; font-weight: 700; font-size: 11.5px; }
+td.c { font-family: 'JetBrains Mono', monospace; color: #14213D; font-weight: 700; text-align: center; font-size: 11px; }
+td.d { font-family: 'Inter', sans-serif; font-size: 10px; color: #4A5568; line-height: 1.5; }
+td.d b { color: #14213D; }
+
+.samples { margin-top: 22px; }
+.sample-card { border: 1px solid #CBD5E1; border-left: 4px solid #14213D; border-radius: 6px; padding: 12px 16px; margin-bottom: 10px; background: #F8FAFC; }
+.sample-card .head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.sample-card .id { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #C8102E; font-weight: 700; }
+.sample-card .sev { font-family: 'JetBrains Mono', monospace; font-size: 9px; padding: 2px 6px; border-radius: 2px; color: #fff; font-weight: 700; background: #15803D; }
+.sample-card .t { font-family: 'Tinos', serif; font-size: 12.5px; font-weight: 700; color: #14213D; }
+.sample-card .d { font-family: 'Inter', sans-serif; font-size: 10px; color: #4A5568; line-height: 1.5; margin-top: 4px; }
+.sample-card .d b { color: #14213D; }
+</style></head>
+<body>
+<div class="h-title">C7 Integration Tests — 400 Tests Catalogued (85 → 91)</div>
+<div class="h-sub">All 400 integration tests specified by service pair · real NATS · real mTLS · real gRPC · ~5s each</div>
+<div class="h-rule"></div>
+
+<div class="summary">
+  <div class="scell"><div class="lbl">TOTAL TESTS</div><div class="v">400</div><div class="d">Catalogued across 12 service pairs</div></div>
+  <div class="scell"><div class="lbl">RUNTIME</div><div class="v">~33 min</div><div class="d">400 tests × ~5s each · parallelizable</div></div>
+  <div class="scell"><div class="lbl">FLAKY TOLERANCE</div><div class="v">0</div><div class="d">Zero flaky over 7-day window</div></div>
+  <div class="scell"><div class="lbl">CI GATE</div><div class="v">100%</div><div class="d">Must pass on every PR merge</div></div>
+</div>
+
+<div class="breakdown">
+  <table>
+    <thead><tr><th style="width:60px">PAIR</th><th style="width:280px">SERVICE PAIR</th><th style="width:80px">TESTS</th><th style="width:140px">TRANSPORT</th><th>SCOPE</th></tr></thead>
+    <tbody>
+      <tr><td class="n">P01</td><td class="t">Broker Gateway ↔ Tick Ingestor</td><td class="c">40</td><td>gRPC stream</td><td class="d">Tick streaming, reconnection, backpressure, message ordering, large tick bursts</td></tr>
+      <tr><td class="n">P02</td><td class="t">Tick Ingestor ↔ Feature Engine</td><td class="c">35</td><td>NATS pub-sub</td><td class="d">Tick → feature pipeline, 87-feature computation, cache hits, NaN handling</td></tr>
+      <tr><td class="n">P03</td><td class="t">Feature Engine ↔ Regime Detector</td><td class="c">30</td><td>gRPC</td><td class="d">Feature vector → regime label, 3-model vote consensus, transition confidence</td></tr>
+      <tr><td class="n">P04</td><td class="t">Regime Detector ↔ AI Ensemble</td><td class="c">35</td><td>gRPC</td><td class="d">Regime label + features → 4-model signal, ensemble voting, confidence threshold</td></tr>
+      <tr><td class="n">P05</td><td class="t">AI Ensemble ↔ Strategy Selector</td><td class="c">30</td><td>gRPC</td><td class="d">Signal → strategy dispatch (trend/range/vol), regime-mapped selection</td></tr>
+      <tr><td class="n">P06</td><td class="t">Strategy Selector ↔ Risk Engine</td><td class="c">40</td><td>gRPC (mTLS)</td><td class="d">Signal → risk evaluation, 12 controls, veto logic, MDD computation, kill-switch</td></tr>
+      <tr><td class="n">P07</td><td class="t">Risk Engine ↔ Execution Dispatcher</td><td class="c">35</td><td>gRPC (mTLS)</td><td class="d">Approved signal → order request, idempotency key, retry-on-failure, partial fills</td></tr>
+      <tr><td class="n">P08</td><td class="t">Execution Dispatcher ↔ Broker Gateway</td><td class="c">35</td><td>gRPC (mTLS)</td><td class="d">Order → broker MT5, fill confirmation, cancel, modify, position sync</td></tr>
+      <tr><td class="n">P09</td><td class="t">All Services ↔ NATS JetStream</td><td class="c">40</td><td>NATS</td><td class="d">Pub-sub contracts, 3-day retention, replay from offset, backpressure, consumer ack</td></tr>
+      <tr><td class="n">P10</td><td class="t">All Services ↔ License Validator</td><td class="c">30</td><td>gRPC (mTLS)</td><td class="d">License check at startup, 1h heartbeat, revocation, tier gate, feature gate</td></tr>
+      <tr><td class="n">P11</td><td class="t">All Services ↔ Audit Logger</td><td class="c">25</td><td>gRPC</td><td class="d">Audit event logging, S3 archival, RSA-2048 signing, 7-year retention, immutability</td></tr>
+      <tr><td class="n">P12</td><td class="t">All Services ↔ Observability</td><td class="c">25</td><td>Prometheus</td><td class="d">12 metrics exported, Grafana dashboards, Loki log shipping, PagerDuty alerts</td></tr>
+      <tr style="background:#14213D;color:#fff"><td class="n" style="color:#C8102E">TOTAL</td><td class="t" style="color:#fff">All 12 service pairs</td><td class="c" style="color:#C8102E;font-size:13px">400</td><td class="d" style="color:#fff">gRPC + NATS + mTLS</td><td class="d" style="color:#fff">100% contract coverage · real infrastructure</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="samples">
+  <div class="sample-card">
+    <div class="head"><div><span class="id">P01-IT-005</span> <span class="sev">SAMPLE</span></div><div class="t">Broker Gateway → Tick Ingestor — Reconnection</div></div>
+    <div class="d"><b>Test:</b> Disconnect broker socket mid-stream for 30s, verify Tick Ingestor buffers ticks, reconnects, and replays missed ticks without duplication. <b>Asserts:</b> zero tick loss, zero duplication, reconnect &lt;5s, NATS topics resume correctly.</div>
+  </div>
+
+  <div class="sample-card">
+    <div class="head"><div><span class="id">P06-IT-012</span> <span class="sev">SAMPLE</span></div><div class="t">Strategy Selector → Risk Engine — Kill-Switch Veto</div></div>
+    <div class="d"><b>Test:</b> Send 10 signals to Risk Engine with simulated 6% drawdown. Verify all 10 are vetoed, kill-switch triggers, all positions flattened, Execution Dispatcher receives zero orders. <b>Asserts:</b> veto count = 10, flatten latency &lt;500ms, audit log entry created.</div>
+  </div>
+
+  <div class="sample-card">
+    <div class="head"><div><span class="id">P09-IT-008</span> <span class="sev">SAMPLE</span></div><div class="t">All Services ↔ NATS — Backpressure</div></div>
+    <div class="d"><b>Test:</b> Publish 100k ticks to NATS at 10k/s (10× normal rate). Verify slow consumers see backpressure, no message loss, no OOM. <b>Asserts:</b> zero message loss, consumer lag bounded, NATS disk usage &lt;1GB, no service crashes.</div>
+  </div>
+
+  <div class="sample-card">
+    <div class="head"><div><span class="id">P10-IT-003</span> <span class="sev">SAMPLE</span></div><div class="t">All Services ↔ License Validator — Revocation</div></div>
+    <div class="d"><b>Test:</b> Simulate license revocation via server heartbeat. Verify all services halt new orders within 1h, existing positions flattened via risk engine, audit log records revocation event. <b>Asserts:</b> trading halt &lt;1h, flatten complete, audit entry signed.</div>
+  </div>
+</div>
+</body></html>

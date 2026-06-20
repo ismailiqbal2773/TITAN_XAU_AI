@@ -1,0 +1,72 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>d03</title>
+<link href="https://fonts.googleapis.com/css2?family=Tinos:wght@400;700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { width: 1600px; height: 1100px; background: #ffffff; font-family: 'Inter', sans-serif; color: #14213D; padding: 50px 60px; }
+.h-title { font-family: 'Tinos', serif; font-size: 30px; font-weight: 900; letter-spacing: -0.5px; }
+.h-sub { font-family: 'Inter', sans-serif; font-size: 13px; color: #4A5568; margin-top: 4px; }
+.h-rule { width: 80px; height: 3px; background: #C8102E; margin: 14px 0 26px 0; }
+
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+
+.card { border: 1px solid #CBD5E1; border-radius: 6px; overflow: hidden; }
+.card-head { background: #14213D; color: #fff; padding: 12px 18px; }
+.card-head .lbl { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C8102E; letter-spacing: 2px; font-weight: 700; }
+.card-head .t { font-family: 'Tinos', serif; font-size: 15px; font-weight: 700; margin-top: 2px; }
+.card-body { padding: 14px 18px; }
+
+.stage { padding: 10px 0; border-bottom: 1px dashed #CBD5E1; display: grid; grid-template-columns: 90px 1fr; gap: 12px; align-items: start; }
+.stage:last-child { border-bottom: none; }
+.stage .lbl { font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 700; padding: 3px 6px; border-radius: 3px; text-align: center; color: #fff; letter-spacing: 1px; }
+.lbl.detect { background: #C8102E; }
+.lbl.halt { background: #B45309; }
+.lbl.flatten { background: #14213D; }
+.lbl.protect { background: #6B21A8; }
+.lbl.recover { background: #15803D; }
+.lbl.resume { background: #047857; }
+.stage .body { font-family: 'Inter', sans-serif; font-size: 10.5px; color: #14213D; line-height: 1.5; }
+.stage .body b { color: #C8102E; }
+.stage .body .meta { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #4A5568; margin-top: 3px; }
+
+.formula-block { margin-top: 22px; padding: 16px 22px; background: #14213D; color: #fff; border-radius: 6px; }
+.formula-block .lbl { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #C8102E; letter-spacing: 2px; font-weight: 700; }
+.formula-block .h { font-family: 'Tinos', serif; font-size: 14px; font-weight: 700; margin-top: 4px; }
+.formula-block .d { font-family: 'Inter', sans-serif; font-size: 10.5px; opacity: 0.9; margin-top: 6px; line-height: 1.5; }
+.formula-block .d b { color: #C8102E; }
+</style></head>
+<body>
+<div class="h-title">Recovery Logic — 6-Stage Protocol</div>
+<div class="h-sub">Per-scenario recovery playbook · 6-stage sequence · automated with manual escalation for severe cases</div>
+<div class="h-rule"></div>
+
+<div class="cols">
+  <div class="card">
+    <div class="card-head"><div class="lbl">RECOVERY STAGES 1-3</div><div class="t">Detect · Halt · Flatten</div></div>
+    <div class="card-body">
+      <div class="stage"><div class="lbl detect">DETECT</div><div class="body"><b>Stress condition detected</b> by automated monitor (drawdown, spread, latency, connection, vol, gap). Monitor publishes STRESS_DETECTED event to NATS.<div class="meta">Latency: &lt; 100 ms from condition onset</div></div></div>
+      <div class="stage"><div class="lbl halt">HALT</div><div class="body"><b>Halt new entries immediately</b>. Atomic flag set in ExecutionEngine. No new orders accepted. Existing orders remain open.<div class="meta">Latency: &lt; 50 ms from detect</div></div></div>
+      <div class="stage"><div class="lbl flatten">FLATTEN</div><div class="body"><b>Flatten all open positions</b> via market orders if MDD &gt; 5% or kill-switch criteria met. Otherwise, hold positions with tightened stops.<div class="meta">Latency: &lt; 500 ms from halt (kill-switch SLA)</div></div></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-head"><div class="lbl">RECOVERY STAGES 4-6</div><div class="t">Protect · Recover · Resume</div></div>
+    <div class="card-body">
+      <div class="stage"><div class="lbl protect">PROTECT</div><div class="body"><b>Activate protective mode</b>: reduced position size (50%), widened stops (1.5×), no new entries. Mode persists for 24 h or until cleared by operator.<div class="meta">Duration: 24 h minimum</div></div></div>
+      <div class="stage"><div class="lbl recover">RECOVER</div><div class="body"><b>Verify stress condition cleared</b>: spread &lt; 2× baseline, latency &lt; 200 ms, broker reconnected, vol &lt; 2× avg, gap absorbed. Recovery check runs every 30 s.<div class="meta">Duration: until all clear for 60 s</div></div></div>
+      <div class="stage"><div class="lbl resume">RESUME</div><div class="body"><b>Resume normal trading</b> with 50% size for first hour, 75% for next 4 h, 100% after 24 h if no further stress. Operator notified.<div class="meta">Staircase: 50% → 75% → 100%</div></div></div>
+    </div>
+  </div>
+</div>
+
+<div class="formula-block">
+  <div class="lbl">RECOVERY INVARIANTS · NEVER VIOLATED</div>
+  <div class="h">5 invariants hold throughout the recovery protocol</div>
+  <div class="d">
+<b>① Kill-switch SLA:</b> flatten completes &lt; 500 ms from trigger (measured by dedicated latency probe)<br>
+<b>② Position reconciliation:</b> post-flatten, local position state == broker position state (zero phantom orders)<br>
+<b>③ Audit trail:</b> every recovery action logged with timestamp, reason, and operator ID (if manual)<br>
+<b>④ No silent resume:</b> resumption requires explicit "all clear" verification, never a timer<br>
+<b>⑤ Operator notification:</b> P2 PagerDuty alert at DETECT, P1 if FLATTEN triggers, P1 if not recovered in 30 min
+  </div>
+</div>
+</body></html>

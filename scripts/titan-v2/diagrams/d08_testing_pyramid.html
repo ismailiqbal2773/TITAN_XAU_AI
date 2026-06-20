@@ -1,0 +1,66 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>d08</title>
+<link href="https://fonts.googleapis.com/css2?family=Tinos:wght@400;700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { width: 1600px; height: 1100px; background: #ffffff; font-family: 'Inter', sans-serif; color: #14213D; padding: 50px 60px; }
+.h-title { font-family: 'Tinos', serif; font-size: 30px; font-weight: 900; letter-spacing: -0.5px; }
+.h-sub { font-family: 'Inter', sans-serif; font-size: 13px; color: #4A5568; margin-top: 4px; }
+.h-rule { width: 80px; height: 3px; background: #C8102E; margin: 14px 0 26px 0; }
+
+.pyramid { margin: 30px auto 0 auto; width: 900px; position: relative; }
+.layer { display: flex; justify-content: center; margin-bottom: 6px; }
+.layer .block { padding: 18px 24px; color: #fff; text-align: center; border-radius: 4px; position: relative; }
+.layer .block .pct { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: rgba(255,255,255,0.7); letter-spacing: 2px; font-weight: 700; }
+.layer .block .t { font-family: 'Tinos', serif; font-size: 17px; font-weight: 700; margin-top: 3px; }
+.layer .block .d { font-family: 'Inter', sans-serif; font-size: 10.5px; opacity: 0.9; margin-top: 4px; }
+.layer .block .count { font-family: 'JetBrains Mono', monospace; font-size: 9.5px; color: #C8102E; background: rgba(255,255,255,0.15); padding: 3px 8px; border-radius: 2px; display: inline-block; margin-top: 6px; font-weight: 700; }
+.l1 .block { background: #14213D; width: 280px; }
+.l2 .block { background: #1E3A5F; width: 440px; }
+.l3 .block { background: #2D4A7A; width: 600px; }
+.l4 .block { background: #B45309; width: 760px; }
+.l5 .block { background: #C8102E; width: 900px; }
+
+.detail-grid { margin-top: 40px; display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+.detail { border: 1px solid #CBD5E1; border-top: 3px solid #14213D; border-radius: 5px; padding: 11px 12px; }
+.detail.l2 { border-top-color: #1E3A5F; }
+.detail.l3 { border-top-color: #2D4A7A; }
+.detail.l4 { border-top-color: #B45309; }
+.detail.l5 { border-top-color: #C8102E; }
+.detail .n { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C8102E; font-weight: 700; letter-spacing: 1.2px; }
+.detail .t { font-family: 'Tinos', serif; font-size: 12px; font-weight: 700; color: #14213D; margin: 3px 0 5px 0; }
+.detail .d { font-family: 'Inter', sans-serif; font-size: 9.5px; color: #4A5568; line-height: 1.45; }
+.detail .tools { font-family: 'JetBrains Mono', monospace; font-size: 8.5px; color: #14213D; margin-top: 5px; padding-top: 5px; border-top: 1px dashed #CBD5E1; }
+.detail .tools b { color: #C8102E; }
+
+.gate { margin-top: 22px; padding: 14px 18px; background: #14213D; color: #fff; border-radius: 6px; }
+.gate .lbl { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #C8102E; letter-spacing: 2px; font-weight: 700; }
+.gate .h { font-family: 'Tinos', serif; font-size: 14px; font-weight: 700; margin-top: 4px; }
+.gate .d { font-family: 'Inter', sans-serif; font-size: 10.5px; opacity: 0.9; margin-top: 4px; line-height: 1.5; }
+</style></head>
+<body>
+<div class="h-title">Testing Pyramid</div>
+<div class="h-sub">5 layers · 2000+ tests · bottom-up confidence · validation frameworks gate live trading</div>
+<div class="h-rule"></div>
+
+<div class="pyramid">
+  <div class="layer l1"><div class="block"><div class="pct">5% · ~100</div><div class="t">CHAOS</div><div class="d">Production-like failure injection</div><div class="count">200 tests</div></div></div>
+  <div class="layer l2"><div class="block"><div class="pct">10% · ~200</div><div class="t">END-TO-END</div><div class="d">Full pipeline: tick → AI → execution</div><div class="count">200 tests</div></div></div>
+  <div class="layer l3"><div class="block"><div class="pct">20% · ~400</div><div class="t">INTEGRATION</div><div class="d">Cross-service contracts, event bus, mTLS</div><div class="count">400 tests</div></div></div>
+  <div class="layer l4"><div class="block"><div class="pct">30% · ~600</div><div class="t">COMPONENT</div><div class="d">Per-module behavior, edge cases, error paths</div><div class="count">600 tests</div></div></div>
+  <div class="layer l5"><div class="block"><div class="pct">35% · ~700</div><div class="t">UNIT</div><div class="d">Pure-function tests, no I/O, deterministic</div><div class="count">700 tests</div></div></div>
+</div>
+
+<div class="detail-grid">
+  <div class="detail l5"><div class="n">L5 · UNIT</div><div class="t">Pure Functions</div><div class="d">Math, indicators, parsers, serializers. Zero I/O, zero mocks, &lt; 1 ms each.</div><div class="tools"><b>pytest · GoogleTest</b></div></div>
+  <div class="detail l4"><div class="n">L4 · COMPONENT</div><div class="t">Per-Module</div><div class="d">RiskEngine, BrokerAdapter, AIEnsemble. Mocked I/O, real logic. In-memory event bus.</div><div class="tools"><b>pytest · GoogleTest · testcontainers</b></div></div>
+  <div class="detail l3"><div class="n">L3 · INTEGRATION</div><div class="t">Cross-Service</div><div class="d">Real NATS, real mTLS, real gRPC. Multi-service contracts. ~5 s each.</div><div class="tools"><b>pytest · docker-compose · kind</b></div></div>
+  <div class="detail l2"><div class="n">L2 · E2E</div><div class="t">Full Pipeline</div><div class="d">Tick replay → AI → risk → execution → audit. Reproducible on recorded data.</div><div class="tools"><b>pytest · recorded tick fixtures</b></div></div>
+  <div class="detail l1"><div class="n">L1 · CHAOS</div><div class="t">Failure Injection</div><div class="d">Kill services, drop network, corrupt data. Verify DR, kill-switch, fallbacks.</div><div class="tools"><b>Chaos Mesh · Litmus · custom</b></div></div>
+</div>
+
+<div class="gate">
+  <div class="lbl">VALIDATION GATE — INDEPENDENT OF PYRAMID</div>
+  <div class="h">5 validation frameworks (M15-M19) run AFTER pyramid passes</div>
+  <div class="d">Validator (M15) · Backtest (M16) · Walk-Forward (M17) · Monte Carlo (M18) · Stress Test (M19). Each produces a 3-band verdict (CERTIFIED / CONDITIONAL / REJECTED). All 5 must be CERTIFIED before live capital is authorized. Quarterly re-validation cadence.</div>
+</div>
+</body></html>

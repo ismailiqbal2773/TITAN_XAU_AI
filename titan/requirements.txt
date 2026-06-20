@@ -1,0 +1,36 @@
+# TITAN XAU AI — Production Requirements
+# Python 3.12+
+
+# Core
+asyncio==3.4.3
+MetaTrader5==5.0.45
+numpy==1.26.4
+scipy==1.12.0
+pandas==2.2.1
+
+# Database
+sqlalchemy==2.0.29
+aiosqlite==0.20.0
+redis==5.0.3
+
+# API
+fastapi==0.110.0
+uvicorn==0.29.0
+pydantic==2.6.4
+
+# AI (Phase 2)
+xgboost==2.0.3
+torch==2.2.2
+onnxruntime==1.17.1
+
+# Testing
+pytest==8.1.1
+pytest-asyncio==0.23.6
+pytest-cov==4.1.0
+
+# Observability
+prometheus-client==0.20.0
+structlog==24.1.0
+
+# Config
+pyyaml==6.0.1

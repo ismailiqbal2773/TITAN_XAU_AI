@@ -1,0 +1,79 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>d12</title>
+<link href="https://fonts.googleapis.com/css2?family=Tinos:wght@400;700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { width: 1600px; height: 1100px; background: #ffffff; font-family: 'Inter', sans-serif; color: #14213D; padding: 50px 60px; }
+.h-title { font-family: 'Tinos', serif; font-size: 30px; font-weight: 900; letter-spacing: -0.5px; }
+.h-sub { font-family: 'Inter', sans-serif; font-size: 13px; color: #4A5568; margin-top: 4px; }
+.h-rule { width: 80px; height: 3px; background: #C8102E; margin: 14px 0 24px 0; }
+
+.grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.kpi { border: 1px solid #CBD5E1; border-top: 3px solid #14213D; border-radius: 6px; padding: 14px 14px; background: #F8FAFC; }
+.kpi.crit { border-top-color: #C8102E; }
+.kpi .n { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C8102E; font-weight: 700; letter-spacing: 1.5px; }
+.kpi .t { font-family: 'Tinos', serif; font-size: 13px; font-weight: 700; color: #14213D; margin: 3px 0 8px 0; }
+.kpi .target { font-family: 'Tinos', serif; font-size: 26px; font-weight: 900; color: #14213D; line-height: 1; }
+.kpi .target .unit { font-size: 14px; color: #C8102E; font-weight: 400; margin-left: 2px; }
+.kpi .desc { font-family: 'Inter', sans-serif; font-size: 9.5px; color: #4A5568; margin-top: 6px; line-height: 1.4; }
+.kpi .validator { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #14213D; margin-top: 6px; padding-top: 6px; border-top: 1px dashed #CBD5E1; }
+.kpi .validator b { color: #C8102E; }
+
+.brokers { margin-top: 22px; border: 1px solid #CBD5E1; border-radius: 6px; overflow: hidden; }
+.brokers-head { background: #14213D; color: #fff; padding: 12px 18px; display: flex; justify-content: space-between; align-items: center; }
+.brokers-head .lbl { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C8102E; letter-spacing: 2px; font-weight: 700; }
+.brokers-head .t { font-family: 'Tinos', serif; font-size: 14px; font-weight: 700; margin-top: 2px; }
+.brokers-head .count { font-family: 'JetBrains Mono', monospace; font-size: 11px; background: #C8102E; color: #fff; padding: 4px 10px; border-radius: 3px; font-weight: 700; }
+.brokers-body { padding: 14px 18px; }
+.broker-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.broker { padding: 10px 12px; background: #fff; border: 1px solid #CBD5E1; border-left: 3px solid #C8102E; border-radius: 4px; }
+.broker .n { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C8102E; font-weight: 700; }
+.broker .t { font-family: 'Tinos', serif; font-size: 12.5px; font-weight: 700; color: #14213D; margin: 2px 0 4px 0; }
+.broker .d { font-family: 'Inter', sans-serif; font-size: 9.5px; color: #4A5568; line-height: 1.4; }
+.broker .specs { font-family: 'JetBrains Mono', monospace; font-size: 8.5px; color: #14213D; margin-top: 4px; padding-top: 4px; border-top: 1px dotted #CBD5E1; }
+.broker .specs b { color: #C8102E; }
+
+.accounts { margin-top: 16px; display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+.acct { padding: 8px 10px; background: #F1F5F9; border: 1px solid #CBD5E1; border-radius: 3px; text-align: center; }
+.acct .n { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C8102E; font-weight: 700; letter-spacing: 1px; }
+.acct .t { font-family: 'Tinos', serif; font-size: 11px; font-weight: 700; color: #14213D; margin-top: 2px; }
+</style></head>
+<body>
+<div class="h-title">Target Metrics, Brokers &amp; Account Types</div>
+<div class="h-sub">8 institutional KPIs · 6 supported brokers · 6 account types · all validated quarterly</div>
+<div class="h-rule"></div>
+
+<div class="grid">
+  <div class="kpi crit"><div class="n">KPI-01</div><div class="t">Profit Factor</div><div class="target">&gt; 2.2</div><div class="desc">Gross profit / gross loss. Institutional floor.</div><div class="validator">Validated by: <b>Backtest (M16)</b></div></div>
+  <div class="kpi crit"><div class="n">KPI-02</div><div class="t">Sharpe Ratio</div><div class="target">&gt; 2.0</div><div class="desc">Annualized risk-adjusted return.</div><div class="validator">Validated by: <b>Backtest + WFA (M16/M17)</b></div></div>
+  <div class="kpi crit"><div class="n">KPI-03</div><div class="t">Sortino Ratio</div><div class="target">&gt; 3.0</div><div class="desc">Downside-only Sharpe — penalizes negative volatility.</div><div class="validator">Validated by: <b>Backtest (M16)</b></div></div>
+  <div class="kpi crit"><div class="n">KPI-04</div><div class="t">Recovery Factor</div><div class="target">&gt; 5.0</div><div class="desc">Net profit / max drawdown. Capital efficiency.</div><div class="validator">Validated by: <b>Backtest (M16)</b></div></div>
+  <div class="kpi crit"><div class="n">KPI-05</div><div class="t">Risk of Ruin</div><div class="target">&lt; 1<span class="unit">%</span></div><div class="desc">Probability of losing 50% of capital.</div><div class="validator">Validated by: <b>Monte Carlo (M18)</b></div></div>
+  <div class="kpi crit"><div class="n">KPI-06</div><div class="t">MC Survival Rate</div><div class="target">&gt; 95<span class="unit">%</span></div><div class="desc">10,000 trade permutations remain profitable.</div><div class="validator">Validated by: <b>Monte Carlo (M18)</b></div></div>
+  <div class="kpi crit"><div class="n">KPI-07</div><div class="t">WFE Stability</div><div class="target">&gt; 85<span class="unit">%</span></div><div class="desc">Walk-Forward Efficiency — OOS/IS Sharpe ratio.</div><div class="validator">Validated by: <b>Walk-Forward (M17)</b></div></div>
+  <div class="kpi crit"><div class="n">KPI-08</div><div class="t">Max Drawdown</div><div class="target">&lt; 5<span class="unit">%</span></div><div class="desc">Institutional hard floor — enforced by Risk Engine.</div><div class="validator">Validated by: <b>All frameworks + Risk (M08)</b></div></div>
+</div>
+
+<div class="brokers">
+  <div class="brokers-head"><div><div class="lbl">SUPPORTED BROKERS</div><div class="t">6 brokers · runtime detection · all XAUUSD</div></div><div class="count">6 BROKERS</div></div>
+  <div class="brokers-body">
+    <div class="broker-grid">
+      <div class="broker"><div class="n">B01</div><div class="t">Exness</div><div class="d">Standard, Raw Spread, Zero accounts. 0.07 USD spread on ECN.</div><div class="specs"><b>Comm:</b> $3.50 RT · <b>Swap L:</b> -3.8%</div></div>
+      <div class="broker"><div class="n">B02</div><div class="t">IC Markets</div><div class="d">Raw Spread, Standard. 0.08 USD spread on raw. Top-tier liquidity.</div><div class="specs"><b>Comm:</b> $3.50 RT · <b>Swap L:</b> -4.2%</div></div>
+      <div class="broker"><div class="n">B03</div><div class="t">Pepperstone</div><div class="d">Razor, Standard. 0.09 USD on Razor. Strong execution.</div><div class="specs"><b>Comm:</b> $3.50 RT · <b>Swap L:</b> -4.5%</div></div>
+      <div class="broker"><div class="n">B04</div><div class="t">Tickmill</div><div class="d">Pro, Classic. 0.10 USD on Pro. Well-regulated.</div><div class="specs"><b>Comm:</b> $4.00 RT · <b>Swap L:</b> -4.0%</div></div>
+      <div class="broker"><div class="n">B05</div><div class="t">FP Markets</div><div class="d">Raw, Standard. 0.10 USD on Raw. Good Asian session.</div><div class="specs"><b>Comm:</b> $3.00 RT · <b>Swap L:</b> -4.3%</div></div>
+      <div class="broker"><div class="n">B06</div><div class="t">Fusion Markets</div><div class="d">Zero, Classic. 0.12 USD on Zero. Competitive costs.</div><div class="specs"><b>Comm:</b> $2.25 RT · <b>Swap L:</b> -3.9%</div></div>
+    </div>
+
+    <div style="margin-top:16px;font-family:'JetBrains Mono',monospace;font-size:10px;color:#C8102E;letter-spacing:2px;font-weight:700">SUPPORTED ACCOUNT TYPES · 6</div>
+    <div class="accounts">
+      <div class="acct"><div class="n">A01</div><div class="t">Standard</div></div>
+      <div class="acct"><div class="n">A02</div><div class="t">Raw Spread</div></div>
+      <div class="acct"><div class="n">A03</div><div class="t">ECN</div></div>
+      <div class="acct"><div class="n">A04</div><div class="t">Cent</div></div>
+      <div class="acct"><div class="n">A05</div><div class="t">Micro</div></div>
+      <div class="acct"><div class="n">A06</div><div class="t">Dollar</div></div>
+    </div>
+  </div>
+</div>
+</body></html>

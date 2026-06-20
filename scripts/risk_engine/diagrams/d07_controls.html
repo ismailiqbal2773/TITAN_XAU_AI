@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Risk Engine — Controls Summary</title>
+<style>
+  @page { size: 1600px 800px; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #ffffff; font-family: 'Tinos','FreeSerif',serif; color: #14213D; }
+  .canvas { width: 1600px; height: 800px; padding: 50px 60px; box-sizing: border-box; }
+  .title-bar { display: flex; align-items: baseline; gap: 18px; border-bottom: 2px solid #14213D; padding-bottom: 12px; margin-bottom: 24px; }
+  .title-bar .num { font-size: 48px; font-weight: 900; color: #C8102E; line-height: 1; }
+  .title-bar h1 { font-size: 26px; font-weight: 700; margin: 0; }
+  .title-bar .sub { font-size: 13px; color: #4A5568; margin-left: auto; font-family: 'JetBrains Mono',monospace; }
+  svg { display: block; margin: 0 auto; background: #FAFBFC; border: 1px solid #E2E8F0; }
+  .table { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-top: 14px; }
+  .table th { background: #14213D; color: #ffffff; padding: 6px 8px; text-align: left; font-weight: 700; }
+  .table td { padding: 5px 8px; border-bottom: 1px solid #E2E8F0; }
+  .table tr:nth-child(even) td { background: #F8FAFC; }
+  .table .mod { color: #14213D; font-family: 'JetBrains Mono',monospace; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="title-bar">
+    <span class="num">07</span>
+    <h1>Risk Controls — Complete Summary (6 Controls × 4 Modes)</h1>
+    <span class="sub">Every control · every mode · every threshold · every action</span>
+  </div>
+
+  <svg width="1480" height="80" viewBox="0 0 1480 80">
+    <rect x="40" y="10" width="1440" height="60" fill="#14213D"/>
+    <text x="760" y="35" text-anchor="middle" fill="#ffffff" font-size="14" font-weight="700" font-family="Tinos">6 Risk Controls × 4 Modes = 24 Parameter Sets</text>
+    <text x="760" y="55" text-anchor="middle" fill="#C8102E" font-size="10" font-family="JetBrains Mono">All mode-parameterized · all audited · all CI-tested · all operator-visible</text>
+  </svg>
+
+  <table class="table" style="margin-top: 24px;">
+    <tr><th>Control</th><th>Description</th><th>Conservative</th><th>Balanced</th><th>Aggressive</th><th>Competition</th><th>Action on Breach</th></tr>
+    <tr><td class="mod">Daily DD</td><td>Max equity drop within UTC day</td><td>1.0% soft / 1.5% hard</td><td>1.5% / 2.0%</td><td>2.0% / 3.0%</td><td>3.0% / 5.0%</td><td>Soft: size×0.5 · Hard: halt</td></tr>
+    <tr><td class="mod">Weekly DD</td><td>Max equity drop over 7-day rolling window</td><td>2.0% / 3.0%</td><td>3.0% / 4.0%</td><td>4.0% / 5.0%</td><td>6.0% / 8.0%</td><td>Soft: size×0.5 · Hard: halt</td></tr>
+    <tr><td class="mod">Monthly DD</td><td>Max equity drop over 30-day rolling window</td><td>3.0% / 4.0%</td><td>4.0% / 5.0%</td><td>6.0% / 7.0%</td><td>10% / 12%</td><td>Soft: size×0.5 · Hard: halt + P1</td></tr>
+    <tr><td class="mod">Risk Per Trade</td><td>Max equity risked per individual trade</td><td>0.5%</td><td>0.8%</td><td>1.2%</td><td>2.0%</td><td>Reject order if exceeds</td></tr>
+    <tr><td class="mod">Max Open Trades</td><td>Max concurrent open positions</td><td>2</td><td>3</td><td>4</td><td>5</td><td>Reject new entry</td></tr>
+    <tr><td class="mod">Max Exposure</td><td>Max gross notional as % of equity</td><td>3%</td><td>5%</td><td>8%</td><td>12%</td><td>Reject new entry if exceeded</td></tr>
+  </table>
+
+  <table class="table" style="margin-top: 20px;">
+    <tr><th>Additional Control</th><th>Description</th><th>Conservative</th><th>Balanced</th><th>Aggressive</th><th>Competition</th><th>Action</th></tr>
+    <tr><td class="mod">Margin Floor</td><td>Min free margin % required</td><td>35%</td><td>30%</td><td>25%</td><td>20%</td><td>Reject new entry</td></tr>
+    <tr><td class="mod">Loss Streak Halt</td><td>Consecutive losses before halt</td><td>3 (soft: 3, halt: 5, flat: 7)</td><td>4 (soft: 4, halt: 6, flat: 8)</td><td>5 (soft: 5, halt: 7, flat: 10)</td><td>7 (soft: 7, halt: 10, flat: 15)</td><td>Progressive: 0.5x → halt → flatten</td></tr>
+    <tr><td class="mod">Equity Guardrail</td><td>Equity as % of starting capital</td><td>95/90/85%</td><td>92/87/82%</td><td>90/85/80%</td><td>85/80/75%</td><td>Degrade → halt → lock</td></tr>
+    <tr><td class="mod">Volatility Throttle</td><td>ATR percentile-based size scaling</td><td>>60%: ×0.7, >80%: ×0.3</td><td>>70%: ×0.7, >90%: ×0.3</td><td>>80%: ×0.7, >95%: ×0.3</td><td>>90%: ×0.7, >99%: ×0.3</td><td>Reduce size · restrict entries</td></tr>
+    <tr><td class="mod">News Blackout</td><td>No new entries during scheduled news</td><td>±15 min FOMC, ±10 NFP, ±5 CPI</td><td>Same</td><td>±10 min FOMC, ±5 NFP</td><td>±5 min all events</td><td>Reject entries · flatten if in recovery</td></tr>
+    <tr><td class="mod">Session Filter</td><td>Trading session restriction</td><td>London + NY only</td><td>London + NY + Asia overlap</td><td>All sessions</td><td>All sessions</td><td>Reject entries outside allowed</td></tr>
+  </table>
+</div>
+</body>
+</html>

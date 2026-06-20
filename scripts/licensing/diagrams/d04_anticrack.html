@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Commercial Licensing — Anti-Crack Design</title>
+<style>
+  @page { size: 1600px 900px; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #ffffff; font-family: 'Tinos','FreeSerif',serif; color: #14213D; }
+  .canvas { width: 1600px; height: 900px; padding: 50px 60px; box-sizing: border-box; }
+  .title-bar { display: flex; align-items: baseline; gap: 18px; border-bottom: 2px solid #14213D; padding-bottom: 12px; margin-bottom: 24px; }
+  .title-bar .num { font-size: 48px; font-weight: 900; color: #C8102E; line-height: 1; }
+  .title-bar h1 { font-size: 26px; font-weight: 700; margin: 0; }
+  .title-bar .sub { font-size: 13px; color: #4A5568; margin-left: auto; font-family: 'JetBrains Mono',monospace; }
+  svg { display: block; margin: 0 auto; background: #FAFBFC; border: 1px solid #E2E8F0; }
+  .table { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-top: 14px; }
+  .table th { background: #14213D; color: #ffffff; padding: 6px 8px; text-align: left; font-weight: 700; }
+  .table td { padding: 5px 8px; border-bottom: 1px solid #E2E8F0; }
+  .table tr:nth-child(even) td { background: #F8FAFC; }
+  .table .mod { color: #14213D; font-family: 'JetBrains Mono',monospace; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="title-bar">
+    <span class="num">04</span>
+    <h1>Anti-Crack Design — 5-Layer Defense</h1>
+    <span class="sub">Obfuscation · Tamper · Anti-Debug · Anti-VM · Behavioral</span>
+  </div>
+  <svg width="1480" height="400" viewBox="0 0 1480 400">
+    <rect x="40" y="20" width="280" height="180" fill="#FEF3F2" stroke="#C8102E" stroke-width="2"/>
+    <rect x="40" y="20" width="280" height="32" fill="#C8102E"/>
+    <text x="180" y="40" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="JetBrains Mono">L1: CODE OBFUSCATION</text>
+    <g font-family="JetBrains Mono" font-size="10" fill="#4A5568">
+      <text x="60" y="75">C++ binary:</text>
+      <text x="80" y="93">- symbol stripping (strip --strip-all)</text>
+      <text x="80" y="107">- LTO (link-time optimization)</text>
+      <text x="80" y="121">- string encryption (XOR + runtime decrypt)</text>
+      <text x="80" y="135">- control flow flattening</text>
+      <text x="60" y="160">Python sensitive modules:</text>
+      <text x="80" y="178">- Cython compile → .pyd (native binary)</text>
+      <text x="80" y="192">- license_validator.pyd · model_decrypt.pyd</text>
+    </g>
+
+    <rect x="340" y="20" width="280" height="180" fill="#FEF3F2" stroke="#C8102E" stroke-width="2"/>
+    <rect x="340" y="20" width="280" height="32" fill="#C8102E"/>
+    <text x="480" y="40" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="JetBrains Mono">L2: TAMPER DETECTION</text>
+    <g font-family="JetBrains Mono" font-size="10" fill="#4A5568">
+      <text x="360" y="75">Binary integrity:</text>
+      <text x="380" y="93">- SHA-256 checksum at build time</text>
+      <text x="380" y="107">- embedded in encrypted section</text>
+      <text x="380" y="121">- verified at startup + hourly</text>
+      <text x="360" y="145">Runtime checks:</text>
+      <text x="380" y="163">- .text section hash verification</text>
+      <text x="380" y="177">- IAT (Import Address Table) check</text>
+      <text x="380" y="191" fill="#C8102E" font-weight="bold">mismatch → graceful halt + audit</text>
+    </g>
+
+    <rect x="640" y="20" width="280" height="180" fill="#FEF3F2" stroke="#C8102E" stroke-width="2"/>
+    <rect x="640" y="20" width="280" height="32" fill="#C8102E"/>
+    <text x="780" y="40" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="JetBrains Mono">L3: ANTI-DEBUG</text>
+    <g font-family="JetBrains Mono" font-size="10" fill="#4A5568">
+      <text x="660" y="75">Windows API checks:</text>
+      <text x="680" y="93">- IsDebuggerPresent()</text>
+      <text x="680" y="107">- CheckRemoteDebuggerPresent()</text>
+      <text x="680" y="121">- NtQueryInformationProcess</text>
+      <text x="660" y="145">Timing checks:</text>
+      <text x="680" y="163">- RDTSC delta (single-step detect)</text>
+      <text x="680" y="177">- if delta > 1000 cycles → debugger</text>
+      <text x="680" y="191" fill="#C8102E" font-weight="bold">detected → corrupt license cache</text>
+    </g>
+
+    <rect x="940" y="20" width="280" height="180" fill="#FEF3F2" stroke="#C8102E" stroke-width="2"/>
+    <rect x="940" y="20" width="280" height="32" fill="#C8102E"/>
+    <text x="1080" y="40" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="JetBrains Mono">L4: ANTI-VM</text>
+    <g font-family="JetBrains Mono" font-size="10" fill="#4A5568">
+      <text x="960" y="75">MAC address OUI check:</text>
+      <text x="980" y="93">- VMware: 00:0C:29, 00:50:56</text>
+      <text x="980" y="107">- VirtualBox: 08:00:27</text>
+      <text x="980" y="121">- Hyper-V: 00:15:5D</text>
+      <text x="960" y="145">CPUID hypervisor bit:</text>
+      <text x="980" y="163">- ECX bit 31 = 1 → hypervisor</text>
+      <text x="980" y="177">- check hypervisor vendor string</text>
+      <text x="980" y="191" fill="#C8102E" font-weight="bold">VM detected → Enterprise tier only</text>
+    </g>
+
+    <rect x="1240" y="20" width="200" height="180" fill="#FEF3F2" stroke="#C8102E" stroke-width="2"/>
+    <rect x="1240" y="20" width="200" height="32" fill="#C8102E"/>
+    <text x="1340" y="40" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="JetBrains Mono">L5: BEHAVIORAL</text>
+    <g font-family="JetBrains Mono" font-size="10" fill="#4A5568">
+      <text x="1260" y="75">Server-side analytics:</text>
+      <text x="1280" y="93">- geo-IP tracking</text>
+      <text x="1280" y="107">- multi-IP flag (>3 countries/day)</text>
+      <text x="1280" y="121">- heartbeat frequency anomaly</text>
+      <text x="1280" y="135">- concurrent session detect</text>
+      <text x="1280" y="160" fill="#C8102E" font-weight="bold">anomaly → flag for review</text>
+      <text x="1280" y="178" fill="#C8102E" font-weight="bold">severe → auto-revoke</text>
+    </g>
+
+    <rect x="40" y="230" width="1400" height="60" fill="#14213D"/>
+    <text x="740" y="255" text-anchor="middle" fill="#ffffff" font-size="14" font-weight="700" font-family="Tinos">CRACK RESISTANCE PHILOSOPHY</text>
+    <text x="740" y="275" text-anchor="middle" fill="#C8102E" font-size="11" font-family="JetBrains Mono">Goal: raise crack cost above license price · not unbreakable · delay crack by 6+ months per release</text>
+    <text x="740" y="287" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="9" font-family="JetBrains Mono">Each anti-crack layer is independent · cracking one doesn't bypass others · server-side validation is the ultimate backstop</text>
+  </svg>
+  <table class="table">
+    <tr><th>Defense Layer</th><th>Technique</th><th>Target Attacker</th><th>Crack Delay</th><th>Failure Mode (if bypassed)</th><th>Server-Side Backstop</th></tr>
+    <tr><td class="mod">L1 Code Obfuscation</td><td>Symbol strip + LTO + string encrypt + Cython</td><td>Script kiddies · casual reversers</td><td>1-2 weeks</td><td>Strings visible but logic obscured</td><td>Server validates JWT signature independently</td></tr>
+    <tr><td class="mod">L2 Tamper Detection</td><td>SHA-256 checksum + IAT check + .text hash</td><td>Binary patchers · hex editors</td><td>2-4 weeks</td><td>Modified binary detected at runtime</td><td>Modified binary can't produce valid JWT</td></tr>
+    <tr><td class="mod">L3 Anti-Debug</td><td>IsDebuggerPresent + NtQuery + RDTSC timing</td><td>Dynamic analysts · debugger users</td><td>1-3 weeks</td><td>License cache corrupted → re-activation</td><td>Server-side heartbeat still required</td></tr>
+    <tr><td class="mod">L4 Anti-VM</td><td>MAC OUI + CPUID hypervisor + registry</td><td>VM cloners · snapshot restorers</td><td>1-2 weeks</td><td>VM detected → Enterprise-only or reject</td><td>Same hw_fingerprint from multiple VMs flagged</td></tr>
+    <tr><td class="mod">L5 Behavioral</td><td>Geo-IP + multi-IP + concurrent session + rate</td><td>License sharing · credential sharing</td><td>Continuous</td><td>Anomaly flagged → review or auto-revoke</td><td>Server-side · cannot be bypassed by client</td></tr>
+  </table>
+</div>
+</body>
+</html>

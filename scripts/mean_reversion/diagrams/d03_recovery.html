@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Mean Reversion Strategy — Smart Recovery System</title>
+<style>
+  @page { size: 1600px 1100px; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #ffffff; font-family: 'Tinos','FreeSerif',serif; color: #14213D; }
+  .canvas { width: 1600px; height: 1100px; padding: 50px 60px; box-sizing: border-box; }
+  .title-bar { display: flex; align-items: baseline; gap: 18px; border-bottom: 2px solid #14213D; padding-bottom: 12px; margin-bottom: 24px; }
+  .title-bar .num { font-size: 48px; font-weight: 900; color: #C8102E; line-height: 1; }
+  .title-bar h1 { font-size: 26px; font-weight: 700; margin: 0; }
+  .title-bar .sub { font-size: 13px; color: #4A5568; margin-left: auto; font-family: 'JetBrains Mono',monospace; }
+  svg { display: block; margin: 0 auto; background: #FAFBFC; border: 1px solid #E2E8F0; }
+  .table { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-top: 14px; }
+  .table th { background: #14213D; color: #ffffff; padding: 6px 8px; text-align: left; font-weight: 700; }
+  .table td { padding: 5px 8px; border-bottom: 1px solid #E2E8F0; }
+  .table tr:nth-child(even) td { background: #F8FAFC; }
+  .table .mod { color: #14213D; font-family: 'JetBrains Mono',monospace; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="title-bar">
+    <span class="num">03</span>
+    <h1>Smart Recovery System — NOT Martingale · Capped at 1.6x</h1>
+    <span class="sub">3 recovery levels · stricter entry on each · cooldown · halt after Level 2 loss</span>
+  </div>
+
+  <svg width="1480" height="640" viewBox="0 0 1480 640">
+    <defs>
+      <marker id="ar3" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L7,3 z" fill="#14213D"/></marker>
+      <marker id="ar3R" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L7,3 z" fill="#C8102E"/></marker>
+      <marker id="ar3G" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L7,3 z" fill="#15803D"/></marker>
+    </defs>
+
+    <text x="40" y="30" font-size="14" font-weight="700" fill="#C8102E" font-family="Tinos">RECOVERY LADDER — 3 LEVELS (NOT martingale — stricter entry, not bigger blind bet)</text>
+
+    <!-- Level 0 -->
+    <rect x="40" y="50" width="340" height="180" fill="#F0FDF4" stroke="#14213D" stroke-width="2"/>
+    <rect x="40" y="50" width="340" height="32" fill="#14213D"/>
+    <text x="210" y="70" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="JetBrains Mono">LEVEL 0 — INITIAL ENTRY</text>
+    <text x="60" y="105" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">Size Multiplier: 1.0x</text>
+    <text x="60" y="125" font-size="10" fill="#4A5568" font-family="JetBrains Mono">MR_score threshold: 0.65</text>
+    <text x="60" y="140" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Entry: standard (1+ indicator)</text>
+    <text x="60" y="155" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Risk: 0.8% × conf × vol</text>
+    <text x="60" y="175" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Trigger: first entry in range</text>
+    <text x="60" y="195" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Cooldown: N/A (first trade)</text>
+    <text x="60" y="215" font-size="10" fill="#15803D" font-family="JetBrains Mono" font-weight="bold">→ On WIN: reset to Level 0</text>
+
+    <line x1="380" y1="140" x2="430" y2="140" stroke="#C8102E" stroke-width="2" marker-end="url(#ar3R)"/>
+    <text x="395" y="132" font-size="9" fill="#C8102E" font-family="JetBrains Mono">LOSS</text>
+
+    <!-- Level 1 -->
+    <rect x="430" y="50" width="340" height="180" fill="#FEFBEB" stroke="#B45309" stroke-width="2"/>
+    <rect x="430" y="50" width="340" height="32" fill="#B45309"/>
+    <text x="600" y="70" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="JetBrains Mono">LEVEL 1 — FIRST RECOVERY</text>
+    <text x="450" y="105" font-size="11" font-weight="700" fill="#B45309" font-family="Tinos">Size Multiplier: 1.3x</text>
+    <text x="450" y="125" font-size="10" fill="#4A5568" font-family="JetBrains Mono">MR_score threshold: 0.72 (stricter)</text>
+    <text x="450" y="140" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Entry: 2+ indicators confirm</text>
+    <text x="450" y="155" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Risk: 0.8% × conf × 1.3 × vol</text>
+    <text x="450" y="175" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Cooldown: 3 bars minimum</text>
+    <text x="450" y="195" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Same range only (not new range)</text>
+    <text x="450" y="215" font-size="10" fill="#15803D" font-family="JetBrains Mono" font-weight="bold">→ On WIN: reset to Level 0</text>
+
+    <line x1="770" y1="140" x2="820" y2="140" stroke="#C8102E" stroke-width="2" marker-end="url(#ar3R)"/>
+    <text x="785" y="132" font-size="9" fill="#C8102E" font-family="JetBrains Mono">LOSS</text>
+
+    <!-- Level 2 -->
+    <rect x="820" y="50" width="340" height="180" fill="#FEFBEB" stroke="#B45309" stroke-width="2"/>
+    <rect x="820" y="50" width="340" height="32" fill="#B45309"/>
+    <text x="990" y="70" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="JetBrains Mono">LEVEL 2 — FINAL RECOVERY</text>
+    <text x="840" y="105" font-size="11" font-weight="700" fill="#B45309" font-family="Tinos">Size Multiplier: 1.6x (MAX)</text>
+    <text x="840" y="125" font-size="10" fill="#4A5568" font-family="JetBrains Mono">MR_score threshold: 0.80 (strictest)</text>
+    <text x="840" y="140" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Entry: 3+ indicators (full confluence)</text>
+    <text x="840" y="155" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Risk: 0.8% × conf × 1.6 × vol</text>
+    <text x="840" y="175" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Cooldown: 5 bars minimum</text>
+    <text x="840" y="195" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Same range only · RSI divergence req</text>
+    <text x="840" y="215" font-size="10" fill="#15803D" font-family="JetBrains Mono" font-weight="bold">→ On WIN: reset to Level 0</text>
+
+    <line x1="1160" y1="140" x2="1210" y2="140" stroke="#C8102E" stroke-width="2" marker-end="url(#ar3R)"/>
+    <text x="1175" y="132" font-size="9" fill="#C8102E" font-family="JetBrains Mono">LOSS</text>
+
+    <!-- Level 3 (BLOCKED) -->
+    <rect x="1210" y="50" width="230" height="180" fill="#FEF3F2" stroke="#C8102E" stroke-width="2.5"/>
+    <rect x="1210" y="50" width="230" height="32" fill="#C8102E"/>
+    <text x="1325" y="70" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="JetBrains Mono">LEVEL 3 — HALTED</text>
+    <text x="1230" y="105" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">NO MORE ENTRIES</text>
+    <text x="1230" y="125" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Strategy auto-paused</text>
+    <text x="1230" y="140" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Operator paged (P2)</text>
+    <text x="1230" y="160" font-size="10" fill="#4A5568" font-family="JetBrains Mono">3 consecutive losses =</text>
+    <text x="1230" y="174" font-size="10" fill="#4A5568" font-family="JetBrains Mono">range is NOT reverting</text>
+    <text x="1230" y="195" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Reset: manual operator</text>
+    <text x="1230" y="215" font-size="10" fill="#C8102E" font-family="JetBrains Mono" font-weight="bold">→ SAFETY HALT</text>
+
+    <!-- (b) Recovery vs Martingale comparison -->
+    <text x="40" y="280" font-size="14" font-weight="700" fill="#C8102E" font-family="Tinos">(b) SMART RECOVERY vs MARTINGALE — Critical Differences</text>
+
+    <rect x="40" y="300" width="700" height="200" fill="#F0FDF4" stroke="#15803D" stroke-width="2"/>
+    <rect x="40" y="300" width="700" height="32" fill="#15803D"/>
+    <text x="390" y="320" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="Tinos">SMART RECOVERY (this strategy)</text>
+    <g font-family="JetBrains Mono" font-size="11" fill="#14213D">
+      <text x="60" y="350">✓ Size: 1.0x → 1.3x → 1.6x → HALT (capped)</text>
+      <text x="60" y="372">✓ Entry: STRICTER on each level (higher MR score)</text>
+      <text x="60" y="394">✓ Cooldown: 3-5 bars between attempts</text>
+      <text x="60" y="416">✓ Same range only (not chasing new ranges)</text>
+      <text x="60" y="438">✓ Max 2 recovery attempts, then HALT</text>
+      <text x="60" y="460">✓ Reset to Level 0 on ANY win</text>
+      <text x="60" y="482" fill="#15803D" font-weight="bold">→ Worst case: 3 losses = 3.9R total (bounded)</text>
+    </g>
+
+    <rect x="760" y="300" width="700" height="200" fill="#FEF3F2" stroke="#C8102E" stroke-width="2"/>
+    <rect x="760" y="300" width="700" height="32" fill="#C8102E"/>
+    <text x="1110" y="320" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="Tinos">MARTINGALE (forbidden — for comparison)</text>
+    <g font-family="JetBrains Mono" font-size="11" fill="#14213D">
+      <text x="780" y="350">✗ Size: 1x → 2x → 4x → 8x → 16x... (unbounded)</text>
+      <text x="780" y="372">✗ Entry: SAME signal (no quality improvement)</text>
+      <text x="780" y="394">✗ Cooldown: NONE (immediate re-entry)</text>
+      <text x="780" y="416">✗ Any range (chasing losses across ranges)</text>
+      <text x="780" y="438">✗ Unlimited attempts until account blown</text>
+      <text x="780" y="460">✗ Reset only on full recovery of all losses</text>
+      <text x="780" y="482" fill="#C8102E" font-weight="bold">→ Worst case: 5 losses = 31R (account destroyed)</text>
+    </g>
+
+    <!-- (c) Recovery P&L scenarios -->
+    <text x="40" y="540" font-size="14" font-weight="700" fill="#C8102E" font-family="Tinos">(c) P&L Scenarios — Worst Case is Bounded</text>
+
+    <rect x="40" y="560" width="1420" height="70" fill="#F8FAFC" stroke="#14213D"/>
+    <g font-family="JetBrains Mono" font-size="11" fill="#14213D">
+      <text x="60" y="585" font-weight="700">Scenario</text>
+      <text x="380" y="585" font-weight="700">L0 (1.0x)</text>
+      <text x="560" y="585" font-weight="700">L1 (1.3x)</text>
+      <text x="740" y="585" font-weight="700">L2 (1.6x)</text>
+      <text x="920" y="585" font-weight="700">Total R</text>
+      <text x="1100" y="585" font-weight="700">Total $ (100k acct)</text>
+      <text x="1340" y="585" font-weight="700">Outcome</text>
+
+      <text x="60" y="612">Win on L0</text>
+      <text x="380" y="612" fill="#15803D">+1.0R</text>
+      <text x="560" y="612">—</text>
+      <text x="740" y="612">—</text>
+      <text x="920" y="612" fill="#15803D">+1.0R</text>
+      <text x="1100" y="612" fill="#15803D">+$800</text>
+      <text x="1340" y="612">✓ reset</text>
+    </g>
+  </svg>
+
+  <table class="table">
+    <tr><th>Scenario</th><th>L0 (1.0x)</th><th>L1 (1.3x)</th><th>L2 (1.6x)</th><th>Total R</th><th>Equity Impact ($100k)</th><th>Outcome</th></tr>
+    <tr><td class="mod">Win on L0 (best case)</td><td>+1.0R</td><td>—</td><td>—</td><td>+1.0R</td><td>+$800</td><td>Reset to L0</td></tr>
+    <tr><td class="mod">Loss L0, Win L1</td><td>-1.0R</td><td>+1.3R</td><td>—</td><td>+0.3R</td><td>+$240</td><td>Reset to L0</td></tr>
+    <tr><td class="mod">Loss L0, Loss L1, Win L2</td><td>-1.0R</td><td>-1.3R</td><td>+1.6R</td><td>-0.7R</td><td>-$560</td><td>Reset to L0 (small loss)</td></tr>
+    <tr><td class="mod">Loss L0, Loss L1, Loss L2 (worst)</td><td>-1.0R</td><td>-1.3R</td><td>-1.6R</td><td>-3.9R</td><td>-$3,120</td><td>HALT · operator paged</td></tr>
+    <tr style="background:#FEF3F2"><td class="mod">Martingale equivalent (5 losses)</td><td>-1R</td><td>-2R</td><td>-4R</td><td>-31R (incl L3+L4)</td><td>-$24,800</td><td>ACCOUNT DESTROYED</td></tr>
+  </table>
+</div>
+</body>
+</html>

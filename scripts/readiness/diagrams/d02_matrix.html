@@ -1,0 +1,94 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>d02</title>
+<link href="https://fonts.googleapis.com/css2?family=Tinos:wght@400;700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { width: 1600px; height: 1200px; background: #ffffff; font-family: 'Inter', sans-serif; color: #14213D; padding: 50px 60px; }
+.h-title { font-family: 'Tinos', serif; font-size: 30px; font-weight: 900; letter-spacing: -0.5px; }
+.h-sub { font-family: 'Inter', sans-serif; font-size: 13px; color: #4A5568; margin-top: 4px; }
+.h-rule { width: 80px; height: 3px; background: #C8102E; margin: 14px 0 24px 0; }
+
+.heatmap { margin-top: 14px; }
+.heat-row { display: grid; grid-template-columns: 180px repeat(13, 1fr) 80px; gap: 4px; padding: 8px 0; border-bottom: 1px solid #E2E8F0; align-items: center; }
+.heat-row.head { background: #14213D; color: #fff; padding: 10px 0; border-bottom: 2px solid #14213D; }
+.heat-row.head .mod { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C8102E; letter-spacing: 1.5px; font-weight: 700; }
+.heat-row.head .cat { font-family: 'JetBrains Mono', monospace; font-size: 9px; text-align: center; font-weight: 700; letter-spacing: 0.5px; }
+.heat-row.head .avg { font-family: 'JetBrains Mono', monospace; font-size: 9px; text-align: center; font-weight: 700; color: #C8102E; }
+.heat-row .mod { font-family: 'Inter', sans-serif; font-size: 10.5px; color: #14213D; font-weight: 600; padding-left: 6px; }
+.heat-row .cell { font-family: 'JetBrains Mono', monospace; font-size: 10px; text-align: center; padding: 4px 2px; border-radius: 2px; font-weight: 700; color: #fff; }
+.cell.p100 { background: #15803D; }
+.cell.p95 { background: #16A34A; }
+.cell.p90 { background: #65A30D; }
+.cell.p85 { background: #B45309; }
+.cell.p80 { background: #C2410C; }
+.cell.p75 { background: #C8102E; }
+.cell.na { background: #94A3B8; color: #fff; }
+.heat-row .avg { font-family: 'Tinos', serif; font-size: 12px; font-weight: 900; text-align: center; color: #14213D; }
+
+.legend { margin-top: 18px; display: flex; gap: 14px; justify-content: center; }
+.leg-item { display: flex; align-items: center; gap: 6px; font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #4A5568; }
+.leg-swatch { width: 14px; height: 14px; border-radius: 2px; }
+
+.notes { margin-top: 22px; padding: 14px 18px; background: #F1F5F9; border-left: 4px solid #C8102E; border-radius: 4px; }
+.notes .lbl { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C8102E; letter-spacing: 2px; font-weight: 700; }
+.notes .row { font-family: 'Inter', sans-serif; font-size: 10.5px; color: #14213D; margin-top: 6px; line-height: 1.5; }
+.notes .row b { color: #C8102E; }
+</style></head>
+<body>
+<div class="h-title">Per-Module × Per-Category Scoring Matrix</div>
+<div class="h-sub">16 modules × 13 categories = 208 cells · color-coded by score band · aggregate score per module</div>
+<div class="h-rule"></div>
+
+<div class="heatmap">
+  <div class="heat-row head">
+    <div class="mod">MODULE</div>
+    <div class="cat">C1<br>CODE</div>
+    <div class="cat">C2<br>SEC</div>
+    <div class="cat">C3<br>PERF</div>
+    <div class="cat">C4<br>MEM</div>
+    <div class="cat">C5<br>LAT</div>
+    <div class="cat">C6<br>UNIT</div>
+    <div class="cat">C7<br>INT</div>
+    <div class="cat">C8<br>REG</div>
+    <div class="cat">C9<br>BT</div>
+    <div class="cat">C10<br>WFA</div>
+    <div class="cat">C11<br>MC</div>
+    <div class="cat">C12<br>STR</div>
+    <div class="cat">C13<br>BRO</div>
+    <div class="avg">AVG</div>
+  </div>
+
+  <div class="heat-row"><div class="mod">M01 Architecture v2.0</div><div class="cell p90">90</div><div class="cell p95">95</div><div class="cell p95">95</div><div class="cell p90">90</div><div class="cell p95">95</div><div class="cell p85">85</div><div class="cell p85">85</div><div class="cell p95">95</div><div class="cell na">—</div><div class="cell na">—</div><div class="cell na">—</div><div class="cell na">—</div><div class="cell p95">95</div><div class="avg">91.4</div></div>
+  <div class="heat-row"><div class="mod">M02 Broker Compat</div><div class="cell p90">90</div><div class="cell p90">90</div><div class="cell p95">95</div><div class="cell p90">90</div><div class="cell p95">95</div><div class="cell p90">90</div><div class="cell p85">85</div><div class="cell p90">90</div><div class="cell na">—</div><div class="cell na">—</div><div class="cell na">—</div><div class="cell na">—</div><div class="cell p100">100</div><div class="avg">91.6</div></div>
+  <div class="heat-row"><div class="mod">M03 Execution Engine</div><div class="cell p85">85</div><div class="cell p90">90</div><div class="cell p95">95</div><div class="cell p85">85</div><div class="cell p95">95</div><div class="cell p85">85</div><div class="cell p80">80</div><div class="cell p90">90</div><div class="cell na">—</div><div class="cell na">—</div><div class="cell na">—</div><div class="cell na">—</div><div class="cell p90">90</div><div class="avg">89.0</div></div>
+  <div class="heat-row"><div class="mod">M04 Regime Detection</div><div class="cell p90">90</div><div class="cell p90">90</div><div class="cell p95">95</div><div class="cell p90">90</div><div class="cell p95">95</div><div class="cell p85">85</div><div class="cell p85">85</div><div class="cell p90">90</div><div class="cell na">—</div><div class="cell na">—</div><div class="cell na">—</div><div class="cell na">—</div><div class="cell p90">90</div><div class="avg">90.0</div></div>
+  <div class="heat-row"><div class="mod">M05 Trend Strategy</div><div class="cell p90">90</div><div class="cell p85">85</div><div class="cell p90">90</div><div class="cell p90">90</div><div class="cell p90">90</div><div class="cell p85">85</div><div class="cell p85">85</div><div class="cell p90">90</div><div class="cell p95">95</div><div class="cell p95">95</div><div class="cell p95">95</div><div class="cell p90">90</div><div class="cell p90">90</div><div class="avg">90.4</div></div>
+  <div class="heat-row"><div class="mod">M06 Mean Reversion</div><div class="cell p85">85</div><div class="cell p85">85</div><div class="cell p90">90</div><div class="cell p85">85</div><div class="cell p90">90</div><div class="cell p80">80</div><div class="cell p80">80</div><div class="cell p85">85</div><div class="cell p90">90</div><div class="cell p90">90</div><div class="cell p90">90</div><div class="cell p85">85</div><div class="cell p85">85</div><div class="avg">86.5</div></div>
+  <div class="heat-row"><div class="mod">M07 Hybrid AI Stack</div><div class="cell p85">85</div><div class="cell p90">90</div><div class="cell p85">85</div><div class="cell p85">85</div><div class="cell p85">85</div><div class="cell p85">85</div><div class="cell p85">85</div><div class="cell p90">90</div><div class="cell p95">95</div><div class="cell p95">95</div><div class="cell p95">95</div><div class="cell p85">85</div><div class="cell p90">90</div><div class="avg">88.7</div></div>
+  <div class="heat-row"><div class="mod">M08 Risk Engine</div><div class="cell p95">95</div><div class="cell p95">95</div><div class="cell p95">95</div><div class="cell p95">95</div><div class="cell p100">100</div><div class="cell p90">90</div><div class="cell p90">90</div><div class="cell p95">95</div><div class="cell p95">95</div><div class="cell p95">95</div><div class="cell p95">95</div><div class="cell p100">100</div><div class="cell p90">90</div><div class="avg">94.6</div></div>
+  <div class="heat-row"><div class="mod">M09 Slippage Intel</div><div class="cell p90">90</div><div class="cell p85">85</div><div class="cell p95">95</div><div class="cell p90">90</div><div class="cell p95">95</div><div class="cell p85">85</div><div class="cell p85">85</div><div class="cell p90">90</div><div class="cell p95">95</div><div class="cell na">—</div><div class="cell p95">95</div><div class="cell p90">90</div><div class="cell p90">90</div><div class="avg">90.4</div></div>
+  <div class="heat-row"><div class="mod">M10 Spread/Comm Intel</div><div class="cell p90">90</div><div class="cell p85">85</div><div class="cell p95">95</div><div class="cell p90">90</div><div class="cell p95">95</div><div class="cell p85">85</div><div class="cell p85">85</div><div class="cell p90">90</div><div class="cell p95">95</div><div class="cell na">—</div><div class="cell p95">95</div><div class="cell p90">90</div><div class="cell p90">90</div><div class="avg">90.4</div></div>
+  <div class="heat-row"><div class="mod">M11 Hybrid AI Stack spec</div><div class="cell p90">90</div><div class="cell p95">95</div><div class="cell p90">90</div><div class="cell p90">90</div><div class="cell p90">90</div><div class="cell p85">85</div><div class="cell p85">85</div><div class="cell p90">90</div><div class="cell p95">95</div><div class="cell p95">95</div><div class="cell p95">95</div><div class="cell p85">85</div><div class="cell p90">90</div><div class="avg">90.8</div></div>
+  <div class="heat-row"><div class="mod">M12 RL Trade Mgmt</div><div class="cell p85">85</div><div class="cell p90">90</div><div class="cell p85">85</div><div class="cell p85">85</div><div class="cell p85">85</div><div class="cell p80">80</div><div class="cell p80">80</div><div class="cell p85">85</div><div class="cell p90">90</div><div class="cell p90">90</div><div class="cell p90">90</div><div class="cell p85">85</div><div class="cell p90">90</div><div class="avg">86.5</div></div>
+  <div class="heat-row"><div class="mod">M13 Auto Retraining</div><div class="cell p95">95</div><div class="cell p95">95</div><div class="cell p90">90</div><div class="cell p90">90</div><div class="cell p90">90</div><div class="cell p90">90</div><div class="cell p85">85</div><div class="cell p95">95</div><div class="cell p95">95</div><div class="cell p95">95</div><div class="cell p95">95</div><div class="cell p90">90</div><div class="cell p90">90</div><div class="avg">92.3</div></div>
+  <div class="heat-row"><div class="mod">M14 Licensing</div><div class="cell p95">95</div><div class="cell p100">100</div><div class="cell p90">90</div><div class="cell p90">90</div><div class="cell p90">90</div><div class="cell p95">95</div><div class="cell p90">90</div><div class="cell p95">95</div><div class="cell na">—</div><div class="cell na">—</div><div class="cell na">—</div><div class="cell na">—</div><div class="cell p95">95</div><div class="avg">93.3</div></div>
+  <div class="heat-row"><div class="mod">M15 Validator</div><div class="cell p95">95</div><div class="cell p95">95</div><div class="cell p95">95</div><div class="cell p90">90</div><div class="cell p95">95</div><div class="cell p95">95</div><div class="cell p90">90</div><div class="cell p100">100</div><div class="cell na">—</div><div class="cell na">—</div><div class="cell na">—</div><div class="cell na">—</div><div class="cell p95">95</div><div class="avg">94.5</div></div>
+  <div class="heat-row"><div class="mod">M16 Backtesting</div><div class="cell p95">95</div><div class="cell p90">90</div><div class="cell p95">95</div><div class="cell p90">90</div><div class="cell p95">95</div><div class="cell p95">95</div><div class="cell p90">90</div><div class="cell p95">95</div><div class="cell p100">100</div><div class="cell na">—</div><div class="cell na">—</div><div class="cell na">—</div><div class="cell p95">95</div><div class="avg">94.0</div></div>
+
+  <div class="heat-row" style="background:#14213D;color:#fff;border-top:2px solid #C8102E;padding:12px 0"><div class="mod" style="color:#fff;font-weight:700">CATEGORY AVG</div><div class="cell p90" style="background:#C8102E">88</div><div class="cell p95" style="background:#15803D">94</div><div class="cell p95" style="background:#15803D">92</div><div class="cell p85" style="background:#B45309">87</div><div class="cell p95" style="background:#15803D">93</div><div class="cell p85" style="background:#B45309">86</div><div class="cell p85" style="background:#B45309">85</div><div class="cell p95" style="background:#15803D">91</div><div class="cell p95" style="background:#15803D">94</div><div class="cell p95" style="background:#15803D">93</div><div class="cell p95" style="background:#15803D">94</div><div class="cell p95" style="background:#15803D">92</div><div class="cell p95" style="background:#15803D">95</div><div class="avg" style="color:#C8102E">91.0</div></div>
+</div>
+
+<div class="legend">
+  <div class="leg-item"><div class="leg-swatch" style="background:#15803D"></div>≥ 95 PASS</div>
+  <div class="leg-item"><div class="leg-swatch" style="background:#65A30D"></div>90-94 PASS</div>
+  <div class="leg-item"><div class="leg-swatch" style="background:#B45309"></div>85-89 CONDITIONAL</div>
+  <div class="leg-item"><div class="leg-swatch" style="background:#C8102E"></div>&lt; 85 FAIL</div>
+  <div class="leg-item"><div class="leg-swatch" style="background:#94A3B8"></div>N/A</div>
+</div>
+
+<div class="notes">
+  <div class="lbl">SCORING NOTES</div>
+  <div class="row"><b>Scope:</b> All scores are SPEC-LEVEL — they evaluate the architecture specification quality, completeness, and design rigor. They do NOT evaluate actual code (which has not yet been written). Actual code review scores will be ~10-15 points lower initially.</div>
+  <div class="row"><b>NA cells:</b> Validation frameworks (M15-M19) are not applicable to all modules — e.g., Backtest does not need to pass WFA (WFA runs backtests, not the other way around).</div>
+  <div class="row"><b>Below-threshold categories:</b> C1 Code Review 88, C4 Memory Leak 87, C6 Unit Tests 86, C7 Integration Tests 85 — all driven by the same root cause: actual implementation does not exist yet. See Chapter 14 for critical issues.</div>
+</div>
+</body></html>

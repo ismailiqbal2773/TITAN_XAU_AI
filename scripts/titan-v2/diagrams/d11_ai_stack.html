@@ -1,0 +1,100 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>d11</title>
+<link href="https://fonts.googleapis.com/css2?family=Tinos:wght@400;700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { width: 1600px; height: 1100px; background: #ffffff; font-family: 'Inter', sans-serif; color: #14213D; padding: 50px 60px; }
+.h-title { font-family: 'Tinos', serif; font-size: 30px; font-weight: 900; letter-spacing: -0.5px; }
+.h-sub { font-family: 'Inter', sans-serif; font-size: 13px; color: #4A5568; margin-top: 4px; }
+.h-rule { width: 80px; height: 3px; background: #C8102E; margin: 14px 0 24px 0; }
+
+.cols { display: grid; grid-template-columns: 1.1fr 1fr; gap: 22px; }
+
+.stack-card { border: 1px solid #CBD5E1; border-radius: 6px; overflow: hidden; }
+.stack-head { background: #14213D; color: #fff; padding: 12px 18px; }
+.stack-head .lbl { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C8102E; letter-spacing: 2px; font-weight: 700; }
+.stack-head .t { font-family: 'Tinos', serif; font-size: 14px; font-weight: 700; margin-top: 2px; }
+.stack-body { padding: 14px 18px; }
+.model-row { display: grid; grid-template-columns: 60px 1fr 80px 60px; gap: 10px; padding: 10px 0; border-bottom: 1px solid #E2E8F0; align-items: center; }
+.model-row:last-child { border-bottom: none; }
+.model-row .id { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #C8102E; font-weight: 700; }
+.model-row .name { font-family: 'Tinos', serif; font-size: 13px; font-weight: 700; color: #14213D; }
+.model-row .name .d { display: block; font-family: 'Inter', sans-serif; font-size: 9.5px; color: #4A5568; font-weight: 400; margin-top: 2px; line-height: 1.4; }
+.model-row .latency { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #14213D; font-weight: 700; text-align: right; }
+.model-row .latency .lbl { display: block; font-size: 8px; color: #4A5568; font-weight: 400; }
+.model-row .role { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #fff; background: #C8102E; padding: 3px 6px; border-radius: 2px; text-align: center; font-weight: 700; }
+
+.ensemble-box { margin-top: 14px; background: #14213D; color: #fff; padding: 14px 16px; border-radius: 6px; }
+.ensemble-box .lbl { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C8102E; letter-spacing: 2px; font-weight: 700; }
+.ensemble-box .h { font-family: 'Tinos', serif; font-size: 14px; font-weight: 700; margin-top: 3px; }
+.ensemble-box .formula { font-family: 'JetBrains Mono', monospace; font-size: 11px; margin-top: 8px; line-height: 1.6; color: #94A3B8; }
+.ensemble-box .formula b { color: #C8102E; }
+
+.regime-card { border: 1px solid #CBD5E1; border-radius: 6px; overflow: hidden; }
+.regime-head { background: #C8102E; color: #fff; padding: 12px 18px; }
+.regime-head .lbl { font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 2px; font-weight: 700; opacity: 0.85; }
+.regime-head .t { font-family: 'Tinos', serif; font-size: 14px; font-weight: 700; margin-top: 2px; }
+.regime-body { padding: 14px 18px; }
+.regime { padding: 9px 0; border-bottom: 1px dashed #CBD5E1; }
+.regime:last-child { border-bottom: none; }
+.regime .n { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C8102E; font-weight: 700; letter-spacing: 1.2px; }
+.regime .t { font-family: 'Tinos', serif; font-size: 12.5px; font-weight: 700; color: #14213D; margin: 2px 0 3px 0; }
+.regime .d { font-family: 'Inter', sans-serif; font-size: 9.5px; color: #4A5568; line-height: 1.45; }
+.regime .strat { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #14213D; margin-top: 3px; padding-top: 3px; border-top: 1px dotted #CBD5E1; }
+.regime .strat b { color: #C8102E; }
+
+.bottom { margin-top: 22px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.bb { padding: 14px 16px; border-radius: 6px; }
+.bb.a { background: #14213D; color: #fff; }
+.bb.b { background: #C8102E; color: #fff; }
+.bb.c { background: #F1F5F9; border: 1px solid #CBD5E1; }
+.bb.d { background: #F1F5F9; border: 1px solid #CBD5E1; }
+.bb .lbl { font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 2px; opacity: 0.75; font-weight: 700; }
+.bb.c .lbl, .bb.d .lbl { color: #C8102E; opacity: 1; }
+.bb .v { font-family: 'Tinos', serif; font-size: 22px; font-weight: 900; margin-top: 4px; line-height: 1; }
+.bb .d { font-family: 'Inter', sans-serif; font-size: 10px; opacity: 0.9; margin-top: 5px; line-height: 1.4; }
+.bb.c .d, .bb.d .d { color: #14213D; opacity: 1; }
+</style></head>
+<body>
+<div class="h-title">AI Stack &amp; Regime Detection</div>
+<div class="h-sub">5-component AI stack with ensemble voting · 4 regime targets · regime-mapped strategy dispatch</div>
+<div class="h-rule"></div>
+
+<div class="cols">
+  <div class="stack-card">
+    <div class="stack-head"><div class="lbl">AI STACK · 5 COMPONENTS</div><div class="t">4 base models + 1 ensemble voting layer</div></div>
+    <div class="stack-body">
+      <div class="model-row"><div class="id">A1</div><div class="name">XGBoost<span class="d">Gradient-boosted trees · tabular features · 87 indicators</span></div><div class="latency">80 ms<span class="lbl">P99</span></div><div class="role">TREND</div></div>
+      <div class="model-row"><div class="id">A2</div><div class="name">LSTM<span class="d">Sequential patterns · 60-bar lookback · 128 hidden units</span></div><div class="latency">95 ms<span class="lbl">P99</span></div><div class="role">RANGE</div></div>
+      <div class="model-row"><div class="id">A3</div><div class="name">Transformer<span class="d">Multi-head attention · 8 heads · 6 layers · positional encoding</span></div><div class="latency">110 ms<span class="lbl">P99</span></div><div class="role">CONTEXT</div></div>
+      <div class="model-row"><div class="id">A4</div><div class="name">RL Agent (PPO)<span class="d">Position management · dynamic SL/TP · exit policy</span></div><div class="latency">N/A<span class="lbl">post-entry</span></div><div class="role">MGMT</div></div>
+      <div class="model-row"><div class="id">A5</div><div class="name">Ensemble Voter<span class="d">Majority vote + confidence ≥ 0.65 → execute</span></div><div class="latency">2 ms<span class="lbl">P99</span></div><div class="role">GATE</div></div>
+    </div>
+    <div class="ensemble-box">
+      <div class="lbl">ENSEMBLE VOTING FORMULA</div>
+      <div class="h">Signal executes only if majority + confidence floor met</div>
+      <div class="formula">
+signal = <b>EXECUTE</b> if (votes_yes ≥ 3 of 4) AND (mean_confidence ≥ <b>0.65</b>)<br>
+signal = <b>SUPPRESS</b> otherwise (no trade taken)<br>
+RL agent (A4) acts only AFTER execution — manages position lifecycle
+      </div>
+    </div>
+  </div>
+
+  <div class="regime-card">
+    <div class="regime-head"><div class="lbl">REGIME DETECTION · 4 TARGETS</div><div class="t">3-model vote (HMM + Logit + Heuristic)</div></div>
+    <div class="regime-body">
+      <div class="regime"><div class="n">R1 · TREND</div><div class="t">Directional price movement</div><div class="d">ADX &gt; 25, price above/below EMA50, HH-HL or LH-LL pattern. Sustained directional bias.</div><div class="strat"><b>Strategy:</b> Trend Engine (M05) · 5 patterns · R-multiple mgmt</div></div>
+      <div class="regime"><div class="n">R2 · RANGE</div><div class="t">Sideways consolidation</div><div class="d">ADX &lt; 20, price oscillating between S/R, BB width &lt; 0.5× ATR. Mean-reverting behavior.</div><div class="strat"><b>Strategy:</b> Range Engine (M06) · BB+RSI+ATR+Hurst · smart recovery</div></div>
+      <div class="regime"><div class="n">R3 · VOLATILE</div><div class="t">High-volatility expansion</div><div class="d">ATR &gt; 2× 30-day avg, BB width &gt; 1.5× avg, large candles. Breakout or reversal pending.</div><div class="strat"><b>Strategy:</b> Volatility Engine (M07) · news-aware · ATR breakout</div></div>
+      <div class="regime"><div class="n">R4 · NEWS</div><div class="t">Economic event window</div><div class="d">Within ±2 min of NFP/FOMC/CPI release. Spread widening, erratic price action. Stay flat.</div><div class="strat"><b>Strategy:</b> Halt new entries · manage existing positions defensively</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="bottom">
+  <div class="bb a"><div class="lbl">AI MODELS</div><div class="v">4 + 1</div><div class="d">4 base models + 1 ensemble voter</div></div>
+  <div class="bb b"><div class="lbl">REGIME TARGETS</div><div class="v">4</div><div class="d">Trend / Range / Volatile / News</div></div>
+  <div class="bb c"><div class="lbl">ENSEMBLE THRESHOLD</div><div class="v">0.65</div><div class="d">Min confidence to execute signal</div></div>
+  <div class="bb d"><div class="lbl">VOTE QUORUM</div><div class="v">3 / 4</div><div class="d">Min models agreeing to execute</div></div>
+</div>
+</body></html>

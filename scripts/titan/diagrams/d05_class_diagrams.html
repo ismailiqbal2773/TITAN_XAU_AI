@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>TITAN XAU AI — UML Class Diagrams</title>
+<style>
+  @page { size: 1600px 2400px; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #ffffff; font-family: 'Tinos','FreeSerif',serif; color: #14213D; }
+  .canvas { width: 1600px; padding: 50px 60px; box-sizing: border-box; }
+  .title-bar { display: flex; align-items: baseline; gap: 18px; border-bottom: 2px solid #14213D; padding-bottom: 12px; margin-bottom: 28px; }
+  .title-bar .num { font-size: 56px; font-weight: 900; color: #C8102E; line-height: 1; }
+  .title-bar h1 { font-size: 28px; font-weight: 700; margin: 0; }
+  .title-bar .sub { font-size: 13px; color: #4A5568; margin-left: auto; font-family: 'JetBrains Mono',monospace; }
+  .section { margin-bottom: 36px; page-break-inside: avoid; }
+  .section h2 { font-size: 16px; color: #C8102E; text-transform: uppercase; letter-spacing: 2px; margin: 0 0 12px 0; padding-bottom: 6px; border-bottom: 1px solid #C8102E; }
+  svg { display: block; margin: 0 auto; background: #FAFBFC; border: 1px solid #E2E8F0; }
+  .table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 12px; }
+  .table th { background: #14213D; color: #ffffff; padding: 7px 9px; text-align: left; font-weight: 700; }
+  .table td { padding: 6px 9px; border-bottom: 1px solid #E2E8F0; }
+  .table tr:nth-child(even) td { background: #F8FAFC; }
+  .table .cls { color: #14213D; font-family: 'JetBrains Mono',monospace; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="title-bar">
+    <span class="num">05</span>
+    <h1>Class Diagrams — Core Domain, Risk, Execution</h1>
+    <span class="sub">UML 2.5 notation · + public · − private · # protected · ▷ inheritance · ◇ aggregation · ◆ composition</span>
+  </div>
+
+  <!-- Class diagram 1: Core domain -->
+  <div class="section">
+    <h2>(a) Core Domain Model</h2>
+    <svg width="1480" height="660" viewBox="0 0 1480 660">
+      <!-- Tick class -->
+      <g>
+        <rect x="40" y="40" width="220" height="160" fill="#FEF3F2" stroke="#14213D" stroke-width="1.5"/>
+        <rect x="40" y="40" width="220" height="28" fill="#14213D"/>
+        <text x="150" y="59" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="JetBrains Mono">Tick</text>
+        <text x="50" y="85" font-size="11" font-family="JetBrains Mono">− ts: uint64_t (ns)</text>
+        <text x="50" y="103" font-size="11" font-family="JetBrains Mono">− symbol: string</text>
+        <text x="50" y="121" font-size="11" font-family="JetBrains Mono">− bid: Decimal</text>
+        <text x="50" y="139" font-size="11" font-family="JetBrains Mono">− ask: Decimal</text>
+        <text x="50" y="157" font-size="11" font-family="JetBrains Mono">− last: Decimal</text>
+        <text x="50" y="175" font-size="11" font-family="JetBrains Mono">− volume: uint64_t</text>
+        <line x1="40" y1="182" x2="260" y2="182" stroke="#14213D"/>
+        <text x="50" y="198" font-size="11" font-family="JetBrains Mono">+ mid(): Decimal</text>
+      </g>
+
+      <!-- Bar class -->
+      <g>
+        <rect x="40" y="240" width="220" height="170" fill="#FEF3F2" stroke="#14213D" stroke-width="1.5"/>
+        <rect x="40" y="240" width="220" height="28" fill="#14213D"/>
+        <text x="150" y="259" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="JetBrains Mono">Bar</text>
+        <text x="50" y="285" font-size="11" font-family="JetBrains Mono">− ts_open: uint64_t</text>
+        <text x="50" y="303" font-size="11" font-family="JetBrains Mono">− ts_close: uint64_t</text>
+        <text x="50" y="321" font-size="11" font-family="JetBrains Mono">− tf: TimeFrame</text>
+        <text x="50" y="339" font-size="11" font-family="JetBrains Mono">− ohlcv: OHLCV</text>
+        <line x1="40" y1="346" x2="260" y2="346" stroke="#14213D"/>
+        <text x="50" y="362" font-size="11" font-family="JetBrains Mono">+ update(t: Tick): void</text>
+        <text x="50" y="380" font-size="11" font-family="JetBrains Mono">+ close(): Bar</text>
+        <text x="50" y="398" font-size="11" font-family="JetBrains Mono">+ range(): Decimal</text>
+      </g>
+
+      <!-- Order hierarchy -->
+      <g>
+        <!-- Abstract Order -->
+        <rect x="380" y="40" width="220" height="180" fill="#F0FDF4" stroke="#14213D" stroke-width="1.5"/>
+        <rect x="380" y="40" width="220" height="28" fill="#14213D"/>
+        <text x="490" y="59" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="JetBrains Mono">«abstract» Order</text>
+        <text x="390" y="85" font-size="11" font-family="JetBrains Mono">+ id: OrderId</text>
+        <text x="390" y="103" font-size="11" font-family="JetBrains Mono">+ symbol: string</text>
+        <text x="390" y="121" font-size="11" font-family="JetBrains Mono">+ side: Side</text>
+        <text x="390" y="139" font-size="11" font-family="JetBrains Mono">+ qty: Decimal</text>
+        <text x="390" y="157" font-size="11" font-family="JetBrains Mono">+ status: OrderStatus</text>
+        <text x="390" y="175" font-size="11" font-family="JetBrains Mono">+ created_ts: uint64_t</text>
+        <line x1="380" y1="182" x2="600" y2="182" stroke="#14213D"/>
+        <text x="390" y="198" font-size="11" font-family="JetBrains Mono">+ submit(): Fill</text>
+        <text x="390" y="216" font-size="11" font-family="JetBrains Mono">+ cancel(): bool</text>
+      </g>
+
+      <!-- MarketOrder -->
+      <g>
+        <rect x="320" y="270" width="160" height="100" fill="#F0FDF4" stroke="#14213D" stroke-width="1.5"/>
+        <rect x="320" y="270" width="160" height="28" fill="#14213D"/>
+        <text x="400" y="289" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700" font-family="JetBrains Mono">MarketOrder</text>
+        <text x="330" y="315" font-size="11" font-family="JetBrains Mono">+ slippage_bps: int</text>
+        <line x1="320" y1="322" x2="480" y2="322" stroke="#14213D"/>
+        <text x="330" y="340" font-size="11" font-family="JetBrains Mono">+ submit(): Fill</text>
+        <text x="330" y="358" font-size="11" font-family="JetBrains Mono">+ est_fill_price(): Decimal</text>
+      </g>
+
+      <!-- LimitOrder -->
+      <g>
+        <rect x="500" y="270" width="160" height="100" fill="#F0FDF4" stroke="#14213D" stroke-width="1.5"/>
+        <rect x="500" y="270" width="160" height="28" fill="#14213D"/>
+        <text x="580" y="289" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700" font-family="JetBrains Mono">LimitOrder</text>
+        <text x="510" y="315" font-size="11" font-family="JetBrains Mono">+ limit_price: Decimal</text>
+        <text x="510" y="333" font-size="11" font-family="JetBrains Mono">+ tif: TimeInForce</text>
+        <line x1="500" y1="340" x2="660" y2="340" stroke="#14213D"/>
+        <text x="510" y="358" font-size="11" font-family="JetBrains Mono">+ submit(): Fill</text>
+      </g>
+
+      <!-- StopOrder -->
+      <g>
+        <rect x="680" y="270" width="160" height="100" fill="#F0FDF4" stroke="#14213D" stroke-width="1.5"/>
+        <rect x="680" y="270" width="160" height="28" fill="#14213D"/>
+        <text x="760" y="289" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700" font-family="JetBrains Mono">StopOrder</text>
+        <text x="690" y="315" font-size="11" font-family="JetBrains Mono">+ stop_price: Decimal</text>
+        <text x="690" y="333" font-size="11" font-family="JetBrains Mono">+ trail_offset: Decimal?</text>
+        <line x1="680" y1="340" x2="840" y2="340" stroke="#14213D"/>
+        <text x="690" y="358" font-size="11" font-family="JetBrains Mono">+ submit(): Fill</text>
+      </g>
+
+      <!-- Inheritance arrows -->
+      <g stroke="#14213D" stroke-width="1.5" fill="none">
+        <line x1="400" y1="270" x2="450" y2="220"/>
+        <line x1="580" y1="270" x2="490" y2="220"/>
+        <line x1="760" y1="270" x2="540" y2="220"/>
+        <!-- Hollow triangle arrowhead for inheritance -->
+        <polygon points="490,220 482,232 498,232" fill="#ffffff" stroke="#14213D" stroke-width="1.5"/>
+      </g>
+
+      <!-- Fill -->
+      <g>
+        <rect x="900" y="40" width="220" height="170" fill="#FEF3F2" stroke="#14213D" stroke-width="1.5"/>
+        <rect x="900" y="40" width="220" height="28" fill="#14213D"/>
+        <text x="1010" y="59" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="JetBrains Mono">Fill</text>
+        <text x="910" y="85" font-size="11" font-family="JetBrains Mono">− fill_id: string</text>
+        <text x="910" y="103" font-size="11" font-family="JetBrains Mono">− order_id: OrderId</text>
+        <text x="910" y="121" font-size="11" font-family="JetBrains Mono">− price: Decimal</text>
+        <text x="910" y="139" font-size="11" font-family="JetBrains Mono">− qty: Decimal</text>
+        <text x="910" y="157" font-size="11" font-family="JetBrains Mono">− commission: Decimal</text>
+        <text x="910" y="175" font-size="11" font-family="JetBrains Mono">− ts: uint64_t</text>
+        <line x1="900" y1="182" x2="1120" y2="182" stroke="#14213D"/>
+        <text x="910" y="198" font-size="11" font-family="JetBrains Mono">+ realized_pnl(): Decimal</text>
+      </g>
+
+      <!-- Position -->
+      <g>
+        <rect x="1180" y="40" width="260" height="200" fill="#FEF3F2" stroke="#14213D" stroke-width="1.5"/>
+        <rect x="1180" y="40" width="260" height="28" fill="#14213D"/>
+        <text x="1310" y="59" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="JetBrains Mono">Position</text>
+        <text x="1190" y="85" font-size="11" font-family="JetBrains Mono">− symbol: string</text>
+        <text x="1190" y="103" font-size="11" font-family="JetBrains Mono">− net_qty: Decimal</text>
+        <text x="1190" y="121" font-size="11" font-family="JetBrains Mono">− avg_price: Decimal</text>
+        <text x="1190" y="139" font-size="11" font-family="JetBrains Mono">− unrealized_pnl: Decimal</text>
+        <text x="1190" y="157" font-size="11" font-family="JetBrains Mono">− realized_pnl: Decimal</text>
+        <text x="1190" y="175" font-size="11" font-family="JetBrains Mono">− opened_ts: uint64_t</text>
+        <text x="1190" y="193" font-size="11" font-family="JetBrains Mono">− max_adverse_excursion: Decimal</text>
+        <line x1="1180" y1="200" x2="1440" y2="200" stroke="#14213D"/>
+        <text x="1190" y="216" font-size="11" font-family="JetBrains Mono">+ apply(f: Fill): void</text>
+        <text x="1190" y="234" font-size="11" font-family="JetBrains Mono">+ mark_at(t: Tick): void</text>
+      </g>
+
+      <!-- Signal -->
+      <g>
+        <rect x="900" y="290" width="220" height="170" fill="#F0FDF4" stroke="#14213D" stroke-width="1.5"/>
+        <rect x="900" y="290" width="220" height="28" fill="#14213D"/>
+        <text x="1010" y="309" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="JetBrains Mono">Signal</text>
+        <text x="910" y="335" font-size="11" font-family="JetBrains Mono">+ ts: uint64_t</text>
+        <text x="910" y="353" font-size="11" font-family="JetBrains Mono">+ direction: Direction</text>
+        <text x="910" y="371" font-size="11" font-family="JetBrains Mono">+ strength: float [0,1]</text>
+        <text x="910" y="389" font-size="11" font-family="JetBrains Mono">+ suggested_qty: Decimal</text>
+        <text x="910" y="407" font-size="11" font-family="JetBrains Mono">+ stop_price: Decimal?</text>
+        <text x="910" y="425" font-size="11" font-family="JetBrains Mono">+ target_price: Decimal?</text>
+        <line x1="900" y1="432" x2="1120" y2="432" stroke="#14213D"/>
+        <text x="910" y="448" font-size="11" font-family="JetBrains Mono">+ confidence(): float</text>
+      </g>
+
+      <!-- StrategyContext -->
+      <g>
+        <rect x="1180" y="290" width="260" height="180" fill="#F0FDF4" stroke="#14213D" stroke-width="1.5"/>
+        <rect x="1180" y="290" width="260" height="28" fill="#14213D"/>
+        <text x="1310" y="309" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="JetBrains Mono">StrategyContext</text>
+        <text x="1190" y="335" font-size="11" font-family="JetBrains Mono">+ strategy_id: string</text>
+        <text x="1190" y="353" font-size="11" font-family="JetBrains Mono">+ features: FeatureView</text>
+        <text x="1190" y="371" font-size="11" font-family="JetBrains Mono">+ position: Position?</text>
+        <text x="1190" y="389" font-size="11" font-family="JetBrains Mono">+ clock: uint64_t</text>
+        <text x="1190" y="407" font-size="11" font-family="JetBrains Mono">+ risk_budget: RiskBudget</text>
+        <line x1="1180" y1="414" x2="1440" y2="414" stroke="#14213D"/>
+        <text x="1190" y="430" font-size="11" font-family="JetBrains Mono">+ emit(s: Signal): void</text>
+        <text x="1190" y="448" font-size="11" font-family="JetBrains Mono">+ cancel_all(): void</text>
+        <text x="1190" y="466" font-size="11" font-family="JetBrains Mono">+ flatten(): void</text>
+      </g>
+
+      <!-- Associations -->
+      <g stroke="#14213D" stroke-width="1" fill="none" opacity="0.8">
+        <!-- Bar aggregates Tick -->
+        <line x1="150" y1="240" x2="150" y2="200"/>
+        <text x="160" y="225" font-size="10" font-family="JetBrains Mono">1..*</text>
+        <text x="160" y="240" font-size="10" font-family="JetBrains Mono">aggregates</text>
+
+        <!-- Order ◆ Fill (composition) -->
+        <line x1="1010" y1="120" x2="600" y2="120"/>
+        <polygon points="600,120 612,114 612,126" fill="#14213D"/>
+        <text x="780" y="112" font-size="10" font-family="JetBrains Mono">produces 0..*</text>
+
+        <!-- Order → Position (Fill updates Position) -->
+        <line x1="600" y1="180" x2="1180" y2="120"/>
+        <text x="880" y="155" font-size="10" font-family="JetBrains Mono">updates</text>
+
+        <!-- Signal → Order (Strategy emits signal that becomes Order) -->
+        <line x1="1010" y1="290" x2="490" y2="220"/>
+        <text x="700" y="265" font-size="10" font-family="JetBrains Mono">interpreted as</text>
+
+        <!-- StrategyContext ◆ Signal -->
+        <line x1="1180" y1="375" x2="1120" y2="375"/>
+        <polygon points="1120,375 1132,369 1132,381" fill="#14213D"/>
+        <text x="1135" y="395" font-size="10" font-family="JetBrains Mono">emits</text>
+      </g>
+    </svg>
+    <table class="table">
+      <tr><th>Class</th><th>Stereotype</th><th>Key Responsibilities</th><th>Collaborators</th></tr>
+      <tr><td class="cls">Tick</td><td>value object</td><td>Immutable timestamped market quote; basis for all downstream computation</td><td>Bar, FeatureEngine</td></tr>
+      <tr><td class="cls">Bar</td><td>aggregator</td><td>Aggregates ticks into OHLCV bars; closed on time boundary</td><td>Tick, FeatureEngine</td></tr>
+      <tr><td class="cls">Order (abstract)</td><td>interface</td><td>Common order interface; concrete subclasses per order type</td><td>Fill, Position</td></tr>
+      <tr><td class="cls">MarketOrder / LimitOrder / StopOrder</td><td>concrete</td><td>Type-specific submission semantics, slippage model, time-in-force</td><td>Order, SmartRouter</td></tr>
+      <tr><td class="cls">Fill</td><td>event</td><td>Immutable execution event; carries commission, slippage, realized PnL</td><td>Order, Position, AuditStore</td></tr>
+      <tr><td class="cls">Position</td><td>aggregate root</td><td>Tracks net quantity, avg price, PnL, MAE/MFE for one symbol</td><td>Fill, Tick (for marking)</td></tr>
+      <tr><td class="cls">Signal</td><td>value object</td><td>Strategy output: direction + strength + suggested order params</td><td>StrategyContext, PreTradeRiskGate</td></tr>
+      <tr><td class="cls">StrategyContext</td><td>service</td><td>Per-strategy sandbox: features, position, risk budget, emit signal</td><td>FeatureEngine, Position, Signal</td></tr>
+    </table>
+  </div>
+
+  <!-- Class diagram 2: Risk subsystem -->
+  <div class="section">
+    <h2>(b) Risk Subsystem</h2>
+    <svg width="1480" height="540" viewBox="0 0 1480 540">
+      <!-- IRiskGate interface -->
+      <g>
+        <rect x="40" y="40" width="280" height="140" fill="#F0FDF4" stroke="#14213D" stroke-width="1.5"/>
+        <rect x="40" y="40" width="280" height="28" fill="#14213D"/>
+        <text x="180" y="59" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700" font-family="JetBrains Mono">«interface» IRiskGate</text>
+        <text x="50" y="85" font-size="11" font-family="JetBrains Mono">+ check(ctx: RiskContext): RiskDecision</text>
+        <line x1="40" y1="100" x2="320" y2="100" stroke="#14213D"/>
+        <text x="50" y="120" font-size="10" font-family="JetBrains Mono" fill="#4A5568">// Synchronous veto</text>
+        <text x="50" y="138" font-size="10" font-family="JetBrains Mono" fill="#4A5568">// Returns APPROVE / REJECT / THROTTLE</text>
+        <text x="50" y="156" font-size="10" font-family="JetBrains Mono" fill="#4A5568">// Rejects carry reason code</text>
+      </g>
+
+      <!-- PreTradeRiskGate -->
+      <g>
+        <rect x="380" y="40" width="260" height="200" fill="#FEF3F2" stroke="#14213D" stroke-width="1.5"/>
+        <rect x="380" y="40" width="260" height="28" fill="#14213D"/>
+        <text x="510" y="59" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="JetBrains Mono">PreTradeRiskGate</text>
+        <text x="390" y="85" font-size="11" font-family="JetBrains Mono">− max_position: Decimal</text>
+        <text x="390" y="103" font-size="11" font-family="JetBrains Mono">− max_leverage: int</text>
+        <text x="390" y="121" font-size="11" font-family="JetBrains Mono">− max_daily_trades: int</text>
+        <text x="390" y="139" font-size="11" font-family="JetBrains Mono">− news_blackout: set&lt;Window&gt;</text>
+        <text x="390" y="157" font-size="11" font-family="JetBrains Mono">− margin_floor: Decimal</text>
+        <line x1="380" y1="164" x2="640" y2="164" stroke="#14213D"/>
+        <text x="390" y="180" font-size="11" font-family="JetBrains Mono">+ check(ctx): RiskDecision</text>
+        <text x="390" y="198" font-size="11" font-family="JetBrains Mono"># check_position(ctx): bool</text>
+        <text x="390" y="216" font-size="11" font-family="JetBrains Mono"># check_news_blackout(ctx): bool</text>
+      </g>
+
+      <!-- PostTradeRiskMonitor -->
+      <g>
+        <rect x="700" y="40" width="260" height="200" fill="#FEF3F2" stroke="#14213D" stroke-width="1.5"/>
+        <rect x="700" y="40" width="260" height="28" fill="#14213D"/>
+        <text x="830" y="59" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="JetBrains Mono">PostTradeRiskMonitor</text>
+        <text x="710" y="85" font-size="11" font-family="JetBrains Mono">− dd_soft_threshold: Decimal</text>
+        <text x="710" y="103" font-size="11" font-family="JetBrains Mono">− dd_hard_threshold: Decimal</text>
+        <text x="710" y="121" font-size="11" font-family="JetBrains Mono">− loss_streak_limit: int</text>
+        <text x="710" y="139" font-size="11" font-family="JetBrains Mono">− slippage_outlier_z: float</text>
+        <line x1="700" y1="146" x2="960" y2="146" stroke="#14213D"/>
+        <text x="710" y="162" font-size="11" font-family="JetBrains Mono">+ on_fill(f: Fill): void</text>
+        <text x="710" y="180" font-size="11" font-family="JetBrains Mono">+ on_equity(e: Equity): void</text>
+        <text x="710" y="198" font-size="11" font-family="JetBrains Mono"># fire_circuit(level: Level): void</text>
+        <text x="710" y="216" font-size="11" font-family="JetBrains Mono"># notify_operator(alert: Alert): void</text>
+      </g>
+
+      <!-- ExposureAggregator -->
+      <g>
+        <rect x="1020" y="40" width="260" height="200" fill="#FEF3F2" stroke="#14213D" stroke-width="1.5"/>
+        <rect x="1020" y="40" width="260" height="28" fill="#14213D"/>
+        <text x="1150" y="59" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="JetBrains Mono">ExposureAggregator</text>
+        <text x="1030" y="85" font-size="11" font-family="JetBrains Mono">− positions: map&lt;Sym, Position&gt;</text>
+        <text x="1030" y="103" font-size="11" font-family="JetBrains Mono">− fx_rates: map&lt;Ccy, Decimal&gt;</text>
+        <line x1="1020" y1="110" x2="1280" y2="110" stroke="#14213D"/>
+        <text x="1030" y="126" font-size="11" font-family="JetBrains Mono">+ net_exposure(): Decimal</text>
+        <text x="1030" y="144" font-size="11" font-family="JetBrains Mono">+ gross_exposure(): Decimal</text>
+        <text x="1030" y="162" font-size="11" font-family="JetBrains Mono">+ exposure_by_side(): Sided</text>
+        <text x="1030" y="180" font-size="11" font-family="JetBrains Mono">+ var_99(): Decimal</text>
+        <text x="1030" y="198" font-size="11" font-family="JetBrains Mono">+ correlation_adjusted(): Decimal</text>
+      </g>
+
+      <!-- KillSwitchController -->
+      <g>
+        <rect x="380" y="280" width="380" height="200" fill="#FEF3F2" stroke="#C8102E" stroke-width="2"/>
+        <rect x="380" y="280" width="380" height="28" fill="#C8102E"/>
+        <text x="570" y="299" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="JetBrains Mono">KillSwitchController</text>
+        <text x="390" y="325" font-size="11" font-family="JetBrains Mono">− armed: atomic&lt;bool&gt;</text>
+        <text x="390" y="343" font-size="11" font-family="JetBrains Mono">− triggered_ts: uint64_t</text>
+        <text x="390" y="361" font-size="11" font-family="JetBrains Mono">− reason: string</text>
+        <text x="390" y="379" font-size="11" font-family="JetBrains Mono">− cooldown_s: int</text>
+        <line x1="380" y1="386" x2="760" y2="386" stroke="#14213D"/>
+        <text x="390" y="402" font-size="11" font-family="JetBrains Mono">+ trigger(reason: string): void</text>
+        <text x="390" y="420" font-size="11" font-family="JetBrains Mono">+ halt_new_orders(): void</text>
+        <text x="390" y="438" font-size="11" font-family="JetBrains Mono">+ flatten_all_positions(): void</text>
+        <text x="390" y="456" font-size="11" font-family="JetBrains Mono">+ cancel_pending_orders(): void</text>
+        <text x="390" y="474" font-size="11" font-family="JetBrains Mono">+ notify_operator(): void</text>
+      </g>
+
+      <!-- RiskDecision -->
+      <g>
+        <rect x="820" y="280" width="220" height="200" fill="#F0FDF4" stroke="#14213D" stroke-width="1.5"/>
+        <rect x="820" y="280" width="220" height="28" fill="#14213D"/>
+        <text x="930" y="299" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="JetBrains Mono">RiskDecision</text>
+        <text x="830" y="325" font-size="11" font-family="JetBrains Mono">+ verdict: Verdict</text>
+        <text x="830" y="343" font-size="11" font-family="JetBrains Mono">+ reason: ReasonCode</text>
+        <text x="830" y="361" font-size="11" font-family="JetBrains Mono">+ message: string</text>
+        <text x="830" y="379" font-size="11" font-family="JetBrains Mono">+ reduced_qty: Decimal?</text>
+        <text x="830" y="397" font-size="11" font-family="JetBrains Mono">+ ts: uint64_t</text>
+        <line x1="820" y1="404" x2="1040" y2="404" stroke="#14213D"/>
+        <text x="830" y="420" font-size="11" font-family="JetBrains Mono">+ approved(): bool</text>
+        <text x="830" y="438" font-size="11" font-family="JetBrains Mono">+ audit_blob(): bytes</text>
+        <text x="830" y="456" font-size="11" font-family="JetBrains Mono">+ Verdict ∈ {APPROVE,</text>
+        <text x="830" y="474" font-size="11" font-family="JetBrains Mono">  REJECT, THROTTLE}</text>
+      </g>
+
+      <!-- Inheritance: PreTrade → IRiskGate -->
+      <g stroke="#14213D" stroke-width="1.5" fill="none">
+        <line x1="510" y1="40" x2="280" y2="80"/>
+        <polygon points="280,80 292,74 292,86" fill="#ffffff" stroke="#14213D"/>
+      </g>
+      <!-- Inheritance: PostTrade → IRiskGate -->
+      <g stroke="#14213D" stroke-width="1.5" fill="none">
+        <line x1="830" y1="40" x2="320" y2="100"/>
+        <polygon points="320,100 332,94 332,106" fill="#ffffff" stroke="#14213D"/>
+      </g>
+
+      <!-- Association: PreTrade uses ExposureAggregator -->
+      <g stroke="#14213D" stroke-width="1" fill="none">
+        <line x1="640" y1="120" x2="1020" y2="120"/>
+        <text x="830" y="115" font-size="10" font-family="JetBrains Mono">uses</text>
+      </g>
+
+      <!-- PostTrade triggers KillSwitch -->
+      <g stroke="#C8102E" stroke-width="1.5" fill="none" stroke-dasharray="4 2">
+        <line x1="830" y1="240" x2="640" y2="280"/>
+        <text x="690" y="265" font-size="10" font-family="JetBrains Mono" fill="#C8102E">triggers on hard DD</text>
+      </g>
+
+      <!-- PreTrade returns RiskDecision -->
+      <g stroke="#14213D" stroke-width="1" fill="none">
+        <line x1="640" y1="200" x2="820" y2="320"/>
+        <text x="700" y="270" font-size="10" font-family="JetBrains Mono">returns</text>
+      </g>
+    </svg>
+    <table class="table">
+      <tr><th>Class</th><th>Stereotype</th><th>Key Responsibilities</th><th>Collaborators</th></tr>
+      <tr><td class="cls">IRiskGate</td><td>interface</td><td>Synchronous veto contract; all gates must implement check()</td><td>PreTrade, PostTrade</td></tr>
+      <tr><td class="cls">PreTradeRiskGate</td><td>service</td><td>Position size, leverage, news blackout, margin floor checks; synchronous</td><td>ExposureAggregator, SessionCalendar</td></tr>
+      <tr><td class="cls">PostTradeRiskMonitor</td><td>observer</td><td>Async monitor; fires circuit breaker on DD/loss-streak/slippage outliers</td><td>KillSwitchController, OperatorAlert</td></tr>
+      <tr><td class="cls">ExposureAggregator</td><td>service</td><td>Net/gross exposure, VaR, correlation-adjusted exposure</td><td>Position, FXConverter</td></tr>
+      <tr><td class="cls">KillSwitchController</td><td>singleton</td><td>Halt + flatten + cancel; atomic flag; cooldown before re-arm</td><td>OrderManager, OperatorConsole</td></tr>
+      <tr><td class="cls">RiskDecision</td><td>value object</td><td>Verdict + reason + reduced_qty; serializable for audit</td><td>PreTradeRiskGate, AuditStore</td></tr>
+    </table>
+  </div>
+
+  <!-- Class diagram 3: Execution subsystem -->
+  <div class="section">
+    <h2>(c) Execution Subsystem</h2>
+    <svg width="1480" height="540" viewBox="0 0 1480 540">
+      <!-- IExecutor interface -->
+      <g>
+        <rect x="40" y="40" width="260" height="140" fill="#F0FDF4" stroke="#14213D" stroke-width="1.5"/>
+        <rect x="40" y="40" width="260" height="28" fill="#14213D"/>
+        <text x="170" y="59" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700" font-family="JetBrains Mono">«interface» IExecutor</text>
+        <text x="50" y="85" font-size="11" font-family="JetBrains Mono">+ submit(o: Order): FillPromise</text>
+        <text x="50" y="103" font-size="11" font-family="JetBrains Mono">+ cancel(id: OrderId): bool</text>
+        <text x="50" y="121" font-size="11" font-family="JetBrains Mono">+ modify(id: OrderId, m: Mod): bool</text>
+        <line x1="40" y1="128" x2="300" y2="128" stroke="#14213D"/>
+        <text x="50" y="148" font-size="10" font-family="JetBrains Mono" fill="#4A5568">// Broker-agnostic abstraction</text>
+      </g>
+
+      <!-- MT5Executor -->
+      <g>
+        <rect x="350" y="40" width="240" height="180" fill="#FEF3F2" stroke="#14213D" stroke-width="1.5"/>
+        <rect x="350" y="40" width="240" height="28" fill="#14213D"/>
+        <text x="470" y="59" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="JetBrains Mono">MT5Executor</text>
+        <text x="360" y="85" font-size="11" font-family="JetBrains Mono">− terminal: MT5Terminal</text>
+        <text x="360" y="103" font-size="11" font-family="JetBrains Mono">− conn_pool: ConnPool</text>
+        <text x="360" y="121" font-size="11" font-family="JetBrains Mono">− magic: int</text>
+        <line x1="350" y1="128" x2="590" y2="128" stroke="#14213D"/>
+        <text x="360" y="144" font-size="11" font-family="JetBrains Mono">+ submit(o: Order): FillPromise</text>
+        <text x="360" y="162" font-size="11" font-family="JetBrains Mono">+ cancel(id: OrderId): bool</text>
+        <text x="360" y="180" font-size="11" font-family="JetBrains Mono">+ modify(id: OrderId, m: Mod): bool</text>
+        <text x="360" y="198" font-size="11" font-family="JetBrains Mono"># translate(o: Order): MT5Req</text>
+      </g>
+
+      <!-- SimulatedExecutor -->
+      <g>
+        <rect x="640" y="40" width="240" height="180" fill="#FEF3F2" stroke="#14213D" stroke-width="1.5"/>
+        <rect x="640" y="40" width="240" height="28" fill="#14213D"/>
+        <text x="760" y="59" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="JetBrains Mono">SimulatedExecutor</text>
+        <text x="650" y="85" font-size="11" font-family="JetBrains Mono">− slippage_model: ISlippageModel</text>
+        <text x="650" y="103" font-size="11" font-family="JetBrains Mono">− commission_bps: int</text>
+        <text x="650" y="121" font-size="11" font-family="JetBrains Mono">− latency_ms: int</text>
+        <line x1="640" y1="128" x2="880" y2="128" stroke="#14213D"/>
+        <text x="650" y="144" font-size="11" font-family="JetBrains Mono">+ submit(o: Order): FillPromise</text>
+        <text x="650" y="162" font-size="11" font-family="JetBrains Mono">+ cancel(id: OrderId): bool</text>
+        <text x="650" y="180" font-size="11" font-family="JetBrains Mono"># simulate_fill(o: Order): Fill</text>
+        <text x="650" y="198" font-size="11" font-family="JetBrains Mono"># inject_latency(): void</text>
+      </g>
+
+      <!-- FIXExecutor -->
+      <g>
+        <rect x="930" y="40" width="240" height="180" fill="#FEF3F2" stroke="#14213D" stroke-width="1.5"/>
+        <rect x="930" y="40" width="240" height="28" fill="#14213D"/>
+        <text x="1050" y="59" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="JetBrains Mono">FIXExecutor</text>
+        <text x="940" y="85" font-size="11" font-family="JetBrains Mono">− session: FIXSession</text>
+        <text x="940" y="103" font-size="11" font-family="JetBrains Mono">− sender_comp_id: string</text>
+        <text x="940" y="121" font-size="11" font-family="JetBrains Mono">− target_comp_id: string</text>
+        <line x1="930" y1="128" x2="1170" y2="128" stroke="#14213D"/>
+        <text x="940" y="144" font-size="11" font-family="JetBrains Mono">+ submit(o: Order): FillPromise</text>
+        <text x="940" y="162" font-size="11" font-family="JetBrains Mono">+ cancel(id: OrderId): bool</text>
+        <text x="940" y="180" font-size="11" font-family="JetBrains Mono"># build_new(o: Order): FIXMsg</text>
+        <text x="940" y="198" font-size="11" font-family="JetBrains Mono"># on_execution_report(m): void</text>
+      </g>
+
+      <!-- Inheritance arrows -->
+      <g stroke="#14213D" stroke-width="1.5" fill="none">
+        <line x1="470" y1="40" x2="240" y2="80"/>
+        <line x1="760" y1="40" x2="240" y2="100"/>
+        <line x1="1050" y1="40" x2="240" y2="120"/>
+        <polygon points="240,80 252,74 252,86" fill="#ffffff" stroke="#14213D"/>
+      </g>
+
+      <!-- OrderRouter -->
+      <g>
+        <rect x="40" y="280" width="280" height="180" fill="#F0FDF4" stroke="#14213D" stroke-width="1.5"/>
+        <rect x="40" y="280" width="280" height="28" fill="#14213D"/>
+        <text x="180" y="299" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="JetBrains Mono">OrderRouter</text>
+        <text x="50" y="325" font-size="11" font-family="JetBrains Mono">− executors: map&lt;Venue, IExecutor&gt;</text>
+        <text x="50" y="343" font-size="11" font-family="JetBrains Mono">− default_venue: Venue</text>
+        <text x="50" y="361" font-size="11" font-family="JetBrains Mono">− failover_chain: list&lt;Venue&gt;</text>
+        <line x1="40" y1="368" x2="320" y2="368" stroke="#14213D"/>
+        <text x="50" y="384" font-size="11" font-family="JetBrains Mono">+ route(o: Order): FillPromise</text>
+        <text x="50" y="402" font-size="11" font-family="JetBrains Mono">+ on_reject(o: Order): void</text>
+        <text x="50" y="420" font-size="11" font-family="JetBrains Mono"># failover(o: Order): FillPromise</text>
+        <text x="50" y="438" font-size="11" font-family="JetBrains Mono"># select_venue(o: Order): Venue</text>
+      </g>
+
+      <!-- OrderManager -->
+      <g>
+        <rect x="380" y="280" width="380" height="220" fill="#F0FDF4" stroke="#14213D" stroke-width="2"/>
+        <rect x="380" y="280" width="380" height="28" fill="#14213D"/>
+        <text x="570" y="299" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="JetBrains Mono">OrderManager</text>
+        <text x="390" y="325" font-size="11" font-family="JetBrains Mono">− active_orders: map&lt;OrderId, Order&gt;</text>
+        <text x="390" y="343" font-size="11" font-family="JetBrains Mono">− state_machine: OrderSM</text>
+        <text x="390" y="361" font-size="11" font-family="JetBrains Mono">− router: OrderRouter</text>
+        <text x="390" y="379" font-size="11" font-family="JetBrains Mono">− risk_gate: IRiskGate</text>
+        <text x="390" y="397" font-size="11" font-family="JetBrains Mono">− reconciler: FillReconciler</text>
+        <line x1="380" y1="404" x2="760" y2="404" stroke="#14213D"/>
+        <text x="390" y="420" font-size="11" font-family="JetBrains Mono">+ place(o: Order): OrderId</text>
+        <text x="390" y="438" font-size="11" font-family="JetBrains Mono">+ cancel(id: OrderId): bool</text>
+        <text x="390" y="456" font-size="11" font-family="JetBrains Mono">+ cancel_all(): void</text>
+        <text x="390" y="474" font-size="11" font-family="JetBrains Mono">+ on_fill(f: Fill): void</text>
+        <text x="390" y="492" font-size="11" font-family="JetBrains Mono">+ reconcile(): void</text>
+      </g>
+
+      <!-- FillReconciler -->
+      <g>
+        <rect x="820" y="280" width="240" height="180" fill="#FEF3F2" stroke="#14213D" stroke-width="1.5"/>
+        <rect x="820" y="280" width="240" height="28" fill="#14213D"/>
+        <text x="940" y="299" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="JetBrains Mono">FillReconciler</text>
+        <text x="830" y="325" font-size="11" font-family="JetBrains Mono">− local_state: map&lt;Id, Order&gt;</text>
+        <text x="830" y="343" font-size="11" font-family="JetBrains Mono">− broker_state: map&lt;Id, Order&gt;</text>
+        <text x="830" y="361" font-size="11" font-family="JetBrains Mono">− drift_log: deque&lt;Drift&gt;</text>
+        <line x1="820" y1="368" x2="1060" y2="368" stroke="#14213D"/>
+        <text x="830" y="384" font-size="11" font-family="JetBrains Mono">+ reconcile(): DriftReport</text>
+        <text x="830" y="402" font-size="11" font-family="JetBrains Mono">+ on_broker_snapshot(s): void</text>
+        <text x="830" y="420" font-size="11" font-family="JetBrains Mono"># resolve_orphan(id): void</text>
+        <text x="830" y="438" font-size="11" font-family="JetBrains Mono"># resolve_phantom(id): void</text>
+      </g>
+
+      <!-- SlippageModel -->
+      <g>
+        <rect x="1100" y="280" width="260" height="180" fill="#F0FDF4" stroke="#14213D" stroke-width="1.5"/>
+        <rect x="1100" y="280" width="260" height="28" fill="#14213D"/>
+        <text x="1230" y="299" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700" font-family="JetBrains Mono">«interface» ISlippageModel</text>
+        <text x="1110" y="325" font-size="11" font-family="JetBrains Mono">+ estimate(o: Order, m: Market): Decimal</text>
+        <line x1="1100" y1="332" x2="1360" y2="332" stroke="#14213D"/>
+        <text x="1110" y="350" font-size="10" font-family="JetBrains Mono" fill="#4A5568">// Implementations:</text>
+        <text x="1110" y="368" font-size="11" font-family="JetBrains Mono">LinearSlippageModel</text>
+        <text x="1110" y="386" font-size="11" font-family="JetBrains Mono">SquareRootImpactModel</text>
+        <text x="1110" y="404" font-size="11" font-family="JetBrains Mono">AlmgrenChrissModel</text>
+        <text x="1110" y="422" font-size="11" font-family="JetBrains Mono">LearnedSlippageModel</text>
+      </g>
+
+      <!-- Associations -->
+      <g stroke="#14213D" stroke-width="1" fill="none">
+        <!-- OrderManager uses OrderRouter -->
+        <line x1="380" y1="370" x2="320" y2="370"/>
+        <text x="325" y="365" font-size="10" font-family="JetBrains Mono">uses</text>
+        <!-- OrderRouter aggregates IExecutor (3 executors) -->
+        <line x1="180" y1="280" x2="180" y2="180"/>
+        <polygon points="180,180 174,192 186,192" fill="#14213D"/>
+        <text x="190" y="240" font-size="10" font-family="JetBrains Mono">3..*</text>
+        <!-- OrderManager uses FillReconciler -->
+        <line x1="760" y1="390" x2="820" y2="370"/>
+        <text x="780" y="385" font-size="10" font-family="JetBrains Mono">owns</text>
+        <!-- SimulatedExecutor uses ISlippageModel -->
+        <line x1="760" y1="220" x2="1230" y2="280"/>
+        <text x="1000" y="245" font-size="10" font-family="JetBrains Mono">uses</text>
+      </g>
+    </svg>
+    <table class="table">
+      <tr><th>Class</th><th>Stereotype</th><th>Key Responsibilities</th><th>Collaborators</th></tr>
+      <tr><td class="cls">IExecutor</td><td>interface</td><td>Broker-agnostic order lifecycle: submit/cancel/modify</td><td>OrderRouter</td></tr>
+      <tr><td class="cls">MT5Executor</td><td>concrete</td><td>MT5 terminal binding; magic number isolation; conn pool</td><td>IExecutor, MT5Terminal</td></tr>
+      <tr><td class="cls">SimulatedExecutor</td><td>concrete</td><td>Backtest executor with injectable slippage/latency/commission</td><td>IExecutor, ISlippageModel</td></tr>
+      <tr><td class="cls">FIXExecutor</td><td>concrete</td><td>FIX 4.4 protocol; execution report handling</td><td>IExecutor, FIXSession</td></tr>
+      <tr><td class="cls">OrderRouter</td><td>service</td><td>Selects venue, handles failover chain, retries</td><td>IExecutor (multiple)</td></tr>
+      <tr><td class="cls">OrderManager</td><td>aggregate root</td><td>Order state machine, risk gate integration, fill dispatch</td><td>OrderRouter, IRiskGate, FillReconciler</td></tr>
+      <tr><td class="cls">FillReconciler</td><td>service</td><td>Local vs broker state reconciliation; orphan/phantom resolution</td><td>OrderManager, BrokerSnapshot</td></tr>
+      <tr><td class="cls">ISlippageModel</td><td>interface</td><td>Pluggable slippage estimation (linear, sqrt-impact, Almgren-Chriss, learned)</td><td>SimulatedExecutor, SmartRouter</td></tr>
+    </table>
+  </div>
+</div>
+</body>
+</html>

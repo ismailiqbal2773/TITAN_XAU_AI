@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Execution Engine — Validation Test Pyramid</title>
+<style>
+  @page { size: 1600px 1000px; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #ffffff; font-family: 'Tinos','FreeSerif',serif; color: #14213D; }
+  .canvas { width: 1600px; height: 1000px; padding: 50px 60px; box-sizing: border-box; }
+  .title-bar { display: flex; align-items: baseline; gap: 18px; border-bottom: 2px solid #14213D; padding-bottom: 12px; margin-bottom: 24px; }
+  .title-bar .num { font-size: 48px; font-weight: 900; color: #C8102E; line-height: 1; }
+  .title-bar h1 { font-size: 26px; font-weight: 700; margin: 0; }
+  .title-bar .sub { font-size: 13px; color: #4A5568; margin-left: auto; font-family: 'JetBrains Mono',monospace; }
+  svg { display: block; margin: 0 auto; background: #FAFBFC; border: 1px solid #E2E8F0; }
+  .table { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-top: 14px; }
+  .table th { background: #14213D; color: #ffffff; padding: 6px 8px; text-align: left; font-weight: 700; }
+  .table td { padding: 5px 8px; border-bottom: 1px solid #E2E8F0; }
+  .table tr:nth-child(even) td { background: #F8FAFC; }
+  .table .mod { color: #14213D; font-family: 'JetBrains Mono',monospace; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="title-bar">
+    <span class="num">07</span>
+    <h1>Validation Tests — 5-Layer Pyramid &amp; Coverage Matrix</h1>
+    <span class="sub">Unit · Integration · Lifecycle · Performance · Chaos</span>
+  </div>
+
+  <svg width="1480" height="540" viewBox="0 0 1480 540">
+    <text x="40" y="30" font-size="14" font-weight="700" fill="#C8102E" font-family="Tinos">(a) Test Pyramid</text>
+
+    <!-- L1 Unit (base) -->
+    <polygon points="40,440 720,440 660,360 100,360" fill="#F0FDF4" stroke="#14213D" stroke-width="2"/>
+    <text x="380" y="395" text-anchor="middle" font-size="14" font-weight="700" fill="#14213D" font-family="Tinos">UNIT TESTS</text>
+    <text x="380" y="412" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">GoogleTest + pytest + hypothesis · ~70%</text>
+    <text x="380" y="425" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">per-detector, per-validator, stateless logic</text>
+    <text x="380" y="438" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">~250 tests · &lt; 60s wall</text>
+
+    <!-- L2 Integration -->
+    <polygon points="100,360 660,360 600,280 160,280" fill="#FEF3F2" stroke="#14213D" stroke-width="2"/>
+    <text x="380" y="315" text-anchor="middle" font-size="14" font-weight="700" fill="#14213D" font-family="Tinos">INTEGRATION</text>
+    <text x="380" y="332" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Pact contracts · 80 tests</text>
+    <text x="380" y="345" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">L1↔L2↔L3 contracts · real ZMQ bus</text>
+
+    <!-- L3 Lifecycle -->
+    <polygon points="160,280 600,280 540,200 220,200" fill="#F0FDF4" stroke="#14213D" stroke-width="2"/>
+    <text x="380" y="235" text-anchor="middle" font-size="13" font-weight="700" fill="#14213D" font-family="Tinos">LIFECYCLE / STATE MACHINE</text>
+    <text x="380" y="252" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">14 transitions × scenarios · 50 tests</text>
+    <text x="380" y="265" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">FSM coverage 100% (state × trigger)</text>
+
+    <!-- L4 Performance -->
+    <polygon points="220,200 540,200 480,120 280,120" fill="#FEF3F2" stroke="#14213D" stroke-width="2"/>
+    <text x="380" y="155" text-anchor="middle" font-size="13" font-weight="700" fill="#14213D" font-family="Tinos">PERFORMANCE / LOAD</text>
+    <text x="380" y="172" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">50k ticks/s sustained · 30 tests</text>
+    <text x="380" y="185" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">latency budget enforcement</text>
+
+    <!-- L5 Chaos -->
+    <polygon points="280,120 480,120 430,40 330,40" fill="#FEF3F2" stroke="#C8102E" stroke-width="2.5"/>
+    <text x="380" y="68" text-anchor="middle" font-size="12" font-weight="700" fill="#C8102E" font-family="Tinos">CHAOS / FAULT INJECTION</text>
+    <text x="380" y="84" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">weekly game-day · 15 experiments</text>
+    <text x="380" y="97" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">broker disconnect · partial fills</text>
+    <text x="380" y="110" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">CPU contention · network jitter</text>
+
+    <!-- Right: coverage matrix -->
+    <text x="780" y="30" font-size="14" font-weight="700" fill="#C8102E" font-family="Tinos">(b) Coverage by Subsystem</text>
+
+    <g font-family="JetBrains Mono" font-size="11" fill="#14213D">
+      <rect x="780" y="50" width="660" height="28" fill="#14213D"/>
+      <text x="800" y="68" fill="#ffffff" font-weight="700">Subsystem</text>
+      <text x="1000" y="68" fill="#ffffff" font-weight="700">Unit</text>
+      <text x="1100" y="68" fill="#ffffff" font-weight="700">Integ</text>
+      <text x="1200" y="68" fill="#ffffff" font-weight="700">Life</text>
+      <text x="1300" y="68" fill="#ffffff" font-weight="700">Perf</text>
+      <text x="1400" y="68" fill="#ffffff" font-weight="700">Chaos</text>
+
+      <g transform="translate(0, 90)">
+        <text x="800" y="0" font-weight="700">OrderManager (FSM)</text>
+        <text x="1000" y="0" fill="#15803D">✓ 38</text>
+        <text x="1100" y="0" fill="#15803D">✓ 12</text>
+        <text x="1200" y="0" fill="#15803D">✓ 28</text>
+        <text x="1300" y="0" fill="#15803D">✓ 6</text>
+        <text x="1400" y="0" fill="#15803D">✓ 4</text>
+      </g>
+      <g transform="translate(0, 115)">
+        <text x="800" y="0" font-weight="700">OrderDispatcher</text>
+        <text x="1000" y="0" fill="#15803D">✓ 18</text>
+        <text x="1100" y="0" fill="#15803D">✓ 8</text>
+        <text x="1200" y="0" fill="#15803D">✓ 6</text>
+        <text x="1300" y="0" fill="#15803D">✓ 4</text>
+        <text x="1400" y="0" fill="#15803D">✓ 2</text>
+      </g>
+      <g transform="translate(0, 140)">
+        <text x="800" y="0" font-weight="700">FillProcessor (partial fills)</text>
+        <text x="1000" y="0" fill="#15803D">✓ 24</text>
+        <text x="1100" y="0" fill="#15803D">✓ 10</text>
+        <text x="1200" y="0" fill="#15803D">✓ 8</text>
+        <text x="1300" y="0" fill="#15803D">✓ 3</text>
+        <text x="1400" y="0" fill="#15803D">✓ 3</text>
+      </g>
+      <g transform="translate(0, 165)">
+        <text x="800" y="0" font-weight="700">CancelProcessor</text>
+        <text x="1000" y="0" fill="#15803D">✓ 16</text>
+        <text x="1100" y="0" fill="#15803D">✓ 6</text>
+        <text x="1200" y="0" fill="#15803D">✓ 4</text>
+        <text x="1300" y="0" fill="#15803D">✓ 2</text>
+        <text x="1400" y="0" fill="#15803D">✓ 2</text>
+      </g>
+      <g transform="translate(0, 190)">
+        <text x="800" y="0" font-weight="700">RetryManager (backoff)</text>
+        <text x="1000" y="0" fill="#15803D">✓ 22</text>
+        <text x="1100" y="0" fill="#15803D">✓ 8</text>
+        <text x="1200" y="0" fill="#15803D">✓ 6</text>
+        <text x="1300" y="0" fill="#C8102E">—</text>
+        <text x="1400" y="0" fill="#15803D">✓ 3</text>
+      </g>
+      <g transform="translate(0, 215)">
+        <text x="800" y="0" font-weight="700">RejectionClassifier (12 codes)</text>
+        <text x="1000" y="0" fill="#15803D">✓ 24</text>
+        <text x="1100" y="0" fill="#15803D">✓ 12</text>
+        <text x="1200" y="0" fill="#15803D">✓ 6</text>
+        <text x="1300" y="0" fill="#C8102E">—</text>
+        <text x="1400" y="0" fill="#C8102E">—</text>
+      </g>
+      <g transform="translate(0, 240)">
+        <text x="800" y="0" font-weight="700">ReconciliationEngine</text>
+        <text x="1000" y="0" fill="#15803D">✓ 18</text>
+        <text x="1100" y="0" fill="#15803D">✓ 8</text>
+        <text x="1200" y="0" fill="#15803D">✓ 6</text>
+        <text x="1300" y="0" fill="#15803D">✓ 2</text>
+        <text x="1400" y="0" fill="#15803D">✓ 4</text>
+      </g>
+      <g transform="translate(0, 265)">
+        <text x="800" y="0" font-weight="700">SlippageMonitor</text>
+        <text x="1000" y="0" fill="#15803D">✓ 16</text>
+        <text x="1100" y="0" fill="#15803D">✓ 6</text>
+        <text x="1200" y="0" fill="#C8102E">—</text>
+        <text x="1300" y="0" fill="#15803D">✓ 4</text>
+        <text x="1400" y="0" fill="#C8102E">—</text>
+      </g>
+      <g transform="translate(0, 290)">
+        <text x="800" y="0" font-weight="700">EQS (7 factors)</text>
+        <text x="1000" y="0" fill="#15803D">✓ 28</text>
+        <text x="1100" y="0" fill="#15803D">✓ 10</text>
+        <text x="1200" y="0" fill="#C8102E">—</text>
+        <text x="1300" y="0" fill="#15803D">✓ 3</text>
+        <text x="1400" y="0" fill="#C8102E">—</text>
+      </g>
+      <g transform="translate(0, 315)">
+        <text x="800" y="0" font-weight="700">IdempotencyGuard</text>
+        <text x="1000" y="0" fill="#15803D">✓ 14</text>
+        <text x="1100" y="0" fill="#15803D">✓ 6</text>
+        <text x="1200" y="0" fill="#15803D">✓ 2</text>
+        <text x="1300" y="0" fill="#15803D">✓ 2</text>
+        <text x="1400" y="0" fill="#C8102E">—</text>
+      </g>
+      <g transform="translate(0, 340)">
+        <text x="800" y="0" font-weight="700">RiskGateClient</text>
+        <text x="1000" y="0" fill="#15803D">✓ 12</text>
+        <text x="1100" y="0" fill="#15803D">✓ 4</text>
+        <text x="1200" y="0" fill="#15803D">✓ 4</text>
+        <text x="1300" y="0" fill="#15803D">✓ 4</text>
+        <text x="1400" y="0" fill="#C8102E">—</text>
+      </g>
+      <g transform="translate(0, 370)">
+        <text x="800" y="0" font-weight="700" fill="#C8102E">TOTAL</text>
+        <text x="1000" y="0" font-weight="700" fill="#C8102E">230</text>
+        <text x="1100" y="0" font-weight="700" fill="#C8102E">90</text>
+        <text x="1200" y="0" font-weight="700" fill="#C8102E">70</text>
+        <text x="1300" y="0" font-weight="700" fill="#C8102E">30</text>
+        <text x="1400" y="0" font-weight="700" fill="#C8102E">18</text>
+      </g>
+    </g>
+  </svg>
+
+  <table class="table">
+    <tr><th>Test Layer</th><th>Tool</th><th>Scope</th><th>Target</th><th>CI Gate</th><th>Cadence</th></tr>
+    <tr><td class="mod">Unit</td><td>GoogleTest + pytest + hypothesis</td><td>Pure functions, FSM transitions, deterministic logic</td><td>85% line · 100% critical paths</td><td>0 critical findings</td><td>Every PR + nightly</td></tr>
+    <tr><td class="mod">Integration</td><td>Pact + pytest</td><td>Service-to-service contracts (L1↔L2↔L3)</td><td>100% critical paths</td><td>0 contract breaks</td><td>Every PR</td></tr>
+    <tr><td class="mod">Lifecycle / FSM</td><td>Custom stateful fuzzer</td><td>All 14 transitions × valid/invalid triggers</td><td>100% FSM coverage</td><td>All transitions reachable</td><td>Every PR</td></tr>
+    <tr><td class="mod">Performance / Load</td><td>locust + custom C++ bench</td><td>50k ticks/s · 200 orders/s burst · 1h soak</td><td>p99 &lt; 6 ms · RAM &lt; 256 MB</td><td>No budget breach</td><td>Nightly + pre-release</td></tr>
+    <tr><td class="mod">Chaos / Fault</td><td>Gremlin + custom injectors</td><td>Broker disconnect, partial fills, CPU contention, network jitter, MT5 freeze</td><td>15 experiments · MTTR &lt; 5 min</td><td>No P0 incident</td><td>Weekly game-day</td></tr>
+    <tr><td class="mod">Regression (snapshot)</td><td>Replay 200+ captured sessions</td><td>Replay through engine · EQS score drift</td><td>≤ 5% score drift vs baseline</td><td>No regressions</td><td>Nightly</td></tr>
+    <tr><td class="mod">DR Drill</td><td>Manual + automated</td><td>State replication · Z1→Z2 failover mid-order</td><td>RTO &lt; 15s · 0 lost orders</td><td>Successful recovery</td><td>Quarterly</td></tr>
+  </table>
+</div>
+</body>
+</html>

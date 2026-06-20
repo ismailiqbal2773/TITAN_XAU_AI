@@ -1,0 +1,117 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>d10</title>
+<link href="https://fonts.googleapis.com/css2?family=Tinos:wght@400;700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { width: 1600px; height: 1100px; background: #ffffff; font-family: 'Inter', sans-serif; color: #14213D; padding: 50px 60px; }
+.h-title { font-family: 'Tinos', serif; font-size: 30px; font-weight: 900; letter-spacing: -0.5px; }
+.h-sub { font-family: 'Inter', sans-serif; font-size: 13px; color: #4A5568; margin-top: 4px; }
+.h-rule { width: 80px; height: 3px; background: #C8102E; margin: 14px 0 24px 0; }
+
+.flow { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin-top: 18px; }
+.stage { background: #F8FAFC; border: 1px solid #CBD5E1; border-top: 3px solid #14213D; border-radius: 6px; padding: 14px 12px; min-height: 280px; position: relative; }
+.stage.critical { border-top-color: #C8102E; }
+.stage.final { background: #14213D; color: #fff; border-top-color: #15803D; }
+.stage.final .n { color: #C8102E; }
+.stage.final .t { color: #fff; }
+.stage.final .d { color: #94A3B8; }
+.stage .n { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C8102E; font-weight: 700; letter-spacing: 1.5px; }
+.stage .t { font-family: 'Tinos', serif; font-size: 13px; font-weight: 700; color: #14213D; margin: 4px 0 6px 0; line-height: 1.2; }
+.stage .d { font-family: 'Inter', sans-serif; font-size: 10px; color: #4A5568; line-height: 1.5; }
+.stage .meta { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #14213D; margin-top: 8px; padding-top: 6px; border-top: 1px dashed #CBD5E1; }
+.stage.final .meta { color: #C8102E; border-top-color: #4A5568; }
+.stage .arrow { position: absolute; right: -10px; top: 50%; transform: translateY(-50%); width: 20px; height: 20px; background: #C8102E; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; z-index: 2; }
+.stage:last-child .arrow { display: none; }
+
+.warning { margin-top: 22px; padding: 16px 20px; background: #C8102E; color: #fff; border-radius: 6px; }
+.warning .lbl { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 2px; font-weight: 700; opacity: 0.9; }
+.warning .h { font-family: 'Tinos', serif; font-size: 17px; font-weight: 900; margin-top: 4px; }
+.warning .d { font-family: 'Inter', sans-serif; font-size: 11px; margin-top: 6px; line-height: 1.5; opacity: 0.95; }
+.warning .d b { background: rgba(255,255,255,0.2); padding: 1px 6px; border-radius: 2px; }
+
+.compare { margin-top: 22px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.cmp { border: 1px solid #CBD5E1; border-radius: 6px; overflow: hidden; }
+.cmp-head { padding: 10px 14px; color: #fff; font-family: 'Tinos', serif; font-size: 13px; font-weight: 700; }
+.cmp.retail .cmp-head { background: #94A3B8; }
+.cmp.inst .cmp-head { background: #14213D; }
+.cmp-body { padding: 12px 14px; background: #F8FAFC; }
+.cmp-row { padding: 6px 0; border-bottom: 1px dashed #CBD5E1; font-family: 'Inter', sans-serif; font-size: 10.5px; color: #14213D; }
+.cmp-row:last-child { border-bottom: none; }
+.cmp-row .x { color: #C8102E; font-weight: 700; margin-right: 4px; }
+.cmp-row .ok { color: #15803D; font-weight: 700; margin-right: 4px; }
+</style></head>
+<body>
+<div class="h-title">Champion vs Challenger — Auto-Retraining Governance</div>
+<div class="h-sub">New model must pass Backtest → Walk-Forward → Monte Carlo before promotion · NO live auto-deploy</div>
+<div class="h-rule"></div>
+
+<div class="flow">
+  <div class="stage">
+    <div class="n">STAGE 1</div><div class="t">Detect Drift</div>
+    <div class="d">PSI drift detector runs every 6 h. PSI &gt; 0.25 on input features or model confidence triggers retrain.</div>
+    <div class="meta">Trigger: PSI &gt; 0.25<br>Cadence: 6 h</div>
+    <div class="arrow">→</div>
+  </div>
+  <div class="stage">
+    <div class="n">STAGE 2</div><div class="t">Train Challenger</div>
+    <div class="d">Train new model on rolling 90-day window. Parallel to champion — zero production impact.</div>
+    <div class="meta">Train data: 90 days<br>Time: ~45 min</div>
+    <div class="arrow">→</div>
+  </div>
+  <div class="stage critical">
+    <div class="n">STAGE 3</div><div class="t">Backtest (M16)</div>
+    <div class="d">12-month backtest with realistic costs. Must pass: Sharpe ≥ 2.0, MDD ≤ 5%, cost drag ≤ 35%.</div>
+    <div class="meta">GATE 1 of 3<br>Verdict: PASS / REJECT</div>
+    <div class="arrow">→</div>
+  </div>
+  <div class="stage critical">
+    <div class="n">STAGE 4</div><div class="t">Walk-Forward (M17)</div>
+    <div class="d">5-7 fold WFA. Must pass: WFE ≥ 0.85, all folds OOS Sharpe ≥ 1.5, OOS MDD ≤ 5%.</div>
+    <div class="meta">GATE 2 of 3<br>Verdict: PASS / REJECT</div>
+    <div class="arrow">→</div>
+  </div>
+  <div class="stage critical">
+    <div class="n">STAGE 5</div><div class="t">Monte Carlo (M18)</div>
+    <div class="d">10,000 trade permutations. Must pass: survival rate ≥ 95%, P5 Sharpe ≥ 1.0, P5 MDD ≤ 8%.</div>
+    <div class="meta">GATE 3 of 3<br>Verdict: PASS / REJECT</div>
+    <div class="arrow">→</div>
+  </div>
+  <div class="stage final">
+    <div class="n">STAGE 6</div><div class="t">Manual Promote</div>
+    <div class="d">If all 3 gates pass, challenger becomes new champion. <b>Manual sign-off required</b> — engineering lead + risk officer + CTO.</div>
+    <div class="meta">Promotion: MANUAL<br>Auto-deploy: NEVER</div>
+  </div>
+</div>
+
+<div class="warning">
+  <div class="lbl">⚠ INSTITUTIONAL GUARDRAIL</div>
+  <div class="h">Auto-retraining NEVER auto-deploys to production</div>
+  <div class="d">A new model can pass all 3 validation gates and still be rejected at manual review. Reasons for manual rejection include: regime shift not captured by historical data, parameter instability across folds, cost profile drift, or strategic concerns. <b>This is the single most important difference between retail bots and institutional bots.</b> Retail = train → deploy. Institutional = train → validate 3× → manual review → deploy.</div>
+</div>
+
+<div class="compare">
+  <div class="cmp retail">
+    <div class="cmp-head">RETAIL BOT (typical)</div>
+    <div class="cmp-body">
+      <div class="cmp-row"><span class="x">✗</span> Train on recent data</div>
+      <div class="cmp-row"><span class="x">✗</span> Auto-deploy to live</div>
+      <div class="cmp-row"><span class="x">✗</span> No validation gates</div>
+      <div class="cmp-row"><span class="x">✗</span> No human review</div>
+      <div class="cmp-row"><span class="x">✗</span> Single model (no champion/challenger)</div>
+      <div class="cmp-row"><span class="x">✗</span> No rollback path</div>
+      <div class="cmp-row" style="color:#C8102E;font-weight:700;font-style:italic">Result: overfitting → live losses → blown account</div>
+    </div>
+  </div>
+  <div class="cmp inst">
+    <div class="cmp-head">TITAN INSTITUTIONAL</div>
+    <div class="cmp-body">
+      <div class="cmp-row"><span class="ok">✓</span> Train on rolling 90-day window</div>
+      <div class="cmp-row"><span class="ok">✓</span> Champion stays in production</div>
+      <div class="cmp-row"><span class="ok">✓</span> Challenger runs in parallel (shadow)</div>
+      <div class="cmp-row"><span class="ok">✓</span> 3 validation gates (Backtest/WFA/MC)</div>
+      <div class="cmp-row"><span class="ok">✓</span> Manual review: Eng + Risk + CTO</div>
+      <div class="cmp-row"><span class="ok">✓</span> Rollback: champion restored in &lt; 1 min</div>
+      <div class="cmp-row" style="color:#15803D;font-weight:700;font-style:italic">Result: validated generalization → live alpha retention</div>
+    </div>
+  </div>
+</div>
+</body></html>

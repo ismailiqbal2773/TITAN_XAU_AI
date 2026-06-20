@@ -1,0 +1,97 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>d01</title>
+<link href="https://fonts.googleapis.com/css2?family=Tinos:wght@400;700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { width: 1600px; height: 1100px; background: #ffffff; font-family: 'Inter', sans-serif; color: #14213D; padding: 50px 60px; }
+.h-title { font-family: 'Tinos', serif; font-size: 30px; font-weight: 900; letter-spacing: -0.5px; }
+.h-sub { font-family: 'Inter', sans-serif; font-size: 13px; color: #4A5568; margin-top: 4px; }
+.h-rule { width: 80px; height: 3px; background: #C8102E; margin: 14px 0 26px 0; }
+
+.flow { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-top: 18px; }
+.stage { background: #F8FAFC; border: 1px solid #CBD5E1; border-top: 3px solid #14213D; border-radius: 6px; padding: 14px 12px; min-height: 230px; position: relative; }
+.stage.accent { border-top-color: #C8102E; }
+.stage.final { background: #14213D; color: #fff; border-top-color: #C8102E; }
+.stage .n { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C8102E; font-weight: 700; letter-spacing: 1.5px; }
+.stage.final .n { color: #C8102E; }
+.stage .t { font-family: 'Tinos', serif; font-size: 13px; font-weight: 700; color: #14213D; margin: 4px 0 6px 0; line-height: 1.2; }
+.stage.final .t { color: #fff; }
+.stage .d { font-family: 'Inter', sans-serif; font-size: 10px; color: #4A5568; line-height: 1.45; }
+.stage.final .d { color: #94A3B8; }
+.stage .meta { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #14213D; margin-top: 8px; padding-top: 6px; border-top: 1px dashed #CBD5E1; }
+.stage.final .meta { color: #C8102E; border-top-color: #4A5568; }
+.stage .arrow { position: absolute; right: -8px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; background: #C8102E; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; z-index: 2; }
+.stage:last-child .arrow { display: none; }
+
+.bottom-band { margin-top: 24px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.bb { padding: 14px 16px; border-radius: 6px; }
+.bb.a { background: #14213D; color: #fff; }
+.bb.b { background: #C8102E; color: #fff; }
+.bb.c { background: #F1F5F9; border: 1px solid #CBD5E1; }
+.bb.d { background: #F1F5F9; border: 1px solid #CBD5E1; }
+.bb .lbl { font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 2px; opacity: 0.75; font-weight: 700; }
+.bb.c .lbl, .bb.d .lbl { color: #C8102E; opacity: 1; }
+.bb .v { font-family: 'Tinos', serif; font-size: 22px; font-weight: 900; margin-top: 4px; line-height: 1; }
+.bb .d { font-family: 'Inter', sans-serif; font-size: 10px; opacity: 0.9; margin-top: 6px; line-height: 1.4; }
+.bb.c .d, .bb.d .d { color: #14213D; opacity: 1; }
+
+.formula-block { margin-top: 22px; padding: 16px 22px; background: #F1F5F9; border-left: 4px solid #C8102E; border-radius: 4px; }
+.formula-block .lbl { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #C8102E; letter-spacing: 2px; font-weight: 700; }
+.formula-block .eq { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #14213D; margin-top: 8px; line-height: 1.7; }
+.formula-block .eq b { color: #C8102E; }
+</style></head>
+<body>
+<div class="h-title">Monte Carlo Framework — Methodology Overview</div>
+<div class="h-sub">6-stage pipeline · 10,000 simulations · 3 randomization dimensions · Survival Score certification</div>
+<div class="h-rule"></div>
+
+<div class="flow">
+  <div class="stage">
+    <div class="n">STAGE 1</div><div class="t">Load Backtest Results</div>
+    <div class="d">Import per-trade ledger from Backtest Framework (M16). Each trade: entry, exit, P&L, regime, costs.</div>
+    <div class="meta">Input: trade ledger CSV<br>Trades: 200-800 typical</div>
+    <div class="arrow">→</div>
+  </div>
+  <div class="stage">
+    <div class="n">STAGE 2</div><div class="t">Define Randomization</div>
+    <div class="d">Configure 3 randomization dimensions: trade order, slippage, spread. Set distributions and bounds.</div>
+    <div class="meta">Dimensions: 3<br>Seed: reproducible</div>
+    <div class="arrow">→</div>
+  </div>
+  <div class="stage accent">
+    <div class="n">STAGE 3</div><div class="t">Run 10,000 Simulations</div>
+    <div class="d">For each sim: shuffle trades, sample slippage, sample spread. Compute equity curve + metrics.</div>
+    <div class="meta">Sims: 10,000<br>Runtime: ~6 min</div>
+    <div class="arrow">→</div>
+  </div>
+  <div class="stage accent">
+    <div class="n">STAGE 4</div><div class="t">Aggregate Distribution</div>
+    <div class="d">For each metric (Sharpe, MDD, CAGR, RoR), compute P5/P25/P50/P75/P95 across 10k sims.</div>
+    <div class="meta">Metrics: 8<br>Percentiles: 5</div>
+    <div class="arrow">→</div>
+  </div>
+  <div class="stage accent">
+    <div class="n">STAGE 5</div><div class="t">Survival Score</div>
+    <div class="d">Compute Survival Score: fraction of sims that remained profitable + met risk constraints.</div>
+    <div class="meta">Score: 0-100<br>Target: ≥ 95</div>
+    <div class="arrow">→</div>
+  </div>
+  <div class="stage final">
+    <div class="n">STAGE 6</div><div class="t">Certification</div>
+    <div class="d">Apply pass/fail criteria. Produce 3-band verdict: CERTIFIED / CONDITIONAL / REJECTED.</div>
+    <div class="meta">Verdict: 3-band<br>Report: 3-tier</div>
+  </div>
+</div>
+
+<div class="formula-block">
+  <div class="lbl">CORE FORMULA</div>
+  <div class="eq"><b>SurvivalScore</b> = (Sims_Profitable AND MDD ≤ 8% AND Sharpe ≥ 1.0) / Total_Sims × 100</div>
+  <div class="eq" style="margin-top:6px"><b>Simulation_i</b>: equity_curve( shuffle(trades), sample_slippage(trades), sample_spread(trades) )</div>
+</div>
+
+<div class="bottom-band">
+  <div class="bb a"><div class="lbl">SIMULATIONS</div><div class="v">10,000</div><div class="d">Per strategy evaluation · seed-reproducible</div></div>
+  <div class="bb b"><div class="lbl">RANDOM DIMENSIONS</div><div class="v">3</div><div class="d">Trade order + Slippage + Spread</div></div>
+  <div class="bb c"><div class="lbl">SURVIVAL TARGET</div><div class="v">≥ 95%</div><div class="d">Fraction of sims profitable AND within risk</div></div>
+  <div class="bb d"><div class="lbl">RUNTIME</div><div class="v">~6 min</div><div class="d">10k sims on 4-core VPS · parallelized</div></div>
+</div>
+</body></html>

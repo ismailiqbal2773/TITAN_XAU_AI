@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Execution Engine — Slippage Monitoring &amp; EQS</title>
+<style>
+  @page { size: 1600px 1100px; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #ffffff; font-family: 'Tinos','FreeSerif',serif; color: #14213D; }
+  .canvas { width: 1600px; height: 1100px; padding: 50px 60px; box-sizing: border-box; }
+  .title-bar { display: flex; align-items: baseline; gap: 18px; border-bottom: 2px solid #14213D; padding-bottom: 12px; margin-bottom: 24px; }
+  .title-bar .num { font-size: 48px; font-weight: 900; color: #C8102E; line-height: 1; }
+  .title-bar h1 { font-size: 26px; font-weight: 700; margin: 0; }
+  .title-bar .sub { font-size: 13px; color: #4A5568; margin-left: auto; font-family: 'JetBrains Mono',monospace; }
+  svg { display: block; margin: 0 auto; background: #FAFBFC; border: 1px solid #E2E8F0; }
+  .table { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-top: 14px; }
+  .table th { background: #14213D; color: #ffffff; padding: 6px 8px; text-align: left; font-weight: 700; }
+  .table td { padding: 5px 8px; border-bottom: 1px solid #E2E8F0; }
+  .table tr:nth-child(even) td { background: #F8FAFC; }
+  .table .mod { color: #14213D; font-family: 'JetBrains Mono',monospace; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="title-bar">
+    <span class="num">04</span>
+    <h1>Slippage Monitoring &amp; Execution Quality Scoring (EQS)</h1>
+    <span class="sub">Realized vs expected · 7-factor weighted score · outlier detection</span>
+  </div>
+
+  <svg width="1480" height="640" viewBox="0 0 1480 640">
+    <defs>
+      <marker id="ar4" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
+        <path d="M0,0 L0,6 L7,3 z" fill="#14213D"/>
+      </marker>
+    </defs>
+
+    <!-- LEFT: Slippage Monitor -->
+    <text x="40" y="30" font-size="14" font-weight="700" fill="#C8102E" font-family="Tinos">(a) Slippage Monitor — Real-Time TCA</text>
+
+    <!-- Input: Fill -->
+    <rect x="40" y="50" width="200" height="60" fill="#14213D"/>
+    <text x="140" y="78" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700" font-family="Tinos">Fill event arrives</text>
+    <text x="140" y="96" text-anchor="middle" fill="#C8102E" font-size="9" font-family="JetBrains Mono">fill_price, qty, ts</text>
+    <line x1="240" y1="80" x2="280" y2="80" stroke="#14213D" stroke-width="1.5" marker-end="url(#ar4)"/>
+
+    <!-- Compute expected -->
+    <rect x="280" y="50" width="240" height="60" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="400" y="78" text-anchor="middle" font-size="11" font-weight="700" font-family="Tinos">Compute expected price</text>
+    <text x="400" y="96" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">mid at signal ts ± half-spread</text>
+    <line x1="520" y1="80" x2="560" y2="80" stroke="#14213D" stroke-width="1.5" marker-end="url(#ar4)"/>
+
+    <!-- Slippage calc -->
+    <rect x="560" y="50" width="220" height="60" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="670" y="78" text-anchor="middle" font-size="11" font-weight="700" font-family="Tinos">Compute slippage</text>
+    <text x="670" y="96" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">slip = (fill - expected) / expected</text>
+    <line x1="780" y1="80" x2="820" y2="80" stroke="#14213D" stroke-width="1.5" marker-end="url(#ar4)"/>
+
+    <!-- Rolling stats -->
+    <rect x="820" y="50" width="240" height="60" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="940" y="78" text-anchor="middle" font-size="11" font-weight="700" font-family="Tinos">Update rolling stats</text>
+    <text x="940" y="96" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">window=100 · μ, σ, p50/p95/p99</text>
+    <line x1="1060" y1="80" x2="1100" y2="80" stroke="#14213D" stroke-width="1.5" marker-end="url(#ar4)"/>
+
+    <!-- Outlier -->
+    <polygon points="1100,80 1160,50 1220,80 1160,110" fill="#FEF3F2" stroke="#C8102E" stroke-width="2"/>
+    <text x="1160" y="78" text-anchor="middle" font-size="10" font-weight="700" fill="#C8102E">|slip-μ|</text>
+    <text x="1160" y="92" text-anchor="middle" font-size="10" font-weight="700" fill="#C8102E">&gt; 3σ?</text>
+    <line x1="1220" y1="80" x2="1260" y2="80" stroke="#14213D" stroke-width="1.5" marker-end="url(#ar4)"/>
+
+    <!-- Emit -->
+    <rect x="1260" y="50" width="200" height="60" fill="#14213D"/>
+    <text x="1360" y="78" text-anchor="middle" fill="#ffffff" font-size="11" font-weight="700" font-family="Tinos">Emit SlippageEvent</text>
+    <text x="1360" y="96" text-anchor="middle" fill="#C8102E" font-size="9" font-family="JetBrains Mono">ZMQ PUB · audit log</text>
+
+    <!-- Outlier branch -->
+    <line x1="1160" y1="110" x2="1160" y2="140" stroke="#C8102E" stroke-width="1.5" marker-end="url(#ar4)"/>
+    <text x="1170" y="130" font-size="9" fill="#C8102E">YES</text>
+    <rect x="1060" y="140" width="220" height="60" fill="#FEF3F2" stroke="#C8102E" stroke-width="2"/>
+    <text x="1170" y="165" text-anchor="middle" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">Flag OUTLIER</text>
+    <text x="1170" y="180" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">alert operator (P2)</text>
+    <text x="1170" y="192" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">reduce position size 24h</text>
+
+    <!-- RIGHT: EQS — 7 factors -->
+    <text x="40" y="240" font-size="14" font-weight="700" fill="#C8102E" font-family="Tinos">(b) Execution Quality Score (EQS) — 7-Factor Weighted Model</text>
+
+    <rect x="40" y="260" width="1440" height="280" fill="#FAFBFC" stroke="#14213D"/>
+    <text x="60" y="285" font-size="12" font-weight="700" fill="#14213D" font-family="Tinos">EQS = Σ (factor_score × weight) · normalized to [0, 100] · 100 = perfect execution</text>
+
+    <!-- Factor cards (grid) -->
+    <g font-family="JetBrains Mono">
+      <!-- F1: Slippage -->
+      <rect x="60" y="300" width="180" height="100" fill="#F0FDF4" stroke="#14213D"/>
+      <text x="150" y="320" text-anchor="middle" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">F1 · Slippage</text>
+      <text x="150" y="345" text-anchor="middle" font-size="9" fill="#4A5568">weight: 0.25</text>
+      <text x="150" y="365" text-anchor="middle" font-size="9" fill="#4A5568">100·max(0, 1 - |slip|/ε)</text>
+      <text x="150" y="380" text-anchor="middle" font-size="9" fill="#4A5568">ε = 3 bps default</text>
+      <text x="150" y="395" text-anchor="middle" font-size="9" fill="#4A5568">slip &gt; ε → 0</text>
+
+      <!-- F2: Fill latency -->
+      <rect x="260" y="300" width="180" height="100" fill="#F0FDF4" stroke="#14213D"/>
+      <text x="350" y="320" text-anchor="middle" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">F2 · Fill Latency</text>
+      <text x="350" y="345" text-anchor="middle" font-size="9" fill="#4A5568">weight: 0.20</text>
+      <text x="350" y="365" text-anchor="middle" font-size="9" fill="#4A5568">100·max(0, 1 - L/L_max)</text>
+      <text x="350" y="380" text-anchor="middle" font-size="9" fill="#4A5568">L_max = 500 ms</text>
+      <text x="350" y="395" text-anchor="middle" font-size="9" fill="#4A5568">L = submit→fill</text>
+
+      <!-- F3: Spread capture -->
+      <rect x="460" y="300" width="180" height="100" fill="#F0FDF4" stroke="#14213D"/>
+      <text x="550" y="320" text-anchor="middle" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">F3 · Spread Capture</text>
+      <text x="550" y="345" text-anchor="middle" font-size="9" fill="#4A5568">weight: 0.15</text>
+      <text x="550" y="365" text-anchor="middle" font-size="9" fill="#4A5568">100 if fill &lt;= mid (MKT buy)</text>
+      <text x="550" y="380" text-anchor="middle" font-size="9" fill="#4A5568">100 if fill &gt;= mid (MKT sell)</text>
+      <text x="550" y="395" text-anchor="middle" font-size="9" fill="#4A5568">0 if at full spread</text>
+
+      <!-- F4: Partial fill ratio -->
+      <rect x="660" y="300" width="180" height="100" fill="#F0FDF4" stroke="#14213D"/>
+      <text x="750" y="320" text-anchor="middle" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">F4 · Fill Completeness</text>
+      <text x="750" y="345" text-anchor="middle" font-size="9" fill="#4A5568">weight: 0.15</text>
+      <text x="750" y="365" text-anchor="middle" font-size="9" fill="#4A5568">100·(qty_filled / qty_requested)</text>
+      <text x="750" y="380" text-anchor="middle" font-size="9" fill="#4A5568">100 = full fill</text>
+      <text x="750" y="395" text-anchor="middle" font-size="9" fill="#4A5568">0 = no fill</text>
+
+      <!-- F5: Retry penalty -->
+      <rect x="860" y="300" width="180" height="100" fill="#F0FDF4" stroke="#14213D"/>
+      <text x="950" y="320" text-anchor="middle" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">F5 · Retry Penalty</text>
+      <text x="950" y="345" text-anchor="middle" font-size="9" fill="#4A5568">weight: 0.10</text>
+      <text x="950" y="365" text-anchor="middle" font-size="9" fill="#4A5568">100·0.5^(retries)</text>
+      <text x="950" y="380" text-anchor="middle" font-size="9" fill="#4A5568">0 retries → 100</text>
+      <text x="950" y="395" text-anchor="middle" font-size="9" fill="#4A5568">3 retries → 12.5</text>
+
+      <!-- F6: Rejection penalty -->
+      <rect x="1060" y="300" width="180" height="100" fill="#F0FDF4" stroke="#14213D"/>
+      <text x="1150" y="320" text-anchor="middle" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">F6 · Rejection Penalty</text>
+      <text x="1150" y="345" text-anchor="middle" font-size="9" fill="#4A5568">weight: 0.10</text>
+      <text x="1150" y="365" text-anchor="middle" font-size="9" fill="#4A5568">100 if no reject</text>
+      <text x="1150" y="380" text-anchor="middle" font-size="9" fill="#4A5568">50 if soft reject (requote)</text>
+      <text x="1150" y="395" text-anchor="middle" font-size="9" fill="#4A5568">0 if hard reject</text>
+
+      <!-- F7: Market impact -->
+      <rect x="1260" y="300" width="180" height="100" fill="#F0FDF4" stroke="#14213D"/>
+      <text x="1350" y="320" text-anchor="middle" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">F7 · Market Impact</text>
+      <text x="1350" y="345" text-anchor="middle" font-size="9" fill="#4A5568">weight: 0.05</text>
+      <text x="1350" y="365" text-anchor="middle" font-size="9" fill="#4A5568">100·max(0, 1 - Δmid/τ)</text>
+      <text x="1350" y="380" text-anchor="middle" font-size="9" fill="#4A5568">τ = 5 bps</text>
+      <text x="1350" y="395" text-anchor="middle" font-size="9" fill="#4A5568">Δmid = 100ms post-fill</text>
+    </g>
+
+    <!-- Score band -->
+    <rect x="60" y="430" width="1440" height="80" fill="#14213D"/>
+    <text x="780" y="460" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="Tinos">EQS Score Bands</text>
+    <g font-family="JetBrains Mono" font-size="11">
+      <text x="80" y="490" fill="#15803D">90–100 EXCELLENT</text>
+      <text x="320" y="490" fill="#15803D">75–89 GOOD</text>
+      <text x="500" y="490" fill="#B45309">60–74 ACCEPTABLE</text>
+      <text x="720" y="490" fill="#C8102E">40–59 POOR — investigate</text>
+      <text x="1000" y="490" fill="#C8102E">0–39 CRITICAL — halt review</text>
+    </g>
+  </svg>
+
+  <table class="table">
+    <tr><th>Factor</th><th>Weight</th><th>Formula</th><th>Bad-Execution Trigger</th><th>Action on Bad</th></tr>
+    <tr><td class="mod">F1 Slippage</td><td>0.25</td><td>100·max(0, 1 - |slip|/ε), ε=3 bps</td><td>slip &gt; ε (3 bps)</td><td>Reduce size by 50% for 1h</td></tr>
+    <tr><td class="mod">F2 Fill Latency</td><td>0.20</td><td>100·max(0, 1 - L/L_max), L_max=500ms</td><td>L &gt; 250 ms (p95)</td><td>Investigate MT5 bridge</td></tr>
+    <tr><td class="mod">F3 Spread Capture</td><td>0.15</td><td>100 if fill ≤ mid (buy), ≥ mid (sell); 0 at full spread</td><td>fill at full spread consistently</td><td>Switch MKT→LMT strategy</td></tr>
+    <tr><td class="mod">F4 Fill Completeness</td><td>0.15</td><td>100·(qty_filled / qty_requested)</td><td>ratio &lt; 0.8 over 10 orders</td><td>Reduce order size</td></tr>
+    <tr><td class="mod">F5 Retry Penalty</td><td>0.10</td><td>100·0.5^(retries)</td><td>avg retries &gt; 1.5</td><td>Investigate broker rejections</td></tr>
+    <tr><td class="mod">F6 Rejection Penalty</td><td>0.10</td><td>100 if no reject, 50 if soft, 0 if hard</td><td>reject rate &gt; 10%</td><td>Reclassify broker / pause strategy</td></tr>
+    <tr><td class="mod">F7 Market Impact</td><td>0.05</td><td>100·max(0, 1 - Δmid/τ), τ=5 bps over 100ms</td><td>Δmid &gt; 5 bps consistently</td><td>Reduce order size · use TWAP</td></tr>
+  </table>
+</div>
+</body>
+</html>

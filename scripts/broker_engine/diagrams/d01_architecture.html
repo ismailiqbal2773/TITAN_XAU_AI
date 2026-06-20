@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Broker Compatibility Engine — Architecture</title>
+<style>
+  @page { size: 1600px 1100px; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #ffffff; font-family: 'Tinos','FreeSerif',serif; color: #14213D; }
+  .canvas { width: 1600px; height: 1100px; padding: 50px 60px; box-sizing: border-box; }
+  .title-bar { display: flex; align-items: baseline; gap: 18px; border-bottom: 2px solid #14213D; padding-bottom: 12px; margin-bottom: 24px; }
+  .title-bar .num { font-size: 48px; font-weight: 900; color: #C8102E; line-height: 1; }
+  .title-bar h1 { font-size: 28px; font-weight: 700; margin: 0; }
+  .title-bar .sub { font-size: 13px; color: #4A5568; margin-left: auto; font-family: 'JetBrains Mono',monospace; }
+  svg { display: block; margin: 0 auto; background: #FAFBFC; border: 1px solid #E2E8F0; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="title-bar">
+    <span class="num">01</span>
+    <h1>Broker Compatibility Engine — Internal Architecture</h1>
+    <span class="sub">Detector · Validator · Profile Library · Cache · Publisher</span>
+  </div>
+
+  <svg width="1480" height="850" viewBox="0 0 1480 850">
+    <!-- External: MT5 terminal (left) -->
+    <rect x="20" y="380" width="180" height="90" fill="#F8FAFC" stroke="#14213D" stroke-width="1.5"/>
+    <text x="110" y="410" text-anchor="middle" font-size="13" font-weight="700" font-family="Tinos">MT5 Terminal</text>
+    <text x="110" y="430" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">MetaTrader5 package</text>
+    <text x="110" y="448" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">symbol_info · account_info</text>
+
+    <!-- External: TITAN Core (right) -->
+    <rect x="1280" y="380" width="180" height="90" fill="#14213D"/>
+    <text x="1370" y="410" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="Tinos">TITAN Core</text>
+    <text x="1370" y="430" text-anchor="middle" fill="#C8102E" font-size="10" font-family="JetBrains Mono">Risk Gate · OrderMgr</text>
+    <text x="1370" y="448" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="10" font-family="JetBrains Mono">StrategyCoordinator</text>
+
+    <!-- Engine container -->
+    <rect x="240" y="40" width="1020" height="800" fill="#FAFBFC" stroke="#C8102E" stroke-width="2" rx="8"/>
+    <rect x="240" y="40" width="1020" height="36" fill="#C8102E" rx="8"/>
+    <text x="750" y="63" text-anchor="middle" fill="#ffffff" font-size="14" font-weight="700" font-family="Tinos">Broker Compatibility Engine (BCE)</text>
+
+    <!-- 1. Probe layer -->
+    <text x="270" y="105" font-size="12" font-weight="700" fill="#C8102E" font-family="JetBrains Mono">L1 · PROBE LAYER</text>
+    <rect x="270" y="115" width="200" height="70" fill="#FEF3F2" stroke="#14213D"/>
+    <text x="370" y="140" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">SymbolProbe</text>
+    <text x="370" y="158" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">symbol_info_tick()</text>
+    <text x="370" y="172" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">digits · point · trade_*_tick</text>
+
+    <rect x="490" y="115" width="200" height="70" fill="#FEF3F2" stroke="#14213D"/>
+    <text x="590" y="140" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">AccountProbe</text>
+    <text x="590" y="158" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">account_info()</text>
+    <text x="590" y="172" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">leverage · balance · currency</text>
+
+    <rect x="710" y="115" width="200" height="70" fill="#FEF3F2" stroke="#14213D"/>
+    <text x="810" y="140" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">TradeProbe</text>
+    <text x="810" y="158" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">OrderSend probe</text>
+    <text x="810" y="172" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">0.01 lot · immediate cancel</text>
+
+    <rect x="930" y="115" width="200" height="70" fill="#FEF3F2" stroke="#14213D"/>
+    <text x="1030" y="140" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">ServerProbe</text>
+    <text x="1030" y="158" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">account_info_server</text>
+    <text x="1030" y="172" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">broker name · server name</text>
+
+    <!-- 2. Detection layer -->
+    <text x="270" y="220" font-size="12" font-weight="700" fill="#C8102E" font-family="JetBrains Mono">L2 · DETECTION LAYER</text>
+
+    <rect x="270" y="230" width="160" height="70" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="350" y="255" text-anchor="middle" font-size="11" font-weight="700" font-family="Tinos">DigitsDetector</text>
+    <text x="350" y="272" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">2/3/4/5 digits</text>
+    <text x="350" y="285" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">point inverse</text>
+
+    <rect x="445" y="230" width="160" height="70" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="525" y="255" text-anchor="middle" font-size="11" font-weight="700" font-family="Tinos">ContractSizeDetector</text>
+    <text x="525" y="272" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">trade_contract_size</text>
+    <text x="525" y="285" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">cent/micro/standard</text>
+
+    <rect x="620" y="230" width="160" height="70" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="700" y="255" text-anchor="middle" font-size="11" font-weight="700" font-family="Tinos">TickSizeDetector</text>
+    <text x="700" y="272" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">trade_tick_size</text>
+    <text x="700" y="285" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">min price increment</text>
+
+    <rect x="795" y="230" width="160" height="70" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="875" y="255" text-anchor="middle" font-size="11" font-weight="700" font-family="Tinos">TickValueDetector</text>
+    <text x="875" y="272" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">trade_tick_value</text>
+    <text x="875" y="285" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">per-tick monetary</text>
+
+    <rect x="970" y="230" width="160" height="70" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="1050" y="255" text-anchor="middle" font-size="11" font-weight="700" font-family="Tinos">LeverageDetector</text>
+    <text x="1050" y="272" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">account_leverage</text>
+    <text x="1050" y="285" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">1:1 → 1:3000</text>
+
+    <!-- L2 second row -->
+    <rect x="270" y="320" width="160" height="70" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="350" y="345" text-anchor="middle" font-size="11" font-weight="700" font-family="Tinos">SpreadTypeDetector</text>
+    <text x="350" y="362" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">VARIABLE / FIXED</text>
+    <text x="350" y="375" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">N-tick stddev</text>
+
+    <rect x="445" y="320" width="160" height="70" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="525" y="345" text-anchor="middle" font-size="11" font-weight="700" font-family="Tinos">CommissionDetector</text>
+    <text x="525" y="362" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">PER_LOT / PER_MILLION</text>
+    <text x="525" y="375" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">PCT / NONE</text>
+
+    <rect x="620" y="320" width="160" height="70" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="700" y="345" text-anchor="middle" font-size="11" font-weight="700" font-family="Tinos">SwapTypeDetector</text>
+    <text x="700" y="362" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">POINTS / PCT</text>
+    <text x="700" y="375" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">NONE / INFO</text>
+
+    <rect x="795" y="320" width="160" height="70" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="875" y="345" text-anchor="middle" font-size="11" font-weight="700" font-family="Tinos">AccountClassifier</text>
+    <text x="875" y="362" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">CENT / MICRO</text>
+    <text x="875" y="375" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">DOLLAR / RAW</text>
+
+    <rect x="970" y="320" width="160" height="70" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="1050" y="345" text-anchor="middle" font-size="11" font-weight="700" font-family="Tinos">BrokerFingerprinter</text>
+    <text x="1050" y="362" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">6 brokers + generic</text>
+    <text x="1050" y="375" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">server name regex</text>
+
+    <!-- 3. Validation layer -->
+    <text x="270" y="420" font-size="12" font-weight="700" fill="#C8102E" font-family="JetBrains Mono">L3 · VALIDATION LAYER</text>
+
+    <rect x="270" y="430" width="260" height="80" fill="#FEF3F2" stroke="#C8102E"/>
+    <text x="400" y="455" text-anchor="middle" font-size="12" font-weight="700" fill="#C8102E" font-family="Tinos">CrossPropertyValidator</text>
+    <text x="400" y="473" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">tick_value ≈ tick_size × cs × price</text>
+    <text x="400" y="486" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">digits ↔ point inverse consistency</text>
+    <text x="400" y="499" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">leverage ∈ broker-known range</text>
+
+    <rect x="550" y="430" width="260" height="80" fill="#FEF3F2" stroke="#C8102E"/>
+    <text x="680" y="455" text-anchor="middle" font-size="12" font-weight="700" fill="#C8102E" font-family="Tinos">ProfileConsistencyValidator</text>
+    <text x="680" y="473" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">match against BrokerProfileLibrary</text>
+    <text x="680" y="486" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">flag deviations from known profile</text>
+    <text x="680" y="499" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">log warnings, do not reject</text>
+
+    <rect x="830" y="430" width="260" height="80" fill="#FEF3F2" stroke="#C8102E"/>
+    <text x="960" y="455" text-anchor="middle" font-size="12" font-weight="700" fill="#C8102E" font-family="Tinos">SanityBoundsValidator</text>
+    <text x="960" y="473" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">digits ∈ {2,3,4,5}</text>
+    <text x="960" y="486" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">contract_size ∈ [1, 1000000]</text>
+    <text x="960" y="499" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">leverage ∈ [1, 3000]</text>
+
+    <!-- 4. Profile library + cache -->
+    <text x="270" y="540" font-size="12" font-weight="700" fill="#C8102E" font-family="JetBrains Mono">L4 · PROFILE &amp; STATE LAYER</text>
+
+    <rect x="270" y="550" width="320" height="100" fill="#14213D"/>
+    <text x="430" y="580" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="Tinos">BrokerProfileLibrary</text>
+    <text x="430" y="600" text-anchor="middle" fill="#C8102E" font-size="10" font-family="JetBrains Mono">Exness · IC Markets · Pepperstone</text>
+    <text x="430" y="615" text-anchor="middle" fill="#C8102E" font-size="10" font-family="JetBrains Mono">Tickmill · FP Markets · Fusion Markets</text>
+    <text x="430" y="635" text-anchor="middle" fill="#ffffff" opacity="0.7" font-size="9" font-family="JetBrains Mono">+ Generic fallback profile</text>
+
+    <rect x="610" y="550" width="220" height="100" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="720" y="580" text-anchor="middle" font-size="13" font-weight="700" font-family="Tinos">ProfileCache</text>
+    <text x="720" y="600" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">TTL: 24h (per session)</text>
+    <text x="720" y="615" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">Redis hash key:</text>
+    <text x="720" y="630" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">bce:{broker}:{symbol}</text>
+
+    <rect x="850" y="550" width="240" height="100" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="970" y="580" text-anchor="middle" font-size="13" font-weight="700" font-family="Tinos">ProfileBuilder</text>
+    <text x="970" y="600" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">assembles BrokerProfile</text>
+    <text x="970" y="615" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">from 9 detector outputs</text>
+    <text x="970" y="630" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">+ fingerprint + timestamp</text>
+
+    <!-- 5. Publisher -->
+    <text x="270" y="685" font-size="12" font-weight="700" fill="#C8102E" font-family="JetBrains Mono">L5 · PUBLICATION LAYER</text>
+
+    <rect x="270" y="695" width="260" height="80" fill="#14213D"/>
+    <text x="400" y="720" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700" font-family="Tinos">ProfilePublisher</text>
+    <text x="400" y="738" text-anchor="middle" fill="#C8102E" font-size="9" font-family="JetBrains Mono">ZMQ PUB → event bus</text>
+    <text x="400" y="752" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="9" font-family="JetBrains Mono">topic: bce.profile.ready</text>
+    <text x="400" y="766" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="9" font-family="JetBrains Mono">FlatBuffer payload</text>
+
+    <rect x="550" y="695" width="260" height="80" fill="#14213D"/>
+    <text x="680" y="720" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700" font-family="Tinos">ErrorHandler</text>
+    <text x="680" y="738" text-anchor="middle" fill="#C8102E" font-size="9" font-family="JetBrains Mono">classify: HARD / SOFT / WARN</text>
+    <text x="680" y="752" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="9" font-family="JetBrains Mono">fallback to safe-defaults</text>
+    <text x="680" y="766" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="9" font-family="JetBrains Mono">notify operator + audit</text>
+
+    <rect x="830" y="695" width="260" height="80" fill="#14213D"/>
+    <text x="960" y="720" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700" font-family="Tinos">AuditLogger</text>
+    <text x="960" y="738" text-anchor="middle" fill="#C8102E" font-size="9" font-family="JetBrains Mono">append-only WORM</text>
+    <text x="960" y="752" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="9" font-family="JetBrains Mono">every detection + validation</text>
+    <text x="960" y="766" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="9" font-family="JetBrains Mono">hash-chained</text>
+
+    <!-- Arrows in (from MT5) -->
+    <g stroke="#C8102E" stroke-width="2" fill="none" marker-end="url(#arL)">
+      <line x1="200" y1="425" x2="270" y2="150"/>
+      <line x1="200" y1="425" x2="490" y2="150"/>
+      <line x1="200" y1="425" x2="710" y2="150"/>
+      <line x1="200" y1="425" x2="930" y2="150"/>
+    </g>
+
+    <!-- Arrows out (to TITAN Core) -->
+    <g stroke="#C8102E" stroke-width="2" fill="none" marker-end="url(#arL)">
+      <line x1="530" y1="735" x2="1280" y2="425"/>
+    </g>
+
+    <!-- Layer connecting arrows (vertical) -->
+    <g stroke="#14213D" stroke-width="1" fill="none" opacity="0.4" stroke-dasharray="3 3">
+      <line x1="600" y1="190" x2="600" y2="225"/>
+      <line x1="600" y1="395" x2="600" y2="425"/>
+      <line x1="600" y1="515" x2="600" y2="545"/>
+      <line x1="600" y1="655" x2="600" y2="690"/>
+    </g>
+
+    <defs>
+      <marker id="arL" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
+        <path d="M0,0 L0,6 L7,3 z" fill="#C8102E"/>
+      </marker>
+    </defs>
+  </svg>
+</div>
+</body>
+</html>

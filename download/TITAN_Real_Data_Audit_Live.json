@@ -1,0 +1,138 @@
+{
+  "audit_timestamp": "2026-06-20T19:11:14.550742Z",
+  "data_dir": "/home/z/my-project/titan/data/sources/dukascopy/daily",
+  "total_files": 592,
+  "total_bars": 783385,
+  "total_volume": 109748750,
+  "coverage_pct": 46.91,
+  "expected_weekdays": 1262,
+  "present_weekdays": 592,
+  "missing_weekdays_count": 672,
+  "missing_weekdays_top20": [
+    "2020-03-13",
+    "2020-03-16",
+    "2020-03-17",
+    "2020-03-18",
+    "2020-03-19",
+    "2020-03-20",
+    "2020-03-23",
+    "2020-03-24",
+    "2020-03-25",
+    "2020-03-26",
+    "2020-03-27",
+    "2020-03-30",
+    "2020-03-31",
+    "2020-04-08",
+    "2020-04-09",
+    "2020-04-10",
+    "2020-04-13",
+    "2020-04-14",
+    "2020-04-15",
+    "2020-04-16"
+  ],
+  "extra_files_outside_range": [
+    "2020-03-01",
+    "2020-03-08"
+  ],
+  "duplicate_timestamps_total": 0,
+  "schema_mismatches": [
+    {
+      "file": "XAUUSD_M1_2022-04-15.parquet",
+      "error": "columns=[] (expected ['close', 'high', 'low', 'open', 'spread', 'volume'])"
+    },
+    {
+      "file": "XAUUSD_M1_2023-04-07.parquet",
+      "error": "columns=[] (expected ['close', 'high', 'low', 'open', 'spread', 'volume'])"
+    },
+    {
+      "file": "XAUUSD_M1_2024-03-29.parquet",
+      "error": "columns=[] (expected ['close', 'high', 'low', 'open', 'spread', 'volume'])"
+    }
+  ],
+  "price_range": {
+    "min": 1560.73,
+    "max": 2790.08
+  },
+  "spread_stats": {
+    "mean": 0.360726,
+    "samples": 783385
+  },
+  "per_year": {
+    "_202": {
+      "files": 589,
+      "bars": 783385,
+      "min": 1560.73,
+      "max": 2790.08
+    }
+  },
+  "regime_coverage": [
+    {
+      "name": "COVID-2020",
+      "start": "2020-03-01",
+      "end": "2020-04-30",
+      "expected_days": 44,
+      "present_days": 14,
+      "coverage_pct": 31.82
+    },
+    {
+      "name": "Ukraine-War-2022",
+      "start": "2022-02-24",
+      "end": "2022-03-31",
+      "expected_days": 26,
+      "present_days": 5,
+      "coverage_pct": 19.23
+    },
+    {
+      "name": "Fed-Tightening-H1",
+      "start": "2022-06-01",
+      "end": "2022-12-31",
+      "expected_days": 153,
+      "present_days": 11,
+      "coverage_pct": 7.19
+    },
+    {
+      "name": "SVB-Banking-2023",
+      "start": "2023-03-08",
+      "end": "2023-03-31",
+      "expected_days": 18,
+      "present_days": 17,
+      "coverage_pct": 94.44
+    },
+    {
+      "name": "Inflation-Spike",
+      "start": "2022-06-01",
+      "end": "2023-03-31",
+      "expected_days": 218,
+      "present_days": 75,
+      "coverage_pct": 34.4
+    },
+    {
+      "name": "Gold-Trend-2024",
+      "start": "2024-01-01",
+      "end": "2024-12-31",
+      "expected_days": 262,
+      "present_days": 258,
+      "coverage_pct": 98.47
+    },
+    {
+      "name": "Range-2023-H2",
+      "start": "2023-07-01",
+      "end": "2023-12-31",
+      "expected_days": 130,
+      "present_days": 111,
+      "coverage_pct": 85.38
+    },
+    {
+      "name": "Range-2023-H1",
+      "start": "2023-01-01",
+      "end": "2023-06-30",
+      "expected_days": 130,
+      "present_days": 129,
+      "coverage_pct": 99.23
+    }
+  ],
+  "expected_window": {
+    "start": "2020-03-01",
+    "end": "2024-12-31"
+  }
+}

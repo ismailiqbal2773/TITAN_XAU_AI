@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>TITAN XAU AI — Service Architecture</title>
+<style>
+  @page { size: 1500px 1100px; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #ffffff; font-family: 'Tinos','FreeSerif',serif; color: #14213D; }
+  .canvas { width: 1500px; height: 1100px; padding: 50px 60px; box-sizing: border-box; position: relative; }
+  .title-bar { display: flex; align-items: baseline; gap: 18px; border-bottom: 2px solid #14213D; padding-bottom: 12px; margin-bottom: 24px; }
+  .title-bar .num { font-size: 56px; font-weight: 900; color: #C8102E; line-height: 1; }
+  .title-bar h1 { font-size: 28px; font-weight: 700; margin: 0; }
+  .title-bar .sub { font-size: 13px; color: #4A5568; margin-left: auto; font-family: 'JetBrains Mono',monospace; }
+  .layer { display: grid; grid-template-columns: 220px 1fr; gap: 18px; margin-bottom: 14px; }
+  .layer-label { background: #14213D; color: #ffffff; padding: 14px 16px; border-radius: 4px; font-size: 13px; font-weight: 700; display: flex; flex-direction: column; justify-content: center; }
+  .layer-label small { font-size: 10px; font-weight: 400; opacity: 0.8; margin-top: 4px; }
+  .layer-services { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
+  .svc { background: #F8FAFC; border: 1px solid #14213D; border-left: 3px solid #C8102E; padding: 12px 10px; border-radius: 3px; font-size: 11px; text-align: center; }
+  .svc .name { font-weight: 700; color: #14213D; font-size: 12px; display: block; margin-bottom: 4px; }
+  .svc .desc { color: #4A5568; font-size: 9.5px; line-height: 1.3; }
+  .svc.cpp { background: #FEF3F2; border-left-color: #14213D; }
+  .svc.py { background: #F0FDF4; border-left-color: #C8102E; }
+  .svc.cpp .name:after { content: " C++"; color: #C8102E; font-size: 9px; font-weight: 400; }
+  .svc.py .name:after { content: " Py"; color: #14213D; font-size: 9px; font-weight: 400; }
+  .bus { background: linear-gradient(90deg, #14213D 0%, #2A3A5A 50%, #14213D 100%); color: #ffffff; padding: 10px; text-align: center; font-size: 12px; font-weight: 700; letter-spacing: 2px; margin: 8px 0 14px 0; border-radius: 3px; }
+  .bus small { font-size: 9.5px; font-weight: 400; opacity: 0.85; letter-spacing: 0.5px; display: block; margin-top: 2px; }
+  .legend { display: flex; gap: 24px; justify-content: center; font-size: 10px; color: #4A5568; padding-top: 12px; border-top: 1px solid #14213D; margin-top: 8px; }
+  .swatch { display: inline-block; width: 12px; height: 12px; vertical-align: middle; margin-right: 5px; border: 1px solid #14213D; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="title-bar">
+    <span class="num">02</span>
+    <h1>Service Architecture — Layered Topology</h1>
+    <span class="sub">Data plane (left→right) · Control plane (orthogonal)</span>
+  </div>
+
+  <div class="layer">
+    <div class="layer-label">L1 · INGEST<small>External → Internal boundary</small></div>
+    <div class="layer-services">
+      <div class="svc cpp"><span class="name">MT5Bridge</span><span class="desc">MetaTrader5 terminal hook</span></div>
+      <div class="svc cpp"><span class="name">FIXAdapter</span><span class="desc">FIX 4.4 broker link</span></div>
+      <div class="svc cpp"><span class="name">NewsFeedAdapter</span><span class="desc">Bloomberg/Reuters XML</span></div>
+      <div class="svc cpp"><span class="name">EconCalendarAdapter</span><span class="desc">FOMC, CPI, NFP events</span></div>
+      <div class="svc cpp"><span class="name">FeedHealthMonitor</span><span class="desc">Stale-tick detector</span></div>
+      <div class="svc cpp"><span class="name">PcapReplayer</span><span class="desc">Backtest ingest</span></div>
+    </div>
+  </div>
+
+  <div class="layer">
+    <div class="layer-label">L2 · NORMALIZE<small>Cross-feed harmonization</small></div>
+    <div class="layer-services">
+      <div class="svc cpp"><span class="name">TickNormalizer</span><span class="desc">Decimal align, dedup</span></div>
+      <div class="svc cpp"><span class="name">SessionCalendar</span><span class="desc">Asia/EU/US sessions</span></div>
+      <div class="svc cpp"><span class="name">FXConverter</span><span class="desc">USD base conversion</span></div>
+      <div class="svc cpp"><span class="name">BarAggregator</span><span class="desc">M1/M5/M15/H1 builders</span></div>
+      <div class="svc cpp"><span class="name">TickBuffer</span><span class="desc">Ring buffer, 1M capacity</span></div>
+      <div class="svc cpp"><span class="name">TimeSync</span><span class="desc">NTP + PTP discipline</span></div>
+    </div>
+  </div>
+
+  <div class="bus">▔▔▔ ASYNC EVENT BUS — ZeroMQ PUB/SUB + lock-free SPSC queues ▔▔▔<small>Backpressure-aware · at-least-once within session · zero-copy FlatBuffers payload</small></div>
+
+  <div class="layer">
+    <div class="layer-label">L3 · INTELLIGENCE<small>Alpha generation</small></div>
+    <div class="layer-services">
+      <div class="svc py"><span class="name">FeatureEngine</span><span class="desc">300+ TA + microstructure</span></div>
+      <div class="svc py"><span class="name">SignalEngine</span><span class="desc">Rule + ML ensemble</span></div>
+      <div class="svc py"><span class="name">MLInferenceEngine</span><span class="desc">PyTorch ONNX runtime</span></div>
+      <div class="svc py"><span class="name">StrategyCoordinator</span><span class="desc">Strategy arbitration</span></div>
+      <div class="svc py"><span class="name">RegimeDetector</span><span class="desc">HMM vol regime classifier</span></div>
+      <div class="svc py"><span class="name">NewsSentimentEngine</span><span class="desc">NLP on Fed speak</span></div>
+    </div>
+  </div>
+
+  <div class="layer">
+    <div class="layer-label">L4 · RISK<small>Veto power over all orders</small></div>
+    <div class="layer-services">
+      <div class="svc cpp"><span class="name">PreTradeRiskGate</span><span class="desc">Position, leverage, news</span></div>
+      <div class="svc cpp"><span class="name">PostTradeRiskMonitor</span><span class="desc">DD, loss-streak, slippage</span></div>
+      <div class="svc cpp"><span class="name">ExposureAggregator</span><span class="desc">Net + gross exposure</span></div>
+      <div class="svc cpp"><span class="name">MarginMonitor</span><span class="desc">Free margin floor 30%</span></div>
+      <div class="svc cpp"><span class="name">KillSwitchController</span><span class="desc">Halt + flatten + cancel</span></div>
+      <div class="svc cpp"><span class="name">CircuitBreaker</span><span class="desc">3% DD soft / 5% hard</span></div>
+    </div>
+  </div>
+
+  <div class="layer">
+    <div class="layer-label">L5 · EXECUTION<small>Order lifecycle</small></div>
+    <div class="layer-services">
+      <div class="svc cpp"><span class="name">OrderManager</span><span class="desc">State machine</span></div>
+      <div class="svc cpp"><span class="name">SmartRouter</span><span class="desc">MKT/LMT/STP selection</span></div>
+      <div class="svc cpp"><span class="name">FillTracker</span><span class="desc">Partial fill handling</span></div>
+      <div class="svc cpp"><span class="name">SlippageModel</span><span class="desc">Realistic fill modeling</span></div>
+      <div class="svc cpp"><span class="name">OrderReconciler</span><span class="desc">Position true-up vs broker</span></div>
+      <div class="svc cpp"><span class="name">ExecutionAuditor</span><span class="desc">TCA + audit log</span></div>
+    </div>
+  </div>
+
+  <div class="layer">
+    <div class="layer-label">L6 · PERSIST & OPS<small>State, telemetry, licensing</small></div>
+    <div class="layer-services">
+      <div class="svc py"><span class="name">TradeLogger</span><span class="desc">Append-only WORM store</span></div>
+      <div class="svc py"><span class="name">MetricsExporter</span><span class="desc">Prometheus + OTel</span></div>
+      <div class="svc py"><span class="name">AuditStore</span><span class="desc">Hash-chained log</span></div>
+      <div class="svc py"><span class="name">LicenseService</span><span class="desc">RSA-JWT validation</span></div>
+      <div class="svc py"><span class="name">StateReplicator</span><span class="desc">Hot-standby sync</span></div>
+      <div class="svc py"><span class="name">OperatorAlertGateway</span><span class="desc">PagerDuty/Telegram</span></div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <span><span class="swatch" style="background:#FEF3F2"></span>C++ service (sub-ms hot path)</span>
+    <span><span class="swatch" style="background:#F0FDF4"></span>Python service (10ms+ intelligence)</span>
+    <span><span class="swatch" style="background:#14213D;border-color:#14213D"></span>Layer label / event bus</span>
+    <span style="margin-left:auto">Layer rule: L_n may only depend on L_(n-1). No upward dependencies.</span>
+  </div>
+</div>
+</body>
+</html>

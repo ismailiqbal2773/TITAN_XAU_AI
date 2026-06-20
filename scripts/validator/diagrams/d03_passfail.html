@@ -1,0 +1,72 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>d03</title>
+<link href="https://fonts.googleapis.com/css2?family=Tinos:wght@400;700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { width: 1600px; height: 1000px; background: #ffffff; font-family: 'Inter', sans-serif; color: #14213D; padding: 50px 60px; }
+.h-title { font-family: 'Tinos', serif; font-size: 30px; font-weight: 900; letter-spacing: -0.5px; }
+.h-sub { font-family: 'Inter', sans-serif; font-size: 13px; color: #4A5568; margin-top: 4px; }
+.h-rule { width: 80px; height: 3px; background: #C8102E; margin: 14px 0 28px 0; }
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 14px; }
+.card { border: 1px solid #CBD5E1; border-radius: 6px; overflow: hidden; }
+.card-head { padding: 12px 18px; color: #fff; font-family: 'Tinos', serif; font-size: 16px; font-weight: 700; display: flex; justify-content: space-between; align-items: center; }
+.card-head .badge { font-family: 'JetBrains Mono', monospace; font-size: 10px; padding: 3px 8px; border-radius: 3px; background: rgba(255,255,255,0.18); letter-spacing: 1px; }
+.pass .card-head { background: #14213D; }
+.fail .card-head { background: #C8102E; }
+.card-body { padding: 16px 18px; }
+.rule { padding: 10px 0; border-bottom: 1px dashed #CBD5E1; display: grid; grid-template-columns: 110px 1fr; gap: 12px; align-items: start; }
+.rule:last-child { border-bottom: none; }
+.rule .lbl { font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 700; letter-spacing: 1.5px; padding: 3px 8px; border-radius: 3px; text-align: center; }
+.lbl.crit { background: #C8102E; color: #fff; }
+.lbl.maj { background: #B45309; color: #fff; }
+.lbl.min { background: #94A3B8; color: #fff; }
+.lbl.pass { background: #14213D; color: #fff; }
+.rule .body { font-family: 'Inter', sans-serif; font-size: 11px; color: #14213D; line-height: 1.5; }
+.rule .body b { color: #C8102E; }
+.gate { margin-top: 22px; padding: 18px 22px; background: #14213D; color: #fff; border-radius: 6px; }
+.gate .t { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #C8102E; letter-spacing: 2px; font-weight: 700; }
+.gate .h { font-family: 'Tinos', serif; font-size: 18px; font-weight: 700; margin-top: 4px; }
+.gate-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 12px; }
+.gate-cell { padding: 10px 14px; background: rgba(255,255,255,0.07); border-left: 3px solid #C8102E; }
+.gate-cell .v { font-family: 'Tinos', serif; font-size: 20px; font-weight: 900; }
+.gate-cell .d { font-family: 'Inter', sans-serif; font-size: 10px; opacity: 0.85; margin-top: 2px; line-height: 1.4; }
+</style></head>
+<body>
+<div class="h-title">Pass / Fail Rules Engine</div>
+<div class="h-sub">Severity-gated criteria · Critical = hard veto · Major = score deduction · Minor = advisory</div>
+<div class="h-rule"></div>
+
+<div class="cols">
+  <div class="card pass">
+    <div class="card-head">PASS Criteria <span class="badge">ALLOW</span></div>
+    <div class="card-body">
+      <div class="rule"><div class="lbl pass">CRITICAL</div><div class="body"><b>0 critical failures</b> across all 8 suites. Any critical failure triggers immediate veto regardless of overall score.</div></div>
+      <div class="rule"><div class="lbl pass">MAJOR</div><div class="body">Major failures ≤ 2 per suite, and total major failures ≤ 6 across all suites. Each excess major failure deducts 3 points from suite score.</div></div>
+      <div class="rule"><div class="lbl pass">MINOR</div><div class="body">Minor failures allowed up to 4 per suite. Each excess minor failure deducts 0.5 points from suite score.</div></div>
+      <div class="rule"><div class="lbl pass">SCORE</div><div class="body">Weighted aggregate score ≥ 85/100 across all 8 suites. Suite-level minimum: 75/100 for each suite.</div></div>
+      <div class="rule"><div class="lbl pass">LATENCY</div><div class="body">Full validation sweep completes within 90 seconds on VPS. Per-suite timeout 12 seconds with graceful degrade.</div></div>
+      <div class="rule"><div class="lbl pass">STABILITY</div><div class="body">3 consecutive validation runs all PASS, run 60 seconds apart. Eliminates transient flakiness.</div></div>
+    </div>
+  </div>
+  <div class="card fail">
+    <div class="card-head">FAIL Criteria <span class="badge">VETO</span></div>
+    <div class="card-body">
+      <div class="rule"><div class="lbl crit">CRITICAL</div><div class="body"><b>Any critical check fails</b> → automatic veto. Score cannot exceed 49 regardless of other results. Suite is marked UNFIT.</div></div>
+      <div class="rule"><div class="lbl crit">SCORE</div><div class="body">Weighted aggregate score &lt; 70 → CERTIFICATION REJECTED. Score 70–84 → CONDITIONAL (retest within 24 h required).</div></div>
+      <div class="rule"><div class="lbl crit">SUITE</div><div class="body">Any suite scoring &lt; 60 → automatic overall veto. The system cannot trade with any failing subsystem.</div></div>
+      <div class="rule"><div class="lbl maj">MAJOR</div><div class="body">Total major failures &gt; 10 across all suites → veto. Per-suite major &gt; 4 → suite veto.</div></div>
+      <div class="rule"><div class="lbl maj">LATENCY</div><div class="body">Suite execution exceeds 30 s timeout → suite marked DEGRADED, score capped at 65.</div></div>
+      <div class="rule"><div class="lbl maj">FLAKY</div><div class="body">3 consecutive runs cannot reach stable PASS → SYSTEM UNSTABLE veto. Requires engineering review.</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="gate">
+  <div class="t">CERTIFICATION GATES</div>
+  <div class="h">Three-tier decision matrix applied after all suites complete</div>
+  <div class="gate-row">
+    <div class="gate-cell"><div class="v">CERTIFIED</div><div class="d">Score ≥ 85, 0 critical, ≤ 6 major, 3 stable runs. Trading authorized. Re-validate every 7 days.</div></div>
+    <div class="gate-cell"><div class="v">CONDITIONAL</div><div class="d">Score 70–84 OR 1 critical with documented waiver. Trading authorized with daily revalidation. Expires in 24 h.</div></div>
+    <div class="gate-cell"><div class="v">REJECTED</div><div class="d">Score &lt; 70 OR ≥ 2 critical OR unstable. Trading HALTED. Engineering escalation required.</div></div>
+  </div>
+</div>
+</body></html>

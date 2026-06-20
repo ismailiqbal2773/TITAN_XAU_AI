@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Trend Following Strategy — Validation Tests</title>
+<style>
+  @page { size: 1600px 1100px; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #ffffff; font-family: 'Tinos','FreeSerif',serif; color: #14213D; }
+  .canvas { width: 1600px; height: 1100px; padding: 50px 60px; box-sizing: border-box; }
+  .title-bar { display: flex; align-items: baseline; gap: 18px; border-bottom: 2px solid #14213D; padding-bottom: 12px; margin-bottom: 24px; }
+  .title-bar .num { font-size: 48px; font-weight: 900; color: #C8102E; line-height: 1; }
+  .title-bar h1 { font-size: 26px; font-weight: 700; margin: 0; }
+  .title-bar .sub { font-size: 13px; color: #4A5568; margin-left: auto; font-family: 'JetBrains Mono',monospace; }
+  svg { display: block; margin: 0 auto; background: #FAFBFC; border: 1px solid #E2E8F0; }
+  .table { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-top: 14px; }
+  .table th { background: #14213D; color: #ffffff; padding: 6px 8px; text-align: left; font-weight: 700; }
+  .table td { padding: 5px 8px; border-bottom: 1px solid #E2E8F0; }
+  .table tr:nth-child(even) td { background: #F8FAFC; }
+  .table .mod { color: #14213D; font-family: 'JetBrains Mono',monospace; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="title-bar">
+    <span class="num">06</span>
+    <h1>Validation Tests — 5-Layer Pyramid &amp; Coverage</h1>
+    <span class="sub">Unit · Integration · Backtest · Walk-forward · Chaos</span>
+  </div>
+
+  <svg width="1480" height="480" viewBox="0 0 1480 480">
+    <text x="40" y="30" font-size="14" font-weight="700" fill="#C8102E" font-family="Tinos">(a) Test Pyramid</text>
+
+    <polygon points="40,400 720,400 660,320 100,320" fill="#F0FDF4" stroke="#14213D" stroke-width="2"/>
+    <text x="380" y="355" text-anchor="middle" font-size="14" font-weight="700" fill="#14213D" font-family="Tinos">UNIT TESTS</text>
+    <text x="380" y="372" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">pytest + hypothesis · 180 tests</text>
+    <text x="380" y="385" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">per-pattern logic · 85% coverage</text>
+
+    <polygon points="100,320 660,320 600,240 160,240" fill="#FEF3F2" stroke="#14213D" stroke-width="2"/>
+    <text x="380" y="275" text-anchor="middle" font-size="14" font-weight="700" fill="#14213D" font-family="Tinos">INTEGRATION</text>
+    <text x="380" y="292" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Pact contracts · 60 tests</text>
+    <text x="380" y="305" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">strategy ↔ ARDS ↔ risk gate ↔ exec</text>
+
+    <polygon points="160,240 600,240 540,160 220,160" fill="#F0FDF4" stroke="#14213D" stroke-width="2"/>
+    <text x="380" y="195" text-anchor="middle" font-size="13" font-weight="700" fill="#14213D" font-family="Tinos">BACKTEST REGRESSION</text>
+    <text x="380" y="212" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">24mo × 6 brokers · 40 tests</text>
+    <text x="380" y="225" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">PF, Sharpe, MaxDD gates</text>
+
+    <polygon points="220,160 540,160 480,80 280,80" fill="#FEF3F2" stroke="#14213D" stroke-width="2"/>
+    <text x="380" y="115" text-anchor="middle" font-size="13" font-weight="700" fill="#14213D" font-family="Tinos">WALK-FORWARD</text>
+    <text x="380" y="132" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">5 folds × 4mo OOS · 25 tests</text>
+    <text x="380" y="145" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">temporal overfitting check</text>
+
+    <polygon points="280,80 480,80 430,20 330,20" fill="#FEF3F2" stroke="#C8102E" stroke-width="2.5"/>
+    <text x="380" y="42" text-anchor="middle" font-size="12" font-weight="700" fill="#C8102E" font-family="Tinos">CHAOS / LIVE</text>
+    <text x="380" y="58" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">weekly · 15 experiments</text>
+    <text x="380" y="71" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">broker disconnect, slippage</text>
+
+    <!-- Right: coverage matrix -->
+    <text x="780" y="30" font-size="14" font-weight="700" fill="#C8102E" font-family="Tinos">(b) Coverage by Component</text>
+
+    <g font-family="JetBrains Mono" font-size="11" fill="#14213D">
+      <rect x="780" y="50" width="660" height="28" fill="#14213D"/>
+      <text x="800" y="68" fill="#ffffff" font-weight="700">Component</text>
+      <text x="1080" y="68" fill="#ffffff" font-weight="700">Unit</text>
+      <text x="1180" y="68" fill="#ffffff" font-weight="700">Integ</text>
+      <text x="1280" y="68" fill="#ffffff" font-weight="700">Back</text>
+      <text x="1380" y="68" fill="#ffffff" font-weight="700">Chaos</text>
+
+      <g transform="translate(0, 90)">
+        <text x="800" y="0" font-weight="700">RegimeGateFilter</text>
+        <text x="1080" y="0" fill="#15803D">✓ 18</text>
+        <text x="1180" y="0" fill="#15803D">✓ 8</text>
+        <text x="1280" y="0" fill="#15803D">✓ 4</text>
+        <text x="1380" y="0" fill="#C8102E">—</text>
+      </g>
+      <g transform="translate(0, 115)">
+        <text x="800" y="0" font-weight="700">E1 Market Structure</text>
+        <text x="1080" y="0" fill="#15803D">✓ 22</text>
+        <text x="1180" y="0" fill="#15803D">✓ 6</text>
+        <text x="1280" y="0" fill="#15803D">✓ 5</text>
+        <text x="1380" y="0" fill="#C8102E">—</text>
+      </g>
+      <g transform="translate(0, 140)">
+        <text x="800" y="0" font-weight="700">E2 Breakout</text>
+        <text x="1080" y="0" fill="#15803D">✓ 16</text>
+        <text x="1180" y="0" fill="#15803D">✓ 4</text>
+        <text x="1280" y="0" fill="#15803D">✓ 5</text>
+        <text x="1380" y="0" fill="#C8102E">—</text>
+      </g>
+      <g transform="translate(0, 165)">
+        <text x="800" y="0" font-weight="700">E3 Pullback</text>
+        <text x="1080" y="0" fill="#15803D">✓ 20</text>
+        <text x="1180" y="0" fill="#15803D">✓ 6</text>
+        <text x="1280" y="0" fill="#15803D">✓ 5</text>
+        <text x="1380" y="0" fill="#C8102E">—</text>
+      </g>
+      <g transform="translate(0, 190)">
+        <text x="800" y="0" font-weight="700">E4 Liquidity Sweep</text>
+        <text x="1080" y="0" fill="#15803D">✓ 18</text>
+        <text x="1180" y="0" fill="#15803D">✓ 4</text>
+        <text x="1280" y="0" fill="#15803D">✓ 5</text>
+        <text x="1380" y="0" fill="#C8102E">—</text>
+      </g>
+      <g transform="translate(0, 215)">
+        <text x="800" y="0" font-weight="700">E5 Order Block / FVG</text>
+        <text x="1080" y="0" fill="#15803D">✓ 20</text>
+        <text x="1180" y="0" fill="#15803D">✓ 6</text>
+        <text x="1280" y="0" fill="#15803D">✓ 5</text>
+        <text x="1380" y="0" fill="#C8102E">—</text>
+      </g>
+      <g transform="translate(0, 240)">
+        <text x="800" y="0" font-weight="700">BreakEvenManager</text>
+        <text x="1080" y="0" fill="#15803D">✓ 12</text>
+        <text x="1180" y="0" fill="#15803D">✓ 6</text>
+        <text x="1280" y="0" fill="#15803D">✓ 3</text>
+        <text x="1380" y="0" fill="#15803D">✓ 2</text>
+      </g>
+      <g transform="translate(0, 265)">
+        <text x="800" y="0" font-weight="700">PartialCloseManager</text>
+        <text x="1080" y="0" fill="#15803D">✓ 14</text>
+        <text x="1180" y="0" fill="#15803D">✓ 6</text>
+        <text x="1280" y="0" fill="#15803D">✓ 3</text>
+        <text x="1380" y="0" fill="#15803D">✓ 2</text>
+      </g>
+      <g transform="translate(0, 290)">
+        <text x="800" y="0" font-weight="700">DynamicTrailingStop</text>
+        <text x="1080" y="0" fill="#15803D">✓ 16</text>
+        <text x="1180" y="0" fill="#15803D">✓ 4</text>
+        <text x="1280" y="0" fill="#15803D">✓ 3</text>
+        <text x="1380" y="0" fill="#15803D">✓ 3</text>
+      </g>
+      <g transform="translate(0, 315)">
+        <text x="800" y="0" font-weight="700">AdaptivePositionSizer</text>
+        <text x="1080" y="0" fill="#15803D">✓ 14</text>
+        <text x="1180" y="0" fill="#15803D">✓ 6</text>
+        <text x="1280" y="0" fill="#15803D">✓ 3</text>
+        <text x="1380" y="0" fill="#C8102E">—</text>
+      </g>
+      <g transform="translate(0, 340)">
+        <text x="800" y="0" font-weight="700">RiskGateClient</text>
+        <text x="1080" y="0" fill="#15803D">✓ 10</text>
+        <text x="1180" y="0" fill="#15803D">✓ 4</text>
+        <text x="1280" y="0" fill="#15803D">✓ 2</text>
+        <text x="1380" y="0" fill="#15803D">✓ 2</text>
+      </g>
+      <g transform="translate(0, 370)">
+        <text x="800" y="0" font-weight="700" fill="#C8102E">TOTAL</text>
+        <text x="1080" y="0" font-weight="700" fill="#C8102E">180</text>
+        <text x="1180" y="0" font-weight="700" fill="#C8102E">60</text>
+        <text x="1280" y="0" font-weight="700" fill="#C8102E">40</text>
+        <text x="1380" y="0" font-weight="700" fill="#C8102E">15</text>
+      </g>
+    </g>
+  </svg>
+
+  <table class="table">
+    <tr><th>Test ID</th><th>Category</th><th>Scenario</th><th>Expected Result</th><th>Gate</th></tr>
+    <tr><td class="mod">UT-MS-001</td><td>Unit / E1 Market Structure</td><td>HH-HL sequence detected, BOS confirmed</td><td>Signal emitted, strength=0.75, direction=LONG</td><td>Must pass</td></tr>
+    <tr><td class="mod">UT-MS-002</td><td>Unit / E1 Market Structure</td><td>LH-LL sequence detected, BOS confirmed</td><td>Signal emitted, strength=0.75, direction=SHORT</td><td>Must pass</td></tr>
+    <tr><td class="mod">UT-BO-001</td><td>Unit / E2 Breakout</td><td>Close &gt; 20-bar high, vol &gt; 1.5× avg, ATR expanding</td><td>Signal emitted, strength=0.65, direction=LONG</td><td>Must pass</td></tr>
+    <tr><td class="mod">UT-BO-002</td><td>Unit / E2 Breakout</td><td>Close &gt; 20-bar high but vol &lt; avg (false breakout)</td><td>No signal (filtered)</td><td>Must pass</td></tr>
+    <tr><td class="mod">UT-PB-001</td><td>Unit / E3 Pullback</td><td>Price retraces to EMA20, RSI bounces 40-50, bullish engulfing</td><td>Signal emitted, strength=0.85, direction=LONG</td><td>Must pass</td></tr>
+    <tr><td class="mod">UT-LS-001</td><td>Unit / E4 Liquidity Sweep</td><td>Wick beyond prior high, close inside, vol spike z&gt;2</td><td>Signal emitted, strength=0.80, direction=SHORT (sweep high → short reversal)</td><td>Must pass</td></tr>
+    <tr><td class="mod">UT-OB-001</td><td>Unit / E5 Order Block</td><td>Price returns to OB zone, rejection candle, HTF aligned</td><td>Signal emitted, strength=0.70, direction=LONG</td><td>Must pass</td></tr>
+    <tr><td class="mod">UT-MGT-001</td><td>Unit / Management</td><td>Position at +1R, BE trigger</td><td>Stop moved to entry + spread, audit logged</td><td>Must pass</td></tr>
+    <tr><td class="mod">UT-MGT-002</td><td>Unit / Management</td><td>Position at +2R, partial 1 trigger</td><td>50% closed, stop moved to +1R, audit logged</td><td>Must pass</td></tr>
+    <tr><td class="mod">UT-MGT-003</td><td>Unit / Management</td><td>Position at +3R, partial 2 trigger</td><td>25% closed, stop moved to +2R, audit logged</td><td>Must pass</td></tr>
+    <tr><td class="mod">UT-TRAIL-001</td><td>Unit / Trail</td><td>ATR(14)=2.0, trail should be 5.0 (2.5×ATR)</td><td>trail = 5.0, never widens</td><td>Must pass</td></tr>
+    <tr><td class="mod">UT-RISK-001</td><td>Unit / Risk</td><td>Equity $100k, risk% 1.0%, stop $2, tick_val $1</td><td>qty = 0.50 lots</td><td>Must pass</td></tr>
+    <tr><td class="mod">UT-RISK-002</td><td>Unit / Risk</td><td>All factors max (conf 1.0, streak 1.2, vol 1.1)</td><td>risk% = 1.32% (under 1.5% cap)</td><td>Must pass</td></tr>
+    <tr><td class="mod">UT-RISK-003</td><td>Unit / Risk</td><td>All factors min (conf 0.5, streak 0.8, vol 0.7)</td><td>risk% = 0.28% (floored to 0.3%)</td><td>Must pass</td></tr>
+    <tr><td class="mod">BT-001</td><td>Backtest / 24mo</td><td>24-month walk-forward across 6 brokers</td><td>PF &gt; 2.0, Sharpe &gt; 2.0, MaxDD &lt; 5%</td><td>CI gate</td></tr>
+    <tr><td class="mod">BT-002</td><td>Backtest / Monte Carlo</td><td>1000 block-bootstrap paths</td><td>RoR p95 &lt; 1%, Sharpe p5 &gt; 1.0</td><td>CI gate</td></tr>
+    <tr><td class="mod">WF-001</td><td>Walk-forward / Fold 1</td><td>Train Q1 2024, test Q2 2024</td><td>Sharpe &gt; 1.5 on OOS</td><td>Must pass</td></tr>
+    <tr><td class="mod">CT-001</td><td>Chaos / Live</td><td>Broker disconnect mid-trade</td><td>Position preserved, reconciled on reconnect, 0 lost fills</td><td>Must pass</td></tr>
+    <tr><td class="mod">CT-002</td><td>Chaos / Live</td><td>Slippage spike 3σ during news</td><td>BE protects position, loss &lt; 1R</td><td>Must pass</td></tr>
+  </table>
+</div>
+</body>
+</html>

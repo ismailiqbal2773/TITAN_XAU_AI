@@ -1,0 +1,73 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>d04</title>
+<link href="https://fonts.googleapis.com/css2?family=Tinos:wght@400;700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { width: 1600px; height: 1100px; background: #ffffff; font-family: 'Inter', sans-serif; color: #14213D; padding: 50px 60px; }
+.h-title { font-family: 'Tinos', serif; font-size: 30px; font-weight: 900; letter-spacing: -0.5px; }
+.h-sub { font-family: 'Inter', sans-serif; font-size: 13px; color: #4A5568; margin-top: 4px; }
+.h-rule { width: 80px; height: 3px; background: #C8102E; margin: 14px 0 24px 0; }
+
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+.card { border: 1px solid #CBD5E1; border-radius: 6px; overflow: hidden; }
+.card-head { padding: 12px 18px; color: #fff; font-family: 'Tinos', serif; font-size: 15px; font-weight: 700; display: flex; justify-content: space-between; align-items: center; }
+.card-head .badge { font-family: 'JetBrains Mono', monospace; font-size: 9px; padding: 3px 8px; border-radius: 3px; background: rgba(255,255,255,0.18); letter-spacing: 1px; }
+.card.fail .card-head { background: #C8102E; }
+.card.crit .card-head { background: #14213D; }
+.card-body { padding: 14px 18px; }
+.rule { padding: 9px 0; border-bottom: 1px dashed #CBD5E1; display: grid; grid-template-columns: 90px 1fr; gap: 12px; align-items: start; }
+.rule:last-child { border-bottom: none; }
+.rule .lbl { font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 700; padding: 3px 8px; border-radius: 3px; text-align: center; color: #fff; letter-spacing: 1px; }
+.lbl.crit { background: #C8102E; }
+.lbl.maj { background: #B45309; }
+.lbl.min { background: #94A3B8; }
+.rule .body { font-family: 'Inter', sans-serif; font-size: 10.5px; color: #14213D; line-height: 1.5; }
+.rule .body b { color: #C8102E; }
+
+.summary { margin-top: 22px; background: #14213D; color: #fff; padding: 18px 22px; border-radius: 6px; }
+.summary .lbl { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #C8102E; letter-spacing: 2px; font-weight: 700; }
+.summary .h { font-family: 'Tinos', serif; font-size: 17px; font-weight: 700; margin-top: 4px; }
+.summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 12px; }
+.summary-cell { padding: 12px 14px; background: rgba(255,255,255,0.07); border-left: 3px solid #C8102E; border-radius: 4px; }
+.summary-cell .v { font-family: 'Tinos', serif; font-size: 18px; font-weight: 900; }
+.summary-cell .d { font-family: 'Inter', sans-serif; font-size: 10px; opacity: 0.85; margin-top: 3px; line-height: 1.4; }
+</style></head>
+<body>
+<div class="h-title">Failure Logic — Hard Veto Triggers</div>
+<div class="h-sub">12 rules (5 critical + 5 major + 2 minor) · any 1 critical OR any 2 major = automatic REJECT</div>
+<div class="h-rule"></div>
+
+<div class="cols">
+  <div class="card crit">
+    <div class="card-head"><span>CRITICAL Failures (5)</span><span class="badge">AUTO-VETO</span></div>
+    <div class="card-body">
+      <div class="rule"><div class="lbl crit">CRIT-01</div><div class="body"><b>Flash crash MDD &gt; 12%</b> — kill-switch failed to flatten in time, or stop-loss fills slipped beyond threshold. Capital preservation failed.</div></div>
+      <div class="rule"><div class="lbl crit">CRIT-02</div><div class="body"><b>Kill-switch latency &gt; 500 ms</b> — emergency flatten exceeded SLA. Critical risk control non-functional.</div></div>
+      <div class="rule"><div class="lbl crit">CRIT-03</div><div class="body"><b>Phantom orders after disconnect</b> — position reconciliation failed. Local state ≠ broker state. Trading must halt.</div></div>
+      <div class="rule"><div class="lbl crit">CRIT-04</div><div class="body"><b>Gap loss &gt; 2% equity</b> — weekend position policy failed. Strategy held exposure through gap, lost &gt;2%.</div></div>
+      <div class="rule"><div class="lbl crit">CRIT-05</div><div class="body"><b>Stale fill executed</b> — signal veto failed, order placed on stale data. Could cause catastrophic loss.</div></div>
+    </div>
+  </div>
+  <div class="card fail">
+    <div class="card-head"><span>MAJOR + MINOR Failures (7)</span><span class="badge">CONDITIONAL</span></div>
+    <div class="card-body">
+      <div class="rule"><div class="lbl maj">MAJ-01</div><div class="body"><b>Cost drag &gt; 45%</b> during high spread — strategy entered trades during widened spread despite news filter.</div></div>
+      <div class="rule"><div class="lbl maj">MAJ-02</div><div class="body"><b>Stale veto rate &lt; 95%</b> — risk engine allowed &gt; 5% of stale signals through during lag scenario.</div></div>
+      <div class="rule"><div class="lbl maj">MAJ-03</div><div class="body"><b>Vol spike MDD &gt; 10%</b> — vol regime detection failed to reduce size, drawdown exceeded threshold.</div></div>
+      <div class="rule"><div class="lbl maj">MAJ-04</div><div class="body"><b>Reconnect &gt; 5 seconds</b> — broker reconnection logic too slow. Increased exposure window.</div></div>
+      <div class="rule"><div class="lbl maj">MAJ-05</div><div class="body"><b>Recovery &gt; 30 min</b> — system failed to auto-recover. Required manual intervention.</div></div>
+      <div class="rule"><div class="lbl min">MIN-01</div><div class="body"><b>Cost drag 35-45%</b> — elevated but within tolerance. Monitor.</div></div>
+      <div class="rule"><div class="lbl min">MIN-02</div><div class="body"><b>Stale veto 90-95%</b> — borderline. Investigate veto logic.</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="summary">
+  <div class="lbl">CERTIFICATION GATES — 3-BAND DECISION</div>
+  <div class="h">Applied after all 6 scenarios complete · aggregate verdict = logical AND of all 6</div>
+  <div class="summary-grid">
+    <div class="summary-cell"><div class="v">CERTIFIED</div><div class="d">All 6 scenarios PASS · 0 critical · 0 major. Live trading authorized. Quarterly re-stress.</div></div>
+    <div class="summary-cell"><div class="v">CONDITIONAL</div><div class="d">1 major failure OR 1 critical with waiver. Paper only. 30-day re-stress required.</div></div>
+    <div class="summary-cell"><div class="v">REJECTED</div><div class="d">Any critical (no waiver) OR ≥ 2 major. Trading HALTED. Engineering review.</div></div>
+  </div>
+</div>
+</body></html>

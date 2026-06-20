@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Mean Reversion Strategy — Risk Controls &amp; Failure Conditions</title>
+<style>
+  @page { size: 1600px 1100px; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #ffffff; font-family: 'Tinos','FreeSerif',serif; color: #14213D; }
+  .canvas { width: 1600px; height: 1100px; padding: 50px 60px; box-sizing: border-box; }
+  .title-bar { display: flex; align-items: baseline; gap: 18px; border-bottom: 2px solid #14213D; padding-bottom: 12px; margin-bottom: 24px; }
+  .title-bar .num { font-size: 48px; font-weight: 900; color: #C8102E; line-height: 1; }
+  .title-bar h1 { font-size: 26px; font-weight: 700; margin: 0; }
+  .title-bar .sub { font-size: 13px; color: #4A5568; margin-left: auto; font-family: 'JetBrains Mono',monospace; }
+  svg { display: block; margin: 0 auto; background: #FAFBFC; border: 1px solid #E2E8F0; }
+  .table { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-top: 14px; }
+  .table th { background: #14213D; color: #ffffff; padding: 6px 8px; text-align: left; font-weight: 700; }
+  .table td { padding: 5px 8px; border-bottom: 1px solid #E2E8F0; }
+  .table tr:nth-child(even) td { background: #F8FAFC; }
+  .table .mod { color: #14213D; font-family: 'JetBrains Mono',monospace; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="title-bar">
+    <span class="num">04</span>
+    <h1>Risk Controls &amp; Failure Conditions</h1>
+    <span class="sub">8 risk controls · 10 failure conditions · all audited</span>
+  </div>
+
+  <svg width="1480" height="100" viewBox="0 0 1480 100">
+    <rect x="40" y="20" width="1440" height="60" fill="#14213D"/>
+    <text x="760" y="45" text-anchor="middle" fill="#ffffff" font-size="14" font-weight="700" font-family="Tinos">Risk Controls (8) + Failure Conditions (10) — Layered Defense</text>
+    <text x="760" y="65" text-anchor="middle" fill="#C8102E" font-size="10" font-family="JetBrains Mono">every condition audited · every control CI-tested</text>
+  </svg>
+
+  <table class="table" style="margin-top: 24px;">
+    <tr><th>Category</th><th>ID</th><th>Control / Condition</th><th>Threshold</th><th>Action</th><th>Audit Code</th></tr>
+
+    <tr><td class="mod" rowspan="8">RISK CONTROL</td><td>RC-01</td><td>Max concurrent MR positions</td><td>2</td><td>Reject new entry</td><td>RC_MAX_CONCURRENT</td></tr>
+    <tr><td>RC-02</td><td>Max daily loss</td><td>1.5% equity</td><td>Pause strategy for the day</td><td>RC_DAILY_LOSS_HIT</td></tr>
+    <tr><td>RC-03</td><td>Margin floor</td><td>35% free margin</td><td>Reject new entry</td><td>RC_MARGIN_FLOOR</td></tr>
+    <tr><td>RC-04</td><td>Recovery level cap</td><td>Level 2 (1.6x max)</td><td>Block Level 3, halt strategy</td><td>RC_RECOVERY_CAP</td></tr>
+    <tr><td>RC-05</td><td>Max recovery attempts per range</td><td>2 (Level 1 + Level 2)</td><td>Block further entries in this range</td><td>RC_MAX_RECOVERY</td></tr>
+    <tr><td>RC-06</td><td>News blackout</td><td>±15 min FOMC, ±10 NFP, ±5 CPI</td><td>No new entries; flatten if in recovery</td><td>RC_NEWS_BLACKOUT</td></tr>
+    <tr><td>RC-07</td><td>Session filter</td><td>London/NY only (07-22 UTC)</td><td>Reject entries outside session</td><td>RC_SESSION_FILTER</td></tr>
+    <tr><td>RC-08</td><td>Base risk per trade</td><td>0.8% equity (lower than trend's 1.0%)</td><td>Hard cap on position size</td><td>RC_BASE_RISK</td></tr>
+
+    <tr><td class="mod" rowspan="10">FAILURE CONDITION</td><td>FC-01</td><td>Range breaks (BBW expands > 60th pct)</td><td>BBW_pct > 0.60</td><td>Immediate exit ALL MR positions</td><td>FC_RANGE_BREAK</td></tr>
+    <tr><td>FC-02</td><td>Regime changes from RANGE to TREND</td><td>ARDS label != RANGE for 2 bars</td><td>Exit all MR positions immediately</td><td>FC_REGIME_CHANGE</td></tr>
+    <tr><td>FC-03</td><td>Regime changes from RANGE to VOLATILE</td><td>ARDS label == VOLATILE</td><td>Exit immediately (1 bar, not 2)</td><td>FC_VOLATILE_SHIFT</td></tr>
+    <tr><td>FC-04</td><td>3 consecutive losses (recovery exhausted)</td><td>L0 loss + L1 loss + L2 loss</td><td>HALT strategy · page operator P2</td><td>FC_RECOVERY_EXHAUSTED</td></tr>
+    <tr><td>FC-05</td><td>Price closes beyond BB by > 1 ATR</td><td>|close - band| > 1 × ATR</td><td>Stop loss hit (catastrophic range break)</td><td>FC_BB_BREACH</td></tr>
+    <tr><td>FC-06</td><td>Hurst exponent rises above 0.55 (trending)</td><td>H > 0.55</td><td>Exit MR positions (MR assumption invalid)</td><td>FC_HURST_SHIFT</td></tr>
+    <tr><td>FC-07</td><td>ADX rises above 25 (trend emerging)</td><td>ADX > 25</td><td>Exit MR positions (range breaking)</td><td>FC_ADX_RISING</td></tr>
+    <tr><td>FC-08</td><td>Daily loss limit hit (1.5%)</td><td>realized_loss >= 1.5% equity</td><td>Pause for day · resume next session</td><td>FC_DAILY_LIMIT</td></tr>
+    <tr><td>FC-09</td><td>Broker disconnect mid-position</td><td>heartbeat timeout 5s</td><td>Mark ERROR · reconcile on reconnect</td><td>FC_BROKER_DISCONNECT</td></tr>
+    <tr><td>FC-10</td><td>Kill switch engaged (global)</td><td>atomic flag set</td><td>Cancel pending · flatten all · halt</td><td>FC_KILL_SWITCH</td></tr>
+  </table>
+</div>
+</body>
+</html>

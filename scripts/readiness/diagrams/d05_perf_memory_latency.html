@@ -1,0 +1,91 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>d05</title>
+<link href="https://fonts.googleapis.com/css2?family=Tinos:wght@400;700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { width: 1600px; height: 1200px; background: #ffffff; font-family: 'Inter', sans-serif; color: #14213D; padding: 50px 60px; }
+.h-title { font-family: 'Tinos', serif; font-size: 30px; font-weight: 900; letter-spacing: -0.5px; }
+.h-sub { font-family: 'Inter', sans-serif; font-size: 13px; color: #4A5568; margin-top: 4px; }
+.h-rule { width: 80px; height: 3px; background: #C8102E; margin: 14px 0 24px 0; }
+
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+.card { border: 1px solid #CBD5E1; border-radius: 6px; overflow: hidden; }
+.card-head { background: #14213D; color: #fff; padding: 12px 18px; }
+.card-head .lbl { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C8102E; letter-spacing: 2px; font-weight: 700; }
+.card-head .t { font-family: 'Tinos', serif; font-size: 14px; font-weight: 700; margin-top: 2px; }
+.card-head .score { font-family: 'Tinos', serif; font-size: 18px; font-weight: 900; float: right; }
+.card-head .score.pass { color: #4ADE80; }
+.card-head .score.cond { color: #FCD34D; }
+.card-body { padding: 12px 16px; }
+
+.latency-bar { margin: 10px 0; }
+.latency-bar .name { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #14213D; font-weight: 700; margin-bottom: 4px; }
+.latency-bar .track { background: #F1F5F9; height: 16px; border-radius: 2px; overflow: hidden; position: relative; }
+.latency-bar .fill { height: 100%; background: linear-gradient(90deg, #14213D 0%, #C8102E 100%); }
+.latency-bar .budget { position: absolute; top: 0; right: 0; height: 100%; width: 2px; background: #C8102E; }
+.latency-bar .vals { display: flex; justify-content: space-between; margin-top: 3px; font-family: 'JetBrains Mono', monospace; font-size: 9px; }
+.latency-bar .vals .v { color: #14213D; font-weight: 700; }
+.latency-bar .vals .b { color: #C8102E; }
+
+.finding { padding: 8px 0; border-bottom: 1px dashed #CBD5E1; }
+.finding:last-child { border-bottom: none; }
+.finding .head { display: flex; justify-content: space-between; align-items: center; }
+.finding .id { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C8102E; font-weight: 700; }
+.finding .sev { font-family: 'JetBrains Mono', monospace; font-size: 9px; padding: 2px 6px; border-radius: 2px; color: #fff; font-weight: 700; }
+.sev.crit { background: #C8102E; }
+.sev.maj { background: #B45309; }
+.sev.min { background: #94A3B8; }
+.sev.ok { background: #15803D; }
+.finding .t { font-family: 'Tinos', serif; font-size: 12px; font-weight: 700; color: #14213D; margin: 3px 0 4px 0; line-height: 1.2; }
+.finding .d { font-family: 'Inter', sans-serif; font-size: 9.5px; color: #4A5568; line-height: 1.5; }
+.finding .d b { color: #C8102E; }
+
+.budget-card { margin-top: 22px; padding: 16px 20px; background: #14213D; color: #fff; border-radius: 6px; }
+.budget-card .lbl { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #C8102E; letter-spacing: 2px; font-weight: 700; }
+.budget-card .h { font-family: 'Tinos', serif; font-size: 14px; font-weight: 700; margin-top: 4px; }
+.budget-card .d { font-family: 'Inter', sans-serif; font-size: 10.5px; opacity: 0.9; margin-top: 6px; line-height: 1.5; }
+.budget-card .d b { color: #C8102E; }
+</style></head>
+<body>
+<div class="h-title">Performance, Memory &amp; Latency Analysis</div>
+<div class="h-sub">C3 Performance (92) · C4 Memory Leak (87) · C5 Latency (93) — 1 below threshold</div>
+<div class="h-rule"></div>
+
+<div class="cols">
+  <div class="card">
+    <div class="card-head"><div><div class="lbl">C3 · PERFORMANCE REVIEW + C5 · LATENCY ANALYSIS</div><div class="t">142ms signal-to-broker · 8ms margin</div></div><div class="score pass">92.5</div></div>
+    <div class="card-body">
+      <div class="latency-bar"><div class="name">Tick ingest — budget 2 ms</div><div class="track"><div class="fill" style="width:5%"></div></div><div class="vals"><span class="v">2 ms spec</span><span class="b">budget 2 ms</span></div></div>
+      <div class="latency-bar"><div class="name">Feature eng — budget 10 ms</div><div class="track"><div class="fill" style="width:18%"></div></div><div class="vals"><span class="v">8 ms spec</span><span class="b">budget 10 ms</span></div></div>
+      <div class="latency-bar"><div class="name">Regime detect — budget 15 ms</div><div class="track"><div class="fill" style="width:27%"></div></div><div class="vals"><span class="v">12 ms spec</span><span class="b">budget 15 ms</span></div></div>
+      <div class="latency-bar"><div class="name">AI ensemble — budget 100 ms</div><div class="track"><div class="fill" style="width:67%"></div></div><div class="vals"><span class="v">95 ms spec</span><span class="b">budget 100 ms</span></div></div>
+      <div class="latency-bar"><div class="name">Risk gate — budget 5 ms</div><div class="track"><div class="fill" style="width:9%"></div></div><div class="vals"><span class="v">4 ms spec</span><span class="b">budget 5 ms</span></div></div>
+      <div class="latency-bar"><div class="name">Exec dispatch — budget 25 ms</div><div class="track"><div class="fill" style="width:15%"></div></div><div class="vals"><span class="v">21 ms spec</span><span class="b">budget 25 ms</span></div></div>
+      <div class="latency-bar"><div class="name" style="color:#C8102E">TOTAL P99 — budget 150 ms</div><div class="track"><div class="fill" style="width:95%;background:#C8102E"></div><div class="budget"></div></div><div class="vals"><span class="v" style="color:#C8102E">142 ms spec</span><span class="b">budget 150 ms</span></div></div>
+
+      <div class="finding" style="margin-top:14px"><div class="head"><div class="id">C3-F01</div><div class="sev maj">MAJOR</div></div><div class="t">AI ensemble is bottleneck (67% of latency)</div><div class="d">95ms of 142ms total. <b>Optimization plan: model pruning, quantization, batch inference</b> — target 70ms by Phase 3.</div></div>
+      <div class="finding"><div class="head"><div class="id">C3-F02</div><div class="sev ok">PASS</div></div><div class="t">Per-stage budgets realistic</div><div class="d">Each stage has 10-25% headroom over spec. Generous but achievable.</div></div>
+      <div class="finding"><div class="head"><div class="id">C5-F01</div><div class="sev ok">PASS</div></div><div class="t">Stale-signal veto protects against lag</div><div class="d">2× budget triggers veto. Prevents stale fills. Sound design.</div></div>
+      <div class="finding"><div class="head"><div class="id">C5-F02</div><div class="sev min">MINOR</div></div><div class="t">Jitter measurement not spec'd</div><div class="d">P99 latency spec'd, but jitter (P99-P50) not explicitly bounded. Add to spec.</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><div><div class="lbl">C4 · MEMORY LEAK ANALYSIS</div><div class="t">RAII + bounded queues + GC tuning (unverified)</div></div><div class="score cond">87/100</div></div>
+    <div class="card-body">
+      <div class="finding"><div class="head"><div class="id">C4-F01</div><div class="sev crit">CRITICAL</div></div><div class="t">No actual leak detection performed</div><div class="d">Spec defines RAII for C++ and bounded queues for Python, but <b>no Valgrind/ASan run, no 72h soak test</b>. CRIT-02.</div></div>
+      <div class="finding"><div class="head"><div class="id">C4-F02</div><div class="sev maj">MAJOR</div></div><div class="t">Tick data cache eviction policy underspecified</div><div class="d">Module 2 (Market Data) mentions Parquet store but <b>in-memory tick cache eviction policy not explicit</b>. Risk of unbounded growth.</div></div>
+      <div class="finding"><div class="head"><div class="id">C4-F03</div><div class="sev maj">MAJOR</div></div><div class="t">Python GC tuning not configured</div><div class="d">AI layer (M11) uses Python 3.12 but <b>no explicit gc.set_threshold() config</b>. Default GC may pause too long.</div></div>
+      <div class="finding"><div class="head"><div class="id">C4-F04</div><div class="sev min">MINOR</div></div><div class="t">Audit log rotation not specified</div><div class="d">7-year retention specified, but rotation/compaction policy for local log files not detailed.</div></div>
+      <div class="finding"><div class="head"><div class="id">C4-F05</div><div class="sev ok">PASS</div></div><div class="t">RAII design is correct for C++ core</div><div class="d">Smart pointers (unique_ptr, shared_ptr) throughout. No raw new/delete in spec.</div></div>
+      <div class="finding"><div class="head"><div class="id">C4-F06</div><div class="sev ok">PASS</div></div><div class="t">Bounded queue design for event bus</div><div class="d">NATS JetStream with max-deliver + ack timeout. Backpressure handled.</div></div>
+      <div class="finding"><div class="head"><div class="id">C4-F07</div><div class="sev ok">PASS</div></div><div class="t">LRU cache for idempotency</div><div class="d">ExecutionEngine uses LRUCache with bounded size. No unbounded growth.</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="budget-card">
+  <div class="lbl">LATENCY BUDGET VERIFICATION APPROACH</div>
+  <div class="h">Each stage measured by dedicated latency probe · P99 tracked in Prometheus</div>
+  <div class="d">Per-stage budgets are spec'd with 10-25% headroom. <b>Total P99 = 142ms vs 150ms budget = 8ms margin (5.3%).</b> Tight but achievable. If AI ensemble optimization (C3-F01) reduces to 70ms, total drops to 117ms — 33ms margin (22%). The stale-signal veto (C5-F01) protects against lag-induced stale fills: any signal &gt;150ms old is auto-rejected. <b>Post-implementation verification: dedicated latency probe per stage, P99 tracked in Prometheus, alert if P99 &gt; 1.5× budget for 60s.</b></div>
+</div>
+</body></html>

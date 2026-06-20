@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Commercial Licensing — Tier Matrix & Tests</title>
+<style>
+  @page { size: 1600px 900px; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #ffffff; font-family: 'Tinos','FreeSerif',serif; color: #14213D; }
+  .canvas { width: 1600px; height: 900px; padding: 50px 60px; box-sizing: border-box; }
+  .title-bar { display: flex; align-items: baseline; gap: 18px; border-bottom: 2px solid #14213D; padding-bottom: 12px; margin-bottom: 24px; }
+  .title-bar .num { font-size: 48px; font-weight: 900; color: #C8102E; line-height: 1; }
+  .title-bar h1 { font-size: 26px; font-weight: 700; margin: 0; }
+  .title-bar .sub { font-size: 13px; color: #4A5568; margin-left: auto; font-family: 'JetBrains Mono',monospace; }
+  svg { display: block; margin: 0 auto; background: #FAFBFC; border: 1px solid #E2E8F0; }
+  .table { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-top: 14px; }
+  .table th { background: #14213D; color: #ffffff; padding: 6px 8px; text-align: left; font-weight: 700; }
+  .table td { padding: 5px 8px; border-bottom: 1px solid #E2E8F0; }
+  .table tr:nth-child(even) td { background: #F8FAFC; }
+  .table .mod { color: #14213D; font-family: 'JetBrains Mono',monospace; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="title-bar">
+    <span class="num">05</span>
+    <h1>License Tier Matrix &amp; Validation Tests</h1>
+    <span class="sub">3 tiers · 120 tests · all CI-gated</span>
+  </div>
+  <svg width="1480" height="200" viewBox="0 0 1480 200">
+    <polygon points="40,180 720,180 660,120 100,120" fill="#F0FDF4" stroke="#14213D" stroke-width="2"/>
+    <text x="380" y="145" text-anchor="middle" font-size="14" font-weight="700" fill="#14213D" font-family="Tinos">UNIT TESTS (70)</text>
+    <text x="380" y="162" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">hw fingerprint · JWT verify · activation · expiry · feature gate</text>
+    <polygon points="100,120 660,120 600,60 160,60" fill="#FEF3F2" stroke="#14213D" stroke-width="2"/>
+    <text x="380" y="85" text-anchor="middle" font-size="13" font-weight="700" fill="#14213D" font-family="Tinos">INTEGRATION + CHAOS (50 tests)</text>
+    <text x="380" y="102" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">online/offline activation · heartbeat · revocation · tamper · anti-VM · 120 total</text>
+    <text x="780" y="40" font-size="14" font-weight="700" fill="#C8102E" font-family="Tinos">CI GATES</text>
+    <g font-family="JetBrains Mono" font-size="11" fill="#14213D">
+      <text x="780" y="65">JWT signature verified (RSA-4096)</text>
+      <text x="780" y="85">hw_fingerprint matches on every check</text>
+      <text x="780" y="105">Expired license → graceful shutdown</text>
+      <text x="780" y="125">Revoked license → halt within 1h</text>
+      <text x="780" y="145">Tamper detection → halt + audit</text>
+      <text x="780" y="165">Feature gate blocks unauthorized features</text>
+    </g>
+  </svg>
+  <table class="table">
+    <tr><th>Feature</th><th>Starter</th><th>Pro</th><th>Enterprise</th><th>License Expiry</th><th>Max Activations/Year</th></tr>
+    <tr><td class="mod">Strategies</td><td>1 (preset)</td><td>3 (preset + custom)</td><td>Unlimited (custom + C++)</td><td>Monthly</td><td>3</td></tr>
+    <tr><td class="mod">Capital ceiling</td><td>$50,000</td><td>$500,000</td><td>Unlimited</td><td>Quarterly</td><td>3</td></tr>
+    <tr><td class="mod">ML inference</td><td>Linear only</td><td>Full PyTorch</td><td>Full + custom models</td><td>Yearly</td><td>5</td></tr>
+    <tr><td class="mod">News sentiment</td><td>—</td><td>✓</td><td>✓</td><td>—</td><td>—</td></tr>
+    <tr><td class="mod">White-label</td><td>—</td><td>—</td><td>✓</td><td>—</td><td>—</td></tr>
+    <tr><td class="mod">On-prem license server</td><td>—</td><td>—</td><td>✓ (air-gapped)</td><td>—</td><td>—</td></tr>
+    <tr><td class="mod">SLA</td><td>Best effort</td><td>99.5%</td><td>99.95% + dedicated SRE</td><td>—</td><td>—</td></tr>
+    <tr><td class="mod">Price (annual)</td><td>$12,000</td><td>$48,000</td><td>$180,000 + rev share</td><td>—</td><td>—</td></tr>
+  </table>
+  <table class="table" style="margin-top: 20px;">
+    <tr><th>Test ID</th><th>Category</th><th>Scenario</th><th>Expected Result</th><th>Gate</th></tr>
+    <tr><td class="mod">UT-HW-001</td><td>Unit / Hardware</td><td>Compute hw_fingerprint on test machine</td><td>SHA-256 composite (64 hex chars) · stable across reboots</td><td>Must pass</td></tr>
+    <tr><td class="mod">UT-HW-002</td><td>Unit / Hardware</td><td>Change RAM (simulated) · recompute fingerprint</td><td>Fingerprint UNCHANGED (RAM not in hash)</td><td>Must pass</td></tr>
+    <tr><td class="mod">UT-JWT-001</td><td>Unit / JWT</td><td>Valid JWT with correct signature</td><td>Validation passes · claims extracted · trading enabled</td><td>Must pass</td></tr>
+    <tr><td class="mod">UT-JWT-002</td><td>Unit / JWT</td><td>JWT with tampered signature</td><td>Validation FAILS · trading blocked · audit: INVALID_SIGNATURE</td><td>Must pass</td></tr>
+    <tr><td class="mod">UT-EXP-001</td><td>Unit / Expiry</td><td>JWT expired 1 day ago</td><td>Grace period active · trading continues · P2 alert</td><td>Must pass</td></tr>
+    <tr><td class="mod">UT-EXP-002</td><td>Unit / Expiry</td><td>JWT expired 8 days ago (grace exceeded)</td><td>Graceful shutdown · flatten + halt · P1 alert</td><td>Must pass</td></tr>
+    <tr><td class="mod">UT-FG-001</td><td>Unit / Feature Gate</td><td>Starter tier accesses ML inference</td><td>BLOCKED · audit: FEATURE_GATE_VIOLATION</td><td>Must pass</td></tr>
+    <tr><td class="mod">UT-TAMP-001</td><td>Unit / Tamper</td><td>Binary modified (1 byte flipped)</td><td>Checksum mismatch → halt + audit: TAMPER_DETECTED</td><td>Must pass</td></tr>
+    <tr><td class="mod">IT-ACT-001</td><td>Integration / Online</td><td>Online activation with valid tenant_id</td><td>JWT received · cached · trading enabled · heartbeat starts</td><td>CI gate</td></tr>
+    <tr><td class="mod">IT-ACT-002</td><td>Integration / Offline</td><td>Offline activation: request code → activation key</td><td>JWT generated from key · cached · trading enabled</td><td>CI gate</td></tr>
+    <tr><td class="mod">IT-REVOKE-001</td><td>Integration / Revocation</td><td>License revoked on server · next heartbeat</td><td>Client receives REVOKE → grace period → shutdown if not renewed</td><td>CI gate</td></tr>
+    <tr><td class="mod">CT-001</td><td>Chaos / Tamper</td><td>Attacker patches binary to skip license check</td><td>Tamper detection fires → halt · server heartbeat still required</td><td>Must pass</td></tr>
+    <tr><td class="mod">CT-002</td><td>Chaos / Copy</td><td>Copy license.jwt to different machine</td><td>hw_fingerprint mismatch → validation FAILS · trading blocked</td><td>Must pass</td></tr>
+    <tr><td class="mod">CT-003</td><td>Chaos / VM Clone</td><td>Clone VM with active license</td><td>Anti-VM detects clone · or: same hw_fp from 2 IPs → auto-revoke</td><td>Must pass</td></tr>
+  </table>
+</div>
+</body>
+</html>

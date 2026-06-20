@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Trend Following Strategy — Rules Reference</title>
+<style>
+  @page { size: 1600px 1100px; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #ffffff; font-family: 'Tinos','FreeSerif',serif; color: #14213D; }
+  .canvas { width: 1600px; height: 1100px; padding: 50px 60px; box-sizing: border-box; }
+  .title-bar { display: flex; align-items: baseline; gap: 18px; border-bottom: 2px solid #14213D; padding-bottom: 12px; margin-bottom: 24px; }
+  .title-bar .num { font-size: 48px; font-weight: 900; color: #C8102E; line-height: 1; }
+  .title-bar h1 { font-size: 26px; font-weight: 700; margin: 0; }
+  .title-bar .sub { font-size: 13px; color: #4A5568; margin-left: auto; font-family: 'JetBrains Mono',monospace; }
+  svg { display: block; margin: 0 auto; background: #FAFBFC; border: 1px solid #E2E8F0; }
+  .table { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-top: 14px; }
+  .table th { background: #14213D; color: #ffffff; padding: 6px 8px; text-align: left; font-weight: 700; }
+  .table td { padding: 5px 8px; border-bottom: 1px solid #E2E8F0; }
+  .table tr:nth-child(even) td { background: #F8FAFC; }
+  .table .mod { color: #14213D; font-family: 'JetBrains Mono',monospace; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="title-bar">
+    <span class="num">05</span>
+    <h1>Rules Reference — Complete Strategy Rule Set</h1>
+    <span class="sub">Gate · Entry · Management · Exit · Risk · Audit</span>
+  </div>
+
+  <svg width="1480" height="100" viewBox="0 0 1480 100">
+    <rect x="40" y="20" width="1440" height="60" fill="#14213D"/>
+    <text x="760" y="45" text-anchor="middle" fill="#ffffff" font-size="14" font-weight="700" font-family="Tinos">Strategy Rules — Categorized &amp; Numbered</text>
+    <text x="760" y="65" text-anchor="middle" fill="#C8102E" font-size="10" font-family="JetBrains Mono">38 total rules · all audited · all CI-tested</text>
+  </svg>
+
+  <table class="table" style="margin-top: 24px;">
+    <tr><th>Category</th><th>Rule ID</th><th>Rule Description</th><th>Parameters</th><th>Audit Code</th></tr>
+    <tr><td class="mod" rowspan="4">GATE</td><td>G-01</td><td>Regime must be TREND (from ARDS)</td><td>label == TREND</td><td>GATE_REGIME_NOT_TREND</td></tr>
+    <tr><td>G-02</td><td>Regime confidence &gt; 0.65</td><td>confidence &gt; 0.65</td><td>GATE_LOW_CONFIDENCE</td></tr>
+    <tr><td>G-03</td><td>P(VOLATILE) &lt; 0.20</td><td>probability[VOLATILE] &lt; 0.20</td><td>GATE_HIGH_VOL_PROB</td></tr>
+    <tr><td>G-04</td><td>Timeframe alignment (M5+M15+H1 same direction)</td><td>EMA20 vs EMA50 on all 3 TFs</td><td>GATE_TF_MISALIGNED</td></tr>
+
+    <tr><td class="mod" rowspan="3">SESSION</td><td>S-01</td><td>Trade only in London or NY session</td><td>07:00-16:00 UTC OR 13:00-22:00 UTC</td><td>SESSION_OUTSIDE</td></tr>
+    <tr><td>S-02</td><td>No new entries during news blackout</td><td>±15 min FOMC, ±10 min NFP, ±5 min CPI</td><td>SESSION_NEWS_BLACKOUT</td></tr>
+    <tr><td>S-03</td><td>Avoid Asia-only session (low liquidity)</td><td>00:00-07:00 UTC blocked</td><td>SESSION_ASIA_ONLY</td></tr>
+
+    <tr><td class="mod" rowspan="6">E1 MARKET STRUCTURE</td><td>MS-01</td><td>Detect 5-bar fractal swing highs/lows</td><td>fractal_window = 5</td><td>MS_FRACTAL_DETECTED</td></tr>
+    <tr><td>MS-02</td><td>Identify HH-HL (long) or LH-LL (short) sequence</td><td>min 2 swings in sequence</td><td>MS_SEQUENCE_VALID</td></tr>
+    <tr><td>MS-03</td><td>Break of Structure (BOS): close beyond prior swing</td><td>close &gt; prior HH (long) / &lt; prior LL (short)</td><td>MS_BOS_CONFIRMED</td></tr>
+    <tr><td>MS-04</td><td>Market Structure Shift (MSS): strong momentum</td><td>body &gt; 1.5 × ATR</td><td>MS_MSS_CONFIRMED</td></tr>
+    <tr><td>MS-05</td><td>Entry on retest of BOS level</td><td>price returns within 0.3 × ATR of BOS</td><td>MS_RETEST_ENTRY</td></tr>
+    <tr><td>MS-06</td><td>Stop loss below prior swing low (long)</td><td>stop = prior swing low - 0.5 × ATR</td><td>MS_STOP_SET</td></tr>
+
+    <tr><td class="mod" rowspan="5">E2 BREAKOUT</td><td>BO-01</td><td>Close beyond 20-bar high (long) / low (short)</td><td>lookback = 20 bars</td><td>BO_LEVEL_BREAK</td></tr>
+    <tr><td>BO-02</td><td>Volume &gt; 1.5 × 20-bar average</td><td>vol_mult = 1.5</td><td>BO_VOL_CONFIRM</td></tr>
+    <tr><td>BO-03</td><td>ATR expanding (ATR / ATR[5] &gt; 1.2)</td><td>atr_expansion = 1.2</td><td>BO_ATR_EXPAND</td></tr>
+    <tr><td>BO-04</td><td>Candle body &gt; 60% of range (strong close)</td><td>body_ratio = 0.60</td><td>BO_STRONG_CLOSE</td></tr>
+    <tr><td>BO-05</td><td>No upper wick rejection (long)</td><td>upper_wick &lt; 0.25 × range</td><td>BO_NO_REJECTION</td></tr>
+
+    <tr><td class="mod" rowspan="6">E3 PULLBACK</td><td>PB-01</td><td>Price retraces to EMA20 or 0.382-0.500 fib</td><td>fib_zone = [0.382, 0.500]</td><td>PB_RETRACE_ZONE</td></tr>
+    <tr><td>PB-02</td><td>RSI bounces from 40-50 zone (long)</td><td>rsi_zone = [40, 50]</td><td>PB_RSI_BOUNCE</td></tr>
+    <tr><td>PB-03</td><td>Bullish engulfing or pin bar candle</td><td>pattern_recognition</td><td>PB_PATTERN_CONFIRM</td></tr>
+    <tr><td>PB-04</td><td>Volume contraction then expansion</td><td>vol_contraction then vol &gt; 1.2 × avg</td><td>PB_VOL_PATTERN</td></tr>
+    <tr><td>PB-05</td><td>M15 trend still intact (not reversed)</td><td>M15 EMA20 vs EMA50 unchanged</td><td>PB_HTF_INTACT</td></tr>
+    <tr><td>PB-06</td><td>Entry on candle close in trend direction</td><td>close &gt; open (long)</td><td>PB_ENTRY_TRIGGER</td></tr>
+
+    <tr><td class="mod" rowspan="5">E4 LIQUIDITY SWEEP</td><td>LS-01</td><td>Wick beyond prior swing high/low</td><td>wick &gt; prior swing + 0.1 × ATR</td><td>LS_WICK_BEYOND</td></tr>
+    <tr><td>LS-02</td><td>Close back inside prior range</td><td>close &lt; prior high (long sweep)</td><td>LS_CLOSE_INSIDE</td></tr>
+    <tr><td>LS-03</td><td>Sweep volume spike (z-score &gt; 2.0)</td><td>vol_z &gt; 2.0 (50-bar)</td><td>LS_VOL_SPIKE</td></tr>
+    <tr><td>LS-04</td><td>Reversal candle confirms (engulfing)</td><td>opposite-direction engulfing</td><td>LS_REVERSAL_CONFIRM</td></tr>
+    <tr><td>LS-05</td><td>Trend direction = sweep direction (continuation)</td><td>sweep high → long, sweep low → short</td><td>LS_DIRECTION_ALIGN</td></tr>
+
+    <tr><td class="mod" rowspan="6">E5 ORDER BLOCK / FVG</td><td>OB-01</td><td>Identify last opposite-direction candle (OB)</td><td>last bearish candle before bullish move</td><td>OB_IDENTIFIED</td></tr>
+    <tr><td>OB-02</td><td>Identify 3-candle Fair Value Gap (FVG)</td><td>gap between candle 1 high and candle 3 low</td><td>FVG_IDENTIFIED</td></tr>
+    <tr><td>OB-03</td><td>Price returns to OB or FVG zone</td><td>price within OB/FVG bounds</td><td>OB_PRICE_RETURN</td></tr>
+    <tr><td>OB-04</td><td>Reaction confirms (rejection candle)</td><td>wick rejection + body in trend dir</td><td>OB_REACTION_CONFIRM</td></tr>
+    <tr><td>OB-05</td><td>Aligns with HTF (H1) trend</td><td>H1 EMA20 vs EMA50 confirms</td><td>OB_HTF_ALIGN</td></tr>
+    <tr><td>OB-06</td><td>Entry on confirmation candle close</td><td>close in trend direction</td><td>OB_ENTRY_TRIGGER</td></tr>
+
+    <tr><td class="mod" rowspan="3">MANAGEMENT</td><td>M-01</td><td>Break Even: move stop to entry at +1R</td><td>trigger = +1R</td><td>MGT_BE_TRIGGERED</td></tr>
+    <tr><td>M-02</td><td>Partial Close 1: close 50% at +2R, stop to +1R</td><td>trigger = +2R, close = 50%</td><td>MGT_PARTIAL_1</td></tr>
+    <tr><td>M-03</td><td>Partial Close 2: close 25% at +3R, stop to +2R</td><td>trigger = +3R, close = 25%</td><td>MGT_PARTIAL_2</td></tr>
+
+    <tr><td class="mod" rowspan="3">TRAIL</td><td>T-01</td><td>Dynamic trailing stop: 2.5 × ATR(14)</td><td>atr_mult = 2.5</td><td>TRAIL_ATR_SET</td></tr>
+    <tr><td>T-02</td><td>Ratchet: trail never widens</td><td>new_stop = max(new_stop, old_stop)</td><td>TRAIL_RATCHET</td></tr>
+    <tr><td>T-03</td><td>Tighten as profit grows (chandelier)</td><td>mult decreases 2.5 → 1.5 over +3R to +6R</td><td>TRAIL_TIGHTEN</td></tr>
+
+    <tr><td class="mod" rowspan="4">EXIT</td><td>X-01</td><td>Exit on trail hit</td><td>price ≤ trail stop (long)</td><td>EXIT_TRAIL_HIT</td></tr>
+    <tr><td>X-02</td><td>Exit on regime change (not TREND)</td><td>ARDS label != TREND for 2 bars</td><td>EXIT_REGIME_CHANGE</td></tr>
+    <tr><td>X-03</td><td>Exit on TF alignment lost</td><td>M5 EMA20 crosses EMA50 against position</td><td>EXIT_TF_REVERSE</td></tr>
+    <tr><td>X-04</td><td>Exit on EOD (22:00 UTC) if not at BE</td><td>close all open at 22:00 UTC</td><td>EXIT_EOD</td></tr>
+
+    <tr><td class="mod" rowspan="4">RISK</td><td>R-01</td><td>Adaptive position size: 1.0% × F2 × F3 × F4</td><td>bounded [0.3%, 1.5%]</td><td>RISK_SIZE_COMPUTED</td></tr>
+    <tr><td>R-02</td><td>Max 3 concurrent positions</td><td>max_concurrent = 3</td><td>RISK_MAX_CONCURRENT</td></tr>
+    <tr><td>R-03</td><td>Max daily loss: 2% equity</td><td>daily_loss_limit = 2.0%</td><td>RISK_DAILY_LOSS_HIT</td></tr>
+    <tr><td>R-04</td><td>Margin floor: 30% free margin</td><td>margin_floor = 30%</td><td>RISK_MARGIN_FLOOR</td></tr>
+
+    <tr><td class="mod" rowspan="3">AUDIT</td><td>A-01</td><td>Log every signal (entry, exit, reason)</td><td>all signals audited</td><td>AUDIT_SIGNAL_LOGGED</td></tr>
+    <tr><td>A-02</td><td>Log every management action (BE, partial, trail)</td><td>all management audited</td><td>AUDIT_MGT_LOGGED</td></tr>
+    <tr><td>A-03</td><td>Log final R-multiple and exit reason</td><td>R-multiple + reason code</td><td>AUDIT_TRADE_CLOSED</td></tr>
+  </table>
+</div>
+</body>
+</html>

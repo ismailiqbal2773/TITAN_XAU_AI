@@ -1,0 +1,104 @@
+{
+  "n_input": 61,
+  "n_output": 51,
+  "n_dropped": 10,
+  "dropped_zero_variance": [
+    "vol_of_vol_20",
+    "vol_of_vol_60",
+    "vol_of_vol_120",
+    "month_sin",
+    "month_cos"
+  ],
+  "dropped_high_correlation": [
+    "bb_lower",
+    "ema_12_ratio",
+    "logret_1",
+    "logret_5",
+    "macd_signal"
+  ],
+  "high_correlation_pairs": [
+    {
+      "a": "ret_1",
+      "b": "logret_1",
+      "corr": 1.0
+    },
+    {
+      "a": "ret_5",
+      "b": "logret_5",
+      "corr": 1.0
+    },
+    {
+      "a": "macd",
+      "b": "macd_signal",
+      "corr": 0.9913
+    },
+    {
+      "a": "bb_upper",
+      "b": "bb_lower",
+      "corr": 1.0
+    },
+    {
+      "a": "sma_20_ratio",
+      "b": "ema_12_ratio",
+      "corr": 0.9558
+    }
+  ],
+  "kept_features": [
+    "ret_1",
+    "ret_5",
+    "ret_15",
+    "price_zscore_60",
+    "hl_range",
+    "close_pos_in_range",
+    "rsi",
+    "macd",
+    "macd_hist",
+    "bb_upper",
+    "bb_width",
+    "bb_pct_b",
+    "atr",
+    "adx",
+    "plus_di",
+    "minus_di",
+    "obv",
+    "obv_slope_20",
+    "sma_20_ratio",
+    "sma_50_ratio",
+    "sma_200_ratio",
+    "realized_vol_10",
+    "vol_of_vol_10",
+    "realized_vol_20",
+    "realized_vol_60",
+    "realized_vol_120",
+    "vol_ratio_10_60",
+    "atr_ratio_5_20",
+    "spread_pct",
+    "spread_zscore_60",
+    "volume_zscore_60",
+    "volume_ratio_5_20",
+    "body_ratio",
+    "upper_wick_ratio",
+    "lower_wick_ratio",
+    "body_dir",
+    "hour_sin",
+    "hour_cos",
+    "dow_sin",
+    "dow_cos",
+    "asia_session",
+    "eu_session",
+    "us_session",
+    "is_weekend",
+    "ret_lag_1",
+    "ret_lag_2",
+    "ret_lag_3",
+    "ret_lag_5",
+    "ret_lag_10",
+    "ret_lag_20",
+    "ret_lag_60"
+  ],
+  "variance_threshold": 1e-10,
+  "correlation_threshold": 0.95,
+  "post_pipeline_max_corr": 0.9324457965480498,
+  "post_pipeline_zero_variance": 0,
+  "pipeline_order": "select_on_raw_then_scale"
+}

@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>ECI — Validation Logic</title>
+<style>
+  @page { size: 1600px 1100px; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #ffffff; font-family: 'Tinos','FreeSerif',serif; color: #14213D; }
+  .canvas { width: 1600px; height: 1100px; padding: 50px 60px; box-sizing: border-box; }
+  .title-bar { display: flex; align-items: baseline; gap: 18px; border-bottom: 2px solid #14213D; padding-bottom: 12px; margin-bottom: 24px; }
+  .title-bar .num { font-size: 48px; font-weight: 900; color: #C8102E; line-height: 1; }
+  .title-bar h1 { font-size: 26px; font-weight: 700; margin: 0; }
+  .title-bar .sub { font-size: 13px; color: #4A5568; margin-left: auto; font-family: 'JetBrains Mono',monospace; }
+  svg { display: block; margin: 0 auto; background: #FAFBFC; border: 1px solid #E2E8F0; }
+  .table { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-top: 14px; }
+  .table th { background: #14213D; color: #ffffff; padding: 6px 8px; text-align: left; font-weight: 700; }
+  .table td { padding: 5px 8px; border-bottom: 1px solid #E2E8F0; }
+  .table tr:nth-child(even) td { background: #F8FAFC; }
+  .table .mod { color: #14213D; font-family: 'JetBrains Mono',monospace; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="title-bar">
+    <span class="num">03</span>
+    <h1>Validation Logic — Pre-Trade Edge Check & Post-Trade Variance</h1>
+    <span class="sub">6 pre-trade checks · 4 post-trade validators · feedback loop</span>
+  </div>
+
+  <svg width="1480" height="640" viewBox="0 0 1480 640">
+    <defs><marker id="ar3" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L7,3 z" fill="#14213D"/></marker></defs>
+
+    <text x="40" y="30" font-size="14" font-weight="700" fill="#C8102E" font-family="Tinos">(a) PRE-TRADE VALIDATION (synchronous, before order dispatch)</text>
+
+    <rect x="40" y="50" width="220" height="120" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="150" y="73" text-anchor="middle" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">V1: Edge > threshold</text>
+    <text x="55" y="98" font-size="9" fill="#4A5568" font-family="JetBrains Mono">edge = exp_pnl - total_cost</text>
+    <text x="55" y="115" font-size="9" fill="#4A5568" font-family="JetBrains Mono">threshold = max(0.5, ATR×2) bps</text>
+    <text x="55" y="135" font-size="9" fill="#C8102E" font-family="JetBrains Mono">REJECT if edge ≤ threshold</text>
+    <text x="55" y="155" font-size="9" fill="#4A5568" font-family="JetBrains Mono">audit: EDGE_INSUFFICIENT</text>
+
+    <rect x="280" y="50" width="220" height="120" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="390" y="73" text-anchor="middle" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">V2: Spread sanity</text>
+    <text x="295" y="98" font-size="9" fill="#4A5568" font-family="JetBrains Mono">current_spread < p95_spread</text>
+    <text x="295" y="115" font-size="9" fill="#4A5568" font-family="JetBrains Mono">× 3 (no spike)</text>
+    <text x="295" y="135" font-size="9" fill="#C8102E" font-family="JetBrains Mono">REJECT if spread > 3× normal</text>
+    <text x="295" y="155" font-size="9" fill="#4A5568" font-family="JetBrains Mono">audit: SPREAD_SPIKE</text>
+
+    <rect x="520" y="50" width="220" height="120" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="630" y="73" text-anchor="middle" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">V3: Commission verify</text>
+    <text x="535" y="98" font-size="9" fill="#4A5568" font-family="JetBrains Mono">commission matches BCE</text>
+    <text x="535" y="115" font-size="9" fill="#4A5568" font-family="JetBrains Mono">profile (no surprise fees)</text>
+    <text x="535" y="135" font-size="9" fill="#C8102E" font-family="JetBrains Mono">REJECT if mismatch > 10%</text>
+    <text x="535" y="155" font-size="9" fill="#4A5568" font-family="JetBrains Mono">audit: COMMISSION_MISMATCH</text>
+
+    <rect x="760" y="50" width="220" height="120" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="870" y="73" text-anchor="middle" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">V4: Slippage bound</text>
+    <text x="775" y="98" font-size="9" fill="#4A5568" font-family="JetBrains Mono">expected_slippage < max_slip</text>
+    <text x="775" y="115" font-size="9" fill="#4A5568" font-family="JetBrains Mono">max_slip = 5 bps (mode dep)</text>
+    <text x="775" y="135" font-size="9" fill="#C8102E" font-family="JetBrains Mono">REJECT if slip > 5 bps</text>
+    <text x="775" y="155" font-size="9" fill="#4A5568" font-family="JetBrains Mono">audit: SLIPPAGE_TOO_HIGH</text>
+
+    <rect x="1000" y="50" width="220" height="120" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="1110" y="73" text-anchor="middle" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">V5: Latency budget</text>
+    <text x="1015" y="98" font-size="9" fill="#4A5568" font-family="JetBrains Mono">expected_latency < 100ms</text>
+    <text x="1015" y="115" font-size="9" fill="#4A5568" font-family="JetBrains Mono">(p95 from LatencyMonitor)</text>
+    <text x="1015" y="135" font-size="9" fill="#C8102E" font-family="JetBrains Mono">REJECT if latency > 100ms</text>
+    <text x="1015" y="155" font-size="9" fill="#4A5568" font-family="JetBrains Mono">audit: LATENCY_TOO_HIGH</text>
+
+    <rect x="1240" y="50" width="200" height="120" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="1340" y="73" text-anchor="middle" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">V6: Swap check</text>
+    <text x="1255" y="98" font-size="9" fill="#4A5568" font-family="JetBrains Mono">swap_cost < 20% of edge</text>
+    <text x="1255" y="115" font-size="9" fill="#4A5568" font-family="JetBrains Mono">(if overnight hold)</text>
+    <text x="1255" y="135" font-size="9" fill="#C8102E" font-family="JetBrains Mono">REJECT if swap eats edge</text>
+    <text x="1255" y="155" font-size="9" fill="#4A5568" font-family="JetBrains Mono">audit: SWAP_EXCESSIVE</text>
+
+    <!-- Post-trade -->
+    <text x="40" y="210" font-size="14" font-weight="700" fill="#C8102E" font-family="Tinos">(b) POST-TRADE VALIDATION (async, after fill · feedback loop)</text>
+
+    <rect x="40" y="230" width="330" height="120" fill="#FEF3F2" stroke="#C8102E" stroke-width="2"/>
+    <text x="205" y="253" text-anchor="middle" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">PV1: Cost variance check</text>
+    <text x="55" y="278" font-size="9" fill="#4A5568" font-family="JetBrains Mono">variance = realized_cost - expected_cost</text>
+    <text x="55" y="295" font-size="9" fill="#4A5568" font-family="JetBrains Mono">if variance > 2σ: alert + retrain model</text>
+    <text x="55" y="315" font-size="9" fill="#4A5568" font-family="JetBrains Mono">if variance > 3σ: P1 alert + halt review</text>
+    <text x="55" y="335" font-size="9" fill="#4A5568" font-family="JetBrains Mono">feeds back to slippage + latency model</text>
+
+    <rect x="390" y="230" width="330" height="120" fill="#FEF3F2" stroke="#C8102E" stroke-width="2"/>
+    <text x="555" y="253" text-anchor="middle" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">PV2: Edge realization check</text>
+    <text x="405" y="278" font-size="9" fill="#4A5568" font-family="JetBrains Mono">realized_edge = realized_pnl - actual_cost</text>
+    <text x="405" y="295" font-size="9" fill="#4A5568" font-family="JetBrains Mono">if realized_edge < 0 consistently:</text>
+    <text x="405" y="315" font-size="9" fill="#4A5568" font-family="JetBrains Mono">  edge model is wrong → retrain</text>
+    <text x="405" y="335" font-size="9" fill="#4A5568" font-family="JetBrains Mono">  threshold too low → raise</text>
+
+    <rect x="740" y="230" width="330" height="120" fill="#FEF3F2" stroke="#C8102E" stroke-width="2"/>
+    <text x="905" y="253" text-anchor="middle" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">PV3: Slippage model accuracy</text>
+    <text x="755" y="278" font-size="9" fill="#4A5568" font-family="JetBrains Mono">MAE of slippage prediction</text>
+    <text x="755" y="295" font-size="9" fill="#4A5568" font-family="JetBrains Mono">rolling 100-trade window</text>
+    <text x="755" y="315" font-size="9" fill="#4A5568" font-family="JetBrains Mono">if MAE > 2 bps: retrain model</text>
+    <text x="755" y="335" font-size="9" fill="#4A5568" font-family="JetBrains Mono">weekly model fit update</text>
+
+    <rect x="1090" y="230" width="330" height="120" fill="#FEF3F2" stroke="#C8102E" stroke-width="2"/>
+    <text x="1255" y="253" text-anchor="middle" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">PV4: Broker cost drift</text>
+    <text x="1105" y="278" font-size="9" fill="#4A5568" font-family="JetBrains Mono">rolling 30-day avg cost per broker</text>
+    <text x="1105" y="295" font-size="9" fill="#4A5568" font-family="JetBrains Mono">vs 90-day baseline</text>
+    <text x="1105" y="315" font-size="9" fill="#4A5568" font-family="JetBrains Mono">if drift > 20%: broker quality</text>
+    <text x="1105" y="335" font-size="9" fill="#4A5568" font-family="JetBrains Mono">score downgrade + alert</text>
+
+    <!-- Feedback loop -->
+    <text x="40" y="400" font-size="14" font-weight="700" fill="#C8102E" font-family="Tinos">(c) FEEDBACK LOOP — post-trade validation → model retraining</text>
+
+    <rect x="440" y="420" width="600" height="60" fill="#14213D"/>
+    <text x="740" y="445" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="Tinos">Post-Trade Realized Costs → Slippage Model + Latency Model + Edge Threshold</text>
+    <text x="740" y="465" text-anchor="middle" fill="#C8102E" font-size="10" font-family="JetBrains Mono">weekly retrain · if MAE > 2σ baseline → immediate retrain · threshold auto-adjusts upward on consistent overestimation</text>
+
+    <line x1="740" y1="480" x2="740" y2="510" stroke="#14213D" stroke-width="2" marker-end="url(#ar3)"/>
+
+    <rect x="440" y="515" width="600" height="50" fill="#F0FDF4" stroke="#14213D" stroke-width="2"/>
+    <text x="740" y="545" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">Improved Cost Estimates → Better Edge Decisions → Higher Profitability</text>
+  </svg>
+
+  <table class="table">
+    <tr><th>Validator</th><th>When</th><th>Check</th><th>Reject Threshold</th><th>Action on Reject</th><th>Feedback</th></tr>
+    <tr><td class="mod">V1 Edge</td><td>Pre-trade</td><td>edge = exp_pnl - total_cost</td><td>edge ≤ threshold (0.5+ bps)</td><td>Reject order</td><td>—</td></tr>
+    <tr><td class="mod">V2 Spread</td><td>Pre-trade</td><td>current spread < 3× p95 normal</td><td>spread > 3× normal</td><td>Reject order</td><td>—</td></tr>
+    <tr><td class="mod">V3 Commission</td><td>Pre-trade</td><td>matches BCE profile</td><td>mismatch > 10%</td><td>Reject + re-detect profile</td><td>Trigger BCE re-detection</td></tr>
+    <tr><td class="mod">V4 Slippage</td><td>Pre-trade</td><td>expected slip < max_slip</td><td>slip > 5 bps (mode-dep)</td><td>Reject order</td><td>—</td></tr>
+    <tr><td class="mod">V5 Latency</td><td>Pre-trade</td><td>expected latency < 100ms</td><td>latency > 100ms</td><td>Reject order</td><td>—</td></tr>
+    <tr><td class="mod">V6 Swap</td><td>Pre-trade</td><td>swap < 20% of edge</td><td>swap eats > 20% edge</td><td>Reject order</td><td>—</td></tr>
+    <tr><td class="mod">PV1 Cost variance</td><td>Post-trade</td><td>realized vs expected cost</td><td>variance > 2σ</td><td>Alert + retrain</td><td>Slippage + latency model</td></tr>
+    <tr><td class="mod">PV2 Edge realization</td><td>Post-trade</td><td>realized edge vs expected</td><td>consistent negative</td><td>Raise threshold</td><td>Edge threshold + model</td></tr>
+    <tr><td class="mod">PV3 Slippage MAE</td><td>Post-trade</td><td>prediction error</td><td>MAE > 2 bps</td><td>Retrain slippage model</td><td>Slippage model</td></tr>
+    <tr><td class="mod">PV4 Broker drift</td><td>Post-trade</td><td>30-day vs 90-day cost</td><td>drift > 20%</td><td>Downgrade BQS + alert</td><td>Broker quality score</td></tr>
+  </table>
+</div>
+</body>
+</html>

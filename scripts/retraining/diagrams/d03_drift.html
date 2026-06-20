@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Retraining Framework — Drift & Decay Detection</title>
+<style>
+  @page { size: 1600px 900px; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #ffffff; font-family: 'Tinos','FreeSerif',serif; color: #14213D; }
+  .canvas { width: 1600px; height: 900px; padding: 50px 60px; box-sizing: border-box; }
+  .title-bar { display: flex; align-items: baseline; gap: 18px; border-bottom: 2 solid #14213D; padding-bottom: 12px; margin-bottom: 24px; }
+  .title-bar .num { font-size: 48px; font-weight: 900; color: #C8102E; line-height: 1; }
+  .title-bar h1 { font-size: 26px; font-weight: 700; margin: 0; }
+  .title-bar .sub { font-size: 13px; color: #4A5568; margin-left: auto; font-family: 'JetBrains Mono',monospace; }
+  svg { display: block; margin: 0 auto; background: #FAFBFC; border: 1px solid #E2E8F0; }
+  .table { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-top: 14px; }
+  .table th { background: #14213D; color: #ffffff; padding: 6px 8px; text-align: left; font-weight: 700; }
+  .table td { padding: 5px 8px; border-bottom: 1px solid #E2E8F0; }
+  .table tr:nth-child(even) td { background: #F8FAFC; }
+  .table .mod { color: #14213D; font-family: 'JetBrains Mono',monospace; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="title-bar">
+    <span class="num">03</span>
+    <h1>Model Drift &amp; Performance Decay Detection</h1>
+    <span class="sub">PSI · concept drift · Sharpe decay · per-model monitoring</span>
+  </div>
+  <svg width="1480" height="500" viewBox="0 0 1480 500">
+    <text x="40" y="30" font-size="14" font-weight="700" fill="#C8102E" font-family="Tinos">(a) Model Drift Detection (feature + concept)</text>
+
+    <rect x="40" y="50" width="680" height="200" fill="#F0FDF4" stroke="#14213D" stroke-width="2"/>
+    <rect x="40" y="50" width="680" height="32" fill="#14213D"/>
+    <text x="380" y="70" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="JetBrains Mono">Feature Drift (PSI)</text>
+    <g font-family="JetBrains Mono" font-size="11" fill="#4A5568">
+      <text x="60" y="105">PSI = Σ (p_new - p_old) × ln(p_new / p_old)</text>
+      <text x="60" y="125">Computed daily per feature (8 features)</text>
+      <text x="60" y="145">p_new = current 7-day distribution</text>
+      <text x="60" y="160">p_old = training distribution (binned into 10 buckets)</text>
+      <text x="60" y="185" fill="#15803D">PSI < 0.10: STABLE (no action)</text>
+      <text x="60" y="200" fill="#B45309">PSI 0.10-0.20: WATCH (log · monitor)</text>
+      <text x="60" y="215" fill="#B45309">PSI 0.20-0.25: ALERT (P2 email · investigate)</text>
+      <text x="60" y="230" fill="#C8102E" font-weight="bold">PSI > 0.25: AUTO-RETRAIN (emergency)</text>
+    </g>
+
+    <rect x="740" y="50" width="700" height="200" fill="#FEF3F2" stroke="#C8102E" stroke-width="2"/>
+    <rect x="740" y="50" width="700" height="32" fill="#C8102E"/>
+    <text x="1090" y="70" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="JetBrains Mono">Concept Drift (Performance)</text>
+    <g font-family="JetBrains Mono" font-size="11" fill="#4A5568">
+      <text x="760" y="105">Concept drift = model accuracy degrades over time</text>
+      <text x="760" y="125">Measured: rolling 100-trade F1 vs 1000-trade baseline F1</text>
+      <text x="760" y="145">Drop = (baseline_F1 - current_F1) / baseline_F1</text>
+      <text x="760" y="170" fill="#15803D">Drop < 5%: STABLE (normal variance)</text>
+      <text x="760" y="185" fill="#B45309">Drop 5-10%: WATCH (log · weekly review)</text>
+      <text x="760" y="200" fill="#B45309">Drop 10-15%: ALERT (P2 · investigate cause)</text>
+      <text x="760" y="215" fill="#C8102E" font-weight="bold">Drop > 15%: EMERGENCY RETRAIN</text>
+      <text x="760" y="235">Per-model: XGBoost, LSTM, Transformer, RL tracked separately</text>
+    </g>
+
+    <text x="40" y="290" font-size="14" font-weight="700" fill="#C8102E" font-family="Tinos">(b) Performance Decay Detection (Sharpe + DD + PF)</text>
+
+    <rect x="40" y="310" width="1400" height="160" fill="#F8FAFC" stroke="#14213D"/>
+    <g font-family="JetBrains Mono" font-size="11" fill="#4A5568">
+      <rect x="40" y="310" width="1400" height="28" fill="#14213D"/>
+      <text x="60" y="328" fill="#ffffff" font-weight="700">Metric</text>
+      <text x="280" y="328" fill="#ffffff" font-weight="700">Baseline</text>
+      <text x="480" y="328" fill="#ffffff" font-weight="700">Current (100-trade)</text>
+      <text x="700" y="328" fill="#ffffff" font-weight="700">Threshold</text>
+      <text x="950" y="328" fill="#ffffff" font-weight="700">Action on Breach</text>
+      <text x="1250" y="328" fill="#ffffff" font-weight="700">Cadence</text>
+
+      <text x="60" y="358">Sharpe Ratio</text><text x="280" y="358">2.28 (ensemble)</text><text x="480" y="358">rolling 100-trade</text><text x="700" y="358" fill="#C8102E">drop > 15% (alert) / > 25% (emergency)</text><text x="950" y="358">retrain + weight rebalance</text><text x="1250" y="358">Daily</text>
+      <text x="60" y="385">Max Drawdown</text><text x="280" y="385">3.9%</text><text x="480" y="385">trailing 90-day</text><text x="700" y="385" fill="#C8102E">> 5% (hard DD breaker)</text><text x="950" y="385">halt + risk engine action</text><text x="1250" y="385">Continuous</text>
+      <text x="60" y="412">Profit Factor</text><text x="280" y="412">2.42</text><text x="480" y="412">rolling 100-trade</text><text x="700" y="412" fill="#C8102E">drop > 20% (alert)</text><text x="950" y="412">investigate + retrain</text><text x="1250" y="412">Daily</text>
+      <text x="60" y="439">Per-Model F1</text><text x="280" y="439">0.76 (ensemble)</text><text x="480" y="439">rolling 100-trade</text><text x="700" y="439" fill="#C8102E">drop > 10% per model (alert) / > 15% (emergency)</text><text x="950" y="439">retrain specific model</text><text x="1250" y="439">Daily</text>
+      <text x="60" y="462">RL Episode Reward</text><text x="280" y="462">baseline (no-RL)</text><text x="480" y="462">rolling 100 episodes</text><text x="700" y="462" fill="#C8102E">< baseline (alert)</text><text x="950" y="462">RL retrain</text><text x="1250" y="462">Weekly</text>
+    </g>
+  </svg>
+  <table class="table">
+    <tr><th>Detection Type</th><th>Metric</th><th>Threshold (Alert)</th><th>Threshold (Emergency)</th><th>Emergency Action</th><th>Cadence</th></tr>
+    <tr><td class="mod">Feature Drift</td><td>PSI per feature</td><td>PSI > 0.20</td><td>PSI > 0.25</td><td>Auto-retrain (skip canary)</td><td>Daily</td></tr>
+    <tr><td class="mod">Concept Drift</td><td>F1 drop vs baseline</td><td>drop > 10%</td><td>drop > 15%</td><td>Emergency retrain</td><td>Daily</td></tr>
+    <tr><td class="mod">Sharpe Decay</td><td>Rolling 100-trade Sharpe</td><td>drop > 15%</td><td>drop > 25%</td><td>Retrain + weight rebalance</td><td>Daily</td></tr>
+    <tr><td class="mod">PF Decay</td><td>Rolling 100-trade PF</td><td>drop > 20%</td><td>drop > 30%</td><td>Investigate + retrain</td><td>Daily</td></tr>
+    <tr><td class="mod">Per-Model F1</td><td>Rolling 100-trade F1</td><td>drop > 10% per model</td><td>drop > 15% per model</td><td>Retrain specific model only</td><td>Daily</td></tr>
+    <tr><td class="mod">RL Reward</td><td>Rolling 100-episode reward</td><td>< baseline</td><td>< 0.5 × baseline</td><td>RL-only retrain</td><td>Weekly</td></tr>
+  </table>
+</div>
+</body>
+</html>

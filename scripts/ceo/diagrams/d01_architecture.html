@@ -1,0 +1,123 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>d01</title>
+<link href="https://fonts.googleapis.com/css2?family=Tinos:wght@400;700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { width: 1600px; height: 1300px; background: #ffffff; font-family: 'Inter', sans-serif; color: #14213D; padding: 50px 60px; }
+.h-title { font-family: 'Tinos', serif; font-size: 30px; font-weight: 900; letter-spacing: -0.5px; }
+.h-sub { font-family: 'Inter', sans-serif; font-size: 13px; color: #4A5568; margin-top: 4px; }
+.h-rule { width: 80px; height: 3px; background: #C8102E; margin: 14px 0 24px 0; }
+
+.existing { padding: 12px 16px; background: #14213D; color: #fff; border-radius: 6px; margin-bottom: 16px; }
+.existing .lbl { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #C8102E; letter-spacing: 2px; font-weight: 700; }
+.existing .row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.existing .mod { padding: 5px 10px; background: rgba(255,255,255,0.1); border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 9.5px; font-weight: 700; }
+
+.ceo-band { padding: 16px 20px; background: #C8102E; color: #fff; border-radius: 6px; text-align: center; margin: 14px 0; }
+.ceo-band .lbl { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 3px; font-weight: 700; opacity: 0.9; }
+.ceo-band .h { font-family: 'Tinos', serif; font-size: 18px; font-weight: 900; margin-top: 4px; }
+.ceo-band .d { font-family: 'Inter', sans-serif; font-size: 11px; opacity: 0.95; margin-top: 4px; }
+.ceo-band .d b { background: rgba(255,255,255,0.2); padding: 1px 6px; border-radius: 2px; }
+
+.layers { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.layer { background: #F8FAFC; border: 1px solid #CBD5E1; border-top: 3px solid #14213D; border-radius: 6px; padding: 12px 14px; }
+.layer.accent { border-top-color: #C8102E; }
+.layer .n { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C8102E; font-weight: 700; letter-spacing: 1.5px; }
+.layer .t { font-family: 'Tinos', serif; font-size: 13px; font-weight: 700; color: #14213D; margin: 3px 0 5px 0; line-height: 1.2; }
+.layer .d { font-family: 'Inter', sans-serif; font-size: 9.5px; color: #4A5568; line-height: 1.45; }
+.layer .items { font-family: 'JetBrains Mono', monospace; font-size: 8.5px; color: #14213D; margin-top: 6px; padding-top: 6px; border-top: 1px dashed #CBD5E1; line-height: 1.5; }
+.layer .items b { color: #C8102E; }
+
+.constraints { margin-top: 22px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.cc { padding: 12px 14px; background: #14213D; color: #fff; border-radius: 5px; border-left: 3px solid #C8102E; }
+.cc .lbl { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C8102E; letter-spacing: 2px; font-weight: 700; }
+.cc .v { font-family: 'Tinos', serif; font-size: 14px; font-weight: 900; margin-top: 3px; color: #4ADE80; }
+.cc .d { font-family: 'Inter', sans-serif; font-size: 9.5px; opacity: 0.85; margin-top: 3px; line-height: 1.4; }
+</style></head>
+<body>
+<div class="h-title">CEO Supervisor — Architecture Overview</div>
+<div class="h-sub">8-layer governance system · sits ABOVE existing TITAN stack · does NOT generate signals</div>
+<div class="h-rule"></div>
+
+<div class="existing">
+  <div class="lbl">EXISTING TITAN STACK (BELOW CEO) — UNCHANGED</div>
+  <div class="row">
+    <div class="mod">M02 MARKET DATA</div>
+    <div class="mod">M01 BROKER COMPAT</div>
+    <div class="mod">M04 REGIME DETECT</div>
+    <div class="mod">M08 RISK ENGINE</div>
+    <div class="mod">M03 EXECUTION</div>
+    <div class="mod">M11 XGBoost</div>
+    <div class="mod">M11 LSTM</div>
+    <div class="mod">M11 TRANSFORMER</div>
+    <div class="mod">M12 RL TRADE MGR</div>
+    <div class="mod">M16 BACKTEST</div>
+    <div class="mod">M17 WALK-FORWARD</div>
+    <div class="mod">M18 MONTE CARLO</div>
+    <div class="mod">M19 STRESS TEST</div>
+  </div>
+</div>
+
+<div class="ceo-band">
+  <div class="lbl">↑ ↑ ↑ CEO READS FROM BELOW · WRITES CONTROL ACTIONS DOWN ↓ ↓ ↓</div>
+  <div class="h">META AI CEO SUPERVISOR LAYER (MODULE 18)</div>
+  <div class="d"><b>DOES NOT GENERATE TRADING SIGNALS</b> — only monitors, scores, and governs. CEO outputs are influence weights, model enables/disables, and risk mode triggers.</div>
+</div>
+
+<div class="layers">
+  <div class="layer">
+    <div class="n">L1 · INGESTION</div>
+    <div class="t">Multi-Source Subscriber</div>
+    <div class="d">Subscribes to NATS topics: model predictions, trade outcomes, latency, slippage, broker, regime.</div>
+    <div class="items"><b>Inputs:</b> XGBoost/LSTM/Transformer/RL preds · fills · MDD · latency · slippage · regime</div>
+  </div>
+  <div class="layer">
+    <div class="n">L2 · ROLLING WINDOWS</div>
+    <div class="t">4-Window Ring Buffers</div>
+    <div class="d">Maintains 4 rolling windows per model per metric: 50 / 100 / 250 / 500 trades. Bounded memory.</div>
+    <div class="items"><b>Windows:</b> 50/100/250/500 trades<br><b>Metrics:</b> 8 (WR/PF/Sharpe/Sortino/MDD/Recovery/Latency/Slip)</div>
+  </div>
+  <div class="layer accent">
+    <div class="n">L3 · HEALTH SCORING</div>
+    <div class="t">6 Composite Scores</div>
+    <div class="d">Computes Model Health, Execution Quality, Risk, Broker Quality, Regime Confidence, Overall System Health.</div>
+    <div class="items"><b>Outputs:</b> ModelHealth · EQS · RiskScore · BQS · RegimeConf · OverallHealth (0-100 each)</div>
+  </div>
+  <div class="layer accent">
+    <div class="n">L4 · DETECTION</div>
+    <div class="t">8 Detectors</div>
+    <div class="d">Runs 8 detectors per cycle: degradation, drift, instability, overfitting, exec deterioration, broker issues, regime failures, latency.</div>
+    <div class="items"><b>Detectors:</b> 8 · runs every 60s · CPU-optimized · &lt;100ms total</div>
+  </div>
+  <div class="layer">
+    <div class="n">L5 · DECISION</div>
+    <div class="t">Status Engine</div>
+    <div class="d">Aggregates 6 scores + 8 detector outputs → GREEN / YELLOW / RED system status.</div>
+    <div class="items"><b>Output:</b> SystemStatus enum (GREEN/YELLOW/RED) + per-model sub-status</div>
+  </div>
+  <div class="layer">
+    <div class="n">L6 · ACTION</div>
+    <div class="t">Control Action Engine</div>
+    <div class="d">Executes 5 control actions: reduce influence, increase influence, disable model, emergency risk reduction, capital preservation.</div>
+    <div class="items"><b>Actions:</b> 5 · applies to ensemble voter + risk engine + execution engine</div>
+  </div>
+  <div class="layer">
+    <div class="n">L7 · PERSISTENCE</div>
+    <div class="t">PostgreSQL + Parquet</div>
+    <div class="d">Time-series health scores → PostgreSQL. Detection events + actions → audit log. Long-term → Parquet.</div>
+    <div class="items"><b>Tables:</b> 10 (scores + events + actions)<br><b>Retention:</b> 7 years (audit) / 90 days (hot)</div>
+  </div>
+  <div class="layer">
+    <div class="n">L8 · REPORTING</div>
+    <div class="t">Dashboards + Alerts</div>
+    <div class="d">Prometheus metrics, Grafana dashboard, PagerDuty alerts (RED=P1, YELLOW=P2), Slack #titan-ceo.</div>
+    <div class="items"><b>Channels:</b> Prometheus · Grafana · PagerDuty · Slack · Audit S3</div>
+  </div>
+</div>
+
+<div class="constraints">
+  <div class="cc"><div class="lbl">CONSTRAINT 1</div><div class="v">NO PAID APIs</div><div class="d">No external paid data sources. All inputs from internal NATS.</div></div>
+  <div class="cc"><div class="lbl">CONSTRAINT 2</div><div class="v">NO EXT LLM</div><div class="d">No OpenAI/Anthropic calls. CPU-only statistical detectors.</div></div>
+  <div class="cc"><div class="lbl">CONSTRAINT 3</div><div class="v">CPU OPTIMIZED</div><div class="d">NumPy vectorized · single-core &lt;100ms per cycle · no GPU required.</div></div>
+  <div class="cc"><div class="lbl">CONSTRAINT 4</div><div class="v">FULLY OFFLINE</div><div class="d">No outbound network required. Optional egress for alerts only.</div></div>
+</div>
+</body></html>

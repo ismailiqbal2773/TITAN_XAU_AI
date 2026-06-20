@@ -1,0 +1,84 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>d04</title>
+<link href="https://fonts.googleapis.com/css2?family=Tinos:wght@400;700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { width: 1600px; height: 1100px; background: #ffffff; font-family: 'Inter', sans-serif; color: #14213D; padding: 50px 60px; }
+.h-title { font-family: 'Tinos', serif; font-size: 30px; font-weight: 900; letter-spacing: -0.5px; }
+.h-sub { font-family: 'Inter', sans-serif; font-size: 13px; color: #4A5568; margin-top: 4px; }
+.h-rule { width: 80px; height: 3px; background: #C8102E; margin: 14px 0 24px 0; }
+
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+
+.card { border: 1px solid #CBD5E1; border-radius: 6px; overflow: hidden; }
+.card-head { padding: 12px 18px; color: #fff; font-family: 'Tinos', serif; font-size: 15px; font-weight: 700; display: flex; justify-content: space-between; align-items: center; }
+.card.pass .card-head { background: #14213D; }
+.card.fail .card-head { background: #C8102E; }
+.card-body { padding: 14px 18px; }
+.rule { padding: 9px 0; border-bottom: 1px dashed #CBD5E1; display: grid; grid-template-columns: 90px 1fr; gap: 12px; align-items: start; }
+.rule:last-child { border-bottom: none; }
+.rule .lbl { font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 700; padding: 3px 8px; border-radius: 3px; text-align: center; color: #fff; letter-spacing: 1px; }
+.lbl.crit { background: #C8102E; }
+.lbl.maj { background: #B45309; }
+.lbl.min { background: #94A3B8; }
+.lbl.pass { background: #14213D; }
+.rule .body { font-family: 'Inter', sans-serif; font-size: 10.5px; color: #14213D; line-height: 1.5; }
+.rule .body b { color: #C8102E; }
+.rule .body .crit-num { font-family: 'JetBrains Mono', monospace; color: #C8102E; font-weight: 700; }
+
+.summary { margin-top: 22px; background: #14213D; color: #fff; padding: 18px 22px; border-radius: 6px; }
+.summary .lbl { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #C8102E; letter-spacing: 2px; font-weight: 700; }
+.summary .h { font-family: 'Tinos', serif; font-size: 17px; font-weight: 700; margin-top: 4px; }
+.summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 12px; }
+.summary-cell { padding: 12px 14px; background: rgba(255,255,255,0.07); border-left: 3px solid #C8102E; border-radius: 4px; }
+.summary-cell .v { font-family: 'Tinos', serif; font-size: 18px; font-weight: 900; }
+.summary-cell .d { font-family: 'Inter', sans-serif; font-size: 10px; opacity: 0.85; margin-top: 3px; line-height: 1.4; }
+</style></head>
+<body>
+<div class="h-title">Pass Criteria — Hard Veto Triggers</div>
+<div class="h-sub">8 critical · 6 major · 3 minor · WFE floor is non-negotiable (overfitting canary)</div>
+<div class="h-rule"></div>
+
+<div class="cols">
+  <div class="card pass">
+    <div class="card-head"><span>PASS Criteria</span><span style="font-family:'JetBrains Mono',monospace;font-size:10px;background:rgba(255,255,255,0.18);padding:3px 8px;border-radius:3px;letter-spacing:1px">CERTIFIED</span></div>
+    <div class="card-body">
+      <div class="rule"><div class="lbl pass">WFE</div><div class="body"><b>WFE ≥ 0.50</b> — out-of-sample Sharpe is at least 50% of in-sample Sharpe. Indicates the strategy generalizes; not overfit.</div></div>
+      <div class="rule"><div class="lbl pass">OOS SHARPE</div><div class="body"><b>All 5+ folds OOS Sharpe ≥ 1.5</b> — every fold must independently clear the institutional Sharpe threshold.</div></div>
+      <div class="rule"><div class="lbl pass">OOS MDD</div><div class="body"><b>OOS Max Drawdown ≤ 12%</b> — aggregate OOS drawdown across all test folds stays within capital-preservation limits.</div></div>
+      <div class="rule"><div class="lbl pass">FOLD CONS</div><div class="body"><b>Fold consistency ≥ 0.80</b> — at least 80% of folds are profitable (4 of 5, or 6 of 7). No catastrophic single-fold failures.</div></div>
+      <div class="rule"><div class="lbl pass">OOS CAGR</div><div class="body"><b>OOS CAGR ≥ 25%</b> — post-cost annualized return on out-of-sample data. Below 25% means marginal edge after costs.</div></div>
+      <div class="rule"><div class="lbl pass">COST DRAG</div><div class="body"><b>OOS Cost drag ≤ 35%</b> — strategy retains at least 65% of idealized edge in live-like conditions.</div></div>
+      <div class="rule"><div class="lbl pass">AGG SCORE</div><div class="body"><b>Aggregate score ≥ 80</b> — weighted blend of all sub-metrics (WFE has 30% weight).</div></div>
+      <div class="rule"><div class="lbl pass">NO OVERFIT</div><div class="body"><b>Parameter stability</b> — selected parameters vary by &lt; 30% across folds (no parameter-chasing).</div></div>
+    </div>
+  </div>
+  <div class="card fail">
+    <div class="card-head"><span>Fail / Veto Criteria</span><span style="font-family:'JetBrains Mono',monospace;font-size:10px;background:rgba(255,255,255,0.18);padding:3px 8px;border-radius:3px;letter-spacing:1px">REJECTED</span></div>
+    <div class="card-body">
+      <div class="rule"><div class="lbl crit">CRIT-01</div><div class="body"><b>WFE &lt; 0.35</b> — severe overfitting. OOS performance is &lt; 35% of IS performance. Strategy does not generalize.</div></div>
+      <div class="rule"><div class="lbl crit">CRIT-02</div><div class="body"><b>Any fold OOS Sharpe &lt; 1.0</b> — at least one fold is no better than buy-hold. Strategy has a regime it cannot handle.</div></div>
+      <div class="rule"><div class="lbl crit">CRIT-03</div><div class="body"><b>OOS MDD &gt; 15%</b> — capital preservation failure in OOS data. Risk controls failed under realistic conditions.</div></div>
+      <div class="rule"><div class="lbl crit">CRIT-04</div><div class="body"><b>Negative OOS CAGR</b> — strategy loses money out-of-sample. Fundamental flaw.</div></div>
+      <div class="rule"><div class="lbl crit">CRIT-05</div><div class="body"><b>Parameter collapse</b> — best parameters vary &gt; 100% across folds (e.g., 20-period in fold 1, 50-period in fold 2). Optimization is fitting noise.</div></div>
+      <div class="rule"><div class="lbl crit">CRIT-06</div><div class="body"><b>Data leak detected</b> — automated scanner finds any in-sample data used in OOS test (lookahead bias, survivorship, etc.).</div></div>
+      <div class="rule"><div class="lbl maj">MAJ-01</div><div class="body"><b>WFE 0.35-0.49</b> — moderate overfitting. Strategy may still work but requires reduced position sizing.</div></div>
+      <div class="rule"><div class="lbl maj">MAJ-02</div><div class="body"><b>1 fold OOS Sharpe 1.0-1.49</b> — one weak fold (others OK). Strategy has a marginal regime.</div></div>
+      <div class="rule"><div class="lbl maj">MAJ-03</div><div class="body"><b>Fold consistency &lt; 0.60</b> — too many losing folds. Strategy is not robust.</div></div>
+      <div class="rule"><div class="lbl maj">MAJ-04</div><div class="body"><b>Aggregate score 65-79</b> — borderline. Paper trading required before live capital.</div></div>
+      <div class="rule"><div class="lbl min">MIN-01</div><div class="body"><b>OOS CAGR 20-25%</b> — marginal return. Advisory only.</div></div>
+      <div class="rule"><div class="lbl min">MIN-02</div><div class="body"><b>Cost drag 35-45%</b> — high cost sensitivity. Monitor broker cost drift.</div></div>
+      <div class="rule"><div class="lbl min">MIN-03</div><div class="body"><b>Fold count &lt; 5</b> — insufficient sample. Re-run with longer dataset.</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="summary">
+  <div class="lbl">CERTIFICATION GATES — 3-BAND DECISION</div>
+  <div class="h">Applied after all folds complete · Aggregate score + WFE + fold-level checks</div>
+  <div class="summary-grid">
+    <div class="summary-cell"><div class="v">CERTIFIED</div><div class="d">Score ≥ 80 · WFE ≥ 0.50 · all folds OOS Sharpe ≥ 1.5 · MDD ≤ 12%. Live trading authorized. Quarterly re-WFA.</div></div>
+    <div class="summary-cell"><div class="v">CONDITIONAL</div><div class="d">Score 65-79 OR WFE 0.35-0.49 OR 1 weak fold. Paper trading only. 30-day re-WFA required.</div></div>
+    <div class="summary-cell"><div class="v">REJECTED</div><div class="d">Score &lt; 65 OR WFE &lt; 0.35 OR ≥ 2 weak folds OR MDD &gt; 15%. Trading HALTED. Engineering review.</div></div>
+  </div>
+</div>
+</body></html>

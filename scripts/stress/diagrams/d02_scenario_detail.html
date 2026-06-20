@@ -1,0 +1,86 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>d02</title>
+<link href="https://fonts.googleapis.com/css2?family=Tinos:wght@400;700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { width: 1600px; height: 1200px; background: #ffffff; font-family: 'Inter', sans-serif; color: #14213D; padding: 50px 60px; }
+.h-title { font-family: 'Tinos', serif; font-size: 30px; font-weight: 900; letter-spacing: -0.5px; }
+.h-sub { font-family: 'Inter', sans-serif; font-size: 13px; color: #4A5568; margin-top: 4px; }
+.h-rule { width: 80px; height: 3px; background: #C8102E; margin: 14px 0 26px 0; }
+
+.table-card { border: 1px solid #CBD5E1; border-radius: 6px; overflow: hidden; }
+.table-head { background: #14213D; color: #fff; padding: 12px 18px; font-family: 'Tinos', serif; font-size: 15px; font-weight: 700; }
+table { width: 100%; border-collapse: collapse; }
+th { background: #F1F5F9; padding: 9px 12px; text-align: left; font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #4A5568; letter-spacing: 1px; border-bottom: 1px solid #CBD5E1; }
+td { padding: 10px 12px; border-bottom: 1px solid #E2E8F0; font-family: 'Inter', sans-serif; font-size: 10.5px; vertical-align: top; }
+tr:nth-child(even) td { background: #F8FAFC; }
+td.n { font-family: 'JetBrains Mono', monospace; color: #C8102E; font-weight: 700; font-size: 10px; }
+td.t { font-family: 'Tinos', serif; color: #14213D; font-weight: 700; font-size: 11px; }
+td.c { font-family: 'JetBrains Mono', monospace; color: #14213D; font-size: 9.5px; }
+td.pass { font-family: 'JetBrains Mono', monospace; color: #15803D; font-weight: 700; font-size: 10px; }
+
+.detail-grid { margin-top: 22px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+.detail { border: 1px solid #CBD5E1; border-top: 3px solid #14213D; border-radius: 6px; padding: 12px 14px; background: #F8FAFC; }
+.detail.flash { border-top-color: #C8102E; }
+.detail.spread { border-top-color: #B45309; }
+.detail.lag { border-top-color: #14213D; }
+.detail .n { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C8102E; font-weight: 700; letter-spacing: 1.2px; }
+.detail .t { font-family: 'Tinos', serif; font-size: 13px; font-weight: 700; color: #14213D; margin: 3px 0 6px 0; }
+.detail .row { font-family: 'Inter', sans-serif; font-size: 10px; padding: 4px 0; border-bottom: 1px dashed #CBD5E1; line-height: 1.5; }
+.detail .row:last-child { border-bottom: none; }
+.detail .row .k { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #4A5568; font-weight: 700; }
+.detail .row .v { color: #14213D; margin-top: 1px; }
+.detail .row .v b { color: #C8102E; }
+</style></head>
+<body>
+<div class="h-title">6 Stress Scenarios — Detailed Specification</div>
+<div class="h-sub">Each scenario has explicit simulation parameters, historical basis, and pass threshold · all measured against live-like synthetic data</div>
+<div class="h-rule"></div>
+
+<div class="table-card">
+  <div class="table-head">Scenario Specification Matrix</div>
+  <table>
+    <thead><tr><th style="width:70px">ID</th><th style="width:130px">Scenario</th><th>Simulation</th><th style="width:180px">Tests</th><th style="width:110px">Pass Threshold</th></tr></thead>
+    <tbody>
+      <tr><td class="n">SCN-01</td><td class="t">Flash Crash</td><td class="c">XAUUSD −8% in 90s, recovery +5% over 4 min. Injected into live tick stream at random time during London session.</td><td>Kill-switch &lt;500ms · stop-loss fills · position flatten · circuit breaker</td><td class="pass">MDD ≤ 12%</td></tr>
+      <tr><td class="n">SCN-02</td><td class="t">High Spread</td><td class="c">Spread widens to 5× baseline for 30 min (simulated NFP). Tick stream preserved, spread overlay applied.</td><td>News filter · order rejection · cost cap · entry suppression</td><td class="pass">Cost drag ≤ 45%</td></tr>
+      <tr><td class="n">SCN-03</td><td class="t">Server Lag</td><td class="c">Tick-to-execution latency 2× budget (300ms P99) for 60s. Network simulation layer injects delay.</td><td>Stale-signal veto · backpressure · drop-tick · risk auto-veto</td><td class="pass">Stale veto ≥ 95%</td></tr>
+      <tr><td class="n">SCN-04</td><td class="t">Broker Disconnect</td><td class="c">MT5 socket drops for 90s, then auto-reconnects. Position state intentionally preserved on broker side.</td><td>Reconnect &lt;5s · position reconciliation · phantom order detection</td><td class="pass">Reconcile 100%</td></tr>
+      <tr><td class="n">SCN-05</td><td class="t">Extreme Volatility</td><td class="c">ATR spikes to 4× 30-day avg for 2 hours. Tick volatility injected via GARCH model with elevated σ.</td><td>Vol regime detection · auto size reduction · exposure cap</td><td class="pass">MDD ≤ 10%</td></tr>
+      <tr><td class="n">SCN-06</td><td class="t">Gap Open</td><td class="c">Sunday open gaps +3% or −3% from Friday close. Weekend tick gap injected at Sunday 23:00 GMT.</td><td>Weekend flat policy · gap-risk buffer · stop fill at gap price</td><td class="pass">Gap loss ≤ 2%</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="detail-grid">
+  <div class="detail flash">
+    <div class="n">SCN-01 · FLASH CRASH DETAIL</div>
+    <div class="t">8% drop in 90 seconds</div>
+    <div class="row"><div class="k">MAGNITUDE</div><div class="v">−8% price drop (e.g., 2000 → 1840 USD/oz)</div></div>
+    <div class="row"><div class="k">DURATION</div><div class="v">90 s drop · 4 min partial recovery (+5%)</div></div>
+    <div class="row"><div class="k">INJECTION</div><div class="v">Random time during London session (08:00-17:00 UTC)</div></div>
+    <div class="row"><div class="k">EXPECTED BEHAVIOR</div><div class="v">Kill-switch triggers on <b>MDD ≥ 5%</b> · all positions flattened in &lt;500 ms</div></div>
+    <div class="row"><div class="k">RECOVERY</div><div class="v">Halt 5 min · resume with 50% size · 24h monitoring</div></div>
+    <div class="row"><div class="k">FAILURE</div><div class="v">MDD &gt; 12% OR kill-switch &gt; 500 ms OR phantom positions</div></div>
+  </div>
+  <div class="detail spread">
+    <div class="n">SCN-02 · HIGH SPREAD DETAIL</div>
+    <div class="t">5× baseline spread for 30 min</div>
+    <div class="row"><div class="k">MAGNITUDE</div><div class="v">Spread = 5 × baseline P50 (e.g., 0.18 → 0.90 USD)</div></div>
+    <div class="row"><div class="k">DURATION</div><div class="v">30 min (simulating extended NFP reaction window)</div></div>
+    <div class="row"><div class="k">INJECTION</div><div class="v">Spread overlay applied to tick stream, prices preserved</div></div>
+    <div class="row"><div class="k">EXPECTED BEHAVIOR</div><div class="v">News filter suppresses new entries · existing positions held with widened stops</div></div>
+    <div class="row"><div class="k">RECOVERY</div><div class="v">Resume new entries when spread &lt; 2× baseline for 60s</div></div>
+    <div class="row"><div class="k">FAILURE</div><div class="v">Cost drag &gt; 45% OR new entry during widened spread OR stop-out</div></div>
+  </div>
+  <div class="detail lag">
+    <div class="n">SCN-03 · SERVER LAG DETAIL</div>
+    <div class="t">300ms P99 latency for 60s</div>
+    <div class="row"><div class="k">MAGNITUDE</div><div class="v">Tick-to-exec latency = 300 ms P99 (2× the 150 ms budget)</div></div>
+    <div class="row"><div class="k">DURATION</div><div class="v">60 s (typical CPU contention / network blip)</div></div>
+    <div class="row"><div class="k">INJECTION</div><div class="v">Network simulation layer adds 150 ms delay to broker round-trip</div></div>
+    <div class="row"><div class="k">EXPECTED BEHAVIOR</div><div class="v">Risk engine auto-vetoes "stale" signals (timestamp &gt; 150 ms old)</div></div>
+    <div class="row"><div class="k">RECOVERY</div><div class="v">Resume normal execution when latency &lt; 200 ms for 30s</div></div>
+    <div class="row"><div class="k">FAILURE</div><div class="v">Stale-veto rate &lt; 95% OR any stale fill OR order queue overflow</div></div>
+  </div>
+</div>
+</body></html>

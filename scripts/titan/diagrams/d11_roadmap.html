@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>TITAN XAU AI — Implementation Roadmap</title>
+<style>
+  @page { size: 1600px 700px; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #ffffff; font-family: 'Tinos','FreeSerif',serif; color: #14213D; }
+  .canvas { width: 1600px; height: 700px; padding: 40px 60px; box-sizing: border-box; }
+  .title-bar { display: flex; align-items: baseline; gap: 18px; border-bottom: 2px solid #14213D; padding-bottom: 12px; margin-bottom: 24px; }
+  .title-bar .num { font-size: 48px; font-weight: 900; color: #C8102E; line-height: 1; }
+  .title-bar h1 { font-size: 26px; font-weight: 700; margin: 0; }
+  .title-bar .sub { font-size: 13px; color: #4A5568; margin-left: auto; font-family: 'JetBrains Mono',monospace; }
+  svg { display: block; margin: 0 auto; background: #FAFBFC; border: 1px solid #E2E8F0; }
+  .table { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-top: 14px; }
+  .table th { background: #14213D; color: #ffffff; padding: 6px 8px; text-align: left; font-weight: 700; }
+  .table td { padding: 5px 8px; border-bottom: 1px solid #E2E8F0; }
+  .table tr:nth-child(even) td { background: #F8FAFC; }
+  .table .mod { color: #14213D; font-family: 'JetBrains Mono',monospace; font-weight: 700; }
+  .table .phase { color: #C8102E; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="title-bar">
+    <span class="num">11</span>
+    <h1>Implementation Roadmap — 12-Month, 4-Phase Plan</h1>
+    <span class="sub">Foundation → Intelligence → Productionization → Commercialization</span>
+  </div>
+
+  <svg width="1480" height="430" viewBox="0 0 1480 430">
+    <!-- Month axis -->
+    <line x1="40" y1="350" x2="1440" y2="350" stroke="#14213D" stroke-width="1.5"/>
+    <g font-family="JetBrains Mono" font-size="10" fill="#14213D">
+      <text x="40" y="370" text-anchor="middle">M1</text>
+      <text x="155" y="370" text-anchor="middle">M2</text>
+      <text x="270" y="370" text-anchor="middle">M3</text>
+      <text x="385" y="370" text-anchor="middle">M4</text>
+      <text x="500" y="370" text-anchor="middle">M5</text>
+      <text x="615" y="370" text-anchor="middle">M6</text>
+      <text x="730" y="370" text-anchor="middle">M7</text>
+      <text x="845" y="370" text-anchor="middle">M8</text>
+      <text x="960" y="370" text-anchor="middle">M9</text>
+      <text x="1075" y="370" text-anchor="middle">M10</text>
+      <text x="1190" y="370" text-anchor="middle">M11</text>
+      <text x="1305" y="370" text-anchor="middle">M12</text>
+    </g>
+    <!-- Month gridlines -->
+    <g stroke="#E2E8F0" stroke-width="0.5">
+      <line x1="40" y1="40" x2="40" y2="350"/>
+      <line x1="155" y1="40" x2="155" y2="350"/>
+      <line x1="270" y1="40" x2="270" y2="350"/>
+      <line x1="385" y1="40" x2="385" y2="350"/>
+      <line x1="500" y1="40" x2="500" y2="350"/>
+      <line x1="615" y1="40" x2="615" y2="350"/>
+      <line x1="730" y1="40" x2="730" y2="350"/>
+      <line x1="845" y1="40" x2="845" y2="350"/>
+      <line x1="960" y1="40" x2="960" y2="350"/>
+      <line x1="1075" y1="40" x2="1075" y2="350"/>
+      <line x1="1190" y1="40" x2="1190" y2="350"/>
+      <line x1="1305" y1="40" x2="1305" y2="350"/>
+      <line x1="1420" y1="40" x2="1420" y2="350"/>
+    </g>
+
+    <!-- Phase 1: Foundation (M1-M3) -->
+    <rect x="40" y="60" width="345" height="60" fill="#14213D"/>
+    <text x="212" y="85" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="Tinos">PHASE 1 — FOUNDATION</text>
+    <text x="212" y="105" text-anchor="middle" fill="#C8102E" font-size="10" font-family="JetBrains Mono">M1 → M3 · Core infra + MT5 + backtest</text>
+
+    <!-- Phase 2: Intelligence (M4-M6) -->
+    <rect x="385" y="60" width="345" height="60" fill="#FEF3F2" stroke="#14213D" stroke-width="2"/>
+    <text x="557" y="85" text-anchor="middle" font-size="13" font-weight="700" font-family="Tinos">PHASE 2 — INTELLIGENCE</text>
+    <text x="557" y="105" text-anchor="middle" fill="#C8102E" font-size="10" font-family="JetBrains Mono">M4 → M6 · Features + signals + ML + walk-forward</text>
+
+    <!-- Phase 3: Productionization (M7-M9) -->
+    <rect x="730" y="60" width="345" height="60" fill="#F0FDF4" stroke="#14213D" stroke-width="2"/>
+    <text x="902" y="85" text-anchor="middle" font-size="13" font-weight="700" font-family="Tinos">PHASE 3 — PRODUCTIONIZATION</text>
+    <text x="902" y="105" text-anchor="middle" fill="#C8102E" font-size="10" font-family="JetBrains Mono">M7 → M9 · HA + monitoring + licensing + canary</text>
+
+    <!-- Phase 4: Commercialization (M10-M12) -->
+    <rect x="1075" y="60" width="345" height="60" fill="#FEF3F2" stroke="#C8102E" stroke-width="2"/>
+    <text x="1247" y="85" text-anchor="middle" font-size="13" font-weight="700" fill="#C8102E" font-family="Tinos">PHASE 4 — COMMERCIALIZATION</text>
+    <text x="1247" y="105" text-anchor="middle" fill="#C8102E" font-size="10" font-family="JetBrains Mono">M10 → M12 · Multi-tenant + billing + white-label</text>
+
+    <!-- Tasks bars -->
+    <!-- P1 tasks -->
+    <rect x="40" y="140" width="115" height="18" fill="#14213D" opacity="0.7"/>
+    <text x="55" y="153" fill="#ffffff" font-size="9" font-family="JetBrains Mono">Folder structure</text>
+
+    <rect x="155" y="140" width="115" height="18" fill="#14213D" opacity="0.7"/>
+    <text x="170" y="153" fill="#ffffff" font-size="9" font-family="JetBrains Mono">MT5 bridge (C++)</text>
+
+    <rect x="155" y="162" width="230" height="18" fill="#14213D" opacity="0.7"/>
+    <text x="170" y="175" fill="#ffffff" font-size="9" font-family="JetBrains Mono">Tick pipeline + normalizer</text>
+
+    <rect x="270" y="184" width="115" height="18" fill="#14213D" opacity="0.7"/>
+    <text x="285" y="197" fill="#ffffff" font-size="9" font-family="JetBrains Mono">Basic risk gate</text>
+
+    <rect x="270" y="206" width="115" height="18" fill="#14213D" opacity="0.7"/>
+    <text x="285" y="219" fill="#ffffff" font-size="9" font-family="JetBrains Mono">Backtest engine</text>
+
+    <!-- P2 tasks -->
+    <rect x="385" y="140" width="230" height="18" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="400" y="153" fill="#14213D" font-size="9" font-family="JetBrains Mono">Feature engine (300+ features)</text>
+
+    <rect x="385" y="162" width="115" height="18" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="400" y="175" fill="#14213D" font-size="9" font-family="JetBrains Mono">Signal engine</text>
+
+    <rect x="500" y="162" width="115" height="18" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="515" y="175" fill="#14213D" font-size="9" font-family="JetBrains Mono">First strategy live</text>
+
+    <rect x="500" y="184" width="230" height="18" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="515" y="197" fill="#14213D" font-size="9" font-family="JetBrains Mono">ML inference + PyTorch</text>
+
+    <rect x="615" y="206" width="115" height="18" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="630" y="219" fill="#14213D" font-size="9" font-family="JetBrains Mono">Walk-forward</text>
+
+    <!-- P3 tasks -->
+    <rect x="730" y="140" width="230" height="18" fill="#FEF3F2" stroke="#14213D"/>
+    <text x="745" y="153" fill="#14213D" font-size="9" font-family="JetBrains Mono">Deployment (Z1+Z2+Z3)</text>
+
+    <rect x="730" y="162" width="115" height="18" fill="#FEF3F2" stroke="#14213D"/>
+    <text x="745" y="175" fill="#14213D" font-size="9" font-family="JetBrains Mono">Monitoring stack</text>
+
+    <rect x="845" y="162" width="115" height="18" fill="#FEF3F2" stroke="#14213D"/>
+    <text x="860" y="175" fill="#14213D" font-size="9" font-family="JetBrains Mono">Licensing server</text>
+
+    <rect x="845" y="184" width="230" height="18" fill="#FEF3F2" stroke="#14213D"/>
+    <text x="860" y="197" fill="#14213D" font-size="9" font-family="JetBrains Mono">Canary CI/CD pipeline</text>
+
+    <rect x="960" y="206" width="115" height="18" fill="#FEF3F2" stroke="#14213D"/>
+    <text x="975" y="219" fill="#14213D" font-size="9" font-family="JetBrains Mono">Chaos game-day</text>
+
+    <!-- P4 tasks -->
+    <rect x="1075" y="140" width="230" height="18" fill="#FEF3F2" stroke="#C8102E"/>
+    <text x="1090" y="153" fill="#14213D" font-size="9" font-family="JetBrains Mono">Multi-tenant isolation</text>
+
+    <rect x="1075" y="162" width="115" height="18" fill="#FEF3F2" stroke="#C8102E"/>
+    <text x="1090" y="175" fill="#14213D" font-size="9" font-family="JetBrains Mono">Billing integration</text>
+
+    <rect x="1190" y="162" width="115" height="18" fill="#FEF3F2" stroke="#C8102E"/>
+    <text x="1205" y="175" fill="#14213D" font-size="9" font-family="JetBrains Mono">White-label option</text>
+
+    <rect x="1190" y="184" width="230" height="18" fill="#FEF3F2" stroke="#C8102E"/>
+    <text x="1205" y="197" fill="#14213D" font-size="9" font-family="JetBrains Mono">Partner onboarding flow</text>
+
+    <rect x="1305" y="206" width="115" height="18" fill="#C8102E"/>
+    <text x="1320" y="219" fill="#ffffff" font-size="9" font-family="JetBrains Mono">v1.0 GA launch</text>
+
+    <!-- Milestones -->
+    <g>
+      <polygon points="385,240 395,255 375,255" fill="#C8102E"/>
+      <text x="385" y="275" text-anchor="middle" font-size="9" font-weight="700" fill="#C8102E" font-family="JetBrains Mono">M1: Foundation GA</text>
+      <text x="385" y="288" text-anchor="middle" font-size="8" fill="#4A5568" font-family="JetBrains Mono">tick pipeline + backtest</text>
+
+      <polygon points="730,240 740,255 720,255" fill="#C8102E"/>
+      <text x="730" y="275" text-anchor="middle" font-size="9" font-weight="700" fill="#C8102E" font-family="JetBrains Mono">M2: Intelligence GA</text>
+      <text x="730" y="288" text-anchor="middle" font-size="8" fill="#4A5568" font-family="JetBrains Mono">first live signal + PF&gt;1.5</text>
+
+      <polygon points="1075,240 1085,255 1065,255" fill="#C8102E"/>
+      <text x="1075" y="275" text-anchor="middle" font-size="9" font-weight="700" fill="#C8102E" font-family="JetBrains Mono">M3: Production GA</text>
+      <text x="1075" y="288" text-anchor="middle" font-size="8" fill="#4A5568" font-family="JetBrains Mono">99.95% SLA + licensed</text>
+
+      <polygon points="1420,240 1430,255 1410,255" fill="#C8102E"/>
+      <text x="1420" y="275" text-anchor="middle" font-size="9" font-weight="700" fill="#C8102E" font-family="JetBrains Mono">M4: Commercial GA</text>
+      <text x="1420" y="288" text-anchor="middle" font-size="8" fill="#4A5568" font-family="JetBrains Mono">3+ paying licensees</text>
+    </g>
+
+    <!-- Resource allocation -->
+    <text x="40" y="320" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Team: 2 C++ eng · 2 Python/ML eng · 1 quant researcher · 1 SRE · 1 PM (part-time) · ramp to 8 people by M6</text>
+  </svg>
+
+  <table class="table">
+    <tr><th>Phase</th><th>Months</th><th>Exit Criteria (must meet ALL)</th><th>Deliverables</th><th>Team Size</th></tr>
+    <tr><td class="phase">P1 Foundation</td><td>M1-M3</td><td class="mod">Tick pipeline p99 &lt; 2ms · Backtest replay matches paper trade ±0.1% · Risk gate blocks 100% of test violations</td><td>Repo scaffold, MT5 bridge, normalizer, basic risk gate, backtest engine, CI scaffolding</td><td>4 FTE</td></tr>
+    <tr><td class="phase">P2 Intelligence</td><td>M4-M6</td><td class="mod">Walk-forward PF &gt; 1.5 · Sharpe &gt; 1.5 · MaxDD &lt; 5% on OOS · ML inference p99 &lt; 1ms</td><td>Feature engine, signal engine, ML inference, first live strategy, walk-forward validator</td><td>6 FTE</td></tr>
+    <tr><td class="phase">P3 Productionization</td><td>M7-M9</td><td class="mod">99.95% uptime over 30d · Failover &lt; 3s · DR drill passed · License server live · Canary auto-rollback works</td><td>HA deployment, monitoring stack, licensing, canary CI/CD, chaos game-day, runbooks</td><td>7 FTE</td></tr>
+    <tr><td class="phase">P4 Commercialization</td><td>M10-M12</td><td class="mod">3+ paying licensees · Multi-tenant isolated · Billing integrated · White-label pilot signed</td><td>Multi-tenant, billing, white-label, partner onboarding, v1.0 GA release</td><td>8 FTE</td></tr>
+  </table>
+</div>
+</body>
+</html>

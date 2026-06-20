@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>TITAN XAU AI — Latency Budget</title>
+<style>
+  @page { size: 1600px 700px; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #ffffff; font-family: 'Tinos','FreeSerif',serif; color: #14213D; }
+  .canvas { width: 1600px; height: 700px; padding: 40px 60px; box-sizing: border-box; }
+  .title-bar { display: flex; align-items: baseline; gap: 18px; border-bottom: 2px solid #14213D; padding-bottom: 12px; margin-bottom: 24px; }
+  .title-bar .num { font-size: 48px; font-weight: 900; color: #C8102E; line-height: 1; }
+  .title-bar h1 { font-size: 26px; font-weight: 700; margin: 0; }
+  .title-bar .sub { font-size: 13px; color: #4A5568; margin-left: auto; font-family: 'JetBrains Mono',monospace; }
+  svg { display: block; margin: 0 auto; background: #FAFBFC; border: 1px solid #E2E8F0; }
+  .table { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-top: 12px; }
+  .table th { background: #14213D; color: #ffffff; padding: 6px 8px; text-align: left; font-weight: 700; }
+  .table td { padding: 5px 8px; border-bottom: 1px solid #E2E8F0; font-family: 'JetBrains Mono', monospace; }
+  .table tr:nth-child(even) td { background: #F8FAFC; }
+  .table .stage { color: #14213D; font-weight: 700; }
+  .table .hot { color: #C8102E; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="title-bar">
+    <span class="num">10</span>
+    <h1>Latency Budget — Tick-to-Trade p50 / p99 / p99.9</h1>
+    <span class="sub">Warm path budget · per-stage breakdown · budget gates</span>
+  </div>
+
+  <svg width="1480" height="380" viewBox="0 0 1480 380">
+    <!-- Header totals -->
+    <text x="40" y="35" font-size="13" font-weight="700" fill="#14213D" font-family="Tinos">INTERNAL WARM-PATH TOTAL (broker wall excluded):</text>
+    <text x="540" y="35" font-size="18" font-weight="700" fill="#C8102E" font-family="Tinos">p50 = 1.70ms · p99 = 4.80ms · p99.9 = 12.0ms</text>
+    <text x="1100" y="35" font-size="11" fill="#4A5568" font-family="JetBrains Mono">budget gate: p99 &lt; 5ms</text>
+
+    <!-- Background track -->
+    <rect x="40" y="80" width="1400" height="80" fill="#F8FAFC" stroke="#E2E8F0"/>
+
+    <!-- Stages scaled proportionally (1.70ms total internal = 1400px) -->
+    <!-- 1 unit = 823.5 px/ms -->
+
+    <!-- Stage 1: MT5 callback 0.30ms = 247px -->
+    <rect x="40" y="80" width="247" height="80" fill="#14213D"/>
+    <text x="163" y="110" text-anchor="middle" fill="#ffffff" font-size="11" font-weight="700" font-family="Tinos">MT5 callback</text>
+    <text x="163" y="130" text-anchor="middle" fill="#C8102E" font-size="14" font-weight="700" font-family="Tinos">0.30 ms</text>
+    <text x="163" y="148" text-anchor="middle" fill="#ffffff" font-size="9" opacity="0.8" font-family="JetBrains Mono">17.6%</text>
+
+    <!-- Stage 2: Normalizer 0.05ms = 41px -->
+    <rect x="287" y="80" width="41" height="80" fill="#FEF3F2" stroke="#14213D"/>
+    <text x="307" y="120" text-anchor="middle" font-size="11" font-weight="700" font-family="Tinos">0.05</text>
+    <text x="307" y="148" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">norm</text>
+
+    <!-- Stage 3: Feature 0.40ms = 329px -->
+    <rect x="328" y="80" width="329" height="80" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="492" y="110" text-anchor="middle" font-size="11" font-weight="700" font-family="Tinos">FeatureEngine</text>
+    <text x="492" y="130" text-anchor="middle" fill="#C8102E" font-size="14" font-weight="700" font-family="Tinos">0.40 ms</text>
+    <text x="492" y="148" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">23.5% · 300+ features vectorized</text>
+
+    <!-- Stage 4: Signal 0.20ms = 165px -->
+    <rect x="657" y="80" width="165" height="80" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="740" y="110" text-anchor="middle" font-size="11" font-weight="700" font-family="Tinos">SignalEngine</text>
+    <text x="740" y="130" text-anchor="middle" fill="#C8102E" font-size="14" font-weight="700" font-family="Tinos">0.20 ms</text>
+    <text x="740" y="148" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">11.8% · ensemble</text>
+
+    <!-- Stage 5: Risk 0.15ms = 124px -->
+    <rect x="822" y="80" width="124" height="80" fill="#FEF3F2" stroke="#14213D"/>
+    <text x="884" y="110" text-anchor="middle" font-size="11" font-weight="700" font-family="Tinos">PreTrade</text>
+    <text x="884" y="130" text-anchor="middle" fill="#C8102E" font-size="14" font-weight="700" font-family="Tinos">0.15 ms</text>
+    <text x="884" y="148" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">8.8% · veto gate</text>
+
+    <!-- Stage 6: OrderMgr 0.10ms = 82px -->
+    <rect x="946" y="80" width="82" height="80" fill="#FEF3F2" stroke="#14213D"/>
+    <text x="987" y="120" text-anchor="middle" font-size="11" font-weight="700" font-family="Tinos">0.10</text>
+    <text x="987" y="148" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">order</text>
+
+    <!-- Stage 7: MT5 send 0.50ms = 412px -->
+    <rect x="1028" y="80" width="412" height="80" fill="#14213D"/>
+    <text x="1234" y="110" text-anchor="middle" fill="#ffffff" font-size="11" font-weight="700" font-family="Tinos">MT5 send</text>
+    <text x="1234" y="130" text-anchor="middle" fill="#C8102E" font-size="14" font-weight="700" font-family="Tinos">0.50 ms</text>
+    <text x="1234" y="148" text-anchor="middle" fill="#ffffff" font-size="9" opacity="0.8" font-family="JetBrains Mono">29.4% · broker boundary</text>
+
+    <!-- p99/p99.9 annotations -->
+    <text x="40" y="200" font-size="11" font-weight="700" fill="#14213D" font-family="JetBrains Mono">p50 = 1.70ms ████████████████████████████████████████</text>
+    <text x="540" y="200" font-size="11" fill="#C8102E" font-family="JetBrains Mono">budget = 5.00ms</text>
+
+    <text x="40" y="220" font-size="11" font-weight="700" fill="#14213D" font-family="JetBrains Mono">p99  = 4.80ms ███████████████████████████████████████████████████████████████████████████████████████████████████████████████████</text>
+
+    <text x="40" y="240" font-size="11" font-weight="700" fill="#C8102E" font-family="JetBrains Mono">p99.9= 12.0ms ████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████  exceeds budget!</text>
+
+    <text x="40" y="262" font-size="10" fill="#4A5568" font-family="JetBrains Mono">▲ p99.9 budget breach triggers spike detector → auto-throttle (drop non-critical features) → operator page if sustained &gt; 10s window</text>
+
+    <!-- Mitigation strategies -->
+    <text x="40" y="295" font-size="13" font-weight="700" fill="#C8102E" font-family="Tinos">LATENCY MITIGATION STRATEGIES (applied at each stage)</text>
+
+    <g font-family="JetBrains Mono" font-size="10" fill="#14213D">
+      <text x="40" y="320">▸ MT5 callback: dedicated thread, CPU 0-1, SMT off, no system calls in callback</text>
+      <text x="40" y="338">▸ Normalizer: branchless code, FlatBuffers zero-copy, AVX2 SIMD for decimal ops</text>
+      <text x="40" y="356">▸ Feature: vectorized NumPy + Numba JIT, per-feature caching, incremental computation on tick</text>
+      <text x="780" y="320">▸ Signal: pre-compiled model (ONNX), no Python in hot path — pure C++ inference via LibTorch</text>
+      <text x="780" y="338">▸ Risk: O(1) gate checks, branchless boolean evaluation, lock-free atomic reads of exposure</text>
+      <text x="780" y="356">▸ Order: SPSC queue to MT5 send thread, pre-allocated order objects, no heap allocation in hot path</text>
+    </g>
+  </svg>
+
+  <table class="table">
+    <tr><th>Stage</th><th>p50 (ms)</th><th>p99 (ms)</th><th>p99.9 (ms)</th><th>Budget (ms)</th><th>Owner</th><th>Mitigation if Breached</th></tr>
+    <tr><td class="stage">MT5 callback</td><td>0.30</td><td>0.80</td><td>2.50</td><td class="hot">1.00</td><td>Bridge team</td><td>Dedicated thread, increase recv buffer, SMT off</td></tr>
+    <tr><td class="stage">Normalizer</td><td>0.05</td><td>0.10</td><td>0.30</td><td class="hot">0.20</td><td>Core team</td><td>AVX2 SIMD, branchless decimal ops</td></tr>
+    <tr><td class="stage">FeatureEngine</td><td>0.40</td><td>1.20</td><td>3.00</td><td class="hot">1.00</td><td>Quant team</td><td>Cache features, drop non-critical on spike</td></tr>
+    <tr><td class="stage">SignalEngine</td><td>0.20</td><td>0.60</td><td>1.50</td><td class="hot">0.50</td><td>Quant team</td><td>ONNX runtime, batch inference, no Python</td></tr>
+    <tr><td class="stage">PreTradeRiskGate</td><td>0.15</td><td>0.30</td><td>0.80</td><td class="hot">0.30</td><td>Risk team</td><td>O(1) lookups, atomic exposure reads</td></tr>
+    <tr><td class="stage">OrderManager</td><td>0.10</td><td>0.20</td><td>0.50</td><td class="hot">0.20</td><td>Execution team</td><td>SPSC queue, pre-allocated objects</td></tr>
+    <tr><td class="stage">MT5 send</td><td>0.50</td><td>1.50</td><td>4.00</td><td class="hot">1.50</td><td>Bridge team</td><td>Bypass Wine overhead, consider FIX adapter</td></tr>
+    <tr style="background:#FEF3F2"><td class="hot">TOTAL (internal)</td><td class="hot">1.70</td><td class="hot">4.80</td><td class="hot">12.0</td><td class="hot">5.00 (p99)</td><td>—</td><td>Spike detector throttles features on breach</td></tr>
+  </table>
+</div>
+</body>
+</html>

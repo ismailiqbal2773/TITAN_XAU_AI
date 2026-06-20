@@ -1,0 +1,134 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>d02</title>
+<link href="https://fonts.googleapis.com/css2?family=Tinos:wght@400;700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { width: 1400px; height: 1800px; background: #ffffff; font-family: 'Inter', sans-serif; color: #14213D; padding: 50px 60px; }
+.h-title { font-family: 'Tinos', serif; font-size: 30px; font-weight: 900; letter-spacing: -0.5px; }
+.h-sub { font-family: 'Inter', sans-serif; font-size: 13px; color: #4A5568; margin-top: 4px; }
+.h-rule { width: 80px; height: 3px; background: #C8102E; margin: 14px 0 28px 0; }
+.suite-block { margin-bottom: 22px; border: 1px solid #CBD5E1; border-radius: 6px; overflow: hidden; }
+.suite-head { background: #14213D; color: #fff; padding: 12px 18px; display: flex; justify-content: space-between; align-items: center; }
+.suite-head .l { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #C8102E; letter-spacing: 2px; font-weight: 700; }
+.suite-head .t { font-family: 'Tinos', serif; font-size: 17px; font-weight: 700; margin-left: 12px; }
+.suite-head .m { font-family: 'JetBrains Mono', monospace; font-size: 10px; opacity: 0.8; }
+.check-table { width: 100%; border-collapse: collapse; font-size: 10.5px; }
+.check-table th { background: #F1F5F9; padding: 8px 12px; text-align: left; font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #4A5568; letter-spacing: 1px; border-bottom: 1px solid #CBD5E1; }
+.check-table td { padding: 8px 12px; border-bottom: 1px solid #E2E8F0; font-family: 'Inter', sans-serif; color: #14213D; vertical-align: top; }
+.check-table tr:nth-child(even) td { background: #F8FAFC; }
+.check-table td.crit { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C8102E; font-weight: 700; letter-spacing: 1px; }
+.check-table td.maj { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #B45309; font-weight: 700; letter-spacing: 1px; }
+.check-table td.min { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #4A5568; font-weight: 700; letter-spacing: 1px; }
+.check-table td.id { font-family: 'JetBrains Mono', monospace; font-size: 9.5px; color: #14213D; font-weight: 600; }
+</style></head>
+<body>
+<div class="h-title">Automated Validation Checklist — 144 Checks</div>
+<div class="h-sub">8 suites · Critical (42) · Major (58) · Minor (44) · Each check has explicit ID, severity, and pass criterion</div>
+<div class="h-rule"></div>
+
+<div class="suite-block">
+  <div class="suite-head"><div><span class="l">S1</span><span class="t">Broker Compatibility</span></div><div class="m">18 checks · weight 12%</div></div>
+  <table class="check-table">
+    <thead><tr><th style="width:70px">ID</th><th style="width:80px">Severity</th><th>Check Description</th><th style="width:280px">Pass Criterion</th></tr></thead>
+    <tbody>
+      <tr><td class="id">BRO-001</td><td class="crit">CRITICAL</td><td>Broker runtime detection completes within 2 s</td><td>detection_time &lt; 2000 ms</td></tr>
+      <tr><td class="id">BRO-002</td><td class="crit">CRITICAL</td><td>All 9 broker properties populated (name, server, suffix, contract_size, min_lot, lot_step, leverage, margin_mode, timezone)</td><td>9/9 properties non-null</td></tr>
+      <tr><td class="id">BRO-003</td><td class="maj">MAJOR</td><td>Symbol suffix mapping correct (e.g., ICMarkets-Live06 → XAUUSD.c)</td><td>resolved symbol trades on MT5</td></tr>
+      <tr><td class="id">BRO-004</td><td class="maj">MAJOR</td><td>Contract size 100 oz for XAUUSD across 6 supported brokers</td><td>contract_size == 100</td></tr>
+      <tr><td class="id">BRO-005</td><td class="min">MINOR</td><td>Lot step granularity 0.01</td><td>lot_step == 0.01</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="suite-block">
+  <div class="suite-head"><div><span class="l">S2</span><span class="t">Risk Engine</span></div><div class="m">24 checks · weight 18%</div></div>
+  <table class="check-table">
+    <thead><tr><th style="width:70px">ID</th><th style="width:80px">Severity</th><th>Check Description</th><th style="width:280px">Pass Criterion</th></tr></thead>
+    <tbody>
+      <tr><td class="id">RSK-001</td><td class="crit">CRITICAL</td><td>Max daily drawdown cap (e.g., 3%) enforced</td><td>halt when DD ≥ 3.0%</td></tr>
+      <tr><td class="id">RSK-002</td><td class="crit">CRITICAL</td><td>Emergency kill-switch triggers within 500 ms</td><td>flatten_latency &lt; 500 ms</td></tr>
+      <tr><td class="id">RSK-003</td><td class="crit">CRITICAL</td><td>Per-trade risk capped at 1.0% of equity</td><td>risk_per_trade ≤ 0.01</td></tr>
+      <tr><td class="id">RSK-004</td><td class="maj">MAJOR</td><td>Margin level &gt; 200% alert threshold</td><td>alert when ML ≤ 200%</td></tr>
+      <tr><td class="id">RSK-005</td><td class="maj">MAJOR</td><td>Correlation-based exposure hedge detection</td><td>hedge_flag set when ρ ≥ 0.85</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="suite-block">
+  <div class="suite-head"><div><span class="l">S3</span><span class="t">Spread Engine</span></div><div class="m">14 checks · weight 10%</div></div>
+  <table class="check-table">
+    <thead><tr><th style="width:70px">ID</th><th style="width:80px">Severity</th><th>Check Description</th><th style="width:280px">Pass Criterion</th></tr></thead>
+    <tbody>
+      <tr><td class="id">SPR-001</td><td class="crit">CRITICAL</td><td>Tick spread sampled every 250 ms</td><td>sample_interval ≤ 250 ms</td></tr>
+      <tr><td class="id">SPR-002</td><td class="maj">MAJOR</td><td>Baseline spread established over 30 min rolling window</td><td>baseline_window ≥ 1800 s</td></tr>
+      <tr><td class="id">SPR-003</td><td class="maj">MAJOR</td><td>News-widening detector: spread ×3 baseline → news flag</td><td>news_flag when spread ≥ 3×baseline</td></tr>
+      <tr><td class="id">SPR-004</td><td class="min">MINOR</td><td>Spread stdev recorded for cost forecasting</td><td>stdev logged every 5 min</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="suite-block">
+  <div class="suite-head"><div><span class="l">S4</span><span class="t">Slippage Engine</span></div><div class="m">16 checks · weight 10%</div></div>
+  <table class="check-table">
+    <thead><tr><th style="width:70px">ID</th><th style="width:80px">Severity</th><th>Check Description</th><th style="width:280px">Pass Criterion</th></tr></thead>
+    <tbody>
+      <tr><td class="id">SLP-001</td><td class="crit">CRITICAL</td><td>EQS (Execution Quality Score) computed per fill</td><td>EQS ∈ [0, 100]</td></tr>
+      <tr><td class="id">SLP-002</td><td class="crit">CRITICAL</td><td>Slippage distribution recorded (P50/P90/P99)</td><td>percentiles logged every fill</td></tr>
+      <tr><td class="id">SLP-003</td><td class="maj">MAJOR</td><td>Latency from signal to broker ≤ 150 ms</td><td>signal_to_broker ≤ 150 ms</td></tr>
+      <tr><td class="id">SLP-004</td><td class="maj">MAJOR</td><td>Negative slippage &gt; 2×ATR triggers BQS review</td><td>BQS_review when |slip| &gt; 2×ATR</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="suite-block">
+  <div class="suite-head"><div><span class="l">S5</span><span class="t">AI Engine</span></div><div class="m">22 checks · weight 18%</div></div>
+  <table class="check-table">
+    <thead><tr><th style="width:70px">ID</th><th style="width:80px">Severity</th><th>Check Description</th><th style="width:280px">Pass Criterion</th></tr></thead>
+    <tbody>
+      <tr><td class="id">AIE-001</td><td class="crit">CRITICAL</td><td>All 4 models load (XGBoost + LSTM + Transformer + RL)</td><td>4/4 models loaded</td></tr>
+      <tr><td class="id">AIE-002</td><td class="crit">CRITICAL</td><td>Model versions match registry SHA-256</td><td>hash matches manifest</td></tr>
+      <tr><td class="id">AIE-003</td><td class="maj">MAJOR</td><td>Ensemble Sharpe ≥ 2.0 on backtest (12-month window)</td><td>sharpe ≥ 2.0</td></tr>
+      <tr><td class="id">AIE-004</td><td class="maj">MAJOR</td><td>Inference latency ≤ 80 ms per signal</td><td>inference_time ≤ 80 ms</td></tr>
+      <tr><td class="id">AIE-005</td><td class="min">MINOR</td><td>PSI drift detector runs every 6 h</td><td>psi_check_interval == 6 h</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="suite-block">
+  <div class="suite-head"><div><span class="l">S6</span><span class="t">Execution Engine</span></div><div class="m">20 checks · weight 14%</div></div>
+  <table class="check-table">
+    <thead><tr><th style="width:70px">ID</th><th style="width:80px">Severity</th><th>Check Description</th><th style="width:280px">Pass Criterion</th></tr></thead>
+    <tbody>
+      <tr><td class="id">EXE-001</td><td class="crit">CRITICAL</td><td>Async order dispatcher processes &gt; 50 ops/s</td><td>throughput &gt; 50 ops/s</td></tr>
+      <tr><td class="id">EXE-002</td><td class="crit">CRITICAL</td><td>Tick-based execution: fill within 2 ticks of signal</td><td>fill_latency ≤ 2 ticks</td></tr>
+      <tr><td class="id">EXE-003</td><td class="maj">MAJOR</td><td>Order retry on transient failure (max 2 retries)</td><td>retry_count ≤ 2</td></tr>
+      <tr><td class="id">EXE-004</td><td class="maj">MAJOR</td><td>Idempotency key prevents duplicate orders</td><td>0 duplicates in 24 h soak</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="suite-block">
+  <div class="suite-head"><div><span class="l">S7</span><span class="t">Regime Detection</span></div><div class="m">16 checks · weight 10%</div></div>
+  <table class="check-table">
+    <thead><tr><th style="width:70px">ID</th><th style="width:80px">Severity</th><th>Check Description</th><th style="width:280px">Pass Criterion</th></tr></thead>
+    <tbody>
+      <tr><td class="id">REG-001</td><td class="crit">CRITICAL</td><td>4 regime states detected: trend / range / volatile / news</td><td>4/4 states enumerable</td></tr>
+      <tr><td class="id">REG-002</td><td class="maj">MAJOR</td><td>3-model vote (HMM + Logit + Heuristic) consensus</td><td>vote_agreement ≥ 2/3</td></tr>
+      <tr><td class="id">REG-003</td><td class="maj">MAJOR</td><td>Regime transition confidence ≥ 0.65</td><td>transition_conf ≥ 0.65</td></tr>
+      <tr><td class="id">REG-004</td><td class="min">MINOR</td><td>Regime history retained 30 days</td><td>history ≥ 30 d</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="suite-block">
+  <div class="suite-head"><div><span class="l">S8</span><span class="t">Licensing</span></div><div class="m">14 checks · weight 8%</div></div>
+  <table class="check-table">
+    <thead><tr><th style="width:70px">ID</th><th style="width:80px">Severity</th><th>Check Description</th><th style="width:280px">Pass Criterion</th></tr></thead>
+    <tbody>
+      <tr><td class="id">LIC-001</td><td class="crit">CRITICAL</td><td>JWT RSA-4096 signature verified</td><td>signature_valid == true</td></tr>
+      <tr><td class="id">LIC-002</td><td class="crit">CRITICAL</td><td>Hardware fingerprint matches license claim</td><td>hw_fp == claim.hw_fp</td></tr>
+      <tr><td class="id">LIC-003</td><td class="maj">MAJOR</td><td>License tier gate enforced (Starter/Pro/Enterprise)</td><td>tier in {starter, pro, ent}</td></tr>
+      <tr><td class="id">LIC-004</td><td class="min">MINOR</td><td>Heartbeat timestamp within 1 h</td><td>heartbeat_age ≤ 3600 s</td></tr>
+    </tbody>
+  </table>
+</div>
+</body></html>

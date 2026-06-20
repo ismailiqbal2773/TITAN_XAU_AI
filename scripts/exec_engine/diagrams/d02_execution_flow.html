@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Execution Engine — End-to-End Execution Flow</title>
+<style>
+  @page { size: 1400px 1900px; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #ffffff; font-family: 'Tinos','FreeSerif',serif; color: #14213D; }
+  .canvas { width: 1400px; height: 1900px; padding: 50px 60px; box-sizing: border-box; }
+  .title-bar { display: flex; align-items: baseline; gap: 18px; border-bottom: 2px solid #14213D; padding-bottom: 12px; margin-bottom: 24px; }
+  .title-bar .num { font-size: 48px; font-weight: 900; color: #C8102E; line-height: 1; }
+  .title-bar h1 { font-size: 26px; font-weight: 700; margin: 0; }
+  .title-bar .sub { font-size: 13px; color: #4A5568; margin-left: auto; font-family: 'JetBrains Mono',monospace; }
+  svg { display: block; margin: 0 auto; background: #FAFBFC; border: 1px solid #E2E8F0; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="title-bar">
+    <span class="num">02</span>
+    <h1>End-to-End Execution Flow — Tick-Driven Async Pipeline</h1>
+    <span class="sub">From signal arrival → order submission → fill callback → EQS scoring</span>
+  </div>
+
+  <svg width="1280" height="1700" viewBox="0 0 1280 1700">
+    <defs>
+      <marker id="ar2" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+        <path d="M0,0 L0,6 L9,3 z" fill="#14213D"/>
+      </marker>
+      <marker id="ar2R" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+        <path d="M0,0 L0,6 L9,3 z" fill="#C8102E"/>
+      </marker>
+    </defs>
+
+    <!-- START -->
+    <ellipse cx="640" cy="40" rx="160" ry="24" fill="#14213D"/>
+    <text x="640" y="46" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="Tinos">START — Signal received from Strategy</text>
+    <line x1="640" y1="64" x2="640" y2="92" stroke="#14213D" stroke-width="2" marker-end="url(#ar2)"/>
+
+    <!-- 1. Ingest -->
+    <rect x="500" y="95" width="280" height="70" fill="#FEF3F2" stroke="#C8102E" stroke-width="2"/>
+    <text x="640" y="120" text-anchor="middle" font-size="12" font-weight="700" fill="#C8102E" font-family="Tinos">1. SIGNAL INGEST (async)</text>
+    <text x="640" y="138" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">push to SPSC queue (depth=1024)</text>
+    <text x="640" y="152" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">non-blocking · drop on overflow (audit)</text>
+    <line x1="640" y1="165" x2="640" y2="190" stroke="#14213D" stroke-width="2" marker-end="url(#ar2)"/>
+
+    <!-- 2. Idempotency check -->
+    <polygon points="640,195 820,235 640,275 460,235" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="640" y="230" text-anchor="middle" font-size="11" font-weight="700" font-family="Tinos">client_id</text>
+    <text x="640" y="247" text-anchor="middle" font-size="11" font-weight="700" font-family="Tinos">already seen?</text>
+    <text x="640" y="262" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">Bloom filter + hashmap</text>
+    <line x1="640" y1="275" x2="640" y2="300" stroke="#14213D" stroke-width="2" marker-end="url(#ar2)"/>
+    <text x="650" y="290" font-size="11" fill="#15803D" font-family="JetBrains Mono">NO</text>
+    <line x1="820" y1="235" x2="950" y2="235" stroke="#14213D" stroke-width="2" marker-end="url(#ar2)"/>
+    <text x="870" y="228" font-size="11" fill="#C8102E" font-family="JetBrains Mono">YES</text>
+    <rect x="950" y="215" width="220" height="50" fill="#14213D"/>
+    <text x="1060" y="238" text-anchor="middle" fill="#ffffff" font-size="11" font-weight="700">DROP — log + return</text>
+    <text x="1060" y="254" text-anchor="middle" fill="#C8102E" font-size="9" font-family="JetBrains Mono">audit: IDEMPOTENT_DROP</text>
+
+    <!-- 3. Build order -->
+    <rect x="500" y="305" width="280" height="70" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="640" y="330" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">2. ORDER BUILD</text>
+    <text x="640" y="348" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">signal → Order object (pool)</text>
+    <text x="640" y="362" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">type / TIF / price / qty / stop / target</text>
+    <line x1="640" y1="375" x2="640" y2="400" stroke="#14213D" stroke-width="2" marker-end="url(#ar2)"/>
+
+    <!-- 4. Risk gate -->
+    <rect x="500" y="405" width="280" height="80" fill="#FEF3F2" stroke="#C8102E" stroke-width="2"/>
+    <text x="640" y="430" text-anchor="middle" font-size="12" font-weight="700" fill="#C8102E" font-family="Tinos">3. RISK GATE (sync, &lt;0.3ms)</text>
+    <text x="640" y="448" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">position / leverage / news / margin</text>
+    <text x="640" y="462" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">drawdown / loss-streak / daily count</text>
+    <text x="640" y="476" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">BCE profile-based sizing check</text>
+    <line x1="640" y1="485" x2="640" y2="510" stroke="#14213D" stroke-width="2" marker-end="url(#ar2)"/>
+
+    <!-- 5. Risk approved? -->
+    <polygon points="640,515 820,560 640,605 460,560" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="640" y="555" text-anchor="middle" font-size="11" font-weight="700" font-family="Tinos">Risk</text>
+    <text x="640" y="572" text-anchor="middle" font-size="11" font-weight="700" font-family="Tinos">approved?</text>
+    <text x="640" y="587" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">APPROVE / REJECT / THROTTLE</text>
+    <line x1="640" y1="605" x2="640" y2="630" stroke="#14213D" stroke-width="2" marker-end="url(#ar2)"/>
+    <text x="650" y="620" font-size="11" fill="#15803D" font-family="JetBrains Mono">APPROVE</text>
+    <line x1="820" y1="560" x2="950" y2="560" stroke="#14213D" stroke-width="2" marker-end="url(#ar2)"/>
+    <text x="870" y="552" font-size="11" fill="#C8102E" font-family="JetBrains Mono">REJECT</text>
+    <rect x="950" y="540" width="220" height="50" fill="#14213D"/>
+    <text x="1060" y="563" text-anchor="middle" fill="#ffffff" font-size="11" font-weight="700">LOG REJECT + return</text>
+    <text x="1060" y="579" text-anchor="middle" fill="#C8102E" font-size="9" font-family="JetBrains Mono">audit: RISK_REJECT</text>
+
+    <!-- 6. Venue selector -->
+    <rect x="500" y="635" width="280" height="70" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="640" y="660" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">4. VENUE SELECTOR</text>
+    <text x="640" y="678" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">slippage-aware: MKT vs LMT vs STP</text>
+    <text x="640" y="692" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">failover chain across venues</text>
+    <line x1="640" y1="705" x2="640" y2="730" stroke="#14213D" stroke-width="2" marker-end="url(#ar2)"/>
+
+    <!-- 7. State machine NEW -->
+    <rect x="500" y="735" width="280" height="60" fill="#14213D"/>
+    <text x="640" y="760" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700" font-family="Tinos">5. ORDER STATE: NEW</text>
+    <text x="640" y="778" text-anchor="middle" fill="#C8102E" font-size="10" font-family="JetBrains Mono">assigned client_id + server_id (TBD)</text>
+    <line x1="640" y1="795" x2="640" y2="820" stroke="#14213D" stroke-width="2" marker-end="url(#ar2)"/>
+
+    <!-- 8. Dispatch (async) -->
+    <rect x="500" y="825" width="280" height="80" fill="#FEF3F2" stroke="#C8102E" stroke-width="2"/>
+    <text x="640" y="850" text-anchor="middle" font-size="12" font-weight="700" fill="#C8102E" font-family="Tinos">6. DISPATCH (async, ZMQ)</text>
+    <text x="640" y="868" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">SPSC queue → MT5 send thread</text>
+    <text x="640" y="882" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">submit OrderSend() on MT5 thread</text>
+    <text x="640" y="896" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">start submit_timeout timer (2s)</text>
+    <line x1="640" y1="905" x2="640" y2="930" stroke="#14213D" stroke-width="2" marker-end="url(#ar2)"/>
+
+    <!-- 9. State SENT -->
+    <rect x="500" y="935" width="280" height="60" fill="#14213D"/>
+    <text x="640" y="960" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700" font-family="Tinos">7. ORDER STATE: SENT</text>
+    <text x="640" y="978" text-anchor="middle" fill="#C8102E" font-size="10" font-family="JetBrains Mono">waiting for broker response</text>
+    <line x1="640" y1="995" x2="640" y2="1020" stroke="#14213D" stroke-width="2" marker-end="url(#ar2)"/>
+
+    <!-- 10. Broker response branch -->
+    <polygon points="640,1025 870,1095 640,1165 410,1095" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="640" y="1080" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">Broker response?</text>
+    <text x="640" y="1098" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">timeout 2s · cancel/reject/fill</text>
+    <text x="640" y="1114" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">fill may be partial</text>
+
+    <!-- Branch: TIMEOUT -->
+    <line x1="410" y1="1095" x2="280" y2="1095" stroke="#C8102E" stroke-width="2" marker-end="url(#ar2R)"/>
+    <text x="345" y="1085" font-size="11" fill="#C8102E" font-family="JetBrains Mono">TIMEOUT</text>
+    <rect x="80" y="1070" width="200" height="60" fill="#FEF3F2" stroke="#C8102E" stroke-width="2"/>
+    <text x="180" y="1090" text-anchor="middle" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">→ RETRY MANAGER</text>
+    <text x="180" y="1107" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">retry budget: 3</text>
+    <text x="180" y="1120" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">backoff: 100/300/900 ms</text>
+
+    <!-- Branch: REJECT -->
+    <line x1="510" y1="1165" x2="380" y2="1235" stroke="#C8102E" stroke-width="2" marker-end="url(#ar2R)"/>
+    <text x="408" y="1195" font-size="11" fill="#C8102E" font-family="JetBrains Mono">REJECT</text>
+    <rect x="80" y="1220" width="280" height="80" fill="#FEF3F2" stroke="#C8102E" stroke-width="2"/>
+    <text x="220" y="1245" text-anchor="middle" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">→ REJECTION CLASSIFIER</text>
+    <text x="220" y="1263" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">12 codes: requote, no_money,</text>
+    <text x="220" y="1277" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">off_quotes, invalid_price, ...</text>
+    <text x="220" y="1291" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">→ retry / abort / escalate</text>
+
+    <!-- Branch: FILL (full or partial) -->
+    <line x1="640" y1="1165" x2="640" y2="1200" stroke="#14213D" stroke-width="2" marker-end="url(#ar2)"/>
+    <text x="650" y="1185" font-size="11" fill="#15803D" font-family="JetBrains Mono">FILL</text>
+
+    <!-- 11. Fill processor -->
+    <rect x="500" y="1205" width="280" height="80" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="640" y="1230" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">8. FILL PROCESSOR</text>
+    <text x="640" y="1248" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">fill_id dedup · residual qty</text>
+    <text x="640" y="1262" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">update Position · realized PnL</text>
+    <text x="640" y="1276" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">emit FillEvent on bus</text>
+    <line x1="640" y1="1285" x2="640" y2="1310" stroke="#14213D" stroke-width="2" marker-end="url(#ar2)"/>
+
+    <!-- 12. Full or partial? -->
+    <polygon points="640,1315 820,1355 640,1395 460,1355" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="640" y="1350" text-anchor="middle" font-size="11" font-weight="700" font-family="Tinos">qty_filled</text>
+    <text x="640" y="1367" text-anchor="middle" font-size="11" font-weight="700" font-family="Tinos">== qty?</text>
+    <text x="640" y="1383" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">partial fill scenario</text>
+
+    <!-- PARTIAL branch -->
+    <line x1="820" y1="1355" x2="950" y2="1355" stroke="#14213D" stroke-width="2" marker-end="url(#ar2)"/>
+    <text x="870" y="1348" font-size="11" fill="#B45309" font-family="JetBrains Mono">PARTIAL</text>
+    <rect x="950" y="1325" width="280" height="60" fill="#FEFBEB" stroke="#B45309"/>
+    <text x="1090" y="1350" text-anchor="middle" font-size="11" font-weight="700" fill="#B45309" font-family="Tinos">→ PARTIAL FILL HANDLER</text>
+    <text x="1090" y="1367" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">residual = qty - filled</text>
+    <text x="1090" y="1380" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">→ re-route residual (decide: MKT/LMT/cancel)</text>
+
+    <!-- FULL branch -->
+    <line x1="640" y1="1395" x2="640" y2="1420" stroke="#14213D" stroke-width="2" marker-end="url(#ar2)"/>
+    <text x="650" y="1410" font-size="11" fill="#15803D" font-family="JetBrains Mono">FULL</text>
+
+    <!-- 13. State FILLED -->
+    <rect x="500" y="1425" width="280" height="60" fill="#14213D"/>
+    <text x="640" y="1450" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700" font-family="Tinos">9. ORDER STATE: FILLED</text>
+    <text x="640" y="1468" text-anchor="middle" fill="#C8102E" font-size="10" font-family="JetBrains Mono">terminal state · audit log</text>
+    <line x1="640" y1="1485" x2="640" y2="1510" stroke="#14213D" stroke-width="2" marker-end="url(#ar2)"/>
+
+    <!-- 14. Slippage + EQS -->
+    <rect x="500" y="1515" width="280" height="80" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="640" y="1540" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">10. SLIPPAGE + EQS</text>
+    <text x="640" y="1558" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">expected_price vs fill_price</text>
+    <text x="640" y="1572" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">7-factor score 0–100</text>
+    <text x="640" y="1586" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">emit EQSEvent on bus</text>
+    <line x1="640" y1="1595" x2="640" y2="1620" stroke="#14213D" stroke-width="2" marker-end="url(#ar2)"/>
+
+    <!-- END -->
+    <ellipse cx="640" cy="1655" rx="180" ry="26" fill="#14213D"/>
+    <text x="640" y="1662" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="Tinos">END — Order complete · EQS scored</text>
+  </svg>
+</div>
+</body>
+</html>

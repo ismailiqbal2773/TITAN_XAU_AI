@@ -1,0 +1,97 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>d05</title>
+<link href="https://fonts.googleapis.com/css2?family=Tinos:wght@400;700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { width: 1600px; height: 1200px; background: #ffffff; font-family: 'Inter', sans-serif; color: #14213D; padding: 50px 60px; }
+.h-title { font-family: 'Tinos', serif; font-size: 30px; font-weight: 900; letter-spacing: -0.5px; }
+.h-sub { font-family: 'Inter', sans-serif; font-size: 13px; color: #4A5568; margin-top: 4px; }
+.h-rule { width: 80px; height: 3px; background: #C8102E; margin: 14px 0 24px 0; }
+
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+.card { border: 1px solid #CBD5E1; border-radius: 6px; overflow: hidden; }
+.card-head { background: #14213D; color: #fff; padding: 12px 18px; }
+.card-head .lbl { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C8102E; letter-spacing: 2px; font-weight: 700; }
+.card-head .t { font-family: 'Tinos', serif; font-size: 14px; font-weight: 700; margin-top: 2px; }
+.card-body { padding: 14px 18px; }
+.dep-row { display: grid; grid-template-columns: 110px 30px 1fr; gap: 8px; padding: 7px 0; border-bottom: 1px dashed #E2E8F0; align-items: center; font-family: 'Inter', sans-serif; font-size: 10.5px; }
+.dep-row:last-child { border-bottom: none; }
+.dep-row .mod { font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; color: #14213D; padding: 3px 8px; background: #F1F5F9; border-left: 2px solid #C8102E; border-radius: 2px; }
+.dep-row .arr { font-family: 'JetBrains Mono', monospace; color: #C8102E; font-size: 13px; text-align: center; font-weight: 700; }
+.dep-row .deps { color: #14213D; line-height: 1.5; }
+.dep-row .deps b { font-family: 'JetBrains Mono', monospace; color: #14213D; background: #F1F5F9; padding: 1px 4px; border-radius: 2px; }
+.dep-row .deps .note { color: #C8102E; font-style: italic; }
+
+.matrix-card { margin-top: 22px; }
+table { width: 100%; border-collapse: collapse; }
+th { background: #14213D; color: #fff; padding: 8px 10px; text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 1px; }
+td { padding: 7px 10px; border: 1px solid #E2E8F0; font-family: 'JetBrains Mono', monospace; font-size: 9.5px; text-align: center; }
+td.row-h { background: #14213D; color: #fff; font-weight: 700; text-align: left; }
+td.dep { background: #C8102E; color: #fff; font-weight: 700; }
+td.soft { background: #F1F5F9; color: #4A5568; }
+td.none { background: #fff; color: #CBD5E1; }
+
+.legend { margin-top: 16px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.leg { padding: 10px 14px; border-radius: 4px; }
+.leg.dep { background: #C8102E; color: #fff; }
+.leg.soft { background: #F1F5F9; border: 1px solid #CBD5E1; }
+.leg.none { background: #fff; border: 1px solid #CBD5E1; }
+.leg .lbl { font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 1px; }
+.leg .d { font-family: 'Inter', sans-serif; font-size: 10px; margin-top: 2px; line-height: 1.4; }
+.leg.dep .d, .leg.soft .d, .leg.none .d { color: inherit; opacity: 1; }
+.leg.soft .lbl, .leg.none .lbl { color: #14213D; }
+.leg.soft .d, .leg.none .d { color: #4A5568; }
+</style></head>
+<body>
+<div class="h-title">Module Dependency Graph</div>
+<div class="h-sub">20 modules · hard dependencies (init order) + soft dependencies (runtime) · layer-by-layer initialization</div>
+<div class="h-rule"></div>
+
+<div class="cols">
+  <div class="card">
+    <div class="card-head"><div class="lbl">LAYER L1 · DATA &amp; BROKER</div><div class="t">Foundation — init first</div></div>
+    <div class="card-body">
+      <div class="dep-row"><div class="mod">M14 LIC</div><div class="arr">→</div><div class="deps">First module loaded. No deps. Validates JWT before any other module starts.</div></div>
+      <div class="dep-row"><div class="mod">M01 BRO</div><div class="arr">→</div><div class="deps">Deps: <b>M14</b>. Runtime broker detection (6 brokers).</div></div>
+      <div class="dep-row"><div class="mod">M02 MDE</div><div class="arr">→</div><div class="deps">Deps: <b>M01</b>. Tick ingest + Parquet store + 14 quality gates.</div></div>
+      <div class="dep-row"><div class="mod">M10 SCI</div><div class="arr">→</div><div class="deps">Deps: <b>M01 M02</b>. Spread baseline + commission table per broker.</div></div>
+      <div class="dep-row"><div class="mod">M09 SLI</div><div class="arr">→</div><div class="deps">Deps: <b>M01 M02</b>. Slippage distribution + EQS scoring.</div></div>
+      <div class="dep-row"><div class="mod">M03 EXE</div><div class="arr">→</div><div class="deps">Deps: <b>M01</b>. Async order dispatcher + idempotency.</div></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-head"><div class="lbl">LAYER L2 · AI &amp; STRATEGY</div><div class="t">Decision-making — init second</div></div>
+    <div class="card-body">
+      <div class="dep-row"><div class="mod">M04 REG</div><div class="arr">→</div><div class="deps">Deps: <b>M02</b>. 4-state regime detection (3-model vote).</div></div>
+      <div class="dep-row"><div class="mod">M11 AIS</div><div class="arr">→</div><div class="deps">Deps: <b>M02 M04</b>. 5-component AI stack (XGB+LSTM+Transformer+RL+Ensemble).</div></div>
+      <div class="dep-row"><div class="mod">M05 TRE</div><div class="arr">→</div><div class="deps">Deps: <b>M04 M11</b>. Trend strategy (5 patterns, R-mult mgmt).</div></div>
+      <div class="dep-row"><div class="mod">M06 RNG</div><div class="arr">→</div><div class="deps">Deps: <b>M04 M11</b>. Range strategy (BB+RSI+ATR+Hurst).</div></div>
+      <div class="dep-row"><div class="mod">M07 VOL</div><div class="arr">→</div><div class="deps">Deps: <b>M04 M11</b>. Volatility strategy (news-aware).</div></div>
+      <div class="dep-row"><div class="mod">M12 RLM</div><div class="arr">→</div><div class="deps">Deps: <b>M11</b>. RL trade management (scaling, exit policy).</div></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-head"><div class="lbl">LAYER L3 · RISK &amp; OPS</div><div class="t">Guardrails — init third</div></div>
+    <div class="card-body">
+      <div class="dep-row"><div class="mod">M08 RSK</div><div class="arr">→</div><div class="deps">Deps: <b>M03</b>. 12 controls, kill &lt;500 ms, MDD &lt;5%. Vetoes every signal.</div></div>
+      <div class="dep-row"><div class="mod">M13 ART</div><div class="arr">→</div><div class="deps">Deps: <b>M11</b>. Champion/Challenger retraining <span class="note">(no live auto-deploy)</span>.</div></div>
+      <div class="dep-row"><div class="mod">M20 OBS</div><div class="arr">→</div><div class="deps">Deps: <b>all</b>. Prometheus + Grafana + Loki + OpenTelemetry.</div></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-head"><div class="lbl">LAYER L4 · VALIDATION</div><div class="t">Pre-deployment gates — independent</div></div>
+    <div class="card-body">
+      <div class="dep-row"><div class="mod">M15 VAL</div><div class="arr">→</div><div class="deps">Deps: <b>all live modules</b>. 8 suites × 144 checks · 3-band cert · gates trading.</div></div>
+      <div class="dep-row"><div class="mod">M16 BT</div><div class="arr">→</div><div class="deps">Deps: <b>M02 M03 M08 M10 M11</b>. Tick-based, 5 cost components, 24 metrics.</div></div>
+      <div class="dep-row"><div class="mod">M17 WFA</div><div class="arr">→</div><div class="deps">Deps: <b>M16</b>. 5-7 folds, WFE ≥ 85%, Train/Val/Test/Roll.</div></div>
+      <div class="dep-row"><div class="mod">M18 MC</div><div class="arr">→</div><div class="deps">Deps: <b>M16</b>. 10k permutations, survival ≥ 95%.</div></div>
+      <div class="dep-row"><div class="mod">M19 STR</div><div class="arr">→</div><div class="deps">Deps: <b>M16</b>. Flash crash, news shock, broker outage scenarios.</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="legend">
+  <div class="leg dep"><div class="lbl">HARD DEP</div><div class="d">Module cannot initialize without dependency being live and validated.</div></div>
+  <div class="leg soft"><div class="lbl">SOFT DEP</div><div class="d">Runtime lookup — module degrades gracefully if dep is unavailable.</div></div>
+  <div class="leg none"><div class="lbl">INDEPENDENT</div><div class="d">No dependency · can be deployed/rolled independently.</div></div>
+</div>
+</body></html>

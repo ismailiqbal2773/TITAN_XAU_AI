@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Risk Engine — Capital Preservation Logic</title>
+<style>
+  @page { size: 1600px 900px; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #ffffff; font-family: 'Tinos','FreeSerif',serif; color: #14213D; }
+  .canvas { width: 1600px; height: 900px; padding: 50px 60px; box-sizing: border-box; }
+  .title-bar { display: flex; align-items: baseline; gap: 18px; border-bottom: 2px solid #14213D; padding-bottom: 12px; margin-bottom: 24px; }
+  .title-bar .num { font-size: 48px; font-weight: 900; color: #C8102E; line-height: 1; }
+  .title-bar h1 { font-size: 26px; font-weight: 700; margin: 0; }
+  .title-bar .sub { font-size: 13px; color: #4A5568; margin-left: auto; font-family: 'JetBrains Mono',monospace; }
+  svg { display: block; margin: 0 auto; background: #FAFBFC; border: 1px solid #E2E8F0; }
+  .table { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-top: 14px; }
+  .table th { background: #14213D; color: #ffffff; padding: 6px 8px; text-align: left; font-weight: 700; }
+  .table td { padding: 5px 8px; border-bottom: 1px solid #E2E8F0; }
+  .table tr:nth-child(even) td { background: #F8FAFC; }
+  .table .mod { color: #14213D; font-family: 'JetBrains Mono',monospace; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="title-bar">
+    <span class="num">05</span>
+    <h1>Capital Preservation Logic — Proactive Defense Layers</h1>
+    <span class="sub">3 layers: loss streak · equity guardrail · volatility throttle</span>
+  </div>
+
+  <svg width="1480" height="500" viewBox="0 0 1480 500">
+    <defs>
+      <marker id="ar5" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L7,3 z" fill="#14213D"/></marker>
+      <marker id="ar5R" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L7,3 z" fill="#C8102E"/></marker>
+    </defs>
+
+    <!-- Layer 1: Loss Streak -->
+    <text x="40" y="30" font-size="14" font-weight="700" fill="#C8102E" font-family="Tinos">LAYER 1: LOSS STREAK MANAGER (anti-martingale · progressive de-risking)</text>
+
+    <rect x="40" y="50" width="280" height="120" fill="#F0FDF4" stroke="#14213D" stroke-width="2"/>
+    <text x="180" y="75" text-anchor="middle" font-size="12" font-weight="700" fill="#15803D" font-family="Tinos">0-2 Losses</text>
+    <text x="60" y="100" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Status: NORMAL</text>
+    <text x="60" y="118" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Size multiplier: 1.0x</text>
+    <text x="60" y="136" font-size="10" fill="#4A5568" font-family="JetBrains Mono">No restrictions</text>
+    <text x="60" y="158" font-size="10" fill="#15803D" font-family="JetBrains Mono" font-weight="bold">Reset on any win</text>
+
+    <line x1="320" y1="110" x2="360" y2="110" stroke="#14213D" stroke-width="2" marker-end="url(#ar5)"/>
+
+    <rect x="360" y="50" width="280" height="120" fill="#FEFBEB" stroke="#B45309" stroke-width="2"/>
+    <text x="500" y="75" text-anchor="middle" font-size="12" font-weight="700" fill="#B45309" font-family="Tinos">3 Losses (soft)</text>
+    <text x="380" y="100" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Status: THROTTLED</text>
+    <text x="380" y="118" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Size multiplier: 0.5x</text>
+    <text x="380" y="136" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Stricter entry criteria</text>
+    <text x="380" y="158" font-size="10" fill="#B45309" font-family="JetBrains Mono" font-weight="bold">Reduce exposure 50%</text>
+
+    <line x1="640" y1="110" x2="680" y2="110" stroke="#14213D" stroke-width="2" marker-end="url(#ar5)"/>
+
+    <rect x="680" y="50" width="280" height="120" fill="#FEF3F2" stroke="#C8102E" stroke-width="2"/>
+    <text x="820" y="75" text-anchor="middle" font-size="12" font-weight="700" fill="#C8102E" font-family="Tinos">5 Losses (halt)</text>
+    <text x="700" y="100" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Status: HALTED</text>
+    <text x="700" y="118" font-size="10" fill="#4A5568" font-family="JetBrains Mono">No new entries</text>
+    <text x="700" y="136" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Manage open positions only</text>
+    <text x="700" y="158" font-size="10" fill="#C8102E" font-family="JetBrains Mono" font-weight="bold">Page operator P2</text>
+
+    <line x1="960" y1="110" x2="1000" y2="110" stroke="#C8102E" stroke-width="2" marker-end="url(#ar5R)"/>
+
+    <rect x="1000" y="50" width="280" height="120" fill="#C8102E" stroke="#C8102E" stroke-width="2"/>
+    <text x="1140" y="75" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700" font-family="Tinos">7 Losses (critical)</text>
+    <text x="1020" y="100" font-size="10" fill="#ffffff" font-family="JetBrains Mono">Status: FLATTENED</text>
+    <text x="1020" y="118" font-size="10" fill="#ffffff" font-family="JetBrains Mono">Flatten ALL positions</text>
+    <text x="1020" y="136" font-size="10" fill="#ffffff" font-family="JetBrains Mono">Lock strategy for session</text>
+    <text x="1020" y="158" font-size="10" fill="#ffffff" font-family="JetBrains Mono" font-weight="bold">Page operator P1</text>
+
+    <!-- Layer 2: Equity Guardrail -->
+    <text x="40" y="210" font-size="14" font-weight="700" fill="#C8102E" font-family="Tinos">LAYER 2: EQUITY GUARDRAIL (absolute equity protection)</text>
+
+    <rect x="40" y="230" width="340" height="120" fill="#F0FDF4" stroke="#15803D" stroke-width="2"/>
+    <text x="210" y="255" text-anchor="middle" font-size="12" font-weight="700" fill="#15803D" font-family="Tinos">Equity ≥ 95% of start</text>
+    <text x="60" y="280" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Status: NORMAL</text>
+    <text x="60" y="298" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Current mode maintained</text>
+    <text x="60" y="316" font-size="10" fill="#4A5568" font-family="JetBrains Mono">No restrictions</text>
+    <text x="60" y="340" font-size="10" fill="#15803D" font-family="JetBrains Mono" font-weight="bold">Green zone</text>
+
+    <rect x="400" y="230" width="340" height="120" fill="#FEFBEB" stroke="#B45309" stroke-width="2"/>
+    <text x="570" y="255" text-anchor="middle" font-size="12" font-weight="700" fill="#B45309" font-family="Tinos">Equity 90-95% of start</text>
+    <text x="420" y="280" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Status: DEGRADED</text>
+    <text x="420" y="298" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Auto-degrade to Conservative</text>
+    <text x="420" y="316" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Size × 0.5 for 1 hour</text>
+    <text x="420" y="340" font-size="10" fill="#B45309" font-family="JetBrains Mono" font-weight="bold">Yellow zone — caution</text>
+
+    <rect x="760" y="230" width="340" height="120" fill="#FEF3F2" stroke="#C8102E" stroke-width="2"/>
+    <text x="930" y="255" text-anchor="middle" font-size="12" font-weight="700" fill="#C8102E" font-family="Tinos">Equity 85-90% of start</text>
+    <text x="780" y="280" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Status: HALTED</text>
+    <text x="780" y="298" font-size="10" fill="#4A5568" font-family="JetBrains Mono">No new entries</text>
+    <text x="780" y="316" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Flatten + operator review</text>
+    <text x="780" y="340" font-size="10" fill="#C8102E" font-family="JetBrains Mono" font-weight="bold">Red zone — halt</text>
+
+    <rect x="1120" y="230" width="320" height="120" fill="#C8102E" stroke="#C8102E" stroke-width="2"/>
+    <text x="1280" y="255" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700" font-family="Tinos">Equity &lt; 85% of start</text>
+    <text x="1140" y="280" font-size="10" fill="#ffffff" font-family="JetBrains Mono">Status: LOCKED</text>
+    <text x="1140" y="298" font-size="10" fill="#ffffff" font-family="JetBrains Mono">Flatten + lock account</text>
+    <text x="1140" y="316" font-size="10" fill="#ffffff" font-family="JetBrains Mono">Manual unlock only (CTO)</text>
+    <text x="1140" y="340" font-size="10" fill="#ffffff" font-family="JetBrains Mono" font-weight="bold">Critical — account lock</text>
+
+    <!-- Layer 3: Volatility Throttle -->
+    <text x="40" y="390" font-size="14" font-weight="700" fill="#C8102E" font-family="Tinos">LAYER 3: VOLATILITY THROTTLE (market condition adaptation)</text>
+
+    <rect x="40" y="410" width="440" height="70" fill="#F0FDF4" stroke="#15803D" stroke-width="2"/>
+    <text x="260" y="435" text-anchor="middle" font-size="12" font-weight="700" fill="#15803D" font-family="Tinos">ATR pct &lt; 60% (normal vol)</text>
+    <text x="260" y="455" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Size multiplier: 1.0x · no restriction</text>
+    <text x="260" y="470" text-anchor="middle" font-size="10" fill="#15803D" font-family="JetBrains Mono" font-weight="bold">Normal trading conditions</text>
+
+    <rect x="500" y="410" width="440" height="70" fill="#FEFBEB" stroke="#B45309" stroke-width="2"/>
+    <text x="720" y="435" text-anchor="middle" font-size="12" font-weight="700" fill="#B45309" font-family="Tinos">ATR pct 60-80% (elevated vol)</text>
+    <text x="720" y="455" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Size multiplier: 0.7x · tighten stops</text>
+    <text x="720" y="470" text-anchor="middle" font-size="10" fill="#B45309" font-family="JetBrains Mono" font-weight="bold">Reduce exposure, wider stops</text>
+
+    <rect x="960" y="410" width="440" height="70" fill="#FEF3F2" stroke="#C8102E" stroke-width="2"/>
+    <text x="1180" y="435" text-anchor="middle" font-size="12" font-weight="700" fill="#C8102E" font-family="Tinos">ATR pct &gt; 80% (high vol)</text>
+    <text x="1180" y="455" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Size multiplier: 0.3x · no new entries if > 95%</text>
+    <text x="1180" y="470" text-anchor="middle" font-size="10" fill="#C8102E" font-family="JetBrains Mono" font-weight="bold">Survival mode — minimal risk</text>
+  </svg>
+
+  <table class="table">
+    <tr><th>Layer</th><th>Mechanism</th><th>Trigger</th><th>Action</th><th>Reset Condition</th><th>Audit</th></tr>
+    <tr><td class="mod">Loss Streak</td><td>Progressive de-risking on consecutive losses</td><td>3 losses (soft) / 5 (hard) / 7 (critical)</td><td>0.5x size → halt → flatten</td><td>Any win resets to 0</td><td>Yes — every level change</td></tr>
+    <tr><td class="mod">Equity Guardrail</td><td>Absolute equity floor (% of starting equity)</td><td>95% / 90% / 85% of start</td><td>Degrade mode → halt → lock</td><td>Manual (CTO unlock for lock)</td><td>Yes — every threshold cross</td></tr>
+    <tr><td class="mod">Volatility Throttle</td><td>ATR percentile-based size scaling</td><td>ATR pct > 60% / 80% / 95%</td><td>0.7x → 0.3x → no new entries</td><td>ATR pct returns < 60%</td><td>Yes — every throttle change</td></tr>
+  </table>
+</div>
+</body>
+</html>

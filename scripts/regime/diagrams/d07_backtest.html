@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Regime Detection — Backtest Framework</title>
+<style>
+  @page { size: 1600px 1100px; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #ffffff; font-family: 'Tinos','FreeSerif',serif; color: #14213D; }
+  .canvas { width: 1600px; height: 1100px; padding: 50px 60px; box-sizing: border-box; }
+  .title-bar { display: flex; align-items: baseline; gap: 18px; border-bottom: 2px solid #14213D; padding-bottom: 12px; margin-bottom: 24px; }
+  .title-bar .num { font-size: 48px; font-weight: 900; color: #C8102E; line-height: 1; }
+  .title-bar h1 { font-size: 26px; font-weight: 700; margin: 0; }
+  .title-bar .sub { font-size: 13px; color: #4A5568; margin-left: auto; font-family: 'JetBrains Mono',monospace; }
+  svg { display: block; margin: 0 auto; background: #FAFBFC; border: 1px solid #E2E8F0; }
+  .table { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-top: 14px; }
+  .table th { background: #14213D; color: #ffffff; padding: 6px 8px; text-align: left; font-weight: 700; }
+  .table td { padding: 5px 8px; border-bottom: 1px solid #E2E8F0; }
+  .table tr:nth-child(even) td { background: #F8FAFC; }
+  .table .mod { color: #14213D; font-family: 'JetBrains Mono',monospace; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="title-bar">
+    <span class="num">07</span>
+    <h1>Backtest Framework — Regime-Conditioned Strategy Evaluation</h1>
+    <span class="sub">Replay 24mo × 6 brokers · regime-tagged · per-regime PnL attribution</span>
+  </div>
+
+  <svg width="1480" height="660" viewBox="0 0 1480 660">
+    <defs>
+      <marker id="arB" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
+        <path d="M0,0 L0,6 L7,3 z" fill="#14213D"/>
+      </marker>
+    </defs>
+
+    <!-- Inputs -->
+    <rect x="40" y="40" width="200" height="60" fill="#14213D"/>
+    <text x="140" y="65" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700" font-family="Tinos">Historical Data</text>
+    <text x="140" y="83" text-anchor="middle" fill="#C8102E" font-size="9" font-family="JetBrains Mono">24mo · 6 brokers</text>
+
+    <rect x="40" y="120" width="200" height="60" fill="#14213D"/>
+    <text x="140" y="145" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700" font-family="Tinos">Strategy Code</text>
+    <text x="140" y="163" text-anchor="middle" fill="#C8102E" font-size="9" font-family="JetBrains Mono">3 strategies</text>
+
+    <rect x="40" y="200" width="200" height="60" fill="#14213D"/>
+    <text x="140" y="225" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700" font-family="Tinos">Model Version</text>
+    <text x="140" y="243" text-anchor="middle" fill="#C8102E" font-size="9" font-family="JetBrains Mono">HMM + LGB + Rules</text>
+
+    <line x1="240" y1="70" x2="290" y2="70" stroke="#14213D" stroke-width="2" marker-end="url(#arB)"/>
+    <line x1="240" y1="150" x2="290" y2="150" stroke="#14213D" stroke-width="2" marker-end="url(#arB)"/>
+    <line x1="240" y1="230" x2="290" y2="230" stroke="#14213D" stroke-width="2" marker-end="url(#arB)"/>
+
+    <!-- Pipeline stages -->
+    <rect x="290" y="40" width="240" height="240" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="410" y="65" text-anchor="middle" font-size="13" font-weight="700" fill="#C8102E" font-family="Tinos">1. Replay Engine</text>
+    <text x="410" y="90" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Stream historical ticks</text>
+    <text x="410" y="105" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">+ bars in temporal order</text>
+    <text x="410" y="125" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">→ ARDS predicts regime</text>
+    <text x="410" y="140" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">  per bar close</text>
+    <text x="410" y="160" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">→ Strategy receives</text>
+    <text x="410" y="175" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">  regime + features</text>
+    <text x="410" y="195" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">→ Strategy emits signals</text>
+    <text x="410" y="215" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">→ SimulatedExecutor fills</text>
+    <text x="410" y="240" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">→ log per-trade:</text>
+    <text x="410" y="255" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">  regime, features, PnL</text>
+    <text x="410" y="270" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">  SHAP, latency</text>
+
+    <line x1="530" y1="160" x2="580" y2="160" stroke="#14213D" stroke-width="2" marker-end="url(#arB)"/>
+
+    <rect x="580" y="40" width="240" height="240" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="700" y="65" text-anchor="middle" font-size="13" font-weight="700" fill="#C8102E" font-family="Tinos">2. Per-Regime Attribution</text>
+    <text x="700" y="90" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Segment trades by</text>
+    <text x="700" y="105" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">regime at entry time:</text>
+    <text x="700" y="130" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">PnL | TREND</text>
+    <text x="700" y="145" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">PnL | RANGE</text>
+    <text x="700" y="160" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">PnL | VOLATILE</text>
+    <text x="700" y="175" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">PnL | NEWS</text>
+    <text x="700" y="200" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Compute per-regime:</text>
+    <text x="700" y="215" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">PF, Sharpe, MaxDD,</text>
+    <text x="700" y="230" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">win rate, expectancy</text>
+    <text x="700" y="255" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">→ strategy-regime matrix</text>
+    <text x="700" y="270" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">  (which strategy works</text>
+    <text x="700" y="282" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">  in which regime)</text>
+
+    <line x1="820" y1="160" x2="870" y2="160" stroke="#14213D" stroke-width="2" marker-end="url(#arB)"/>
+
+    <rect x="870" y="40" width="240" height="240" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="990" y="65" text-anchor="middle" font-size="13" font-weight="700" fill="#C8102E" font-family="Tinos">3. Monte Carlo</text>
+    <text x="990" y="90" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">1000 randomized paths</text>
+    <text x="990" y="105" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">via block bootstrap</text>
+    <text x="990" y="125" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Preserve autocorrelation</text>
+    <text x="990" y="140" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">via 20-bar blocks</text>
+    <text x="990" y="160" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Per path:</text>
+    <text x="990" y="175" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">  recompute PF, Sharpe,</text>
+    <text x="990" y="190" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">  MaxDD, RoR</text>
+    <text x="990" y="215" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">→ 95% CI on each metric</text>
+    <text x="990" y="240" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">→ p25/p50/p75/p99</text>
+    <text x="990" y="265" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">→ risk-of-ruin probability</text>
+
+    <line x1="1110" y1="160" x2="1160" y2="160" stroke="#14213D" stroke-width="2" marker-end="url(#arB)"/>
+
+    <rect x="1160" y="40" width="280" height="240" fill="#14213D"/>
+    <text x="1300" y="65" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="Tinos">4. Report Generator</text>
+    <text x="1300" y="90" text-anchor="middle" fill="#C8102E" font-size="10" font-family="JetBrains Mono">Strategy-regime matrix</text>
+    <text x="1300" y="105" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="9" font-family="JetBrains Mono">3 strategies × 4 regimes</text>
+    <text x="1300" y="125" text-anchor="middle" fill="#C8102E" font-size="10" font-family="JetBrains Mono">Per-regime PnL chart</text>
+    <text x="1300" y="140" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="9" font-family="JetBrains Mono">equity curve by regime</text>
+    <text x="1300" y="160" text-anchor="middle" fill="#C8102E" font-size="10" font-family="JetBrains Mono">Confusion matrix</text>
+    <text x="1300" y="175" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="9" font-family="JetBrains Mono">predicted vs realized regime</text>
+    <text x="1300" y="195" text-anchor="middle" fill="#C8102E" font-size="10" font-family="JetBrains Mono">SHAP summary</text>
+    <text x="1300" y="210" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="9" font-family="JetBrains Mono">top features per regime</text>
+    <text x="1300" y="230" text-anchor="middle" fill="#C8102E" font-size="10" font-family="JetBrains Mono">Monte Carlo distribution</text>
+    <text x="1300" y="245" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="9" font-family="JetBrains Mono">PF/Sharpe/MaxDD/RoR CIs</text>
+    <text x="1300" y="265" text-anchor="middle" fill="#C8102E" font-size="10" font-family="JetBrains Mono">CI/CD gate decision</text>
+    <text x="1300" y="280" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="9" font-family="JetBrains Mono">PASS / FAIL with reasons</text>
+
+    <!-- Strategy-regime matrix example -->
+    <text x="40" y="320" font-size="14" font-weight="700" fill="#C8102E" font-family="Tinos">(a) Strategy × Regime Performance Matrix (example output, Sharpe ratio per cell)</text>
+
+    <rect x="40" y="340" width="1400" height="200" fill="#F8FAFC" stroke="#14213D"/>
+
+    <g font-family="JetBrains Mono" font-size="11" fill="#14213D">
+      <!-- Header row -->
+      <rect x="40" y="340" width="1400" height="32" fill="#14213D"/>
+      <text x="200" y="360" text-anchor="middle" fill="#ffffff" font-weight="700">Strategy</text>
+      <text x="500" y="360" text-anchor="middle" fill="#ffffff" font-weight="700">TREND</text>
+      <text x="780" y="360" text-anchor="middle" fill="#ffffff" font-weight="700">RANGE</text>
+      <text x="1060" y="360" text-anchor="middle" fill="#ffffff" font-weight="700">VOLATILE</text>
+      <text x="1340" y="360" text-anchor="middle" fill="#ffffff" font-weight="700">NEWS</text>
+
+      <!-- Strategy 1: Momentum -->
+      <text x="200" y="395" text-anchor="middle" font-weight="700">Momentum</text>
+      <rect x="350" y="378" width="300" height="32" fill="#F0FDF4" stroke="#15803D"/>
+      <text x="500" y="398" text-anchor="middle" fill="#15803D" font-weight="700">2.45</text>
+      <rect x="630" y="378" width="300" height="32" fill="#FEF3F2" stroke="#C8102E"/>
+      <text x="780" y="398" text-anchor="middle" fill="#C8102E" font-weight="700">-0.82</text>
+      <rect x="910" y="378" width="300" height="32" fill="#FEFBEB" stroke="#B45309"/>
+      <text x="1060" y="398" text-anchor="middle" fill="#B45309" font-weight="700">0.15</text>
+      <rect x="1190" y="378" width="240" height="32" fill="#FEF3F2" stroke="#C8102E"/>
+      <text x="1340" y="398" text-anchor="middle" fill="#C8102E" font-weight="700">-1.50</text>
+
+      <!-- Strategy 2: Mean Reversion -->
+      <text x="200" y="435" text-anchor="middle" font-weight="700">Mean Reversion</text>
+      <rect x="350" y="418" width="300" height="32" fill="#FEF3F2" stroke="#C8102E"/>
+      <text x="500" y="438" text-anchor="middle" fill="#C8102E" font-weight="700">-0.45</text>
+      <rect x="630" y="418" width="300" height="32" fill="#F0FDF4" stroke="#15803D"/>
+      <text x="780" y="438" text-anchor="middle" fill="#15803D" font-weight="700">2.18</text>
+      <rect x="910" y="418" width="300" height="32" fill="#FEFBEB" stroke="#B45309"/>
+      <text x="1060" y="438" text-anchor="middle" fill="#B45309" font-weight="700">0.65</text>
+      <rect x="1190" y="418" width="240" height="32" fill="#FEF3F2" stroke="#C8102E"/>
+      <text x="1340" y="438" text-anchor="middle" fill="#C8102E" font-weight="700">-0.92</text>
+
+      <!-- Strategy 3: News Aware -->
+      <text x="200" y="475" text-anchor="middle" font-weight="700">News Aware</text>
+      <rect x="350" y="458" width="300" height="32" fill="#FEFBEB" stroke="#B45309"/>
+      <text x="500" y="478" text-anchor="middle" fill="#B45309" font-weight="700">0.30</text>
+      <rect x="630" y="458" width="300" height="32" fill="#FEFBEB" stroke="#B45309"/>
+      <text x="780" y="478" text-anchor="middle" fill="#B45309" font-weight="700">0.18</text>
+      <rect x="910" y="458" width="300" height="32" fill="#F0FDF4" stroke="#15803D"/>
+      <text x="1060" y="478" text-anchor="middle" fill="#15803D" font-weight="700">1.45</text>
+      <rect x="1190" y="458" width="240" height="32" fill="#F0FDF4" stroke="#15803D"/>
+      <text x="1340" y="478" text-anchor="middle" fill="#15803D" font-weight="700">2.85</text>
+
+      <!-- Legend -->
+      <text x="200" y="520" fill="#15803D" font-weight="700">■ Sharpe &gt; 1.5 (strong)</text>
+      <text x="500" y="520" fill="#B45309">■ Sharpe 0–1.5 (weak/neutral)</text>
+      <text x="800" y="520" fill="#C8102E">■ Sharpe &lt; 0 (lose money)</text>
+    </g>
+  </svg>
+
+  <table class="table">
+    <tr><th>Backtest Component</th><th>Method</th><th>Output</th><th>CI Gate</th></tr>
+    <tr><td class="mod">Replay Engine</td><td>Stream 24mo × 6 brokers historical data through ARDS + strategies</td><td>Per-trade log: regime, features, PnL, SHAP</td><td>Completeness (no missing bars)</td></tr>
+    <tr><td class="mod">Per-Regime Attribution</td><td>Segment trades by entry-time regime · compute per-regime metrics</td><td>Strategy × Regime matrix (Sharpe, PF, MaxDD, win rate)</td><td>No regime with Sharpe &lt; -1.0</td></tr>
+    <tr><td class="mod">Monte Carlo</td><td>1000 block-bootstrapped paths (20-bar blocks) · recompute metrics</td><td>95% CI on PF/Sharpe/MaxDD/RoR · p99 worst case</td><td>RoR p95 &lt; 1% · Sharpe p5 &gt; 1.0</td></tr>
+    <tr><td class="mod">Confusion Matrix</td><td>Compare predicted regime to ex-post "ground truth" (defined by forward returns)</td><td>4×4 confusion matrix · per-class precision/recall</td><td>Macro F1 &gt; 0.70 · per-class F1 &gt; 0.60</td></tr>
+    <tr><td class="mod">SHAP Summary</td><td>Aggregate SHAP values across all predictions · rank features per regime</td><td>Top-3 features per regime · feature importance plot</td><td>No single feature contributes &gt; 50%</td></tr>
+    <tr><td class="mod">Latency Profile</td><td>Measure per-bar inference latency · build histogram</td><td>p50/p95/p99/p99.9 latency · CPU utilization</td><td>p99 &lt; 50 ms · p99.9 &lt; 200 ms</td></tr>
+    <tr><td class="mod">Stability Test</td><td>Inject 1% noise into features · measure prediction flip rate</td><td>Flip rate per feature · sensitivity ranking</td><td>Flip rate &lt; 10% at 1% noise</td></tr>
+  </table>
+</div>
+</body>
+</html>

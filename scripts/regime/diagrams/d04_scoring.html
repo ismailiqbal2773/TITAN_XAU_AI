@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Regime Detection — Scoring Outputs</title>
+<style>
+  @page { size: 1600px 900px; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #ffffff; font-family: 'Tinos','FreeSerif',serif; color: #14213D; }
+  .canvas { width: 1600px; height: 900px; padding: 50px 60px; box-sizing: border-box; }
+  .title-bar { display: flex; align-items: baseline; gap: 18px; border-bottom: 2px solid #14213D; padding-bottom: 12px; margin-bottom: 24px; }
+  .title-bar .num { font-size: 48px; font-weight: 900; color: #C8102E; line-height: 1; }
+  .title-bar h1 { font-size: 26px; font-weight: 700; margin: 0; }
+  .title-bar .sub { font-size: 13px; color: #4A5568; margin-left: auto; font-family: 'JetBrains Mono',monospace; }
+  svg { display: block; margin: 0 auto; background: #FAFBFC; border: 1px solid #E2E8F0; }
+  .table { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-top: 14px; }
+  .table th { background: #14213D; color: #ffffff; padding: 6px 8px; text-align: left; font-weight: 700; }
+  .table td { padding: 5px 8px; border-bottom: 1px solid #E2E8F0; }
+  .table tr:nth-child(even) td { background: #F8FAFC; }
+  .table .mod { color: #14213D; font-family: 'JetBrains Mono',monospace; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="title-bar">
+    <span class="num">04</span>
+    <h1>Scoring Outputs — Confidence · Probability · Explainability</h1>
+    <span class="sub">3 score vectors per prediction · actionable downstream</span>
+  </div>
+
+  <svg width="1480" height="540" viewBox="0 0 1480 540">
+    <!-- Input: ensemble output -->
+    <rect x="540" y="20" width="400" height="60" fill="#14213D"/>
+    <text x="740" y="45" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="Tinos">Ensemble Output</text>
+    <text x="740" y="65" text-anchor="middle" fill="#C8102E" font-size="10" font-family="JetBrains Mono">3 model predictions · final RegimeLabel</text>
+
+    <line x1="640" y1="80" x2="240" y2="160" stroke="#14213D" stroke-width="2" marker-end="url(#arS)"/>
+    <line x1="740" y1="80" x2="740" y2="160" stroke="#14213D" stroke-width="2" marker-end="url(#arS)"/>
+    <line x1="840" y1="80" x2="1240" y2="160" stroke="#14213D" stroke-width="2" marker-end="url(#arS)"/>
+
+    <defs>
+      <marker id="arS" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
+        <path d="M0,0 L0,6 L7,3 z" fill="#14213D"/>
+      </marker>
+    </defs>
+
+    <!-- (a) Confidence -->
+    <rect x="80" y="160" width="320" height="260" fill="#F0FDF4" stroke="#14213D" stroke-width="2"/>
+    <rect x="80" y="160" width="320" height="32" fill="#14213D"/>
+    <text x="240" y="180" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="JetBrains Mono">(a) ConfidenceScorer</text>
+
+    <text x="100" y="215" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">Definition</text>
+    <text x="100" y="233" font-size="10" fill="#4A5568" font-family="JetBrains Mono">agreement across 3 models</text>
+    <text x="100" y="247" font-size="10" fill="#4A5568" font-family="JetBrains Mono">on the final label</text>
+
+    <text x="100" y="275" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">Formula</text>
+    <text x="100" y="293" font-size="10" fill="#4A5568" font-family="JetBrains Mono">conf = (Σ w_i · 1[p_i == p_final])</text>
+    <text x="100" y="307" font-size="10" fill="#4A5568" font-family="JetBrains Mono">where w_i = model weight</text>
+
+    <text x="100" y="335" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">Range</text>
+    <text x="100" y="353" font-size="10" fill="#4A5568" font-family="JetBrains Mono">[0.0, 1.0]</text>
+    <text x="100" y="367" font-size="10" fill="#4A5568" font-family="JetBrains Mono">1.0 = unanimous agreement</text>
+    <text x="100" y="381" font-size="10" fill="#4A5568" font-family="JetBrains Mono">0.0 = no model agrees</text>
+    <text x="100" y="395" font-size="10" fill="#4A5568" font-family="JetBrains Mono">typical: 0.50-0.85</text>
+
+    <text x="100" y="415" font-size="9" fill="#C8102E" font-family="JetBrains Mono">Use: gate strategy activation</text>
+
+    <!-- (b) Probability -->
+    <rect x="580" y="160" width="320" height="260" fill="#F0FDF4" stroke="#14213D" stroke-width="2"/>
+    <rect x="580" y="160" width="320" height="32" fill="#14213D"/>
+    <text x="740" y="180" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="JetBrains Mono">(b) ProbabilityScorer</text>
+
+    <text x="600" y="215" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">Definition</text>
+    <text x="600" y="233" font-size="10" fill="#4A5568" font-family="JetBrains Mono">softmax probability distribution</text>
+    <text x="600" y="247" font-size="10" fill="#4A5568" font-family="JetBrains Mono">over 4 regime classes</text>
+
+    <text x="600" y="275" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">Formula</text>
+    <text x="600" y="293" font-size="10" fill="#4A5568" font-family="JetBrains Mono">P = avg(LGB_softmax,</text>
+    <text x="600" y="307" font-size="10" fill="#4A5568" font-family="JetBrains Mono">         HMM_posteriors)</text>
+    <text x="600" y="321" font-size="10" fill="#4A5568" font-family="JetBrains Mono">→ 4-vector summing to 1.0</text>
+
+    <text x="600" y="349" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">Output</text>
+    <text x="600" y="367" font-size="10" fill="#4A5568" font-family="JetBrains Mono">P(TREND), P(RANGE),</text>
+    <text x="600" y="381" font-size="10" fill="#4A5568" font-family="JetBrains Mono">P(VOLATILE), P(NEWS)</text>
+    <text x="600" y="395" font-size="10" fill="#4A5568" font-family="JetBrains Mono">argmax → final label</text>
+
+    <text x="600" y="415" font-size="9" fill="#C8102E" font-family="JetBrains Mono">Use: risk-adjusted sizing</text>
+
+    <!-- (c) Explainability -->
+    <rect x="1080" y="160" width="320" height="260" fill="#F0FDF4" stroke="#14213D" stroke-width="2"/>
+    <rect x="1080" y="160" width="320" height="32" fill="#14213D"/>
+    <text x="1240" y="180" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="JetBrains Mono">(c) ExplainabilityScorer</text>
+
+    <text x="1100" y="215" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">Definition</text>
+    <text x="1100" y="233" font-size="10" fill="#4A5568" font-family="JetBrains Mono">how concentrated the SHAP</text>
+    <text x="1100" y="247" font-size="10" fill="#4A5568" font-family="JetBrains Mono">contributions are on top-k</text>
+
+    <text x="1100" y="275" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">Formula</text>
+    <text x="1100" y="293" font-size="10" fill="#4A5568" font-family="JetBrains Mono">expl = Σ|SHAP_top3| / Σ|SHAP_all|</text>
+    <text x="1100" y="307" font-size="10" fill="#4A5568" font-family="JetBrains Mono">+ Rules explanation (if veto)</text>
+
+    <text x="1100" y="335" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">Range</text>
+    <text x="1100" y="353" font-size="10" fill="#4A5568" font-family="JetBrains Mono">[0.0, 1.0]</text>
+    <text x="1100" y="367" font-size="10" fill="#4A5568" font-family="JetBrains Mono">1.0 = top-3 explain everything</text>
+    <text x="1100" y="381" font-size="10" fill="#4A5568" font-family="JetBrains Mono">0.5 = diffuse contribution</text>
+    <text x="1100" y="395" font-size="10" fill="#4A5568" font-family="JetBrains Mono">typical: 0.65-0.85</text>
+
+    <text x="1100" y="415" font-size="9" fill="#C8102E" font-family="JetBrains Mono">Use: trust calibration</text>
+
+    <!-- Output: RegimeOutput -->
+    <line x1="240" y1="420" x2="640" y2="470" stroke="#14213D" stroke-width="2" marker-end="url(#arS)"/>
+    <line x1="740" y1="420" x2="740" y2="470" stroke="#14213D" stroke-width="2" marker-end="url(#arS)"/>
+    <line x1="1240" y1="420" x2="840" y2="470" stroke="#14213D" stroke-width="2" marker-end="url(#arS)"/>
+
+    <rect x="500" y="470" width="480" height="60" fill="#14213D"/>
+    <text x="740" y="495" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="Tinos">RegimeOutput (emitted on event bus)</text>
+    <text x="740" y="515" text-anchor="middle" fill="#C8102E" font-size="10" font-family="JetBrains Mono">{label, confidence, probability[4], explainability, top3_features, ts}</text>
+  </svg>
+
+  <table class="table">
+    <tr><th>Score</th><th>Question It Answers</th><th>Formula</th><th>Range</th><th>Downstream Consumer</th></tr>
+    <tr><td class="mod">Confidence</td><td>"How much do the 3 models agree?"</td><td>Σ w_i · 1[p_i == p_final] / Σ w_i</td><td>[0.0, 1.0]</td><td>Strategy Coordinator (gate activation if &gt; 0.65)</td></tr>
+    <tr><td class="mod">Probability</td><td>"What's the probability distribution over regimes?"</td><td>avg(LGB_softmax, HMM_posteriors) — 4-vector</td><td>[0,1] × 4, sum=1</td><td>Risk Gate (size scaling by P(NEWS))</td></tr>
+    <tr><td class="mod">Explainability</td><td>"How concentrated is the explanation on top-3 features?"</td><td>Σ|SHAP_top3| / Σ|SHAP_all| (+ Rules if veto)</td><td>[0.0, 1.0]</td><td>Operator console (trust calibration)</td></tr>
+  </table>
+</div>
+</body>
+</html>

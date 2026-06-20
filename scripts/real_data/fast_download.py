@@ -1,24 +1,23 @@
 #!/usr/bin/env python3
 """
-TITAN XAU AI — Real Dukascopy M1 XAUUSD Downloader
-====================================================
+TITAN XAU AI — Real Dukascopy M1 XAUUSD Downloader (SCHEMA-ALIGNED)
+====================================================================
 
 Single-purpose, no-duplicate script. Downloads REAL tick data from
 Dukascopy public datafeed and aggregates to M1 OHLCV+spread parquet files
-matching the project's existing schema:
+matching the project's EXISTING schema (verified from existing files):
 
     titan/data/sources/dukascopy/daily/XAUUSD_M1_YYYY-MM-DD.parquet
 
-Schema (matches existing project files):
-    timestamp_ms (int64)  — bar start epoch ms (UTC)
-    open, high, low, close (float64)
-    volume (int64)         — total tick count in bar
-    spread (float64)       — mean (ask-bid) in price units
-    bid_volume (int64)
-    ask_volume (int64)
+Existing schema (MUST match exactly):
+    Index:  timestamp (datetime64[ns, UTC]) — bar start, UTC
+    Columns (all float64):
+        open, high, low, close  — mid-price OHLC
+        volume                  — tick count in bar (stored as float64)
+        spread                  — mean (ask-bid) in price units
 
 Dukascopy datafeed format (verified 2026-06):
-    URL: https://datafeed.dukascopy.com/datafeed/XAUUSD/{YYYY}/{MM}/{DD}/{HH}h_ticks.bi5
+    URL: https://datafeed.dukascopy.com/datafeed/XAUUSD/{YYYY}/{MM0idx}/{DD}/{HH}h_ticks.bi5
     Encoding: LZMA-compressed big-endian uint32 array, 5 fields × 4 bytes = 20 bytes/tick
     Fields: (timestamp_offset_ms, ask_raw, bid_raw, ask_volume, bid_volume)
     Price scaling: divide raw by 1000.0 (XAUUSD has 3 decimal places)
@@ -66,14 +65,10 @@ LOG_FILE = PROJECT_ROOT / "scripts" / "real_data" / "download_log.csv"
 
 BASE_URL = "https://datafeed.dukascopy.com/datafeed/XAUUSD"
 SYMBOL = "XAUUSD"
-TIMEOUT_SEC = 30
-MAX_WORKERS = 8
-MAX_RETRIES = 4
-BACKOFF_BASE = 2.0  # seconds
-
-# XAUUSD trading week: Sun 23:00 UTC → Fri 22:00 UTC (varies by DST).
-# Dukascopy .bi5 files exist only for hours with trading activity.
-# We attempt all 24 hours per day and silently skip missing files.
+TIMEOUT_SEC = 20
+MAX_WORKERS = 24    # 24 hours in parallel — max throughput
+MAX_RETRIES = 3
+BACKOFF_BASE = 1.5  # seconds
 
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 PARTIAL_DIR.mkdir(parents=True, exist_ok=True)
@@ -91,14 +86,11 @@ def fetch_bi5(url: str) -> bytes | None:
             if r.status_code == 404:
                 return None  # market closed / no data for this hour
             if r.status_code == 200 and len(r.content) > 0:
-                # Some hours return 200 with 0-byte body when no ticks
                 try:
                     return lzma.decompress(r.content)
                 except lzma.LZMAError:
-                    # Truncated/corrupt — retry
                     last_err = "LZMAError"
                     continue
-            # Other status codes — retry
             last_err = f"HTTP {r.status_code}"
         except (requests.Timeout, requests.ConnectionError) as e:
             last_err = type(e).__name__
@@ -110,18 +102,22 @@ def fetch_bi5(url: str) -> bytes | None:
 # ----------------------------------------------------------------------------
 # Tick parsing
 # ----------------------------------------------------------------------------
-def parse_ticks(raw: bytes, day_date: datetime) -> list[tuple]:
-    """Parse decompressed tick bytes into (ts_ms, ask, bid, avol, bvol) tuples."""
+def parse_ticks(raw: bytes, day_date: datetime, hour: int) -> list[tuple]:
+    """Parse decompressed tick bytes into (ts_ms, ask, bid, avol, bvol) tuples.
+
+    CRITICAL: Dukascopy tick timestamp offsets are RELATIVE TO THE HOUR START,
+    not day start. We compute hour_start_ms = day_start + hour*3600s.
+    """
     if not raw or len(raw) < 20:
         return []
     n = len(raw) // 20
     ticks = []
     unpack = struct.Struct(">LLLLL").unpack_from
-    day_epoch_ms = int(day_date.timestamp() * 1000)
+    # Hour start in epoch ms (UTC)
+    hour_start_ms = int(day_date.timestamp() * 1000) + (hour * 3_600_000)
     for i in range(n):
         off, ask_raw, bid_raw, avol, bvol = unpack(raw, i * 20)
-        ts_ms = day_epoch_ms + off
-        # Price scale: divide by 1000.0 (verified for XAUUSD)
+        ts_ms = hour_start_ms + off
         ticks.append((ts_ms, ask_raw / 1000.0, bid_raw / 1000.0, avol, bvol))
     return ticks
 
@@ -143,7 +139,8 @@ def fetch_day_hours(day_date: datetime) -> list[tuple]:
             h = futures[fut]
             raw = fut.result()
             if raw:
-                ticks = parse_ticks(raw, day_date)
+                # Pass hour to parse_ticks so offset is computed from hour start
+                ticks = parse_ticks(raw, day_date, h)
                 if ticks:
                     out.append((h, ticks))
     out.sort(key=lambda x: x[0])
@@ -151,7 +148,12 @@ def fetch_day_hours(day_date: datetime) -> list[tuple]:
 
 
 def aggregate_m1(day_date: datetime, hour_ticks: list[tuple]) -> pd.DataFrame:
-    """Build M1 OHLCV+spread DataFrame for one day."""
+    """Build M1 OHLCV+spread DataFrame for one day, matching existing schema.
+
+    Existing schema:
+        Index: timestamp (datetime64[ns, UTC])
+        Columns: open, high, low, close, volume, spread  (all float64)
+    """
     all_ticks = []
     for _, ticks in hour_ticks:
         all_ticks.extend(ticks)
@@ -173,24 +175,22 @@ def aggregate_m1(day_date: datetime, hour_ticks: list[tuple]) -> pd.DataFrame:
         close=("mid", "last"),
         volume=("ts_ms", "count"),
         spread=("spread", "mean"),
-        bid_volume=("bvol", "sum"),
-        ask_volume=("avol", "sum"),
     )
-    agg = agg.rename(columns={"minute_ms": "timestamp_ms"})
-    # Cast volumes to int64
-    for col in ("volume", "bid_volume", "ask_volume"):
-        agg[col] = agg[col].astype("int64")
-    return agg[["timestamp_ms", "open", "high", "low", "close",
-                "volume", "spread", "bid_volume", "ask_volume"]]
+    # Convert minute_ms back to datetime UTC and set as index
+    agg["timestamp"] = pd.to_datetime(agg["minute_ms"], unit="ms", utc=True)
+    agg = agg.set_index("timestamp")[
+        ["open", "high", "low", "close", "volume", "spread"]
+    ].astype("float64")
+    return agg
 
 
 def write_daily_parquet(df: pd.DataFrame, day_date: datetime) -> Path:
-    """Atomically write one day's M1 bars to parquet."""
+    """Atomically write one day's M1 bars to parquet, preserving index."""
     fname = f"{SYMBOL}_M1_{day_date.strftime('%Y-%m-%d')}.parquet"
     final_path = OUTPUT_DIR / fname
     partial_path = PARTIAL_DIR / fname
-    table = pa.Table.from_pandas(df, preserve_index=False)
-    pq.write_table(table, partial_path, compression="snappy")
+    # Use pandas to_parquet (preserves DatetimeIndex) — matches existing files
+    df.to_parquet(partial_path, engine="pyarrow", compression="snappy")
     partial_path.rename(final_path)
     return final_path
 
@@ -208,6 +208,28 @@ def day_is_complete(day_date: datetime) -> bool:
         return False
 
 
+# Known XAUUSD market holidays where Dukascopy returns no/empty data.
+# Format: ISO date strings. We treat these as "complete" so they're skipped.
+KNOWN_HOLIDAYS = {
+    "2020-04-10",  # Good Friday 2020
+    "2020-12-25",  # Christmas
+    "2021-01-01",  # New Year
+    "2021-12-24",  # Christmas Eve
+    "2021-12-31",  # New Year Eve
+    "2022-04-15",  # Good Friday 2022
+    "2022-12-26",  # Christmas (observed)
+    "2023-04-07",  # Good Friday 2023
+    "2023-12-25",  # Christmas
+    "2024-01-01",  # New Year
+    "2024-03-29",  # Good Friday 2024
+    "2024-12-25",  # Christmas
+}
+
+
+def is_known_holiday(day_date: datetime) -> bool:
+    return day_date.strftime("%Y-%m-%d") in KNOWN_HOLIDAYS
+
+
 # ----------------------------------------------------------------------------
 # Main loop
 # ----------------------------------------------------------------------------
@@ -219,7 +241,6 @@ def daterange(start: datetime, end: datetime):
 
 
 def is_weekend(d: datetime) -> bool:
-    """Sat/Sun — Dukascopy XAUUSD has no full-day data."""
     return d.weekday() >= 5
 
 
@@ -232,8 +253,8 @@ def append_log(day: datetime, bars: int, status: str, elapsed: float):
 def run(start_str: str, end_str: str):
     start = datetime.strptime(start_str, "%Y-%m-%d").replace(tzinfo=timezone.utc)
     end = datetime.strptime(end_str, "%Y-%m-%d").replace(tzinfo=timezone.utc)
-    print(f"TITAN Real Data Downloader")
-    print(f"  Range:   {start.date()} → {end.date()}")
+    print(f"TITAN Real Data Downloader (SCHEMA-ALIGNED)")
+    print(f"  Range:   {start.date()} -> {end.date()}")
     print(f"  Output:  {OUTPUT_DIR}")
     print(f"  Workers: {MAX_WORKERS}  Timeout: {TIMEOUT_SEC}s  Retries: {MAX_RETRIES}")
     print()
@@ -245,6 +266,9 @@ def run(start_str: str, end_str: str):
 
     for day in daterange(start, end):
         if is_weekend(day):
+            continue
+        if is_known_holiday(day):
+            skipped += 1
             continue
         if day_is_complete(day):
             skipped += 1
@@ -268,7 +292,7 @@ def run(start_str: str, end_str: str):
         path = write_daily_parquet(df, day)
         elapsed = time.time() - t_day
         total += len(df)
-        print(f"  {day.date()}  {len(df):5d} bars  ({elapsed:5.2f}s)  → {path.name}")
+        print(f"  {day.date()}  {len(df):5d} bars  ({elapsed:5.2f}s)  -> {path.name}")
         append_log(day, len(df), "OK", elapsed)
 
     print()

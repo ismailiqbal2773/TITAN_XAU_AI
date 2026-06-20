@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Hybrid AI Stack — Model Orchestration</title>
+<style>
+  @page { size: 1600px 1100px; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #ffffff; font-family: 'Tinos','FreeSerif',serif; color: #14213D; }
+  .canvas { width: 1600px; height: 1100px; padding: 50px 60px; box-sizing: border-box; }
+  .title-bar { display: flex; align-items: baseline; gap: 18px; border-bottom: 2px solid #14213D; padding-bottom: 12px; margin-bottom: 24px; }
+  .title-bar .num { font-size: 48px; font-weight: 900; color: #C8102E; line-height: 1; }
+  .title-bar h1 { font-size: 26px; font-weight: 700; margin: 0; }
+  .title-bar .sub { font-size: 13px; color: #4A5568; margin-left: auto; font-family: 'JetBrains Mono',monospace; }
+  svg { display: block; margin: 0 auto; background: #FAFBFC; border: 1px solid #E2E8F0; }
+  .table { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-top: 14px; }
+  .table th { background: #14213D; color: #ffffff; padding: 6px 8px; text-align: left; font-weight: 700; }
+  .table td { padding: 5px 8px; border-bottom: 1px solid #E2E8F0; }
+  .table tr:nth-child(even) td { background: #F8FAFC; }
+  .table .mod { color: #14213D; font-family: 'JetBrains Mono',monospace; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="title-bar">
+    <span class="num">05</span>
+    <h1>Model Orchestration — Lifecycle · Versioning · Failover</h1>
+    <span class="sub">MLflow registry · canary deploy · A/B testing · auto-rollback</span>
+  </div>
+
+  <svg width="1480" height="560" viewBox="0 0 1480 560">
+    <defs>
+      <marker id="ar5" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L7,3 z" fill="#14213D"/></marker>
+      <marker id="ar5R" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L7,3 z" fill="#C8102E"/></marker>
+    </defs>
+
+    <text x="40" y="30" font-size="14" font-weight="700" fill="#C8102E" font-family="Tinos">(a) Model Lifecycle (per model)</text>
+
+    <rect x="40" y="50" width="200" height="60" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="140" y="78" text-anchor="middle" font-size="11" font-weight="700" font-family="Tinos">1. Train</text>
+    <text x="140" y="95" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">walk-forward 5 folds</text>
+    <line x1="240" y1="80" x2="280" y2="80" stroke="#14213D" stroke-width="2" marker-end="url(#ar5)"/>
+
+    <rect x="280" y="50" width="200" height="60" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="380" y="78" text-anchor="middle" font-size="11" font-weight="700" font-family="Tinos">2. Validate</text>
+    <text x="380" y="95" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">F1 > 0.60 · Sharpe > 2.0</text>
+    <line x1="480" y1="80" x2="520" y2="80" stroke="#14213D" stroke-width="2" marker-end="url(#ar5)"/>
+
+    <rect x="520" y="50" width="200" height="60" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="620" y="78" text-anchor="middle" font-size="11" font-weight="700" font-family="Tinos">3. Register</text>
+    <text x="620" y="95" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">MLflow · versioned</text>
+    <line x1="720" y1="80" x2="760" y2="80" stroke="#14213D" stroke-width="2" marker-end="url(#ar5)"/>
+
+    <rect x="760" y="50" width="200" height="60" fill="#FEFBEB" stroke="#B45309" stroke-width="2"/>
+    <text x="860" y="78" text-anchor="middle" font-size="11" font-weight="700" fill="#B45309" font-family="Tinos">4. Canary</text>
+    <text x="860" y="95" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">10% traffic · 1 hour</text>
+    <line x1="960" y1="80" x2="1000" y2="80" stroke="#14213D" stroke-width="2" marker-end="url(#ar5)"/>
+
+    <rect x="1000" y="50" width="200" height="60" fill="#FEFBEB" stroke="#B45309" stroke-width="2"/>
+    <text x="1100" y="78" text-anchor="middle" font-size="11" font-weight="700" fill="#B45309" font-family="Tinos">5. A/B Test</text>
+    <text x="1100" y="95" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">50% traffic · 24 hours</text>
+    <line x1="1200" y1="80" x2="1240" y2="80" stroke="#14213D" stroke-width="2" marker-end="url(#ar5)"/>
+
+    <rect x="1240" y="50" width="200" height="60" fill="#14213D"/>
+    <text x="1340" y="78" text-anchor="middle" fill="#ffffff" font-size="11" font-weight="700" font-family="Tinos">6. Production</text>
+    <text x="1340" y="95" text-anchor="middle" fill="#C8102E" font-size="9" font-family="JetBrains Mono">100% traffic</text>
+
+    <!-- Rollback arrow -->
+    <path d="M 1100 110 Q 700 150 380 110" stroke="#C8102E" stroke-width="2" fill="none" marker-end="url(#ar5R)" stroke-dasharray="4 2"/>
+    <text x="700" y="145" text-anchor="middle" font-size="10" fill="#C8102E" font-family="JetBrains Mono">AUTO-ROLLBACK if canary/A-B Sharpe drop > 10%</text>
+
+    <!-- (b) Weight rebalancing -->
+    <text x="40" y="200" font-size="14" font-weight="700" fill="#C8102E" font-family="Tinos">(b) Dynamic Weight Rebalancing</text>
+
+    <rect x="40" y="220" width="1400" height="140" fill="#F8FAFC" stroke="#14213D"/>
+    <g font-family="JetBrains Mono" font-size="11" fill="#14213D">
+      <text x="60" y="248" font-weight="700" fill="#C8102E" font-family="Tinos">Initial Weights (tuned via walk-forward optimization)</text>
+      <text x="60" y="270">XGBoost: 0.35 · LSTM: 0.25 · Transformer: 0.25 · RL: 0.15</text>
+
+      <text x="60" y="300" font-weight="700" fill="#C8102E" font-family="Tinos">Dynamic Adjustment (monthly, based on rolling 100-trade performance)</text>
+      <text x="60" y="322">If model_i Sharpe > ensemble Sharpe × 1.2: increase w_i by 10% (cap: 0.50)</text>
+      <text x="60" y="342">If model_i Sharpe < ensemble Sharpe × 0.8: decrease w_i by 10% (floor: 0.10)</text>
+    </g>
+
+    <!-- (c) Failover -->
+    <text x="40" y="400" font-size="14" font-weight="700" fill="#C8102E" font-family="Tinos">(c) Model Failover & Degradation</text>
+
+    <rect x="40" y="420" width="440" height="120" fill="#FEF3F2" stroke="#C8102E" stroke-width="2"/>
+    <text x="60" y="445" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">Model Inference Timeout (>100ms)</text>
+    <text x="60" y="465" font-size="10" fill="#4A5568" font-family="JetBrains Mono">→ Skip model, use remaining 3 (or 2)</text>
+    <text x="60" y="480" font-size="10" fill="#4A5568" font-family="JetBrains Mono">→ Renormalize weights of remaining models</text>
+    <text x="60" y="495" font-size="10" fill="#4A5568" font-family="JetBrains Mono">→ Alert operator (P2)</text>
+    <text x="60" y="515" font-size="10" fill="#C8102E" font-family="JetBrains Mono" font-weight="bold">→ If < 2 direction models: NO TRADE</text>
+
+    <rect x="520" y="420" width="440" height="120" fill="#FEF3F2" stroke="#C8102E" stroke-width="2"/>
+    <text x="540" y="445" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">Model Performance Degradation (F1 drop > 15%)</text>
+    <text x="540" y="465" font-size="10" fill="#4A5568" font-family="JetBrains Mono">→ Reduce model weight to 0.10 (floor)</text>
+    <text x="540" y="480" font-size="10" fill="#4A5568" font-family="JetBrains Mono">→ Trigger emergency retrain</text>
+    <text x="540" y="495" font-size="10" fill="#4A5568" font-family="JetBrains Mono">→ Alert operator (P1)</text>
+    <text x="540" y="515" font-size="10" fill="#C8102E" font-family="JetBrains Mono" font-weight="bold">→ If 2+ models degraded: HALT ensemble</text>
+
+    <rect x="1000" y="420" width="440" height="120" fill="#FEF3F2" stroke="#C8102E" stroke-width="2"/>
+    <text x="1020" y="445" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">GPU Failure (LSTM/Transformer)</text>
+    <text x="1020" y="465" font-size="10" fill="#4A5568" font-family="JetBrains Mono">→ Fallback to CPU inference (5x slower)</text>
+    <text x="1020" y="480" font-size="10" fill="#4A5568" font-family="JetBrains Mono">→ If CPU p99 > 50ms: skip LSTM/Transformer</text>
+    <text x="1020" y="495" font-size="10" fill="#4A5568" font-family="JetBrains Mono">→ Use XGBoost-only (weight=1.0) with reduced confidence</text>
+    <text x="1020" y="515" font-size="10" fill="#C8102E" font-family="JetBrains Mono" font-weight="bold">→ Alert operator (P1) · auto-restart GPU</text>
+  </svg>
+
+  <table class="table">
+    <tr><th>Orchestration Feature</th><th>Mechanism</th><th>Trigger</th><th>Action</th><th>Alert</th></tr>
+    <tr><td class="mod">Canary deploy</td><td>10% traffic for 1 hour, then A/B 50% for 24h</td><td>New model version validated</td><td>Promote to 100% if Sharpe ≥ baseline</td><td>Log only</td></tr>
+    <tr><td class="mod">Auto-rollback</td><td>Revert to previous model version</td><td>Canary/A-B Sharpe drop > 10%</td><td>Immediate revert · alert</td><td>P1 PagerDuty</td></tr>
+    <tr><td class="mod">Weight rebalancing</td><td>Monthly adjustment based on per-model Sharpe</td><td>Monthly review</td><td>±10% weight change, bounded [0.10, 0.50]</td><td>Log + email</td></tr>
+    <tr><td class="mod">Inference timeout</td><td>Skip slow model, renormalize remaining</td><td>p99 > 100ms for 5 min</td><td>Skip model · renormalize weights</td><td>P2 email</td></tr>
+    <tr><td class="mod">Performance degradation</td><td>Reduce weight to floor, emergency retrain</td><td>F1 drop > 15% vs baseline</td><td>Weight → 0.10 · trigger retrain</td><td>P1 PagerDuty</td></tr>
+    <tr><td class="mod">GPU failover</td><td>CPU fallback → XGBoost-only if CPU too slow</td><td>GPU health check fail</td><td>CPU inference → XGBoost-only if p99 > 50ms</td><td>P1 PagerDuty</td></tr>
+    <tr><td class="mod">Ensemble halt</td><td>Stop all AI signals, fall back to rule-based</td><td>2+ models degraded OR < 2 direction models available</td><td>HALT · page operator · use rule-based fallback</td><td>P1 PagerDuty</td></tr>
+  </table>
+</div>
+</body>
+</html>

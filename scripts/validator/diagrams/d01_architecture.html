@@ -1,0 +1,73 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>d01</title>
+<link href="https://fonts.googleapis.com/css2?family=Tinos:wght@400;700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { width: 1600px; height: 1100px; background: #ffffff; font-family: 'Inter', sans-serif; color: #14213D; padding: 50px 60px; }
+.h-title { font-family: 'Tinos', serif; font-size: 30px; font-weight: 900; color: #14213D; letter-spacing: -0.5px; }
+.h-sub { font-family: 'Inter', sans-serif; font-size: 13px; color: #4A5568; margin-top: 4px; }
+.h-rule { width: 80px; height: 3px; background: #C8102E; margin: 14px 0 28px 0; }
+.layer-grid { display: grid; grid-template-columns: 200px 1fr; gap: 18px; margin-top: 14px; }
+.lane-label { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; color: #C8102E; letter-spacing: 2px; padding-top: 14px; border-right: 2px solid #C8102E; padding-right: 14px; text-align: right; }
+.suite-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.suite { background: #F8FAFC; border: 1px solid #CBD5E1; border-top: 3px solid #14213D; border-radius: 6px; padding: 14px 14px 12px 14px; }
+.suite .n { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C8102E; font-weight: 700; letter-spacing: 1.5px; }
+.suite .t { font-family: 'Tinos', serif; font-size: 14px; font-weight: 700; color: #14213D; margin: 4px 0 6px 0; line-height: 1.2; }
+.suite .d { font-family: 'Inter', sans-serif; font-size: 10px; color: #4A5568; line-height: 1.4; }
+.suite .checks { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #14213D; margin-top: 6px; padding-top: 6px; border-top: 1px dashed #CBD5E1; }
+.suite .checks b { color: #C8102E; }
+.bottom-band { margin-top: 28px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+.bb-card { background: #14213D; color: #fff; padding: 16px 18px; border-radius: 6px; }
+.bb-card.alt { background: #C8102E; }
+.bb-card.alt2 { background: #F1F5F9; color: #14213D; border: 1px solid #CBD5E1; }
+.bb-card .lbl { font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 2px; opacity: 0.7; }
+.bb-card .val { font-family: 'Tinos', serif; font-size: 26px; font-weight: 900; margin-top: 4px; line-height: 1; }
+.bb-card .desc { font-family: 'Inter', sans-serif; font-size: 10px; opacity: 0.9; margin-top: 6px; line-height: 1.4; }
+.flow { display: flex; align-items: center; justify-content: space-between; margin-top: 24px; padding: 14px 18px; background: #F1F5F9; border-left: 4px solid #C8102E; border-radius: 4px; }
+.flow-step { font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 600; color: #14213D; }
+.flow-arrow { font-family: 'JetBrains Mono', monospace; color: #C8102E; font-size: 14px; font-weight: 700; }
+</style></head>
+<body>
+<div class="h-title">validator.py — Architecture Overview</div>
+<div class="h-sub">8 validation suites · 1 scoring engine · 1 certification workflow</div>
+<div class="h-rule"></div>
+
+<div class="layer-grid">
+  <div class="lane-label">VALIDATION<br>SUITES</div>
+  <div class="suite-row">
+    <div class="suite"><div class="n">S1</div><div class="t">Broker Compatibility</div><div class="d">Runtime broker detection, 9 properties × 6 brokers.</div><div class="checks"><b>18</b> checks · weight 12%</div></div>
+    <div class="suite"><div class="n">S2</div><div class="t">Risk Engine</div><div class="d">4 risk modes, 12 controls, emergency kill &lt;500 ms.</div><div class="checks"><b>24</b> checks · weight 18%</div></div>
+    <div class="suite"><div class="n">S3</div><div class="t">Spread Engine</div><div class="d">Spread sampling, baseline drift, news widening.</div><div class="checks"><b>14</b> checks · weight 10%</div></div>
+    <div class="suite"><div class="n">S4</div><div class="t">Slippage Engine</div><div class="d">EQS scoring, slippage distribution, latency.</div><div class="checks"><b>16</b> checks · weight 10%</div></div>
+  </div>
+</div>
+
+<div class="layer-grid" style="margin-top:14px">
+  <div class="lane-label"></div>
+  <div class="suite-row">
+    <div class="suite"><div class="n">S5</div><div class="t">AI Engine</div><div class="d">XGBoost + LSTM + Transformer + RL ensemble.</div><div class="checks"><b>22</b> checks · weight 18%</div></div>
+    <div class="suite"><div class="n">S6</div><div class="t">Execution Engine</div><div class="d">Async dispatcher, tick-based fills, retry logic.</div><div class="checks"><b>20</b> checks · weight 14%</div></div>
+    <div class="suite"><div class="n">S7</div><div class="t">Regime Detection</div><div class="d">4 states (trend/range/volatile/news), 3-model vote.</div><div class="checks"><b>16</b> checks · weight 10%</div></div>
+    <div class="suite"><div class="n">S8</div><div class="t">Licensing</div><div class="d">JWT signature, hw_fp match, tier gate, expiry.</div><div class="checks"><b>14</b> checks · weight 8%</div></div>
+  </div>
+</div>
+
+<div class="bottom-band">
+  <div class="bb-card"><div class="lbl">TOTAL CHECKS</div><div class="val">144</div><div class="desc">Across 8 suites. Critical: 42, Major: 58, Minor: 44.</div></div>
+  <div class="bb-card alt"><div class="lbl">WEIGHTED SCORE</div><div class="val">0–100</div><div class="desc">Weighted average. Certify ≥ 85, Conditional 70–84, Reject &lt; 70.</div></div>
+  <div class="bb-card alt2"><div class="lbl">RUNTIME TARGET</div><div class="val">&lt; 90s</div><div class="desc">Full validation sweep on VPS. Parallelized across suites.</div></div>
+</div>
+
+<div class="flow">
+  <div class="flow-step">1 · Initialize Suite Registry</div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">2 · Load Pass/Fail Rules</div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">3 · Execute Suites (parallel)</div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">4 · Aggregate Scores</div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">5 · Certification Decision</div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">6 · Issue Report + Sign-off</div>
+</div>
+</body></html>

@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>ECI — Broker Quality Scoring</title>
+<style>
+  @page { size: 1600px 1000px; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #ffffff; font-family: 'Tinos','FreeSerif',serif; color: #14213D; }
+  .canvas { width: 1600px; height: 1000px; padding: 50px 60px; box-sizing: border-box; }
+  .title-bar { display: flex; align-items: baseline; gap: 18px; border-bottom: 2px solid #14213D; padding-bottom: 12px; margin-bottom: 24px; }
+  .title-bar .num { font-size: 48px; font-weight: 900; color: #C8102E; line-height: 1; }
+  .title-bar h1 { font-size: 26px; font-weight: 700; margin: 0; }
+  .title-bar .sub { font-size: 13px; color: #4A5568; margin-left: auto; font-family: 'JetBrains Mono',monospace; }
+  svg { display: block; margin: 0 auto; background: #FAFBFC; border: 1px solid #E2E8F0; }
+  .table { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-top: 14px; }
+  .table th { background: #14213D; color: #ffffff; padding: 6px 8px; text-align: left; font-weight: 700; }
+  .table td { padding: 5px 8px; border-bottom: 1px solid #E2E8F0; }
+  .table tr:nth-child(even) td { background: #F8FAFC; }
+  .table .mod { color: #14213D; font-family: 'JetBrains Mono',monospace; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="title-bar">
+    <span class="num">05</span>
+    <h1>Broker Quality Scoring — BQS · 6 Brokers Ranked</h1>
+    <span class="sub">5-factor weighted model · rolling 30-day · auto-routing implications</span>
+  </div>
+
+  <svg width="1480" height="540" viewBox="0 0 1480 540">
+    <text x="40" y="30" font-size="14" font-weight="700" fill="#C8102E" font-family="Tinos">BROKER QUALITY SCORE (BQS) — 5-FACTOR WEIGHTED MODEL</text>
+
+    <rect x="40" y="45" width="1400" height="60" fill="#14213D"/>
+    <text x="740" y="70" text-anchor="middle" fill="#ffffff" font-size="14" font-weight="700" font-family="Tinos">BQS = 100 − (w1×cost_rank + w2×spread_rank + w3×slip_rank + w4×reject_rank + w5×latency_rank)</text>
+    <text x="740" y="90" text-anchor="middle" fill="#C8102E" font-size="11" font-family="JetBrains Mono">weights: cost(0.30) + spread(0.25) + slippage(0.20) + rejection(0.15) + latency(0.10) · rank: 1(best) to 6(worst)</text>
+
+    <!-- 6 broker cards -->
+    <text x="40" y="140" font-size="14" font-weight="700" fill="#C8102E" font-family="Tinos">BROKER RANKINGS (rolling 30-day, 6 brokers)</text>
+
+    <rect x="40" y="155" width="220" height="180" fill="#F0FDF4" stroke="#15803D" stroke-width="2"/>
+    <rect x="40" y="155" width="220" height="30" fill="#15803D"/>
+    <text x="150" y="174" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700" font-family="JetBrains Mono">IC Markets Raw</text>
+    <g font-family="JetBrains Mono" font-size="10" fill="#4A5568">
+      <text x="55" y="205" font-size="20" font-weight="bold" fill="#15803D" font-family="Tinos">A (92)</text>
+      <text x="55" y="230">Cost rank: 1 (2.8 bps)</text>
+      <text x="55" y="248">Spread rank: 1 (0.3 bps)</text>
+      <text x="55" y="266">Slip rank: 2 (0.6 bps)</text>
+      <text x="55" y="284">Reject rank: 1 (0.5%)</text>
+      <text x="55" y="302">Latency rank: 2 (4.2ms)</text>
+      <text x="55" y="325" fill="#15803D" font-weight="bold">RECOMMENDED</text>
+    </g>
+
+    <rect x="280" y="155" width="220" height="180" fill="#F0FDF4" stroke="#15803D" stroke-width="2"/>
+    <rect x="280" y="155" width="220" height="30" fill="#15803D"/>
+    <text x="390" y="174" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700" font-family="JetBrains Mono">Pepperstone Razor</text>
+    <g font-family="JetBrains Mono" font-size="10" fill="#4A5568">
+      <text x="295" y="205" font-size="20" font-weight="bold" fill="#15803D" font-family="Tinos">A (89)</text>
+      <text x="295" y="230">Cost rank: 2 (3.0 bps)</text>
+      <text x="295" y="248">Spread rank: 2 (0.3 bps)</text>
+      <text x="295" y="266">Slip rank: 1 (0.5 bps)</text>
+      <text x="295" y="284">Reject rank: 2 (0.8%)</text>
+      <text x="295" y="302">Latency rank: 1 (3.8ms)</text>
+      <text x="295" y="325" fill="#15803D" font-weight="bold">RECOMMENDED</text>
+    </g>
+
+    <rect x="520" y="155" width="220" height="180" fill="#F0FDF4" stroke="#15803D" stroke-width="2"/>
+    <rect x="520" y="155" width="220" height="30" fill="#15803D"/>
+    <text x="630" y="174" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700" font-family="JetBrains Mono">Fusion Markets Zero</text>
+    <g font-family="JetBrains Mono" font-size="10" fill="#4A5568">
+      <text x="535" y="205" font-size="20" font-weight="bold" fill="#15803D" font-family="Tinos">B+ (85)</text>
+      <text x="535" y="230">Cost rank: 3 (3.2 bps)</text>
+      <text x="535" y="248">Spread rank: 3 (0.4 bps)</text>
+      <text x="535" y="266">Slip rank: 3 (0.7 bps)</text>
+      <text x="535" y="284">Reject rank: 3 (1.2%)</text>
+      <text x="535" y="302">Latency rank: 3 (5.1ms)</text>
+      <text x="535" y="325" fill="#15803D" font-weight="bold">GOOD</text>
+    </g>
+
+    <rect x="760" y="155" width="220" height="180" fill="#FEFBEB" stroke="#B45309" stroke-width="2"/>
+    <rect x="760" y="155" width="220" height="30" fill="#B45309"/>
+    <text x="870" y="174" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700" font-family="JetBrains Mono">Tickmill VIP</text>
+    <g font-family="JetBrains Mono" font-size="10" fill="#4A5568">
+      <text x="775" y="205" font-size="20" font-weight="bold" fill="#B45309" font-family="Tinos">B (81)</text>
+      <text x="775" y="230">Cost rank: 4 (3.5 bps)</text>
+      <text x="775" y="248">Spread rank: 4 (0.5 bps)</text>
+      <text x="775" y="266">Slip rank: 4 (0.8 bps)</text>
+      <text x="775" y="284">Reject rank: 4 (1.5%)</text>
+      <text x="775" y="302">Latency rank: 4 (5.5ms)</text>
+      <text x="775" y="325" fill="#B45309" font-weight="bold">ACCEPTABLE</text>
+    </g>
+
+    <rect x="1000" y="155" width="220" height="180" fill="#FEFBEB" stroke="#B45309" stroke-width="2"/>
+    <rect x="1000" y="155" width="220" height="30" fill="#B45309"/>
+    <text x="1110" y="174" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700" font-family="JetBrains Mono">FP Markets Raw</text>
+    <g font-family="JetBrains Mono" font-size="10" fill="#4A5568">
+      <text x="1015" y="205" font-size="20" font-weight="bold" fill="#B45309" font-family="Tinos">B- (78)</text>
+      <text x="1015" y="230">Cost rank: 5 (3.8 bps)</text>
+      <text x="1015" y="248">Spread rank: 5 (0.6 bps)</text>
+      <text x="1015" y="266">Slip rank: 5 (0.9 bps)</text>
+      <text x="1015" y="284">Reject rank: 5 (1.8%)</text>
+      <text x="1015" y="302">Latency rank: 5 (6.2ms)</text>
+      <text x="1015" y="325" fill="#B45309" font-weight="bold">ACCEPTABLE</text>
+    </g>
+
+    <rect x="1240" y="155" width="200" height="180" fill="#FEF3F2" stroke="#C8102E" stroke-width="2"/>
+    <rect x="1240" y="155" width="200" height="30" fill="#C8102E"/>
+    <text x="1340" y="174" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700" font-family="JetBrains Mono">Exness Standard</text>
+    <g font-family="JetBrains Mono" font-size="10" fill="#4A5568">
+      <text x="1255" y="205" font-size="20" font-weight="bold" fill="#C8102E" font-family="Tinos">C (68)</text>
+      <text x="1255" y="230">Cost rank: 6 (6.2 bps)</text>
+      <text x="1255" y="248">Spread rank: 6 (2.5 bps)</text>
+      <text x="1255" y="266">Slip rank: 6 (1.2 bps)</text>
+      <text x="1255" y="284">Reject rank: 6 (2.5%)</text>
+      <text x="1255" y="302">Latency rank: 6 (8.5ms)</text>
+      <text x="1255" y="325" fill="#C8102E" font-weight="bold">HIGH COST</text>
+    </g>
+
+    <!-- Auto-routing -->
+    <text x="40" y="380" font-size="14" font-weight="700" fill="#C8102E" font-family="Tinos">AUTO-ROUTING IMPLICATIONS (BQS feeds into VenueSelector)</text>
+
+    <rect x="40" y="395" width="1400" height="120" fill="#F8FAFC" stroke="#14213D"/>
+    <g font-family="JetBrains Mono" font-size="11" fill="#14213D">
+      <text x="60" y="425" font-weight="bold">BQS ≥ 85 (A):</text>
+      <text x="260" y="425" fill="#15803D">Primary routing target · full position size allowed</text>
+
+      <text x="60" y="450" font-weight="bold">BQS 70-84 (B):</text>
+      <text x="260" y="450" fill="#B45309">Secondary routing · size × 0.8 (cost surcharge applied)</text>
+
+      <text x="60" y="475" font-weight="bold">BQS < 70 (C/D):</text>
+      <text x="260" y="475" fill="#C8102E">Avoid unless failover · size × 0.5 · operator alert if used</text>
+
+      <text x="60" y="500" font-weight="bold" fill="#C8102E">BQS drift > 10%:</text>
+      <text x="260" y="500" fill="#C8102E">Auto-re-route to next-best broker · alert operator · review contract</text>
+    </g>
+  </svg>
+
+  <table class="table">
+    <tr><th>Broker</th><th>BQS</th><th>Grade</th><th>Avg Cost (bps)</th><th>Avg Spread (bps)</th><th>Avg Slip (bps)</th><th>Reject %</th><th>p99 Latency</th><th>Routing Priority</th></tr>
+    <tr><td class="mod">IC Markets Raw</td><td>92</td><td>A</td><td>2.8</td><td>0.3</td><td>0.6</td><td>0.5%</td><td>4.2 ms</td><td>1st (primary)</td></tr>
+    <tr><td class="mod">Pepperstone Razor</td><td>89</td><td>A</td><td>3.0</td><td>0.3</td><td>0.5</td><td>0.8%</td><td>3.8 ms</td><td>1st (primary alt)</td></tr>
+    <tr><td class="mod">Fusion Markets Zero</td><td>85</td><td>B+</td><td>3.2</td><td>0.4</td><td>0.7</td><td>1.2%</td><td>5.1 ms</td><td>2nd</td></tr>
+    <tr><td class="mod">Tickmill VIP</td><td>81</td><td>B</td><td>3.5</td><td>0.5</td><td>0.8</td><td>1.5%</td><td>5.5 ms</td><td>3rd</td></tr>
+    <tr><td class="mod">FP Markets Raw</td><td>78</td><td>B-</td><td>3.8</td><td>0.6</td><td>0.9</td><td>1.8%</td><td>6.2 ms</td><td>4th</td></tr>
+    <tr><td class="mod">Exness Standard</td><td>68</td><td>C</td><td>6.2</td><td>2.5</td><td>1.2</td><td>2.5%</td><td>8.5 ms</td><td>5th (failover only)</td></tr>
+  </table>
+</div>
+</body>
+</html>

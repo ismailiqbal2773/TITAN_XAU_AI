@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Hybrid AI Stack — Architecture</title>
+<style>
+  @page { size: 1600px 1100px; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #ffffff; font-family: 'Tinos','FreeSerif',serif; color: #14213D; }
+  .canvas { width: 1600px; height: 1100px; padding: 50px 60px; box-sizing: border-box; }
+  .title-bar { display: flex; align-items: baseline; gap: 18px; border-bottom: 2px solid #14213D; padding-bottom: 12px; margin-bottom: 24px; }
+  .title-bar .num { font-size: 48px; font-weight: 900; color: #C8102E; line-height: 1; }
+  .title-bar h1 { font-size: 28px; font-weight: 700; margin: 0; }
+  .title-bar .sub { font-size: 13px; color: #4A5568; margin-left: auto; font-family: 'JetBrains Mono',monospace; }
+  svg { display: block; margin: 0 auto; background: #FAFBFC; border: 1px solid #E2E8F0; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="title-bar">
+    <span class="num">01</span>
+    <h1>Hybrid AI Stack — 4-Model Ensemble Architecture</h1>
+    <span class="sub">XGBoost · LSTM · Transformer · RL → Vote → Weight → Ensemble</span>
+  </div>
+
+  <svg width="1480" height="850" viewBox="0 0 1480 850">
+    <defs>
+      <marker id="ar" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L7,3 z" fill="#14213D"/></marker>
+      <marker id="arR" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L7,3 z" fill="#C8102E"/></marker>
+    </defs>
+
+    <!-- Input layer -->
+    <rect x="540" y="20" width="400" height="60" fill="#14213D"/>
+    <text x="740" y="45" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="Tinos">Feature Store (8-dim normalized)</text>
+    <text x="740" y="65" text-anchor="middle" fill="#C8102E" font-size="10" font-family="JetBrains Mono">ADX, ATR, EMA_slope, Hurst, BBW, RealVol, VolAnalysis, NewsSentiment</text>
+
+    <!-- 4 models -->
+    <line x1="640" y1="80" x2="200" y2="140" stroke="#14213D" stroke-width="2" marker-end="url(#ar)"/>
+    <line x1="700" y1="80" x2="540" y2="140" stroke="#14213D" stroke-width="2" marker-end="url(#ar)"/>
+    <line x1="780" y1="80" x2="880" y2="140" stroke="#14213D" stroke-width="2" marker-end="url(#ar)"/>
+    <line x1="840" y1="80" x2="1220" y2="140" stroke="#14213D" stroke-width="2" marker-end="url(#ar)"/>
+
+    <!-- Model 1: XGBoost -->
+    <rect x="60" y="140" width="280" height="220" fill="#F0FDF4" stroke="#14213D" stroke-width="2"/>
+    <rect x="60" y="140" width="280" height="36" fill="#14213D"/>
+    <text x="200" y="162" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="JetBrains Mono">MODEL 1: XGBoost</text>
+    <text x="200" y="200" text-anchor="middle" font-size="12" font-weight="700" fill="#C8102E" font-family="Tinos">Direction Prediction</text>
+    <text x="80" y="225" font-size="10" fill="#4A5568" font-family="JetBrains Mono">500 trees · max_depth=6</text>
+    <text x="80" y="240" font-size="10" fill="#4A5568" font-family="JetBrains Mono">lr=0.05 · early_stop=50</text>
+    <text x="80" y="260" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Output: P(UP) / P(DOWN)</text>
+    <text x="80" y="275" font-size="10" fill="#4A5568" font-family="JetBrains Mono">+ SHAP feature importance</text>
+    <text x="80" y="300" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Strengths:</text>
+    <text x="80" y="315" font-size="10" fill="#4A5568" font-family="JetBrains Mono">· tabular feature interactions</text>
+    <text x="80" y="330" font-size="10" fill="#4A5568" font-family="JetBrains Mono">· fast inference (μs)</text>
+    <text x="80" y="345" font-size="10" fill="#4A5568" font-family="JetBrains Mono">· explainable (SHAP)</text>
+
+    <!-- Model 2: LSTM -->
+    <rect x="400" y="140" width="280" height="220" fill="#F0FDF4" stroke="#14213D" stroke-width="2"/>
+    <rect x="400" y="140" width="280" height="36" fill="#14213D"/>
+    <text x="540" y="162" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="JetBrains Mono">MODEL 2: LSTM</text>
+    <text x="540" y="200" text-anchor="middle" font-size="12" font-weight="700" fill="#C8102E" font-family="Tinos">Sequence Learning</text>
+    <text x="420" y="225" font-size="10" fill="#4A5568" font-family="JetBrains Mono">2 layers · 128 hidden units</text>
+    <text x="420" y="240" font-size="10" fill="#4A5568" font-family="JetBrains Mono">sequence=60 bars · dropout=0.2</text>
+    <text x="420" y="260" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Output: P(trend_continue)</text>
+    <text x="420" y="275" font-size="10" fill="#4A5568" font-family="JetBrains Mono">+ attention weights</text>
+    <text x="420" y="300" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Strengths:</text>
+    <text x="420" y="315" font-size="10" fill="#4A5568" font-family="JetBrains Mono">· temporal dependencies</text>
+    <text x="420" y="330" font-size="10" fill="#4A5568" font-family="JetBrains Mono">· multi-bar patterns</text>
+    <text x="420" y="345" font-size="10" fill="#4A5568" font-family="JetBrains Mono">· momentum persistence</text>
+
+    <!-- Model 3: Transformer -->
+    <rect x="740" y="140" width="280" height="220" fill="#F0FDF4" stroke="#14213D" stroke-width="2"/>
+    <rect x="740" y="140" width="280" height="36" fill="#14213D"/>
+    <text x="880" y="162" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="JetBrains Mono">MODEL 3: Transformer</text>
+    <text x="880" y="200" text-anchor="middle" font-size="12" font-weight="700" fill="#C8102E" font-family="Tinos">Context Analysis</text>
+    <text x="760" y="225" font-size="10" fill="#4A5568" font-family="JetBrains Mono">4 heads · 2 layers · d_model=64</text>
+    <text x="760" y="240" font-size="10" fill="#4A5568" font-family="JetBrains Mono">context=120 bars · pos encoding</text>
+    <text x="760" y="260" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Output: context_embedding[32]</text>
+    <text x="760" y="275" font-size="10" fill="#4A5568" font-family="JetBrains Mono">+ attention map (regime)</text>
+    <text x="760" y="300" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Strengths:</text>
+    <text x="760" y="315" font-size="10" fill="#4A5568" font-family="JetBrains Mono">· long-range context</text>
+    <text x="760" y="330" font-size="10" fill="#4A5568" font-family="JetBrains Mono">· multi-head attention</text>
+    <text x="760" y="345" font-size="10" fill="#4A5568" font-family="JetBrains Mono">· regime context</text>
+
+    <!-- Model 4: RL -->
+    <rect x="1080" y="140" width="280" height="220" fill="#FEF3F2" stroke="#C8102E" stroke-width="2"/>
+    <rect x="1080" y="140" width="280" height="36" fill="#C8102E"/>
+    <text x="1220" y="162" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="JetBrains Mono">MODEL 4: RL (PPO)</text>
+    <text x="1220" y="200" text-anchor="middle" font-size="12" font-weight="700" fill="#C8102E" font-family="Tinos">Trade Management</text>
+    <text x="1100" y="225" font-size="10" fill="#4A5568" font-family="JetBrains Mono">PPO · actor-critic</text>
+    <text x="1100" y="240" font-size="10" fill="#4A5568" font-family="JetBrains Mono">state: pos + features + PnL</text>
+    <text x="1100" y="260" font-size="10" fill="#4A5568" font-family="JetBrains Mono">actions: hold/close/trim/add</text>
+    <text x="1100" y="275" font-size="10" fill="#4A5568" font-family="JetBrains Mono">reward: risk-adj Sharpe</text>
+    <text x="1100" y="300" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Strengths:</text>
+    <text x="1100" y="315" font-size="10" fill="#4A5568" font-family="JetBrains Mono">· optimal exit timing</text>
+    <text x="1100" y="330" font-size="10" fill="#4A5568" font-family="JetBrains Mono">· position sizing</text>
+    <text x="1100" y="345" font-size="10" fill="#4A5568" font-family="JetBrains Mono">· adaptive management</text>
+
+    <!-- Ensemble layer -->
+    <line x1="200" y1="360" x2="540" y2="430" stroke="#14213D" stroke-width="2" marker-end="url(#ar)"/>
+    <line x1="540" y1="360" x2="620" y2="430" stroke="#14213D" stroke-width="2" marker-end="url(#ar)"/>
+    <line x1="880" y1="360" x2="780" y2="430" stroke="#14213D" stroke-width="2" marker-end="url(#ar)"/>
+    <line x1="1220" y1="360" x2="860" y2="430" stroke="#C8102E" stroke-width="2" marker-end="url(#arR)" stroke-dasharray="4 2"/>
+
+    <rect x="440" y="430" width="500" height="120" fill="#14213D"/>
+    <text x="690" y="458" text-anchor="middle" fill="#ffffff" font-size="14" font-weight="700" font-family="Tinos">Ensemble Orchestrator</text>
+    <text x="690" y="480" text-anchor="middle" fill="#C8102E" font-size="11" font-family="JetBrains Mono">weighted vote: XGBoost(0.35) + LSTM(0.25) + Transformer(0.25) + RL(0.15)</text>
+    <text x="690" y="498" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="10" font-family="JetBrains Mono">RL provides management actions (hold/close/trim) — not direction</text>
+    <text x="690" y="515" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="10" font-family="JetBrains Mono">confidence = weighted agreement across 3 direction models</text>
+    <text x="690" y="532" text-anchor="middle" fill="#C8102E" font-size="10" font-family="JetBrains Mono">→ final_signal: direction + size_mult + confidence + explainability</text>
+
+    <line x1="690" y1="550" x2="690" y2="580" stroke="#14213D" stroke-width="2" marker-end="url(#ar)"/>
+
+    <!-- Output -->
+    <rect x="490" y="585" width="400" height="80" fill="#F0FDF4" stroke="#C8102E" stroke-width="2"/>
+    <text x="690" y="610" text-anchor="middle" font-size="13" font-weight="700" fill="#C8102E" font-family="Tinos">AISignal Output</text>
+    <text x="690" y="630" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">{direction, confidence, probability, explainability,</text>
+    <text x="690" y="644" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono"> rl_action, top3_features, model_votes[4], ts}</text>
+    <text x="690" y="658" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">→ Strategy Coordinator (regime-gated dispatch)</text>
+
+    <!-- Monitoring layer -->
+    <text x="60" y="710" font-size="12" font-weight="700" fill="#C8102E" font-family="JetBrains Mono">MONITORING FRAMEWORK (encloses all 4 models)</text>
+
+    <rect x="60" y="725" width="320" height="80" fill="#F8FAFC" stroke="#14213D"/>
+    <text x="220" y="750" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">Drift Monitor</text>
+    <text x="220" y="768" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">PSI per feature · daily</text>
+    <text x="220" y="782" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">auto-retrain if PSI > 0.25</text>
+    <text x="220" y="796" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">model performance tracking</text>
+
+    <rect x="400" y="725" width="320" height="80" fill="#F8FAFC" stroke="#14213D"/>
+    <text x="560" y="750" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">Performance Monitor</text>
+    <text x="560" y="768" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">per-model accuracy · F1 · Brier</text>
+    <text x="560" y="782" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">ensemble Sharpe tracking</text>
+    <text x="560" y="796" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">weight rebalancing alerts</text>
+
+    <rect x="740" y="725" width="320" height="80" fill="#F8FAFC" stroke="#14213D"/>
+    <text x="900" y="750" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">Explainability Monitor</text>
+    <text x="900" y="768" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">SHAP distribution tracking</text>
+    <text x="900" y="782" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">attention map visualization</text>
+    <text x="900" y="796" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">RL action distribution audit</text>
+
+    <rect x="1080" y="725" width="320" height="80" fill="#F8FAFC" stroke="#14213D"/>
+    <text x="1240" y="750" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">Health Monitor</text>
+    <text x="1240" y="768" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">inference latency p99 per model</text>
+    <text x="1240" y="782" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">GPU utilization · memory</text>
+    <text x="1240" y="796" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">model version + rollback</text>
+  </svg>
+</div>
+</body>
+</html>

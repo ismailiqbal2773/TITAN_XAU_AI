@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Trend Following Strategy — Adaptive Risk Model</title>
+<style>
+  @page { size: 1600px 1100px; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #ffffff; font-family: 'Tinos','FreeSerif',serif; color: #14213D; }
+  .canvas { width: 1600px; height: 1100px; padding: 50px 60px; box-sizing: border-box; }
+  .title-bar { display: flex; align-items: baseline; gap: 18px; border-bottom: 2px solid #14213D; padding-bottom: 12px; margin-bottom: 24px; }
+  .title-bar .num { font-size: 48px; font-weight: 900; color: #C8102E; line-height: 1; }
+  .title-bar h1 { font-size: 26px; font-weight: 700; margin: 0; }
+  .title-bar .sub { font-size: 13px; color: #4A5568; margin-left: auto; font-family: 'JetBrains Mono',monospace; }
+  svg { display: block; margin: 0 auto; background: #FAFBFC; border: 1px solid #E2E8F0; }
+  .table { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-top: 14px; }
+  .table th { background: #14213D; color: #ffffff; padding: 6px 8px; text-align: left; font-weight: 700; }
+  .table td { padding: 5px 8px; border-bottom: 1px solid #E2E8F0; }
+  .table tr:nth-child(even) td { background: #F8FAFC; }
+  .table .mod { color: #14213D; font-family: 'JetBrains Mono',monospace; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="title-bar">
+    <span class="num">04</span>
+    <h1>Adaptive Risk Model — Position Sizing Formula</h1>
+    <span class="sub">4 multiplicative factors · bounded to [0.3%, 1.5%] equity risk</span>
+  </div>
+
+  <svg width="1480" height="640" viewBox="0 0 1480 640">
+    <defs>
+      <marker id="ar4" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
+        <path d="M0,0 L0,6 L7,3 z" fill="#14213D"/>
+      </marker>
+    </defs>
+
+    <!-- Formula -->
+    <text x="40" y="30" font-size="14" font-weight="700" fill="#C8102E" font-family="Tinos">ADAPTIVE POSITION SIZE FORMULA</text>
+
+    <rect x="40" y="40" width="1400" height="80" fill="#14213D"/>
+    <text x="740" y="75" text-anchor="middle" fill="#ffffff" font-size="16" font-weight="700" font-family="Tinos">qty = (equity × risk%) / (stop_distance × tick_value)</text>
+    <text x="740" y="100" text-anchor="middle" fill="#C8102E" font-size="12" font-family="JetBrains Mono">risk% = base_risk × regime_confidence × win_streak_factor × vol_regime_factor</text>
+
+    <line x1="200" y1="120" x2="200" y2="160" stroke="#14213D" stroke-width="2" marker-end="url(#ar4)"/>
+    <line x1="540" y1="120" x2="540" y2="160" stroke="#14213D" stroke-width="2" marker-end="url(#ar4)"/>
+    <line x1="880" y1="120" x2="880" y2="160" stroke="#14213D" stroke-width="2" marker-end="url(#ar4)"/>
+    <line x1="1220" y1="120" x2="1220" y2="160" stroke="#14213D" stroke-width="2" marker-end="url(#ar4)"/>
+
+    <!-- Factor 1: Base Risk -->
+    <rect x="80" y="160" width="240" height="180" fill="#F0FDF4" stroke="#14213D" stroke-width="2"/>
+    <rect x="80" y="160" width="240" height="32" fill="#14213D"/>
+    <text x="200" y="180" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700" font-family="JetBrains Mono">F1 · Base Risk</text>
+    <text x="200" y="215" text-anchor="middle" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">1.0% equity</text>
+    <text x="100" y="240" font-size="9" fill="#4A5568" font-family="JetBrains Mono">Constant baseline</text>
+    <text x="100" y="256" font-size="9" fill="#4A5568" font-family="JetBrains Mono">Conservative for XAUUSD</text>
+    <text x="100" y="272" font-size="9" fill="#4A5568" font-family="JetBrains Mono">Institutional standard</text>
+    <text x="100" y="296" font-size="9" fill="#4A5568" font-family="JetBrains Mono">Range: 1.0% (fixed)</text>
+    <text x="100" y="316" font-size="9" fill="#4A5568" font-family="JetBrains Mono">Tunable: 0.5% - 2.0%</text>
+
+    <!-- Factor 2: Regime Confidence -->
+    <rect x="420" y="160" width="240" height="180" fill="#F0FDF4" stroke="#14213D" stroke-width="2"/>
+    <rect x="420" y="160" width="240" height="32" fill="#14213D"/>
+    <text x="540" y="180" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700" font-family="JetBrains Mono">F2 · Regime Confidence</text>
+    <text x="540" y="215" text-anchor="middle" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">0.5 to 1.0</text>
+    <text x="440" y="240" font-size="9" fill="#4A5568" font-family="JetBrains Mono">From ARDS confidence score</text>
+    <text x="440" y="256" font-size="9" fill="#4A5568" font-family="JetBrains Mono">0.5 = low confidence TREND</text>
+    <text x="440" y="272" font-size="9" fill="#4A5568" font-family="JetBrains Mono">1.0 = high confidence TREND</text>
+    <text x="440" y="296" font-size="9" fill="#4A5568" font-family="JetBrains Mono">Linear interpolation</text>
+    <text x="440" y="316" font-size="9" fill="#4A5568" font-family="JetBrains Mono">Min: 0.5 (cut size in half)</text>
+
+    <!-- Factor 3: Win Streak -->
+    <rect x="760" y="160" width="240" height="180" fill="#F0FDF4" stroke="#14213D" stroke-width="2"/>
+    <rect x="760" y="160" width="240" height="32" fill="#14213D"/>
+    <text x="880" y="180" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700" font-family="JetBrains Mono">F3 · Win Streak Factor</text>
+    <text x="880" y="215" text-anchor="middle" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">0.8 to 1.2</text>
+    <text x="780" y="240" font-size="9" fill="#4A5568" font-family="JetBrains Mono">Anti-martingale</text>
+    <text x="780" y="256" font-size="9" fill="#4A5568" font-family="JetBrains Mono">3+ wins: 1.2 (press)</text>
+    <text x="780" y="272" font-size="9" fill="#4A5568" font-family="JetBrains Mono">0 wins: 1.0 (neutral)</text>
+    <text x="780" y="288" font-size="9" fill="#4A5568" font-family="JetBrains Mono">3+ losses: 0.8 (reduce)</text>
+    <text x="780" y="312" font-size="9" fill="#4A5568" font-family="JetBrains Mono">Caps drawdowns</text>
+    <text x="780" y="328" font-size="9" fill="#4A5568" font-family="JetBrains Mono">Presses winners</text>
+
+    <!-- Factor 4: Vol Regime -->
+    <rect x="1100" y="160" width="240" height="180" fill="#F0FDF4" stroke="#14213D" stroke-width="2"/>
+    <rect x="1100" y="160" width="240" height="32" fill="#14213D"/>
+    <text x="1220" y="180" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700" font-family="JetBrains Mono">F4 · Vol Regime Factor</text>
+    <text x="1220" y="215" text-anchor="middle" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">0.7 to 1.1</text>
+    <text x="1120" y="240" font-size="9" fill="#4A5568" font-family="JetBrains Mono">ATR percentile (252-bar)</text>
+    <text x="1120" y="256" font-size="9" fill="#4A5568" font-family="JetBrains Mono">&lt;20% (low vol): 1.1 (size up)</text>
+    <text x="1120" y="272" font-size="9" fill="#4A5568" font-family="JetBrains Mono">20-80% (normal): 1.0</text>
+    <text x="1120" y="288" font-size="9" fill="#4A5568" font-family="JetBrains Mono">&gt;80% (high vol): 0.7 (size down)</text>
+    <text x="1120" y="312" font-size="9" fill="#4A5568" font-family="JetBrains Mono">Reduces risk in storms</text>
+    <text x="1120" y="328" font-size="9" fill="#4A5568" font-family="JetBrains Mono">Exploits calm trends</text>
+
+    <!-- Output -->
+    <line x1="200" y1="340" x2="640" y2="400" stroke="#14213D" stroke-width="2" marker-end="url(#ar4)"/>
+    <line x1="540" y1="340" x2="680" y2="400" stroke="#14213D" stroke-width="2" marker-end="url(#ar4)"/>
+    <line x1="880" y1="340" x2="720" y2="400" stroke="#14213D" stroke-width="2" marker-end="url(#ar4)"/>
+    <line x1="1220" y1="340" x2="760" y2="400" stroke="#14213D" stroke-width="2" marker-end="url(#ar4)"/>
+
+    <rect x="500" y="400" width="380" height="80" fill="#14213D"/>
+    <text x="690" y="425" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="Tinos">risk% = 1.0% × F2 × F3 × F4</text>
+    <text x="690" y="445" text-anchor="middle" fill="#C8102E" font-size="11" font-family="JetBrains Mono">bounded to [0.3%, 1.5%] per trade</text>
+    <text x="690" y="465" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="9" font-family="JetBrains Mono">clip to bounds if outside</text>
+
+    <!-- Example calculations -->
+    <text x="40" y="520" font-size="14" font-weight="700" fill="#C8102E" font-family="Tinos">EXAMPLE CALCULATIONS</text>
+
+    <rect x="40" y="535" width="1400" height="100" fill="#F8FAFC" stroke="#14213D"/>
+
+    <g font-family="JetBrains Mono" font-size="10" fill="#14213D">
+      <text x="60" y="558" font-weight="700">Scenario</text>
+      <text x="240" y="558" font-weight="700">F2 (conf)</text>
+      <text x="380" y="558" font-weight="700">F3 (streak)</text>
+      <text x="540" y="558" font-weight="700">F4 (vol)</text>
+      <text x="680" y="558" font-weight="700">risk%</text>
+      <text x="820" y="558" font-weight="700">$100k equity</text>
+      <text x="1020" y="558" font-weight="700">stop_dist</text>
+      <text x="1200" y="558" font-weight="700">tick_val</text>
+      <text x="1360" y="558" font-weight="700">qty (lots)</text>
+
+      <text x="60" y="585">High-conf trend, winning streak, low vol</text>
+      <text x="240" y="585" fill="#15803D">1.0</text>
+      <text x="380" y="585" fill="#15803D">1.2</text>
+      <text x="540" y="585" fill="#15803D">1.1</text>
+      <text x="680" y="585" fill="#C8102E" font-weight="700">1.32% (capped 1.5%)</text>
+      <text x="820" y="585">$1,320</text>
+      <text x="1020" y="585">$2.00 (20 pips)</text>
+      <text x="1200" y="585">$1.00/pip</text>
+      <text x="1360" y="585" font-weight="700">0.66 lots</text>
+
+      <text x="60" y="608">Low-conf trend, losing streak, high vol</text>
+      <text x="240" y="608" fill="#C8102E">0.5</text>
+      <text x="380" y="608" fill="#C8102E">0.8</text>
+      <text x="540" y="608" fill="#C8102E">0.7</text>
+      <text x="680" y="608" fill="#C8102E" font-weight="700">0.28% (floored 0.3%)</text>
+      <text x="820" y="608">$300</text>
+      <text x="1020" y="608">$2.00 (20 pips)</text>
+      <text x="1200" y="608">$1.00/pip</text>
+      <text x="1360" y="608" font-weight="700">0.15 lots</text>
+
+      <text x="60" y="628">Normal trend, neutral streak, normal vol</text>
+      <text x="240" y="628">0.8</text>
+      <text x="380" y="628">1.0</text>
+      <text x="540" y="628">1.0</text>
+      <text x="680" y="628" font-weight="700">0.80%</text>
+      <text x="820" y="628">$800</text>
+      <text x="1020" y="628">$2.00 (20 pips)</text>
+      <text x="1200" y="628">$1.00/pip</text>
+      <text x="1360" y="628" font-weight="700">0.40 lots</text>
+    </g>
+  </svg>
+
+  <table class="table">
+    <tr><th>Factor</th><th>Symbol</th><th>Range</th><th>Source</th><th>Purpose</th><th>When Max</th><th>When Min</th></tr>
+    <tr><td class="mod">F1 Base Risk</td><td>base_risk</td><td>1.0% (fixed)</td><td>Config (tunable 0.5%-2.0%)</td><td>Baseline risk per trade</td><td>—</td><td>—</td></tr>
+    <tr><td class="mod">F2 Regime Confidence</td><td>conf</td><td>[0.5, 1.0]</td><td>ARDS ConfidenceScorer</td><td>Scale by regime detection certainty</td><td>High-confidence TREND (unanimous)</td><td>Low-confidence TREND (2/3 models)</td></tr>
+    <tr><td class="mod">F3 Win Streak</td><td>streak</td><td>[0.8, 1.2]</td><td>PerformanceTracker (last 10 trades)</td><td>Anti-martingale: press winners, protect losers</td><td>3+ consecutive wins (1.2)</td><td>3+ consecutive losses (0.8)</td></tr>
+    <tr><td class="mod">F4 Vol Regime</td><td>vol</td><td>[0.7, 1.1]</td><td>ATR percentile (252-bar)</td><td>Reduce risk in storms, exploit calm</td><td>Low vol (&lt;20th pct): 1.1</td><td>High vol (&gt;80th pct): 0.7</td></tr>
+  </table>
+</div>
+</body>
+</html>

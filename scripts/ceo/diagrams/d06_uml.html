@@ -1,0 +1,119 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>d06</title>
+<link href="https://fonts.googleapis.com/css2?family=Tinos:wght@400;700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { width: 1600px; height: 1400px; background: #ffffff; font-family: 'Inter', sans-serif; color: #14213D; padding: 50px 60px; }
+.h-title { font-family: 'Tinos', serif; font-size: 30px; font-weight: 900; letter-spacing: -0.5px; }
+.h-sub { font-family: 'Inter', sans-serif; font-size: 13px; color: #4A5568; margin-top: 4px; }
+.h-rule { width: 80px; height: 3px; background: #C8102E; margin: 14px 0 24px 0; }
+
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+
+.uml-card { border: 1px solid #CBD5E1; border-radius: 6px; overflow: hidden; }
+.uml-head { background: #14213D; color: #fff; padding: 10px 16px; font-family: 'Tinos', serif; font-size: 13px; font-weight: 700; }
+.uml-body { padding: 12px 14px; }
+.class-box { border: 1.5px solid #14213D; border-radius: 4px; margin-bottom: 10px; background: #fff; }
+.class-name { background: #14213D; color: #fff; padding: 5px 10px; font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; }
+.class-name .st { font-style: italic; color: #C8102E; font-weight: 400; font-size: 9px; margin-left: 4px; }
+.class-section { padding: 5px 10px; border-top: 1px solid #CBD5E1; font-family: 'JetBrains Mono', monospace; font-size: 8.5px; line-height: 1.6; color: #14213D; }
+.class-section .attr { color: #4A5568; }
+.class-section .pub { color: #15803D; }
+.class-section .priv { color: #C8102E; }
+.class-section .prot { color: #B45309; }
+
+.relation { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C8102E; text-align: center; margin: 3px 0; font-weight: 700; }
+
+.iface-card { background: #F8FAFC; border: 1px solid #CBD5E1; border-left: 3px solid #B45309; border-radius: 4px; padding: 8px 12px; margin-bottom: 8px; }
+.iface-card .n { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #B45309; font-weight: 700; }
+.iface-card .t { font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; color: #14213D; margin-top: 2px; }
+.iface-card .methods { font-family: 'JetBrains Mono', monospace; font-size: 8.5px; color: #4A5568; margin-top: 4px; line-height: 1.6; }
+.iface-card .methods .pub { color: #15803D; }
+
+.note { margin-top: 18px; padding: 12px 16px; background: #F1F5F9; border-left: 4px solid #C8102E; border-radius: 4px; font-family: 'Inter', sans-serif; font-size: 11px; color: #14213D; line-height: 1.6; }
+.note b { color: #C8102E; }
+</style></head>
+<body>
+<div class="h-title">UML Class Diagram — Core Classes &amp; Interfaces</div>
+<div class="h-sub">Python 3.12 implementation · 16 classes · 5 interfaces · fully typed (mypy strict) · no external LLM</div>
+<div class="h-rule"></div>
+
+<div class="cols">
+  <div class="uml-card">
+    <div class="uml-head">Core Orchestrator &amp; Monitors</div>
+    <div class="uml-body">
+      <div class="class-box">
+        <div class="class-name">CEOSupervisor <span class="st">«main orchestrator»</span></div>
+        <div class="class-section"><div class="attr">- monitors_: dict[str, Monitor]</div><div class="attr">- detector_engine_: DetectionEngine</div><div class="attr">- decision_engine_: DecisionEngine</div><div class="attr">- action_engine_: ActionEngine</div><div class="attr">- db_: Database</div><div class="attr">- cycle_task_: asyncio.Task</div></div>
+        <div class="class-section"><div class="pub">+</div> async start() → None</div><div class="class-section"><div class="pub">+</div> async stop() → None</div><div class="class-section"><div class="pub">+</div> async run_cycle() → SystemStatus</div><div class="class-section"><div class="pub">+</div> get_status() → SystemStatus</div><div class="class-section"><div class="pub">+</div> get_health_scores() → HealthScores</div><div class="class-section"><div class="priv">-</div> async _ingest_events() → None</div><div class="class-section"><div class="priv">-</div> async _persist_scores(scores) → None</div></div>
+      </div>
+      <div class="relation">↑ composes 5</div>
+      <div class="class-box">
+        <div class="class-name">ModelHealthMonitor <span class="st">: IMonitor</span></div>
+        <div class="class-section"><div class="attr">- windows_: dict[ModelId, dict[Metric, RollingWindow]]</div><div class="attr">- model_baselines_: dict</div></div>
+        <div class="class-section"><div class="pub">+</div> on_trade(trade: Trade) → None</div><div class="class-section"><div class="pub">+</div> compute_score(model_id) → HealthScore</div><div class="class-section"><div class="pub">+</div> get_window(model, metric, size) → np.ndarray</div><div class="class-section"><div class="priv">-</div> _normalize(value, baseline) → float</div></div>
+      </div>
+      <div class="class-box">
+        <div class="class-name">ExecutionQualityMonitor <span class="st">: IMonitor</span></div>
+        <div class="class-section"><div class="attr">- latency_windows_: RollingWindow</div><div class="attr">- slippage_windows_: RollingWindow</div><div class="attr">- fill_rate_window_: RollingWindow</div></div>
+        <div class="class-section"><div class="pub">+</div> on_fill(fill: Fill) → None</div><div class="class-section"><div class="pub">+</div> compute_score() → HealthScore</div></div>
+      </div>
+      <div class="class-box">
+        <div class="class-name">RiskMonitor <span class="st">: IMonitor</span></div>
+        <div class="class-section"><div class="attr">- mdd_window_: RollingWindow</div><div class="attr">- exposure_tracker_: ExposureTracker</div></div>
+        <div class="class-section"><div class="pub">+</div> on_tick(tick: Tick) → None</div><div class="class-section"><div class="pub">+</div> compute_score() → HealthScore</div></div>
+      </div>
+      <div class="class-box">
+        <div class="class-name">BrokerQualityMonitor <span class="st">: IMonitor</span></div>
+        <div class="class-section"><div class="attr">- per_broker_: dict[BrokerId, BrokerStats]</div></div>
+        <div class="class-section"><div class="pub">+</div> on_fill(fill: Fill) → None</div><div class="class-section"><div class="pub">+</div> on_disconnect(broker) → None</div><div class="class-section"><div class="pub">+</div> compute_score(broker) → HealthScore</div></div>
+      </div>
+      <div class="class-box">
+        <div class="class-name">RegimeMonitor <span class="st">: IMonitor</span></div>
+        <div class="class-section"><div class="attr">- current_regime_: Regime</div><div class="attr">- regime_perf_: dict[Regime, PerfStats]</div></div>
+        <div class="class-section"><div class="pub">+</div> on_regime_change(regime) → None</div><div class="class-section"><div class="pub">+</div> compute_score() → HealthScore</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="uml-card">
+    <div class="uml-head">Detection, Decision, Action &amp; Support</div>
+    <div class="uml-body">
+      <div class="class-box">
+        <div class="class-name">DetectionEngine</div>
+        <div class="class-section"><div class="attr">- detectors_: list[IDetectionRule]</div></div>
+        <div class="class-section"><div class="pub">+</div> run_all(context) → list[DetectionEvent]</div><div class="class-section"><div class="pub">+</div> register(rule: IDetectionRule) → None</div></div>
+      </div>
+      <div class="class-box">
+        <div class="class-name">DecisionEngine</div>
+        <div class="class-section"><div class="attr">- thresholds_: DecisionThresholds</div></div>
+        <div class="class-section"><div class="pub">+</div> decide(scores: HealthScores, events: list) → SystemStatus</div></div>
+      </div>
+      <div class="class-box">
+        <div class="class-name">ActionEngine</div>
+        <div class="class-section"><div class="attr">- model_ctrl_: IModelController</div><div class="attr">- risk_ctrl_: IRiskController</div><div class="attr">- alert_sink_: IAlertSink</div></div>
+        <div class="class-section"><div class="pub">+</div> execute(action: ControlAction) → ActionResult</div><div class="class-section"><div class="pub">+</div> reduce_influence(model, factor) → None</div><div class="class-section"><div class="pub">+</div> disable_model(model) → None</div><div class="class-section"><div class="pub">+</div> trigger_emergency() → None</div><div class="class-section"><div class="pub">+</div> trigger_capital_preservation() → None</div></div>
+      </div>
+      <div class="class-box">
+        <div class="class-name">RollingWindow <span class="st">«generic»</span></div>
+        <div class="class-section"><div class="attr">- buffer_: collections.deque</div><div class="attr">- max_size_: int</div></div>
+        <div class="class-section"><div class="pub">+</div> push(value: float) → None</div><div class="class-section"><div class="pub">+</div> to_array() → np.ndarray</div><div class="class-section"><div class="pub">+</div> percentile(p: float) → float</div><div class="class-section"><div class="pub">+</div> mean() / std() / max() → float</div><div class="class-section"><div class="pub">+</div> __len__() → int</div></div>
+      </div>
+      <div class="class-box">
+        <div class="class-name">Database</div>
+        <div class="class-section"><div class="attr">- pool_: asyncpg.Pool</div></div>
+        <div class="class-section"><div class="pub">+</div> async save_scores(scores) → None</div><div class="class-section"><div class="pub">+</div> async save_action(action) → None</div><div class="class-section"><div class="pub">+</div> async query_history(start, end) → list</div></div>
+      </div>
+      <div class="relation">↑ implements 5</div>
+      <div class="iface-card"><div class="n">«interface»</div><div class="t">IMonitor</div><div class="methods"><span class="pub">+</span> compute_score() → HealthScore<br><span class="pub">+</span> get_window(metric, size) → np.ndarray</div></div>
+      <div class="iface-card"><div class="n">«interface»</div><div class="t">IDetectionRule</div><div class="methods"><span class="pub">+</span> evaluate(context) → DetectionEvent | None<br><span class="pub">+</span> severity() → Severity</div></div>
+      <div class="iface-card"><div class="n">«interface»</div><div class="t">IModelController</div><div class="methods"><span class="pub">+</span> set_influence(model_id, weight) → None<br><span class="pub">+</span> disable(model_id) → None<br><span class="pub">+</span> enable(model_id) → None</div></div>
+      <div class="iface-card"><div class="n">«interface»</div><div class="t">IRiskController</div><div class="methods"><span class="pub">+</span> set_mode(mode: RiskMode) → None<br><span class="pub">+</span> emergency_flatten() → None</div></div>
+      <div class="iface-card"><div class="n">«interface»</div><div class="t">IAlertSink</div><div class="methods"><span class="pub">+</span> async send(alert: Alert) → None<br><span class="pub">+</span> async send_batch(alerts) → None</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="note">
+<b>Design Patterns:</b> <b>Strategy</b> (IDetectionRule — 8 interchangeable detectors), <b>Observer</b> (CEOSupervisor subscribes to NATS events), <b>Command</b> (ControlAction — serializable action objects), <b>Facade</b> (CEOSupervisor wraps 5 monitors + 3 engines behind single interface), <b>Repository</b> (Database abstracts persistence), <b>Factory</b> (DetectionEngine creates detectors from config). <b>All classes are fully typed (mypy --strict)</b> — no Any types in public APIs. <b>Zero external LLM dependency</b> — all detection is statistical (NumPy).
+</div>
+</body></html>

@@ -1,0 +1,116 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>d04</title>
+<link href="https://fonts.googleapis.com/css2?family=Tinos:wght@400;700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { width: 1600px; height: 1100px; background: #ffffff; font-family: 'Inter', sans-serif; color: #14213D; padding: 50px 60px; }
+.h-title { font-family: 'Tinos', serif; font-size: 30px; font-weight: 900; letter-spacing: -0.5px; }
+.h-sub { font-family: 'Inter', sans-serif; font-size: 13px; color: #4A5568; margin-top: 4px; }
+.h-rule { width: 80px; height: 3px; background: #C8102E; margin: 14px 0 28px 0; }
+
+.grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+.cat { border: 1px solid #CBD5E1; border-radius: 6px; overflow: hidden; }
+.cat-head { padding: 12px 16px; color: #fff; font-family: 'Tinos', serif; font-size: 14px; font-weight: 700; display: flex; justify-content: space-between; align-items: center; }
+.cat-head .num { font-family: 'JetBrains Mono', monospace; font-size: 11px; opacity: 0.8; }
+.cat.r .cat-head { background: #14213D; }
+.cat.k .cat-head { background: #C8102E; }
+.cat.t .cat-head { background: #B45309; }
+.cat.c .cat-head { background: #4A5568; }
+.cat-body { padding: 10px 14px; }
+.metric { padding: 7px 0; border-bottom: 1px dashed #E2E8F0; }
+.metric:last-child { border-bottom: none; }
+.metric .name { font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; color: #14213D; }
+.metric .formula { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #4A5568; margin-top: 2px; line-height: 1.4; }
+.metric .target { font-family: 'Inter', sans-serif; font-size: 9.5px; color: #C8102E; margin-top: 2px; font-weight: 600; }
+
+.bench-card { margin-top: 22px; background: #14213D; color: #fff; padding: 18px 22px; border-radius: 6px; }
+.bench-card .lbl { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #C8102E; letter-spacing: 2px; font-weight: 700; }
+.bench-card .h { font-family: 'Tinos', serif; font-size: 17px; font-weight: 700; margin-top: 4px; }
+.bench-table { width: 100%; margin-top: 14px; border-collapse: collapse; }
+.bench-table th { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #94A3B8; letter-spacing: 1.5px; text-align: left; padding: 8px 12px; border-bottom: 1px solid #4A5568; }
+.bench-table td { font-family: 'Inter', sans-serif; font-size: 11px; padding: 8px 12px; border-bottom: 1px solid #2D3748; }
+.bench-table td.metric { font-weight: 700; color: #fff; }
+.bench-table td.pass { color: #15803D; font-family: 'JetBrains Mono', monospace; font-weight: 700; }
+.bench-table td.fail { color: #C8102E; font-family: 'JetBrains Mono', monospace; font-weight: 700; }
+.bench-table td.warn { color: #F59E0B; font-family: 'JetBrains Mono', monospace; font-weight: 700; }
+.bench-table td.val { font-family: 'JetBrains Mono', monospace; }
+
+.formula-block { margin-top: 18px; padding: 14px 18px; background: #F1F5F9; border-left: 4px solid #C8102E; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #14213D; line-height: 1.7; }
+.formula-block b { color: #C8102E; }
+</style></head>
+<body>
+<div class="h-title">Metrics — 24 Across 4 Categories</div>
+<div class="h-sub">Return · Risk · Trade · Cost — each metric has explicit formula, target band, and certification role</div>
+<div class="h-rule"></div>
+
+<div class="grid4">
+  <div class="cat r">
+    <div class="cat-head"><span>RETURN</span><span class="num">6 metrics</span></div>
+    <div class="cat-body">
+      <div class="metric"><div class="name">CAGR</div><div class="formula">(final/initial)^(1/years) − 1</div><div class="target">Target: ≥ 35%</div></div>
+      <div class="metric"><div class="name">Total Return</div><div class="formula">(final − initial) / initial</div><div class="target">12-mo: ≥ 40%</div></div>
+      <div class="metric"><div class="name">Avg Trade Return</div><div class="formula">mean(per-trade R)</div><div class="target">≥ 0.15R</div></div>
+      <div class="metric"><div class="name">Win-Loss Ratio</div><div class="formula">avg_win / avg_loss</div><div class="target">≥ 1.5</div></div>
+      <div class="metric"><div class="name">Monthly Return</div><div class="formula">mean(monthly returns)</div><div class="target">≥ 2.5%</div></div>
+      <div class="metric"><div class="name">Payoff Ratio</div><div class="formula">gross_profit / gross_loss</div><div class="target">≥ 1.3</div></div>
+    </div>
+  </div>
+  <div class="cat k">
+    <div class="cat-head"><span>RISK</span><span class="num">6 metrics</span></div>
+    <div class="cat-body">
+      <div class="metric"><div class="name">Sharpe Ratio</div><div class="formula">mean(excess) / std(excess) × √252</div><div class="target">≥ 2.0</div></div>
+      <div class="metric"><div class="name">Sortino Ratio</div><div class="formula">mean(excess) / std(neg) × √252</div><div class="target">≥ 2.5</div></div>
+      <div class="metric"><div class="name">Calmar Ratio</div><div class="formula">CAGR / |MDD|</div><div class="target">≥ 3.0</div></div>
+      <div class="metric"><div class="name">Max Drawdown</div><div class="formula">max(peak − trough) / peak</div><div class="target">≤ 12%</div></div>
+      <div class="metric"><div class="name">Volatility</div><div class="formula">std(daily returns) × √252</div><div class="target">≤ 20%</div></div>
+      <div class="metric"><div class="name">CVaR 95%</div><div class="formula">E[loss | loss ≤ VaR_95]</div><div class="target">≤ 1.5%</div></div>
+    </div>
+  </div>
+  <div class="cat t">
+    <div class="cat-head"><span>TRADE</span><span class="num">6 metrics</span></div>
+    <div class="cat-body">
+      <div class="metric"><div class="name">Win Rate</div><div class="formula">wins / total_trades</div><div class="target">≥ 55%</div></div>
+      <div class="metric"><div class="name">Profit Factor</div><div class="formula">gross_profit / gross_loss</div><div class="target">≥ 1.5</div></div>
+      <div class="metric"><div class="name">Expectancy</div><div class="formula">win_rate × avg_win − loss_rate × avg_loss</div><div class="target">≥ 0.20R</div></div>
+      <div class="metric"><div class="name">Avg Hold Time</div><div class="formula">mean(time_in_trade)</div><div class="target">2-8 hours</div></div>
+      <div class="metric"><div class="name">Trades/Day</div><div class="formula">total / trading_days</div><div class="target">2-8</div></div>
+      <div class="metric"><div class="name">Payette Ratio</div><div class="formula">profit / max_consec_losses</div><div class="target">≥ 0.5</div></div>
+    </div>
+  </div>
+  <div class="cat c">
+    <div class="cat-head"><span>COST</span><span class="num">6 metrics</span></div>
+    <div class="cat-body">
+      <div class="metric"><div class="name">Cost Drag</div><div class="formula">(ideal − realistic) / ideal</div><div class="target">≤ 35%</div></div>
+      <div class="metric"><div class="name">Spread Cost</div><div class="formula">Σ spread × lots × 10</div><div class="target">≤ 15% of gross</div></div>
+      <div class="metric"><div class="name">Commission Cost</div><div class="formula">Σ lots × rate_RT</div><div class="target">≤ 10% of gross</div></div>
+      <div class="metric"><div class="name">Swap Cost</div><div class="formula">Σ overnight financing</div><div class="target">≤ 8% of gross</div></div>
+      <div class="metric"><div class="name">Slippage Cost</div><div class="formula">Σ |fill − signal| × lots × 100</div><div class="target">≤ 12% of gross</div></div>
+      <div class="metric"><div class="name">Real vs Ideal</div><div class="formula">realistic_PnL / ideal_PnL</div><div class="target">≥ 0.65</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="bench-card">
+  <div class="lbl">CERTIFICATION BENCHMARKS — WORKED EXAMPLE</div>
+  <div class="h">TITAN Trend Following v3.2 — 12-month backtest on ICMarkets</div>
+  <table class="bench-table">
+    <thead><tr><th style="width:200px">Metric</th><th style="width:120px">Value</th><th style="width:100px">Target</th><th style="width:80px">Verdict</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td class="metric">Sharpe Ratio</td><td class="val">2.28</td><td>≥ 2.0</td><td class="pass">PASS</td><td>Annualized, daily returns</td></tr>
+      <tr><td class="metric">Sortino Ratio</td><td class="val">3.12</td><td>≥ 2.5</td><td class="pass">PASS</td><td>Downside-only denominator</td></tr>
+      <tr><td class="metric">Max Drawdown</td><td class="val">8.4%</td><td>≤ 12%</td><td class="pass">PASS</td><td>Mar 2025 silver flash</td></tr>
+      <tr><td class="metric">CAGR</td><td class="val">42.6%</td><td>≥ 35%</td><td class="pass">PASS</td><td>Realistic, post-cost</td></tr>
+      <tr><td class="metric">Profit Factor</td><td class="val">1.84</td><td>≥ 1.5</td><td class="pass">PASS</td><td>Gross profit / gross loss</td></tr>
+      <tr><td class="metric">Win Rate</td><td class="val">61.2%</td><td>≥ 55%</td><td class="pass">PASS</td><td>742 trades total</td></tr>
+      <tr><td class="metric">Cost Drag</td><td class="val">28.4%</td><td>≤ 35%</td><td class="pass">PASS</td><td>Spread 32%, Slip 28%, Comm 25%, Swap 15%</td></tr>
+      <tr><td class="metric">Real vs Ideal</td><td class="val">0.72</td><td>≥ 0.65</td><td class="pass">PASS</td><td>28% of edge lost to costs</td></tr>
+      <tr><td class="metric">Calmar Ratio</td><td class="val">5.07</td><td>≥ 3.0</td><td class="pass">PASS</td><td>CAGR / MDD</td></tr>
+      <tr><td class="metric">Expectancy</td><td class="val">0.31R</td><td>≥ 0.20R</td><td class="pass">PASS</td><td>Per-trade expected value</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="formula-block">
+<b>Robust Sharpe (annualized):</b> SR = (μ<sub>daily</sub> − r<sub>f</sub>) / σ<sub>daily</sub> × √252 &nbsp;&nbsp;|&nbsp;&nbsp; <b>Cost Drag:</b> CD = (PnL<sub>ideal</sub> − PnL<sub>real</sub>) / PnL<sub>ideal</sub><br>
+<b>Calmar:</b> C = CAGR / |MDD| &nbsp;&nbsp;|&nbsp;&nbsp; <b>Expectancy:</b> E = (W × AvgW) − (L × AvgL) &nbsp;&nbsp;|&nbsp;&nbsp; <b>Profit Factor:</b> PF = GP / GL
+</div>
+</body></html>

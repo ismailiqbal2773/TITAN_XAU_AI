@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>TITAN XAU AI — Testing Architecture</title>
+<style>
+  @page { size: 1600px 1100px; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #ffffff; font-family: 'Tinos','FreeSerif',serif; color: #14213D; }
+  .canvas { width: 1600px; height: 1100px; padding: 50px 60px; box-sizing: border-box; }
+  .title-bar { display: flex; align-items: baseline; gap: 18px; border-bottom: 2px solid #14213D; padding-bottom: 12px; margin-bottom: 24px; }
+  .title-bar .num { font-size: 56px; font-weight: 900; color: #C8102E; line-height: 1; }
+  .title-bar h1 { font-size: 28px; font-weight: 700; margin: 0; }
+  .title-bar .sub { font-size: 13px; color: #4A5568; margin-left: auto; font-family: 'JetBrains Mono',monospace; }
+  svg { display: block; margin: 0 auto; background: #FAFBFC; border: 1px solid #E2E8F0; }
+  .table { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-top: 12px; }
+  .table th { background: #14213D; color: #ffffff; padding: 6px 8px; text-align: left; font-weight: 700; }
+  .table td { padding: 5px 8px; border-bottom: 1px solid #E2E8F0; }
+  .table tr:nth-child(even) td { background: #F8FAFC; }
+  .table .mod { color: #14213D; font-family: 'JetBrains Mono',monospace; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="title-bar">
+    <span class="num">09</span>
+    <h1>Testing Architecture — Pyramid, CI/CD Gates, Coverage</h1>
+    <span class="sub">Unit · Integration · Component · Backtest · Chaos</span>
+  </div>
+
+  <svg width="1480" height="780" viewBox="0 0 1480 780">
+    <!-- LEFT: Testing Pyramid -->
+    <g>
+      <text x="40" y="30" font-size="14" font-weight="700" fill="#C8102E" font-family="Tinos">TESTING PYRAMID</text>
+
+      <!-- Layer 1: Unit (base, widest) -->
+      <polygon points="40,650 720,650 660,560 100,560" fill="#F0FDF4" stroke="#14213D" stroke-width="2"/>
+      <text x="380" y="595" text-anchor="middle" font-size="14" font-weight="700" fill="#14213D" font-family="Tinos">UNIT TESTS</text>
+      <text x="380" y="615" text-anchor="middle" font-size="11" fill="#4A5568" font-family="JetBrains Mono">pytest + GoogleTest · ~70% of all tests</text>
+      <text x="380" y="632" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">pure functions, mocked I/O · sub-ms execution</text>
+
+      <!-- Layer 2: Integration -->
+      <polygon points="100,560 660,560 600,470 160,470" fill="#FEF3F2" stroke="#14213D" stroke-width="2"/>
+      <text x="380" y="505" text-anchor="middle" font-size="14" font-weight="700" fill="#14213D" font-family="Tinos">INTEGRATION TESTS</text>
+      <text x="380" y="525" text-anchor="middle" font-size="11" fill="#4A5568" font-family="JetBrains Mono">Pact contracts · async event flow · ~20%</text>
+      <text x="380" y="542" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">service-to-service, real ZMQ bus, mock broker</text>
+
+      <!-- Layer 3: Component -->
+      <polygon points="160,470 600,470 540,380 220,380" fill="#F0FDF4" stroke="#14213D" stroke-width="2"/>
+      <text x="380" y="415" text-anchor="middle" font-size="14" font-weight="700" fill="#14213D" font-family="Tinos">COMPONENT TESTS</text>
+      <text x="380" y="435" text-anchor="middle" font-size="11" fill="#4A5568" font-family="JetBrains Mono">testcontainers · Redis + PG + MinIO · ~6%</text>
+      <text x="380" y="452" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">single service, real infra deps, mock broker</text>
+
+      <!-- Layer 4: Backtest -->
+      <polygon points="220,380 540,380 480,290 280,290" fill="#FEF3F2" stroke="#14213D" stroke-width="2"/>
+      <text x="380" y="325" text-anchor="middle" font-size="14" font-weight="700" fill="#14213D" font-family="Tinos">BACKTEST / REGRESSION</text>
+      <text x="380" y="345" text-anchor="middle" font-size="11" fill="#4A5568" font-family="JetBrains Mono">walk-forward + Monte Carlo · ~3%</text>
+      <text x="380" y="362" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">24mo historical, OOS last 20%, must beat baseline</text>
+
+      <!-- Layer 5: Chaos (top, narrow) -->
+      <polygon points="280,290 480,290 430,200 330,200" fill="#FEF3F2" stroke="#C8102E" stroke-width="2.5"/>
+      <text x="380" y="230" text-anchor="middle" font-size="13" font-weight="700" fill="#C8102E" font-family="Tinos">CHAOS / FAULT INJECTION</text>
+      <text x="380" y="248" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Gremlin-style · weekly · ~1%</text>
+      <text x="380" y="263" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">broker disconnect, partial fills,</text>
+      <text x="380" y="277" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">CPU contention, network partition</text>
+
+      <!-- Annotations on right side of pyramid -->
+      <g font-family="JetBrains Mono" font-size="10" fill="#14213D">
+        <line x1="720" y1="605" x2="770" y2="605" stroke="#14213D"/>
+        <text x="775" y="608">~1500 tests · 80% line coverage target</text>
+        <text x="775" y="622" fill="#4A5568">run: &lt; 60s · parallelized</text>
+
+        <line x1="660" y1="515" x2="770" y2="515" stroke="#14213D"/>
+        <text x="775" y="518">~400 tests · broker contract verification</text>
+        <text x="775" y="532" fill="#4A5568">run: &lt; 5min · per-service</text>
+
+        <line x1="600" y1="425" x2="770" y2="425" stroke="#14213D"/>
+        <text x="775" y="428">~120 tests · real Redis/PG via testcontainers</text>
+        <text x="775" y="442" fill="#4A5568">run: &lt; 10min · per-service</text>
+
+        <line x1="540" y1="335" x2="770" y2="335" stroke="#14213D"/>
+        <text x="775" y="338">~30 scenarios · PF/Sharpe/DD thresholds</text>
+        <text x="775" y="352" fill="#4A5568">run: ~30min · nightly + on PR</text>
+
+        <line x1="480" y1="245" x2="770" y2="245" stroke="#C8102E"/>
+        <text x="775" y="248" fill="#C8102E">~10 experiments · weekly game-day</text>
+        <text x="775" y="262" fill="#4A5568">run: ~2h · production-like staging</text>
+      </g>
+    </g>
+
+    <!-- RIGHT: CI/CD Pipeline -->
+    <g>
+      <text x="900" y="30" font-size="14" font-weight="700" fill="#C8102E" font-family="Tinos">CI/CD PIPELINE GATES</text>
+
+      <!-- PR stage -->
+      <rect x="900" y="50" width="540" height="50" fill="#F0FDF4" stroke="#14213D" stroke-width="1.5"/>
+      <text x="1170" y="70" text-anchor="middle" font-size="11" font-weight="700" font-family="Tinos">PR OPENED</text>
+      <text x="1170" y="87" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">GitLab PR · 2 reviewers · branch protection</text>
+
+      <!-- Gate 1 -->
+      <rect x="900" y="115" width="540" height="55" fill="#FEF3F2" stroke="#C8102E"/>
+      <text x="1170" y="133" text-anchor="middle" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">GATE 1 — Static + Unit</text>
+      <text x="1170" y="150" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">clang-tidy · pylint · mypy · pytest · gtest</text>
+      <text x="1170" y="164" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">Threshold: 0 critical findings · 80% line coverage</text>
+
+      <!-- Gate 2 -->
+      <rect x="900" y="185" width="540" height="55" fill="#FEF3F2" stroke="#C8102E"/>
+      <text x="1170" y="203" text-anchor="middle" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">GATE 2 — Integration + Component</text>
+      <text x="1170" y="220" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">Pact contracts · testcontainers · service-to-service</text>
+      <text x="1170" y="234" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">Threshold: 0 contract breaks · 100% critical-path coverage</text>
+
+      <!-- Gate 3 -->
+      <rect x="900" y="255" width="540" height="55" fill="#FEF3F2" stroke="#C8102E" stroke-width="2"/>
+      <text x="1170" y="273" text-anchor="middle" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">GATE 3 — Backtest Regression (mandatory)</text>
+      <text x="1170" y="290" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">Walk-forward 24mo · Monte Carlo 1000 paths</text>
+      <text x="1170" y="304" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">Threshold: PF ≥ 2.0 · Sharpe ≥ 2.0 · MaxDD ≤ 5% · RoR ≤ 1%</text>
+
+      <!-- Build -->
+      <rect x="900" y="325" width="540" height="50" fill="#F0FDF4" stroke="#14213D"/>
+      <text x="1170" y="345" text-anchor="middle" font-size="11" font-weight="700" font-family="Tinos">BUILD + SIGN</text>
+      <text x="1170" y="362" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">Docker image · cosign · SBOM · push to registry</text>
+
+      <!-- Canary -->
+      <rect x="900" y="390" width="540" height="55" fill="#F0FDF4" stroke="#14213D"/>
+      <text x="1170" y="408" text-anchor="middle" font-size="11" font-weight="700" font-family="Tinos">CANARY DEPLOY (Argo Rollouts)</text>
+      <text x="1170" y="425" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">10% → 50% → 100% · auto-rollback on latency +50% or risk breach</text>
+      <text x="1170" y="439" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">Duration: 90min · supervised by on-call SRE</text>
+
+      <!-- Smoke -->
+      <rect x="900" y="460" width="540" height="50" fill="#F0FDF4" stroke="#14213D"/>
+      <text x="1170" y="480" text-anchor="middle" font-size="11" font-weight="700" font-family="Tinos">SMOKE TESTS (post-deploy)</text>
+      <text x="1170" y="497" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">Paper-trade 5 orders · verify audit entries · kill-switch round-trip &lt; 500ms</text>
+
+      <!-- Promote -->
+      <rect x="900" y="525" width="540" height="50" fill="#14213D"/>
+      <text x="1170" y="545" text-anchor="middle" font-size="11" font-weight="700" fill="#ffffff" font-family="Tinos">PROMOTE TO PRODUCTION (Z1+Z2)</text>
+      <text x="1170" y="562" text-anchor="middle" font-size="9" fill="#C8102E" font-family="JetBrains Mono">Auto-promote if smoke green · rollback within 5min on anomaly</text>
+
+      <!-- Arrows down -->
+      <g stroke="#C8102E" stroke-width="1.5" fill="none" marker-end="url(#ar9)">
+        <line x1="1170" y1="100" x2="1170" y2="113"/>
+        <line x1="1170" y1="170" x2="1170" y2="183"/>
+        <line x1="1170" y1="240" x2="1170" y2="253"/>
+        <line x1="1170" y1="310" x2="1170" y2="323"/>
+        <line x1="1170" y1="375" x2="1170" y2="388"/>
+        <line x1="1170" y1="445" x2="1170" y2="458"/>
+        <line x1="1170" y1="510" x2="1170" y2="523"/>
+      </g>
+    </g>
+
+    <!-- Test matrix table -->
+    <text x="40" y="700" font-size="13" font-weight="700" fill="#C8102E" font-family="Tinos">TEST MATRIX</text>
+
+    <defs>
+      <marker id="ar9" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
+        <path d="M0,0 L0,6 L7,3 z" fill="#C8102E"/>
+      </marker>
+    </defs>
+  </svg>
+
+  <table class="table">
+    <tr><th>Test Type</th><th>Tool</th><th>Scope</th><th>Target Coverage</th><th>Gate Threshold</th><th>Cadence</th></tr>
+    <tr><td class="mod">Unit (C++)</td><td>GoogleTest + gmock</td><td>Pure functions, parsers, risk formulas</td><td>85% line</td><td>0 critical findings</td><td>Every PR + nightly</td></tr>
+    <tr><td class="mod">Unit (Python)</td><td>pytest + pytest-asyncio + hypothesis</td><td>Strategy logic, feature functions</td><td>85% line</td><td>0 critical findings</td><td>Every PR + nightly</td></tr>
+    <tr><td class="mod">Integration</td><td>Pact + pytest</td><td>Service-to-service contracts (ZMQ bus)</td><td>100% critical paths</td><td>0 contract breaks</td><td>Every PR</td></tr>
+    <tr><td class="mod">Component</td><td>testcontainers (Redis, PG, MinIO)</td><td>Single service with real infra deps</td><td>70% line</td><td>All scenarios pass</td><td>Every PR</td></tr>
+    <tr><td class="mod">Backtest regression</td><td>Custom replay engine + Monte Carlo</td><td>24mo walk-forward, OOS last 20%</td><td>5 metrics gate</td><td>PF≥2.0 · Sharpe≥2.0 · DD≤5% · RoR≤1%</td><td>Every PR (full) + nightly (smoke)</td></tr>
+    <tr><td class="mod">Smoke (post-deploy)</td><td>Custom Python script</td><td>Paper-trade 5 orders, audit, kill-switch</td><td>5 scenarios</td><td>All scenarios pass</td><td>After every deploy</td></tr>
+    <tr><td class="mod">Chaos / fault injection</td><td>Gremlin + custom fault scripts</td><td>Broker disconnect, partial fills, latency, CPU pressure</td><td>10 experiments</td><td>No P0 incident · MTTR &lt; 5min</td><td>Weekly game-day</td></tr>
+    <tr><td class="mod">Performance / load</td><td>locust + custom C++ bench</td><td>50k ticks/s sustained for 1h</td><td>p99 latency</td><td>p99 &lt; 5ms warm · &lt; 25ms p99.9</td><td>Nightly</td></tr>
+    <tr><td class="mod">Security</td><td>Semgrep + Bandit + Trivy + Snyk</td><td>SAST + container scan + dep vuln</td><td>0 HIGH/CRITICAL</td><td>0 unresolved HIGH+</td><td>Every PR + nightly</td></tr>
+    <tr><td class="mod">DR drill</td><td>Manual + automated</td><td>Z1→Z3 failover, restore from backup</td><td>RTO &lt; 15min · RPO &lt; 60s</td><td>Successful restore + trade continuity</td><td>Quarterly</td></tr>
+  </table>
+</div>
+</body>
+</html>

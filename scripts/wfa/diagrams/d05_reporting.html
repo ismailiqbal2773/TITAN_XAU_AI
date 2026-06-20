@@ -1,0 +1,128 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>d05</title>
+<link href="https://fonts.googleapis.com/css2?family=Tinos:wght@400;700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { width: 1600px; height: 1000px; background: #ffffff; font-family: 'Inter', sans-serif; color: #14213D; padding: 50px 60px; }
+.h-title { font-family: 'Tinos', serif; font-size: 30px; font-weight: 900; letter-spacing: -0.5px; }
+.h-sub { font-family: 'Inter', sans-serif; font-size: 13px; color: #4A5568; margin-top: 4px; }
+.h-rule { width: 80px; height: 3px; background: #C8102E; margin: 14px 0 24px 0; }
+
+.cols { display: grid; grid-template-columns: 1.05fr 1fr; gap: 22px; }
+
+.report-card { border: 1px solid #CBD5E1; border-radius: 6px; overflow: hidden; }
+.report-head { background: #14213D; color: #fff; padding: 12px 18px; }
+.report-head .lbl { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C8102E; letter-spacing: 2px; font-weight: 700; }
+.report-head .t { font-family: 'Tinos', serif; font-size: 15px; font-weight: 700; margin-top: 3px; }
+.report-body { padding: 14px 18px; }
+.report-row { display: grid; grid-template-columns: 130px 1fr; gap: 12px; padding: 7px 0; border-bottom: 1px dashed #E2E8F0; font-family: 'Inter', sans-serif; font-size: 10.5px; }
+.report-row:last-child { border-bottom: none; }
+.report-row .k { font-family: 'JetBrains Mono', monospace; font-size: 9.5px; font-weight: 700; color: #14213D; letter-spacing: 0.5px; }
+.report-row .v { color: #4A5568; line-height: 1.5; }
+.report-row .v b { color: #C8102E; }
+
+.tiers-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+.tier { background: #F8FAFC; border: 1px solid #CBD5E1; border-top: 3px solid #14213D; border-radius: 6px; padding: 12px; }
+.tier.exec { border-top-color: #C8102E; }
+.tier.reg { border-top-color: #B45309; }
+.tier .aud { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C8102E; font-weight: 700; letter-spacing: 1.5px; }
+.tier .t { font-family: 'Tinos', serif; font-size: 13px; font-weight: 700; color: #14213D; margin: 4px 0 6px 0; }
+.tier .d { font-family: 'Inter', sans-serif; font-size: 9.5px; color: #4A5568; line-height: 1.5; }
+.tier .fmt { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #14213D; margin-top: 6px; padding-top: 6px; border-top: 1px dashed #CBD5E1; }
+
+.chart-card { background: #14213D; color: #fff; border-radius: 6px; padding: 16px 18px; }
+.chart-card .lbl { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C8102E; letter-spacing: 2px; font-weight: 700; }
+.chart-card .h { font-family: 'Tinos', serif; font-size: 14px; font-weight: 700; margin-top: 4px; }
+.chart-table { width: 100%; margin-top: 12px; border-collapse: collapse; }
+.chart-table th { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #94A3B8; letter-spacing: 1.5px; text-align: left; padding: 6px 8px; border-bottom: 1px solid #4A5568; }
+.chart-table td { font-family: 'Inter', sans-serif; font-size: 10.5px; padding: 6px 8px; border-bottom: 1px solid #2D3748; }
+.chart-table td.metric { font-weight: 700; color: #fff; }
+.chart-table td.val { font-family: 'JetBrains Mono', monospace; }
+.chart-table td.pass { color: #15803D; font-family: 'JetBrains Mono', monospace; font-weight: 700; }
+.chart-table td.warn { color: #F59E0B; font-family: 'JetBrains Mono', monospace; font-weight: 700; }
+
+.footer-block { margin-top: 18px; padding: 14px 18px; background: #F1F5F9; border-left: 4px solid #C8102E; border-radius: 4px; }
+.footer-block .lbl { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C8102E; letter-spacing: 2px; font-weight: 700; }
+.footer-block .row { display: grid; grid-template-columns: 100px 1fr; gap: 10px; padding: 4px 0; font-family: 'Inter', sans-serif; font-size: 10.5px; }
+.footer-block .row .k { font-family: 'JetBrains Mono', monospace; font-size: 9.5px; font-weight: 700; color: #14213D; }
+.footer-block .row .v { color: #4A5568; line-height: 1.5; }
+.footer-block .row .v b { color: #14213D; }
+</style></head>
+<body>
+<div class="h-title">Reporting System — 3 Tiers + Worked Example</div>
+<div class="h-sub">Executive / Technical / Regulatory reports · S3 archived 7 years · RSA-2048 signed manifests</div>
+<div class="h-rule"></div>
+
+<div class="cols">
+  <div>
+    <div class="report-card">
+      <div class="report-head"><div class="lbl">REPORTING PIPELINE</div><div class="t">Generation · Archive · Dispatch</div></div>
+      <div class="report-body">
+        <div class="report-row"><div class="k">ARCHIVE</div><div class="v">All reports to <b>s3://titan-wfa/{strategy}/{version}/{timestamp}/</b> · 7-year retention · RSA-2048 signed manifest</div></div>
+        <div class="report-row"><div class="k">DISPATCH</div><div class="v">PagerDuty (P1 for REJECT, P3 for PASS) · Slack #titan-wfa · Email to stakeholders · Live dashboard</div></div>
+        <div class="report-row"><div class="k">VERSIONING</div><div class="v">4-tuple: <b>strategy + data + cost-profile + engine</b>. Full reproducibility — same tuple = same result.</div></div>
+        <div class="report-row"><div class="k">COMPARISON</div><div class="v">Each WFA compared against last 5 WFA runs of same strategy. <b>&gt; 10% WFE drop</b> = regression P1 alert.</div></div>
+        <div class="report-row"><div class="k">CADENCE</div><div class="v">Quarterly scheduled WFA on every live strategy · On-demand via CLI / REST · Pre-deployment mandatory</div></div>
+      </div>
+    </div>
+    <div style="margin-top:18px">
+      <div class="tiers-grid">
+        <div class="tier exec">
+          <div class="aud">EXECUTIVE</div>
+          <div class="t">1-page brief</div>
+          <div class="d">Verdict, WFE headline, OOS Sharpe/MDD/CAGR, fold equity curve thumbnail, comparison vs last 5 WFA runs.</div>
+          <div class="fmt">PDF · 1 page</div>
+        </div>
+        <div class="tier">
+          <div class="aud">TECHNICAL</div>
+          <div class="t">Full fold dump</div>
+          <div class="d">All 5-7 fold results, IS vs OOS parameter evolution, per-fold cost attribution, equity curves, drawdown profiles, regime breakdown.</div>
+          <div class="fmt">PDF + JSON · 20-40 pp</div>
+        </div>
+        <div class="tier reg">
+          <div class="aud">REGULATORY</div>
+          <div class="t">Audit trail</div>
+          <div class="d">Data lineage, methodology, fold boundaries, parameter selection log, reproducibility manifest, sign-off chain.</div>
+          <div class="fmt">PDF · 10-15 pp</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="chart-card">
+    <div class="lbl">WORKED EXAMPLE · TREND v3.2 WFA</div>
+    <div class="h">5-fold anchored · 12 months ICMarkets tick data</div>
+    <table class="chart-table">
+      <thead><tr><th>Fold</th><th>Train</th><th>Val</th><th>Test</th><th>IS Sharpe</th><th>OOS Sharpe</th><th>OOS MDD</th><th>OOS Ret</th></tr></thead>
+      <tbody>
+        <tr><td class="metric">1</td><td>M1-M6</td><td>M7</td><td>M8</td><td class="val">2.94</td><td class="val">2.31</td><td class="val">7.2%</td><td class="val">+4.1%</td></tr>
+        <tr><td class="metric">2</td><td>M1-M7</td><td>M8</td><td>M9</td><td class="val">2.81</td><td class="val">2.04</td><td class="val">8.5%</td><td class="val">+3.2%</td></tr>
+        <tr><td class="metric">3</td><td>M1-M8</td><td>M9</td><td>M10</td><td class="val">2.79</td><td class="val">1.87</td><td class="val">9.8%</td><td class="val">+2.4%</td></tr>
+        <tr><td class="metric">4</td><td>M1-M9</td><td>M10</td><td>M11</td><td class="val">2.85</td><td class="val">2.18</td><td class="val">8.9%</td><td class="val">+3.6%</td></tr>
+        <tr><td class="metric">5</td><td>M1-M10</td><td>M11</td><td>M12</td><td class="val">2.96</td><td class="val">1.95</td><td class="val">10.4%</td><td class="val">+2.8%</td></tr>
+        <tr style="background:rgba(255,255,255,0.05)"><td class="metric" colspan="4">MEDIAN / AGGREGATE</td><td class="val">2.87</td><td class="val">2.04</td><td class="val">9.2%</td><td class="val">+16.1%</td></tr>
+      </tbody>
+    </table>
+    <div style="margin-top:14px;padding-top:12px;border-top:1px solid #4A5568">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-family:'JetBrains Mono',monospace;font-size:10.5px">
+        <div>WFE: <span style="color:#C8102E;font-weight:700">0.71</span> <span style="color:#15803D">(PASS ≥ 0.50)</span></div>
+        <div>Fold Cons: <span style="color:#15803D;font-weight:700">1.00</span> (5/5 prof)</div>
+        <div>Aggregate: <span style="color:#C8102E;font-weight:700">85.8</span> / 100</div>
+        <div>Cost Drag: <span style="color:#15803D">29%</span></div>
+        <div>Verdict: <span style="background:#15803D;color:#fff;padding:2px 8px;border-radius:2px;font-weight:700">CERTIFIED</span></div>
+        <div>OOS CAGR: <span style="color:#15803D">38.4%</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="footer-block">
+  <div class="lbl">REPORT CONTENTS — TECHNICAL TIER (FULL DETAIL)</div>
+  <div class="row"><div class="k">SECTION 1</div><div class="v"><b>WFA configuration</b> — methodology (anchored/rolling), train/val/test window lengths, fold count, dataset version, cost profile version.</div></div>
+  <div class="row"><div class="k">SECTION 2</div><div class="v"><b>Per-fold results table</b> — IS Sharpe, OOS Sharpe, OOS MDD, OOS return, parameter set selected, cost breakdown for each fold.</div></div>
+  <div class="row"><div class="k">SECTION 3</div><div class="v"><b>Parameter evolution</b> — selected parameter values per fold + stability analysis (max/min/median/stdev). Detects parameter-chasing.</div></div>
+  <div class="row"><div class="k">SECTION 4</div><div class="v"><b>Aggregate OOS metrics</b> — WFE, aggregate OOS Sharpe / MDD / CAGR, fold consistency, cost drag, all compared to IS baselines.</div></div>
+  <div class="row"><div class="k">SECTION 5</div><div class="v"><b>Equity curves</b> — IS, OOS, and IS+OOS combined. Visual overfitting detection (large IS-OOS gap = overfit).</div></div>
+  <div class="row"><div class="k">SECTION 6</div><div class="v"><b>Regime attribution</b> — per-fold regime distribution (trend/range/volatile/news) and per-regime OOS performance.</div></div>
+  <div class="row"><div class="k">SECTION 7</div><div class="v"><b>Certification verdict</b> — 3-band (CERTIFIED/CONDITIONAL/REJECTED), aggregate score, hard veto triggers fired (if any), waiver IDs (if any).</div></div>
+</div>
+</body></html>

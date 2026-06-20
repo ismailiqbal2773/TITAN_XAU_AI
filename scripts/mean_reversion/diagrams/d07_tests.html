@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Mean Reversion Strategy — Validation Tests</title>
+<style>
+  @page { size: 1600px 800px; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #ffffff; font-family: 'Tinos','FreeSerif',serif; color: #14213D; }
+  .canvas { width: 1600px; height: 800px; padding: 50px 60px; box-sizing: border-box; }
+  .title-bar { display: flex; align-items: baseline; gap: 18px; border-bottom: 2px solid #14213D; padding-bottom: 12px; margin-bottom: 24px; }
+  .title-bar .num { font-size: 48px; font-weight: 900; color: #C8102E; line-height: 1; }
+  .title-bar h1 { font-size: 26px; font-weight: 700; margin: 0; }
+  .title-bar .sub { font-size: 13px; color: #4A5568; margin-left: auto; font-family: 'JetBrains Mono',monospace; }
+  svg { display: block; margin: 0 auto; background: #FAFBFC; border: 1px solid #E2E8F0; }
+  .table { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-top: 14px; }
+  .table th { background: #14213D; color: #ffffff; padding: 6px 8px; text-align: left; font-weight: 700; }
+  .table td { padding: 5px 8px; border-bottom: 1px solid #E2E8F0; }
+  .table tr:nth-child(even) td { background: #F8FAFC; }
+  .table .mod { color: #14213D; font-family: 'JetBrains Mono',monospace; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="title-bar">
+    <span class="num">07</span>
+    <h1>Validation Tests — 5-Layer Pyramid &amp; Coverage</h1>
+    <span class="sub">Unit · Integration · Backtest · Walk-forward · Chaos</span>
+  </div>
+
+  <svg width="1480" height="200" viewBox="0 0 1480 200">
+    <polygon points="40,180 720,180 660,120 100,120" fill="#F0FDF4" stroke="#14213D" stroke-width="2"/>
+    <text x="380" y="145" text-anchor="middle" font-size="14" font-weight="700" fill="#14213D" font-family="Tinos">UNIT TESTS</text>
+    <text x="380" y="162" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">150 tests · per-indicator + MR score + recovery logic</text>
+
+    <polygon points="100,120 660,120 600,60 160,60" fill="#FEF3F2" stroke="#14213D" stroke-width="2"/>
+    <text x="380" y="85" text-anchor="middle" font-size="13" font-weight="700" fill="#14213D" font-family="Tinos">INTEGRATION + BACKTEST + WALK-FORWARD + CHAOS</text>
+    <text x="380" y="102" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">50 integ · 35 backtest · 20 WF · 12 chaos = 267 total tests</text>
+
+    <text x="780" y="40" font-size="14" font-weight="700" fill="#C8102E" font-family="Tinos">CI GATES</text>
+    <g font-family="JetBrains Mono" font-size="11" fill="#14213D">
+      <text x="780" y="65">PF &gt; 2.0 · Sharpe &gt; 2.0 · MaxDD &lt; 5% · RoR &lt; 1%</text>
+      <text x="780" y="85">Recovery success &gt; 60% · No range-break loss &gt; 2R</text>
+      <text x="780" y="105">Recovery level never exceeds L2 (1.6x cap)</text>
+      <text x="780" y="125">Halt after 3 consecutive losses (verified)</text>
+      <text x="780" y="145">Walk-forward: 5 folds × 4mo OOS · Sharpe &gt; 1.5</text>
+      <text x="780" y="165">Chaos: broker disconnect, range break, slippage spike</text>
+    </g>
+  </svg>
+
+  <table class="table">
+    <tr><th>Test ID</th><th>Category</th><th>Scenario</th><th>Expected Result</th><th>Gate</th></tr>
+    <tr><td class="mod">UT-MR-001</td><td>Unit / MR Score</td><td>BB %B=0.02, RSI=25, ATR pct=0.15, Hurst=0.35</td><td>MR_score = 0.30×0.96 + 0.30×0.50 + 0.20×0.75 + 0.20×0.30 = 0.67 → signal</td><td>Must pass</td></tr>
+    <tr><td class="mod">UT-MR-002</td><td>Unit / MR Score</td><td>BB %B=0.50 (mid), RSI=50, ATR pct=0.50, Hurst=0.50</td><td>MR_score = 0 → no signal (mid-range, no edge)</td><td>Must pass</td></tr>
+    <tr><td class="mod">UT-REC-001</td><td>Unit / Recovery</td><td>L0 loss → next entry should be L1 (1.3x, threshold 0.72)</td><td>Recovery level incremented, size multiplier 1.3, threshold raised</td><td>Must pass</td></tr>
+    <tr><td class="mod">UT-REC-002</td><td>Unit / Recovery</td><td>L0 loss, L1 loss, L2 loss → L3 blocked</td><td>Strategy halted, operator paged, no more entries</td><td>Must pass</td></tr>
+    <tr><td class="mod">UT-REC-003</td><td>Unit / Recovery</td><td>L1 win → reset to L0</td><td>Recovery level reset to 0, size multiplier 1.0</td><td>Must pass</td></tr>
+    <tr><td class="mod">UT-REC-004</td><td>Unit / Recovery</td><td>L0 loss → immediate re-entry (no cooldown)</td><td>Rejected — 3 bar cooldown required</td><td>Must pass</td></tr>
+    <tr><td class="mod">UT-FC-001</td><td>Unit / Failure</td><td>BBW pct rises to 0.65 (range breaking)</td><td>FC_RANGE_BREAK → immediate exit all MR positions</td><td>Must pass</td></tr>
+    <tr><td class="mod">UT-FC-002</td><td>Unit / Failure</td><td>Regime changes RANGE → VOLATILE</td><td>FC_VOLATILE_SHIFT → exit in 1 bar (not 2)</td><td>Must pass</td></tr>
+    <tr><td class="mod">BT-001</td><td>Backtest / 24mo</td><td>Full backtest 6 brokers, smart recovery on</td><td>PF > 2.0, Sharpe > 2.0, MaxDD < 5%, RoR < 1%</td><td>CI gate</td></tr>
+    <tr><td class="mod">BT-002</td><td>Backtest / Recovery</td><td>Verify recovery never exceeds 1.6x</td><td>Max size multiplier across all trades = 1.6x</td><td>CI gate</td></tr>
+    <tr><td class="mod">CT-001</td><td>Chaos / Live</td><td>Range breaks mid-recovery (L1 position open)</td><td>FC_RANGE_BREAK exits immediately, loss < 2R</td><td>Must pass</td></tr>
+    <tr><td class="mod">CT-002</td><td>Chaos / Live</td><td>3 consecutive losses → halt</td><td>Strategy paused, operator paged, no L3 entries</td><td>Must pass</td></tr>
+  </table>
+</div>
+</body>
+</html>

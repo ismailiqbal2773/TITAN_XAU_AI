@@ -1,0 +1,219 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>d06</title>
+<link href="https://fonts.googleapis.com/css2?family=Tinos:wght@400;700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { width: 1600px; height: 1200px; background: #ffffff; font-family: 'Inter', sans-serif; color: #14213D; padding: 50px 60px; }
+.h-title { font-family: 'Tinos', serif; font-size: 30px; font-weight: 900; letter-spacing: -0.5px; }
+.h-sub { font-family: 'Inter', sans-serif; font-size: 13px; color: #4A5568; margin-top: 4px; }
+.h-rule { width: 80px; height: 3px; background: #C8102E; margin: 14px 0 24px 0; }
+
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+.uml-card { border: 1px solid #CBD5E1; border-radius: 6px; overflow: hidden; }
+.uml-head { background: #14213D; color: #fff; padding: 10px 16px; font-family: 'Tinos', serif; font-size: 13px; font-weight: 700; display: flex; justify-content: space-between; align-items: center; }
+.uml-head .badge { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C8102E; letter-spacing: 1.5px; font-weight: 700; }
+.uml-body { padding: 14px 16px; }
+.class-box { border: 1.5px solid #14213D; border-radius: 4px; margin-bottom: 10px; background: #fff; }
+.class-name { background: #14213D; color: #fff; padding: 6px 10px; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; letter-spacing: 0.5px; }
+.class-name .st { font-style: italic; color: #C8102E; font-weight: 400; font-size: 9px; margin-left: 4px; }
+.class-section { padding: 6px 10px; border-top: 1px solid #CBD5E1; font-family: 'JetBrains Mono', monospace; font-size: 9px; line-height: 1.6; color: #14213D; }
+.class-section .attr { color: #4A5568; }
+.class-section .method { color: #14213D; }
+.class-section .pub { color: #15803D; }
+.class-section .priv { color: #C8102E; }
+.class-section .prot { color: #B45309; }
+
+.relation { font-family: 'JetBrains Mono', monospace; font-size: 9.5px; color: #C8102E; text-align: center; margin: 4px 0; font-weight: 700; }
+
+.note { margin-top: 18px; padding: 12px 16px; background: #F1F5F9; border-left: 4px solid #C8102E; border-radius: 4px; font-family: 'Inter', sans-serif; font-size: 11px; color: #14213D; line-height: 1.6; }
+.note b { color: #C8102E; }
+</style></head>
+<body>
+<div class="h-title">UML Class Diagrams — Core Domain</div>
+<div class="h-sub">4 core abstractions · C++20 base classes · Python AI layer subclasses via PyO3 · Strategy/Adapter/Observer patterns</div>
+<div class="h-rule"></div>
+
+<div class="cols">
+  <div class="uml-card">
+    <div class="uml-head"><span>Domain · Broker &amp; Execution</span><span class="badge">CORE C++</span></div>
+    <div class="uml-body">
+      <div class="class-box">
+        <div class="class-name">IBrokerAdapter <span class="st">«interface»</span></div>
+        <div class="class-section">
+          <div class="attr"># broker_id: string</div>
+          <div class="attr"># conn_state: ConnectionState</div>
+        </div>
+        <div class="class-section">
+          <div class="method"><span class="pub">+</span> connect() → bool</div>
+          <div class="method"><span class="pub">+</span> subscribe_tick(symbol) → void</div>
+          <div class="method"><span class="pub">+</span> place_order(OrderReq) → OrderId</div>
+          <div class="method"><span class="pub">+</span> cancel_order(OrderId) → bool</div>
+          <div class="method"><span class="pub">+</span> get_positions() → vector&lt;Position&gt;</div>
+        </div>
+      </div>
+      <div class="relation">↑ implements</div>
+      <div class="class-box">
+        <div class="class-name">MT5BrokerAdapter <span class="st">: IBrokerAdapter</span></div>
+        <div class="class-section">
+          <div class="attr">- mt5_handle: void*</div>
+          <div class="attr">- broker_profile: BrokerProfile</div>
+        </div>
+        <div class="class-section">
+          <div class="method"><span class="priv">-</span> detect_broker() → BrokerId</div>
+          <div class="method"><span class="priv">-</span> resolve_symbol(base) → string</div>
+          <div class="method"><span class="pub">+</span> connect() override</div>
+        </div>
+      </div>
+      <div class="class-box">
+        <div class="class-name">ExecutionEngine <span class="st">: public AsyncDispatcher</span></div>
+        <div class="class-section">
+          <div class="attr">- broker_: IBrokerAdapter*</div>
+          <div class="attr">- idempotency_cache_: LRUCache</div>
+          <div class="attr">- pending_orders_: unordered_map</div>
+        </div>
+        <div class="class-section">
+          <div class="method"><span class="pub">+</span> async submit_order(OrderReq) → future&lt;Fill&gt;</div>
+          <div class="method"><span class="pub">+</span> on_tick(TickEvent) → void</div>
+          <div class="method"><span class="priv">-</span> retry_with_backoff(OrderReq) → void</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="uml-card">
+    <div class="uml-head"><span>Domain · Risk &amp; Position</span><span class="badge">CORE C++</span></div>
+    <div class="uml-body">
+      <div class="class-box">
+        <div class="class-name">RiskEngine <span class="st">: public ISubscriber&lt;Signal&gt;</span></div>
+        <div class="class-section">
+          <div class="attr">- mode_: RiskMode</div>
+          <div class="attr">- controls_: vector&lt;IRiskControl&gt;</div>
+          <div class="attr">- equity_curve_: RollingWindow</div>
+          <div class="attr">- kill_switch_: atomic&lt;bool&gt;</div>
+        </div>
+        <div class="class-section">
+          <div class="method"><span class="pub">+</span> evaluate(Signal) → RiskDecision</div>
+          <div class="method"><span class="pub">+</span> emergency_flatten() → void <span class="st">&lt;500ms</span></div>
+          <div class="method"><span class="pub">+</span> on_fill(FillEvent) → void</div>
+          <div class="method"><span class="priv">-</span> compute_mdd() → double</div>
+        </div>
+      </div>
+      <div class="relation">↑ uses</div>
+      <div class="class-box">
+        <div class="class-name">IRiskControl <span class="st">«interface»</span></div>
+        <div class="class-section">
+          <div class="method"><span class="pub">+</span> check(Signal, Context) → Decision</div>
+        </div>
+      </div>
+      <div class="class-box">
+        <div class="class-name">MaxDrawdownControl <span class="st">: IRiskControl</span></div>
+        <div class="class-section">
+          <div class="attr">- max_dd_: double = 0.05</div>
+        </div>
+        <div class="class-section">
+          <div class="method"><span class="pub">+</span> check(...) → Decision override</div>
+        </div>
+      </div>
+      <div class="class-box">
+        <div class="class-name">PositionManager <span class="st">: public ISubscriber&lt;Fill&gt;</span></div>
+        <div class="class-section">
+          <div class="attr">- positions_: unordered_map&lt;Symbol, Position&gt;</div>
+        </div>
+        <div class="class-section">
+          <div class="method"><span class="pub">+</span> get_exposure() → Exposure</div>
+          <div class="method"><span class="pub">+</span> get_correlation_matrix() → Matrix</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="uml-card">
+    <div class="uml-head"><span>Domain · AI &amp; Strategy</span><span class="badge">PYTHON</span></div>
+    <div class="uml-body">
+      <div class="class-box">
+        <div class="class-name">IModel <span class="st">«interface»</span></div>
+        <div class="class-section">
+          <div class="method"><span class="pub">+</span> predict(features: np.ndarray) → Signal</div>
+          <div class="method"><span class="pub">+</span> load(version: str) → None</div>
+          <div class="method"><span class="pub">+</span> version_hash() → str</div>
+        </div>
+      </div>
+      <div class="relation">↑ implements</div>
+      <div class="class-box">
+        <div class="class-name">XGBoostModel <span class="st">: IModel</span></div>
+        <div class="class-section">
+          <div class="attr">- booster_: xgb.Booster</div>
+          <div class="attr">- feature_cols_: list</div>
+        </div>
+      </div>
+      <div class="class-box">
+        <div class="class-name">EnsembleVoter <span class="st">: IModel</span></div>
+        <div class="class-section">
+          <div class="attr">- models_: list[IModel]</div>
+          <div class="attr">- min_confidence_: float = 0.65</div>
+        </div>
+        <div class="class-section">
+          <div class="method"><span class="pub">+</span> predict(X) → Signal</div>
+          <div class="method"><span class="priv">-</span> vote(signals) → Signal</div>
+        </div>
+      </div>
+      <div class="class-box">
+        <div class="class-name">StrategyBase <span class="st">«abstract»</span></div>
+        <div class="class-section">
+          <div class="attr"># regime_filter_: Regime</div>
+        </div>
+        <div class="class-section">
+          <div class="method"><span class="pub">+</span> on_signal(Signal) → OrderReq</div>
+          <div class="method"><span class="prot">#</span> compute_size(Signal) → double</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="uml-card">
+    <div class="uml-head"><span>Domain · Licensing &amp; Validation</span><span class="badge">OPS</span></div>
+    <div class="uml-body">
+      <div class="class-box">
+        <div class="class-name">LicenseValidator</div>
+        <div class="class-section">
+          <div class="attr">- jwt_: JWTPayload</div>
+          <div class="attr">- hw_fingerprint_: string</div>
+          <div class="attr">- heartbeat_timer_: Timer</div>
+        </div>
+        <div class="class-section">
+          <div class="method"><span class="pub">+</span> load_cached_jwt() → bool</div>
+          <div class="method"><span class="pub">+</span> verify_signature() → bool</div>
+          <div class="method"><span class="pub">+</span> check_hw_fp() → bool</div>
+          <div class="method"><span class="pub">+</span> heartbeat() → HeartbeatResult</div>
+        </div>
+      </div>
+      <div class="class-box">
+        <div class="class-name">ValidatorFramework</div>
+        <div class="class-section">
+          <div class="attr">- suites_: vector[ValidationSuite]</div>
+          <div class="attr">- rule_engine_: RuleEngine</div>
+        </div>
+        <div class="class-section">
+          <div class="method"><span class="pub">+</span> run() → Certification</div>
+          <div class="method"><span class="pub">+</span> get_verdict() → Verdict</div>
+        </div>
+      </div>
+      <div class="class-box">
+        <div class="class-name">ChampionChallengerManager</div>
+        <div class="class-section">
+          <div class="attr">- champion_: IModel</div>
+          <div class="attr">- challenger_: IModel</div>
+          <div class="attr">- promotion_gate_: PromotionGate</div>
+        </div>
+        <div class="class-section">
+          <div class="method"><span class="pub">+</span> evaluate_challenger() → bool</div>
+          <div class="method"><span class="pub">+</span> promote() → void <span class="st">«manual»</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="note">
+<b>Design Patterns:</b> <b>Strategy</b> (regime-mapped strategy selection), <b>Adapter</b> (broker abstraction), <b>Observer</b> (event subscriptions via NATS), <b>Decorator</b> (risk controls wrap signals), <b>Factory</b> (model instantiation from registry), <b>State</b> (risk mode transitions), <b>Command</b> (order requests as serializable objects). All cross-language interfaces use Protocol Buffers for schema stability.
+</div>
+</body></html>

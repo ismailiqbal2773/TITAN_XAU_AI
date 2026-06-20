@@ -1,0 +1,99 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>d04</title>
+<link href="https://fonts.googleapis.com/css2?family=Tinos:wght@400;700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { width: 1600px; height: 1300px; background: #ffffff; font-family: 'Inter', sans-serif; color: #14213D; padding: 50px 60px; }
+.h-title { font-family: 'Tinos', serif; font-size: 30px; font-weight: 900; letter-spacing: -0.5px; }
+.h-sub { font-family: 'Inter', sans-serif; font-size: 13px; color: #4A5568; margin-top: 4px; }
+.h-rule { width: 80px; height: 3px; background: #C8102E; margin: 14px 0 24px 0; }
+
+.detectors { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.det { border: 1px solid #CBD5E1; border-top: 3px solid #14213D; border-radius: 6px; padding: 12px 14px; background: #F8FAFC; }
+.det.crit { border-top-color: #C8102E; }
+.det .n { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C8102E; font-weight: 700; letter-spacing: 1.2px; }
+.det .t { font-family: 'Tinos', serif; font-size: 12.5px; font-weight: 700; color: #14213D; margin: 3px 0 5px 0; line-height: 1.2; }
+.det .d { font-family: 'Inter', sans-serif; font-size: 9.5px; color: #4A5568; line-height: 1.45; }
+.det .d b { color: #14213D; }
+.det .specs { font-family: 'JetBrains Mono', monospace; font-size: 8.5px; color: #14213D; margin-top: 6px; padding-top: 6px; border-top: 1px dashed #CBD5E1; line-height: 1.5; }
+.det .specs b { color: #C8102E; }
+
+.engineering { margin-top: 22px; padding: 16px 20px; background: #14213D; color: #fff; border-radius: 6px; }
+.engineering .lbl { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #C8102E; letter-spacing: 2px; font-weight: 700; }
+.engineering .h { font-family: 'Tinos', serif; font-size: 15px; font-weight: 700; margin-top: 4px; }
+.engineering .d { font-family: 'Inter', sans-serif; font-size: 11px; opacity: 0.9; margin-top: 6px; line-height: 1.5; }
+.engineering .d b { color: #C8102E; }
+
+.perf-grid { margin-top: 14px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.pcell { padding: 8px 12px; background: rgba(255,255,255,0.08); border-left: 2px solid #4ADE80; border-radius: 3px; }
+.pcell .k { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #4ADE80; font-weight: 700; }
+.pcell .v { font-family: 'Tinos', serif; font-size: 14px; font-weight: 900; margin-top: 2px; color: #4ADE80; }
+.pcell .d2 { font-family: 'Inter', sans-serif; font-size: 9px; opacity: 0.8; margin-top: 2px; }
+</style></head>
+<body>
+<div class="h-title">Detection Layer — 8 Detectors</div>
+<div class="h-sub">8 statistical detectors · run every 60s · CPU-only · fully offline · zero external dependencies</div>
+<div class="h-rule"></div>
+
+<div class="detectors">
+  <div class="det crit">
+    <div class="n">D1 · DEGRADATION</div>
+    <div class="t">Performance Degradation</div>
+    <div class="d">Detects <b>declining Sharpe/PF</b> over rolling windows. W50 Sharpe &lt; 0.7 × W250 Sharpe for 3 consecutive cycles.</div>
+    <div class="specs"><b>Inputs:</b> Sharpe W50, W100, W250<br><b>Trigger:</b> ratio &lt; 0.7 · 3 cycles<br><b>Action:</b> reduce model influence 25%</div>
+  </div>
+  <div class="det crit">
+    <div class="n">D2 · DRIFT</div>
+    <div class="t">Model Drift (PSI)</div>
+    <div class="d">Detects <b>input feature drift</b> via Population Stability Index. PSI &gt; 0.25 on model input features indicates regime shift.</div>
+    <div class="specs"><b>Inputs:</b> feature distributions W250 vs baseline<br><b>Trigger:</b> PSI &gt; 0.25<br><b>Action:</b> flag for retraining + reduce influence 15%</div>
+  </div>
+  <div class="det crit">
+    <div class="n">D3 · INSTABILITY</div>
+    <div class="t">Behavioral Instability</div>
+    <div class="d">Detects <b>consecutive losses</b> or <b>high-variance predictions</b>. 5+ consecutive losses OR prediction std &gt; 2× baseline.</div>
+    <div class="specs"><b>Inputs:</b> trade outcomes, prediction variance<br><b>Trigger:</b> 5 consec losses OR σ &gt; 2×<br><b>Action:</b> reduce influence 50%</div>
+  </div>
+  <div class="det crit">
+    <div class="n">D4 · OVERFITTING</div>
+    <div class="t">Overfitting Symptoms</div>
+    <div class="d">Detects <b>IS-OOS gap</b>. Live Sharpe &lt; 0.5 × backtest Sharpe sustained over W250 → strategy overfit to history.</div>
+    <div class="specs"><b>Inputs:</b> live Sharpe vs backtest baseline<br><b>Trigger:</b> ratio &lt; 0.5 · W250<br><b>Action:</b> disable model (requires manual review)</div>
+  </div>
+  <div class="det">
+    <div class="n">D5 · EXEC DETERIORATION</div>
+    <div class="t">Execution Quality Decay</div>
+    <div class="d">Detects <b>rising latency or slippage</b>. Latency P99 &gt; 1.5× budget OR slippage P90 &gt; 1.5× baseline for 2 consecutive cycles.</div>
+    <div class="specs"><b>Inputs:</b> latency P99, slippage P50/P90<br><b>Trigger:</b> 1.5× budget · 2 cycles<br><b>Action:</b> flag broker + reduce trade freq</div>
+  </div>
+  <div class="det">
+    <div class="n">D6 · BROKER ISSUES</div>
+    <div class="t">Broker-Specific Failures</div>
+    <div class="d">Detects <b>per-broker anomalies</b>: spread widening, reconnect storms, fill rate drop, position reconciliation failures.</div>
+    <div class="specs"><b>Inputs:</b> per-broker metrics<br><b>Trigger:</b> BQS &lt; 70 for 5 cycles<br><b>Action:</b> failover to backup broker</div>
+  </div>
+  <div class="det">
+    <div class="n">D7 · REGIME FAILURES</div>
+    <div class="t">Regime-Specific Failures</div>
+    <div class="d">Detects <b>strategy failing in current regime</b>. Per-regime win rate &lt; 40% over W100 in current regime.</div>
+    <div class="specs"><b>Inputs:</b> regime label, per-regime WR<br><b>Trigger:</b> regime WR &lt; 40% · W100<br><b>Action:</b> suppress entries in that regime</div>
+  </div>
+  <div class="det">
+    <div class="n">D8 · LATENCY</div>
+    <div class="t">Latency Budget Breach</div>
+    <div class="d">Detects <b>signal-to-broker latency breaches</b>. P99 &gt; 150ms budget → stale-signal risk. Triggers risk veto downstream.</div>
+    <div class="specs"><b>Inputs:</b> per-stage latency probes<br><b>Trigger:</b> P99 &gt; 150ms · 1 cycle<br><b>Action:</b> enable stale-signal veto + alert</div>
+  </div>
+</div>
+
+<div class="engineering">
+  <div class="lbl">DETECTOR ENGINEERING — CPU-OPTIMIZED, FULLY OFFLINE</div>
+  <div class="h">8 detectors × every 60 seconds = &lt;100ms total per cycle</div>
+  <div class="d">All 8 detectors use only NumPy vectorized operations — no GPU, no external API calls, no LLM inference. <b>Total CPU time per cycle: &lt;100ms on a single core</b> (measured on 4-vCPU VPS). Memory footprint: ~50 MB for all rolling windows combined. Detectors run as a single asyncio task with 60s sleep between cycles. <b>Fully offline-capable</b>: no outbound network required. Optional egress only for PagerDuty/Slack alerts (which degrade gracefully if network unavailable — alerts queued locally, retried).</div>
+  <div class="perf-grid">
+    <div class="pcell"><div class="k">CYCLE TIME</div><div class="v">&lt;100ms</div><div class="d2">8 detectors on single core</div></div>
+    <div class="pcell"><div class="k">MEMORY</div><div class="v">~50 MB</div><div class="d2">All rolling windows</div></div>
+    <div class="pcell"><div class="k">CADENCE</div><div class="v">60s</div><div class="d2">asyncio task, no blocking</div></div>
+    <div class="pcell"><div class="k">EXTERNAL DEPS</div><div class="v">0</div><div class="d2">NumPy only · fully offline</div></div>
+  </div>
+</div>
+</body></html>

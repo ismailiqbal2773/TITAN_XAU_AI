@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Broker Compatibility Engine — End-to-End Detection Flowchart</title>
+<style>
+  @page { size: 1400px 1700px; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #ffffff; font-family: 'Tinos','FreeSerif',serif; color: #14213D; }
+  .canvas { width: 1400px; height: 1700px; padding: 50px 60px; box-sizing: border-box; }
+  .title-bar { display: flex; align-items: baseline; gap: 18px; border-bottom: 2px solid #14213D; padding-bottom: 12px; margin-bottom: 24px; }
+  .title-bar .num { font-size: 48px; font-weight: 900; color: #C8102E; line-height: 1; }
+  .title-bar h1 { font-size: 26px; font-weight: 700; margin: 0; }
+  .title-bar .sub { font-size: 13px; color: #4A5568; margin-left: auto; font-family: 'JetBrains Mono',monospace; }
+  svg { display: block; margin: 0 auto; background: #FAFBFC; border: 1px solid #E2E8F0; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="title-bar">
+    <span class="num">02</span>
+    <h1>End-to-End Detection Flowchart — Sequence of Operations</h1>
+    <span class="sub">From MT5 connect → cached BrokerProfile published</span>
+  </div>
+
+  <svg width="1280" height="1500" viewBox="0 0 1280 1500">
+    <defs>
+      <marker id="ar" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+        <path d="M0,0 L0,6 L9,3 z" fill="#14213D"/>
+      </marker>
+      <marker id="arR" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+        <path d="M0,0 L0,6 L9,3 z" fill="#C8102E"/>
+      </marker>
+    </defs>
+
+    <!-- START -->
+    <ellipse cx="640" cy="40" rx="120" ry="24" fill="#14213D"/>
+    <text x="640" y="46" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="Tinos">START — MT5 connected</text>
+    <line x1="640" y1="64" x2="640" y2="92" stroke="#14213D" stroke-width="2" marker-end="url(#ar)"/>
+
+    <!-- 1. Cache check -->
+    <polygon points="640,95 820,140 640,185 460,140" fill="#F0FDF4" stroke="#14213D" stroke-width="2"/>
+    <text x="640" y="135" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">Cache hit?</text>
+    <text x="640" y="152" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">bce:{broker}:{symbol}</text>
+    <line x1="640" y1="185" x2="640" y2="210" stroke="#14213D" stroke-width="2" marker-end="url(#ar)"/>
+    <text x="650" y="200" font-size="11" fill="#4A5568" font-family="JetBrains Mono">NO</text>
+    <line x1="820" y1="140" x2="950" y2="140" stroke="#14213D" stroke-width="2" marker-end="url(#ar)"/>
+    <text x="868" y="132" font-size="11" fill="#15803D" font-family="JetBrains Mono">YES</text>
+
+    <!-- cache hit path -->
+    <rect x="950" y="115" width="280" height="60" fill="#14213D"/>
+    <text x="1090" y="140" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700" font-family="Tinos">Return cached BrokerProfile</text>
+    <text x="1090" y="158" text-anchor="middle" fill="#C8102E" font-size="10" font-family="JetBrains Mono">TTL validated · avg latency &lt; 1ms</text>
+
+    <!-- 2. Probe layer -->
+    <rect x="500" y="215" width="280" height="70" fill="#FEF3F2" stroke="#C8102E" stroke-width="2"/>
+    <text x="640" y="240" text-anchor="middle" font-size="12" font-weight="700" fill="#C8102E" font-family="Tinos">2. PROBE LAYER</text>
+    <text x="640" y="258" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">symbol_info_tick() · account_info()</text>
+    <text x="640" y="272" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">snapshot 1000 ticks · server name</text>
+    <line x1="640" y1="285" x2="640" y2="310" stroke="#14213D" stroke-width="2" marker-end="url(#ar)"/>
+
+    <!-- 3. Digits + Point -->
+    <rect x="500" y="315" width="280" height="60" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="640" y="340" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">3a. Detect Digits &amp; Point</text>
+    <text x="640" y="358" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">digits = symbol_info.digits ∈ {2,3,4,5}</text>
+    <line x1="640" y1="375" x2="640" y2="400" stroke="#14213D" stroke-width="2" marker-end="url(#ar)"/>
+
+    <!-- 4. Contract size + tick size + tick value -->
+    <rect x="500" y="405" width="280" height="70" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="640" y="430" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">3b. Detect Contract / Tick</text>
+    <text x="640" y="448" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">contract_size = trade_contract_size</text>
+    <text x="640" y="462" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">tick_size, tick_value = trade_tick_*</text>
+    <line x1="640" y1="475" x2="640" y2="500" stroke="#14213D" stroke-width="2" marker-end="url(#ar)"/>
+
+    <!-- 5. Leverage + spread -->
+    <rect x="500" y="505" width="280" height="70" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="640" y="530" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">3c. Detect Leverage &amp; Spread</text>
+    <text x="640" y="548" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">leverage = account_leverage</text>
+    <text x="640" y="562" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">spread_type: stddev(spreads[1000])</text>
+    <line x1="640" y1="575" x2="640" y2="600" stroke="#14213D" stroke-width="2" marker-end="url(#ar)"/>
+
+    <!-- 6. Commission -->
+    <rect x="500" y="605" width="280" height="70" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="640" y="630" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">3d. Detect Commission</text>
+    <text x="640" y="648" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">if (commission_rate != 0):</text>
+    <text x="640" y="662" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">  classify by magnitude + units</text>
+    <line x1="640" y1="675" x2="640" y2="700" stroke="#14213D" stroke-width="2" marker-end="url(#ar)"/>
+
+    <!-- 7. Swap -->
+    <rect x="500" y="705" width="280" height="70" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="640" y="730" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">3e. Detect Swap</text>
+    <text x="640" y="748" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">swap_mode ∈ {POINTS, PCT, NONE}</text>
+    <text x="640" y="762" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">swap_long, swap_short signed</text>
+    <line x1="640" y1="775" x2="640" y2="800" stroke="#14213D" stroke-width="2" marker-end="url(#ar)"/>
+
+    <!-- 8. Account classify -->
+    <rect x="500" y="805" width="280" height="70" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="640" y="830" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">3f. Classify Account Type</text>
+    <text x="640" y="848" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">CENT / MICRO / DOLLAR / RAW</text>
+    <text x="640" y="862" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">based on balance magnitude</text>
+    <line x1="640" y1="875" x2="640" y2="900" stroke="#14213D" stroke-width="2" marker-end="url(#ar)"/>
+
+    <!-- 9. Broker fingerprint -->
+    <rect x="500" y="905" width="280" height="70" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="640" y="930" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">3g. Fingerprint Broker</text>
+    <text x="640" y="948" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">match server_name regex</text>
+    <text x="640" y="962" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">→ Exness/ICM/Pep/Tick/FP/Fusion</text>
+    <line x1="640" y1="975" x2="640" y2="1000" stroke="#14213D" stroke-width="2" marker-end="url(#ar)"/>
+
+    <!-- 10. Validation -->
+    <rect x="500" y="1005" width="280" height="80" fill="#FEF3F2" stroke="#C8102E" stroke-width="2"/>
+    <text x="640" y="1030" text-anchor="middle" font-size="12" font-weight="700" fill="#C8102E" font-family="Tinos">4. CROSS-PROPERTY VALIDATION</text>
+    <text x="640" y="1048" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">tick_value ≈ tick_size × cs × price</text>
+    <text x="640" y="1062" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">digits ↔ point · leverage ∈ range</text>
+    <text x="640" y="1076" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">profile match · sanity bounds</text>
+    <line x1="640" y1="1085" x2="640" y2="1110" stroke="#14213D" stroke-width="2" marker-end="url(#ar)"/>
+
+    <!-- 11. Validation pass? -->
+    <polygon points="640,1115 820,1160 640,1205 460,1160" fill="#F0FDF4" stroke="#14213D" stroke-width="2"/>
+    <text x="640" y="1155" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">Validation</text>
+    <text x="640" y="1172" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">passed?</text>
+    <text x="640" y="1190" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">all checks ≤ WARN</text>
+
+    <!-- NO branch -->
+    <line x1="820" y1="1160" x2="930" y2="1160" stroke="#C8102E" stroke-width="2" marker-end="url(#arR)"/>
+    <text x="855" y="1152" font-size="11" fill="#C8102E" font-family="JetBrains Mono">NO</text>
+
+    <rect x="930" y="1125" width="280" height="80" fill="#FEF3F2" stroke="#C8102E" stroke-width="2"/>
+    <text x="1070" y="1150" text-anchor="middle" font-size="12" font-weight="700" fill="#C8102E" font-family="Tinos">5b. ERROR HANDLER</text>
+    <text x="1070" y="1168" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">classify: HARD / SOFT / WARN</text>
+    <text x="1070" y="1182" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">fallback to safe-defaults</text>
+    <text x="1070" y="1196" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">notify operator + audit log</text>
+
+    <!-- HARD error? -->
+    <line x1="1070" y1="1205" x2="1070" y2="1235" stroke="#C8102E" stroke-width="2" marker-end="url(#arR)"/>
+    <polygon points="1070,1238 1230,1275 1070,1312 910,1275" fill="#FEF3F2" stroke="#C8102E" stroke-width="2"/>
+    <text x="1070" y="1270" text-anchor="middle" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">HARD error?</text>
+    <text x="1070" y="1287" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">block trading</text>
+
+    <line x1="1070" y1="1312" x2="1070" y2="1340" stroke="#C8102E" stroke-width="2" marker-end="url(#arR)"/>
+    <text x="1080" y="1330" font-size="11" fill="#C8102E" font-family="JetBrains Mono">YES</text>
+    <ellipse cx="1070" cy="1370" rx="110" ry="22" fill="#C8102E"/>
+    <text x="1070" y="1376" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700" font-family="Tinos">HALT — operator page</text>
+
+    <line x1="910" y1="1275" x2="800" y2="1275" stroke="#14213D" stroke-width="2" marker-end="url(#ar)"/>
+    <text x="855" y="1267" font-size="11" fill="#15803D" font-family="JetBrains Mono">NO</text>
+    <line x1="640" y1="1205" x2="640" y2="1240" stroke="#14213D" stroke-width="2" marker-end="url(#ar)"/>
+    <text x="650" y="1225" font-size="11" fill="#15803D" font-family="JetBrains Mono">YES</text>
+
+    <!-- 6. Build profile -->
+    <rect x="500" y="1245" width="280" height="60" fill="#14213D"/>
+    <text x="640" y="1270" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700" font-family="Tinos">6. BUILD BROKER PROFILE</text>
+    <text x="640" y="1288" text-anchor="middle" fill="#C8102E" font-size="10" font-family="JetBrains Mono">assemble 9 properties + fingerprint</text>
+    <line x1="640" y1="1305" x2="640" y2="1330" stroke="#14213D" stroke-width="2" marker-end="url(#ar)"/>
+
+    <!-- 7. Cache -->
+    <rect x="500" y="1335" width="280" height="60" fill="#14213D"/>
+    <text x="640" y="1360" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700" font-family="Tinos">7. CACHE + PUBLISH</text>
+    <text x="640" y="1378" text-anchor="middle" fill="#C8102E" font-size="10" font-family="JetBrains Mono">Redis SETEX 24h · ZMQ PUB event</text>
+    <line x1="640" y1="1395" x2="640" y2="1420" stroke="#14213D" stroke-width="2" marker-end="url(#ar)"/>
+
+    <!-- END -->
+    <ellipse cx="640" cy="1450" rx="160" ry="26" fill="#14213D"/>
+    <text x="640" y="1456" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="Tinos">END — BrokerProfile available to TITAN Core</text>
+  </svg>
+</div>
+</body>
+</html>

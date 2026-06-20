@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Trend Following Strategy — Entry Conditions Flowchart</title>
+<style>
+  @page { size: 1400px 1900px; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #ffffff; font-family: 'Tinos','FreeSerif',serif; color: #14213D; }
+  .canvas { width: 1400px; height: 1900px; padding: 50px 60px; box-sizing: border-box; }
+  .title-bar { display: flex; align-items: baseline; gap: 18px; border-bottom: 2px solid #14213D; padding-bottom: 12px; margin-bottom: 24px; }
+  .title-bar .num { font-size: 48px; font-weight: 900; color: #C8102E; line-height: 1; }
+  .title-bar h1 { font-size: 26px; font-weight: 700; margin: 0; }
+  .title-bar .sub { font-size: 13px; color: #4A5568; margin-left: auto; font-family: 'JetBrains Mono',monospace; }
+  svg { display: block; margin: 0 auto; background: #FAFBFC; border: 1px solid #E2E8F0; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="title-bar">
+    <span class="num">02</span>
+    <h1>Entry Conditions Flowchart — 5 Institutional Patterns</h1>
+    <span class="sub">Regime gate → 5 parallel detectors → signal ranking → emit</span>
+  </div>
+
+  <svg width="1280" height="1700" viewBox="0 0 1280 1700">
+    <defs>
+      <marker id="ar2" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+        <path d="M0,0 L0,6 L9,3 z" fill="#14213D"/>
+      </marker>
+      <marker id="ar2R" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+        <path d="M0,0 L0,6 L9,3 z" fill="#C8102E"/>
+      </marker>
+      <marker id="ar2G" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+        <path d="M0,0 L0,6 L9,3 z" fill="#15803D"/>
+      </marker>
+    </defs>
+
+    <!-- START -->
+    <ellipse cx="640" cy="40" rx="160" ry="24" fill="#14213D"/>
+    <text x="640" y="46" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="Tinos">START — new bar close (M5)</text>
+    <line x1="640" y1="64" x2="640" y2="92" stroke="#14213D" stroke-width="2" marker-end="url(#ar2)"/>
+
+    <!-- 1. Regime gate -->
+    <polygon points="640,95 820,140 640,185 460,140" fill="#FEF3F2" stroke="#C8102E" stroke-width="2"/>
+    <text x="640" y="130" text-anchor="middle" font-size="11" font-weight="700" font-family="Tinos">regime == TREND</text>
+    <text x="640" y="148" text-anchor="middle" font-size="11" font-weight="700" font-family="Tinos">∧ confidence &gt; 0.65?</text>
+    <text x="640" y="165" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">P(VOLATILE) &lt; 0.20</text>
+
+    <line x1="640" y1="185" x2="640" y2="210" stroke="#14213D" stroke-width="2" marker-end="url(#ar2)"/>
+    <text x="650" y="200" font-size="11" fill="#15803D" font-family="JetBrains Mono">YES</text>
+    <line x1="820" y1="140" x2="950" y2="140" stroke="#C8102E" stroke-width="2" marker-end="url(#ar2R)"/>
+    <text x="870" y="132" font-size="11" fill="#C8102E" font-family="JetBrains Mono">NO</text>
+    <rect x="950" y="120" width="220" height="50" fill="#14213D"/>
+    <text x="1060" y="142" text-anchor="middle" fill="#ffffff" font-size="11" font-weight="700">WAIT — no trade</text>
+    <text x="1060" y="158" text-anchor="middle" fill="#C8102E" font-size="9" font-family="JetBrains Mono">audit: REGIME_NOT_TREND</text>
+
+    <!-- 2. TF alignment -->
+    <rect x="500" y="215" width="280" height="70" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="640" y="240" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">2. TIMEFRAME ALIGNMENT</text>
+    <text x="640" y="258" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">M5: EMA20 &gt; EMA50 (long) or &lt; (short)</text>
+    <text x="640" y="272" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">M15: same direction · H1: same direction</text>
+    <line x1="640" y1="285" x2="640" y2="310" stroke="#14213D" stroke-width="2" marker-end="url(#ar2)"/>
+
+    <!-- 3. TF aligned? -->
+    <polygon points="640,315 820,360 640,405 460,360" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="640" y="358" text-anchor="middle" font-size="11" font-weight="700" font-family="Tinos">3 TFs aligned?</text>
+    <line x1="640" y1="405" x2="640" y2="430" stroke="#14213D" stroke-width="2" marker-end="url(#ar2)"/>
+    <text x="650" y="420" font-size="11" fill="#15803D" font-family="JetBrains Mono">YES</text>
+    <line x1="820" y1="360" x2="950" y2="360" stroke="#C8102E" stroke-width="2" marker-end="url(#ar2R)"/>
+    <text x="870" y="352" font-size="11" fill="#C8102E" font-family="JetBrains Mono">NO</text>
+    <rect x="950" y="340" width="220" height="50" fill="#14213D"/>
+    <text x="1060" y="362" text-anchor="middle" fill="#ffffff" font-size="11" font-weight="700">WAIT — no trade</text>
+    <text x="1060" y="378" text-anchor="middle" fill="#C8102E" font-size="9" font-family="JetBrains Mono">audit: TF_MISALIGNED</text>
+
+    <!-- 4. Session filter -->
+    <rect x="500" y="435" width="280" height="70" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="640" y="460" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">3. SESSION FILTER</text>
+    <text x="640" y="478" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">London (07-16 UTC) OR NY (13-22 UTC)</text>
+    <text x="640" y="492" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">no news blackout · no Asia-only</text>
+    <line x1="640" y1="505" x2="640" y2="530" stroke="#14213D" stroke-width="2" marker-end="url(#ar2)"/>
+
+    <!-- 5. Run 5 detectors in parallel -->
+    <rect x="500" y="535" width="280" height="60" fill="#14213D"/>
+    <text x="640" y="560" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700" font-family="Tinos">4. RUN 5 ENTRY DETECTORS</text>
+    <text x="640" y="578" text-anchor="middle" fill="#C8102E" font-size="10" font-family="JetBrains Mono">parallel · each returns Signal | null</text>
+
+    <line x1="640" y1="595" x2="200" y2="640" stroke="#14213D" stroke-width="2" marker-end="url(#ar2)"/>
+    <line x1="640" y1="595" x2="420" y2="640" stroke="#14213D" stroke-width="2" marker-end="url(#ar2)"/>
+    <line x1="640" y1="595" x2="640" y2="640" stroke="#14213D" stroke-width="2" marker-end="url(#ar2)"/>
+    <line x1="640" y1="595" x2="860" y2="640" stroke="#14213D" stroke-width="2" marker-end="url(#ar2)"/>
+    <line x1="640" y1="595" x2="1080" y2="640" stroke="#14213D" stroke-width="2" marker-end="url(#ar2)"/>
+
+    <!-- E1 Market Structure -->
+    <rect x="100" y="645" width="200" height="130" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="200" y="668" text-anchor="middle" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">E1 · Market Structure</text>
+    <text x="110" y="690" font-size="9" fill="#4A5568" font-family="JetBrains Mono">1. Detect 5-bar fractal swings</text>
+    <text x="110" y="704" font-size="9" fill="#4A5568" font-family="JetBrains Mono">2. HH-HL sequence (long)</text>
+    <text x="110" y="718" font-size="9" fill="#4A5568" font-family="JetBrains Mono">3. BOS: close &gt; prior HH</text>
+    <text x="110" y="732" font-size="9" fill="#4A5568" font-family="JetBrains Mono">4. MSS: shift confirms</text>
+    <text x="110" y="746" font-size="9" fill="#4A5568" font-family="JetBrains Mono">5. Entry: retest of BOS level</text>
+    <text x="110" y="762" font-size="9" fill="#4A5568" font-family="JetBrains Mono">→ Signal(strength=0.75)</text>
+
+    <!-- E2 Breakout -->
+    <rect x="320" y="645" width="200" height="130" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="420" y="668" text-anchor="middle" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">E2 · Breakout</text>
+    <text x="330" y="690" font-size="9" fill="#4A5568" font-family="JetBrains Mono">1. close &gt; 20-bar high (long)</text>
+    <text x="330" y="704" font-size="9" fill="#4A5568" font-family="JetBrains Mono">2. vol &gt; 1.5× 20-bar avg</text>
+    <text x="330" y="718" font-size="9" fill="#4A5568" font-family="JetBrains Mono">3. ATR expanding (ATR/ATR[5]&gt;1.2)</text>
+    <text x="330" y="732" font-size="9" fill="#4A5568" font-family="JetBrains Mono">4. body &gt; 60% of range</text>
+    <text x="330" y="746" font-size="9" fill="#4A5568" font-family="JetBrains Mono">5. no upper wick rejection</text>
+    <text x="330" y="762" font-size="9" fill="#4A5568" font-family="JetBrains Mono">→ Signal(strength=0.65)</text>
+
+    <!-- E3 Pullback -->
+    <rect x="540" y="645" width="200" height="130" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="640" y="668" text-anchor="middle" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">E3 · Pullback</text>
+    <text x="550" y="690" font-size="9" fill="#4A5568" font-family="JetBrains Mono">1. retrace to EMA20 or 0.382-0.5 fib</text>
+    <text x="550" y="704" font-size="9" fill="#4A5568" font-family="JetBrains Mono">2. RSI bounces 40-50 zone</text>
+    <text x="550" y="718" font-size="9" fill="#4A5568" font-family="JetBrains Mono">3. bullish engulfing or pin bar</text>
+    <text x="550" y="732" font-size="9" fill="#4A5568" font-family="JetBrains Mono">4. volume contraction then expand</text>
+    <text x="550" y="746" font-size="9" fill="#4A5568" font-family="JetBrains Mono">5. M15 trend intact</text>
+    <text x="550" y="762" font-size="9" fill="#4A5568" font-family="JetBrains Mono">→ Signal(strength=0.85)</text>
+
+    <!-- E4 Liquidity Sweep -->
+    <rect x="760" y="645" width="200" height="130" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="860" y="668" text-anchor="middle" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">E4 · Liquidity Sweep</text>
+    <text x="770" y="690" font-size="9" fill="#4A5568" font-family="JetBrains Mono">1. wick beyond prior swing high</text>
+    <text x="770" y="704" font-size="9" fill="#4A5568" font-family="JetBrains Mono">2. close back inside range</text>
+    <text x="770" y="718" font-size="9" fill="#4A5568" font-family="JetBrains Mono">3. sweep volume spike (z&gt;2)</text>
+    <text x="770" y="732" font-size="9" fill="#4A5568" font-family="JetBrains Mono">4. reversal candle confirms</text>
+    <text x="770" y="746" font-size="9" fill="#4A5568" font-family="JetBrains Mono">5. trend direction = sweep dir</text>
+    <text x="770" y="762" font-size="9" fill="#4A5568" font-family="JetBrains Mono">→ Signal(strength=0.80)</text>
+
+    <!-- E5 Order Block / FVG -->
+    <rect x="980" y="645" width="200" height="130" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="1080" y="668" text-anchor="middle" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">E5 · Order Block / FVG</text>
+    <text x="990" y="690" font-size="9" fill="#4A5568" font-family="JetBrains Mono">1. identify last opposite candle (OB)</text>
+    <text x="990" y="704" font-size="9" fill="#4A5568" font-family="JetBrains Mono">2. identify 3-candle FVG gap</text>
+    <text x="990" y="718" font-size="9" fill="#4A5568" font-family="JetBrains Mono">3. price returns to OB/FVG zone</text>
+    <text x="990" y="732" font-size="9" fill="#4A5568" font-family="JetBrains Mono">4. reaction confirms (rejection)</text>
+    <text x="990" y="746" font-size="9" fill="#4A5568" font-family="JetBrains Mono">5. aligns with HTF trend</text>
+    <text x="990" y="762" font-size="9" fill="#4A5568" font-family="JetBrains Mono">→ Signal(strength=0.70)</text>
+
+    <!-- Collect -->
+    <line x1="200" y1="775" x2="540" y2="820" stroke="#14213D" stroke-width="1.5" marker-end="url(#ar2)"/>
+    <line x1="420" y1="775" x2="580" y2="820" stroke="#14213D" stroke-width="1.5" marker-end="url(#ar2)"/>
+    <line x1="640" y1="775" x2="640" y2="820" stroke="#14213D" stroke-width="1.5" marker-end="url(#ar2)"/>
+    <line x1="860" y1="775" x2="700" y2="820" stroke="#14213D" stroke-width="1.5" marker-end="url(#ar2)"/>
+    <line x1="1080" y1="775" x2="740" y2="820" stroke="#14213D" stroke-width="1.5" marker-end="url(#ar2)"/>
+
+    <rect x="500" y="825" width="280" height="60" fill="#14213D"/>
+    <text x="640" y="850" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700" font-family="Tinos">5. COLLECT SIGNALS</text>
+    <text x="640" y="868" text-anchor="middle" fill="#C8102E" font-size="10" font-family="JetBrains Mono">list of 0..5 Signal objects</text>
+    <line x1="640" y1="885" x2="640" y2="910" stroke="#14213D" stroke-width="2" marker-end="url(#ar2)"/>
+
+    <!-- Any signals? -->
+    <polygon points="640,915 820,960 640,1005 460,960" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="640" y="958" text-anchor="middle" font-size="11" font-weight="700" font-family="Tinos">any signals?</text>
+    <line x1="640" y1="1005" x2="640" y2="1030" stroke="#14213D" stroke-width="2" marker-end="url(#ar2)"/>
+    <text x="650" y="1020" font-size="11" fill="#15803D" font-family="JetBrains Mono">YES</text>
+    <line x1="820" y1="960" x2="950" y2="960" stroke="#C8102E" stroke-width="2" marker-end="url(#ar2R)"/>
+    <text x="870" y="952" font-size="11" fill="#C8102E" font-family="JetBrains Mono">NO</text>
+    <rect x="950" y="940" width="220" height="50" fill="#14213D"/>
+    <text x="1060" y="962" text-anchor="middle" fill="#ffffff" font-size="11" font-weight="700">WAIT — no pattern</text>
+    <text x="1060" y="978" text-anchor="middle" fill="#C8102E" font-size="9" font-family="JetBrains Mono">audit: NO_ENTRY_PATTERN</text>
+
+    <!-- Rank signals -->
+    <rect x="500" y="1035" width="280" height="70" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="640" y="1060" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">6. RANK SIGNALS</text>
+    <text x="640" y="1078" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">sort by strength desc</text>
+    <text x="640" y="1092" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">E3 Pullback (0.85) &gt; E4 Sweep (0.80) &gt;</text>
+    <text x="640" y="1106" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">E1 MS (0.75) &gt; E5 OB/FVG (0.70) &gt; E2 BO (0.65)</text>
+    <line x1="640" y1="1105" x2="640" y2="1130" stroke="#14213D" stroke-width="2" marker-end="url(#ar2)"/>
+
+    <!-- Confluence? -->
+    <polygon points="640,1135 820,1180 640,1225 460,1180" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="640" y="1178" text-anchor="middle" font-size="11" font-weight="700" font-family="Tinos">≥2 patterns agree</text>
+    <text x="640" y="1195" text-anchor="middle" font-size="11" font-weight="700" font-family="Tinos">(confluence)?</text>
+    <text x="640" y="1212" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">boost strength × 1.15</text>
+
+    <line x1="640" y1="1225" x2="640" y2="1250" stroke="#15803D" stroke-width="2" marker-end="url(#ar2G)"/>
+    <text x="650" y="1240" font-size="11" fill="#15803D" font-family="JetBrains Mono">YES</text>
+    <line x1="820" y1="1180" x2="950" y2="1180" stroke="#14213D" stroke-width="2" marker-end="url(#ar2)"/>
+    <text x="870" y="1172" font-size="11" fill="#4A5568" font-family="JetBrains Mono">NO</text>
+    <rect x="950" y="1160" width="220" height="50" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="1060" y="1182" text-anchor="middle" font-size="11" font-weight="700">single pattern OK</text>
+    <text x="1060" y="1198" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">use as-is</text>
+
+    <!-- 7. Risk gate -->
+    <rect x="500" y="1255" width="280" height="70" fill="#FEF3F2" stroke="#C8102E" stroke-width="2"/>
+    <text x="640" y="1280" text-anchor="middle" font-size="12" font-weight="700" fill="#C8102E" font-family="Tinos">7. RISK GATE</text>
+    <text x="640" y="1298" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">max 3 concurrent · daily loss &lt; 2%</text>
+    <text x="640" y="1312" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">margin floor 30% · news check</text>
+    <line x1="640" y1="1325" x2="640" y2="1350" stroke="#14213D" stroke-width="2" marker-end="url(#ar2)"/>
+
+    <!-- Risk approved? -->
+    <polygon points="640,1355 820,1400 640,1445 460,1400" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="640" y="1398" text-anchor="middle" font-size="11" font-weight="700" font-family="Tinos">risk approved?</text>
+    <line x1="640" y1="1445" x2="640" y2="1470" stroke="#15803D" stroke-width="2" marker-end="url(#ar2G)"/>
+    <text x="650" y="1460" font-size="11" fill="#15803D" font-family="JetBrains Mono">YES</text>
+    <line x1="820" y1="1400" x2="950" y2="1400" stroke="#C8102E" stroke-width="2" marker-end="url(#ar2R)"/>
+    <text x="870" y="1392" font-size="11" fill="#C8102E" font-family="JetBrains Mono">NO</text>
+    <rect x="950" y="1380" width="220" height="50" fill="#14213D"/>
+    <text x="1060" y="1402" text-anchor="middle" fill="#ffffff" font-size="11" font-weight="700">REJECT</text>
+    <text x="1060" y="1418" text-anchor="middle" fill="#C8102E" font-size="9" font-family="JetBrains Mono">audit: RISK_REJECT</text>
+
+    <!-- 8. Compute size -->
+    <rect x="500" y="1475" width="280" height="70" fill="#14213D"/>
+    <text x="640" y="1500" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700" font-family="Tinos">8. ADAPTIVE POSITION SIZE</text>
+    <text x="640" y="1518" text-anchor="middle" fill="#C8102E" font-size="10" font-family="JetBrains Mono">qty = equity × risk% / (stop_dist × tv)</text>
+    <text x="640" y="1532" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="9" font-family="JetBrains Mono">risk% = 1.0% × conf × streak × vol</text>
+    <line x1="640" y1="1545" x2="640" y2="1570" stroke="#14213D" stroke-width="2" marker-end="url(#ar2)"/>
+
+    <!-- END -->
+    <ellipse cx="640" cy="1610" rx="200" ry="26" fill="#15803D"/>
+    <text x="640" y="1617" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="Tinos">END — Emit Signal to Execution Engine</text>
+  </svg>
+</div>
+</body>
+</html>

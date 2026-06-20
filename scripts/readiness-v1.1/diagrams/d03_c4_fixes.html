@@ -1,0 +1,73 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>d03</title>
+<link href="https://fonts.googleapis.com/css2?family=Tinos:wght@400;700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { width: 1600px; height: 1200px; background: #ffffff; font-family: 'Inter', sans-serif; color: #14213D; padding: 50px 60px; }
+.h-title { font-family: 'Tinos', serif; font-size: 30px; font-weight: 900; letter-spacing: -0.5px; }
+.h-sub { font-family: 'Inter', sans-serif; font-size: 13px; color: #4A5568; margin-top: 4px; }
+.h-rule { width: 80px; height: 3px; background: #C8102E; margin: 14px 0 24px 0; }
+
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+
+.card { border: 1px solid #CBD5E1; border-radius: 6px; overflow: hidden; }
+.card-head { background: #14213D; color: #fff; padding: 12px 18px; }
+.card-head .lbl { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C8102E; letter-spacing: 2px; font-weight: 700; }
+.card-head .t { font-family: 'Tinos', serif; font-size: 14px; font-weight: 700; margin-top: 2px; }
+.card-head .score { font-family: 'Tinos', serif; font-size: 16px; font-weight: 900; float: right; color: #4ADE80; }
+.card-body { padding: 12px 16px; }
+
+.policy { padding: 10px 0; border-bottom: 1px dashed #CBD5E1; }
+.policy:last-child { border-bottom: none; }
+.policy .id { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C8102E; font-weight: 700; }
+.policy .sev { font-family: 'JetBrains Mono', monospace; font-size: 9px; padding: 2px 6px; border-radius: 2px; color: #fff; font-weight: 700; margin-left: 6px; }
+.sev.crit { background: #C8102E; }
+.sev.maj { background: #B45309; }
+.sev.min { background: #94A3B8; }
+.sev.fixed { background: #15803D; }
+.policy .t { font-family: 'Tinos', serif; font-size: 12.5px; font-weight: 700; color: #14213D; margin: 4px 0 5px 0; line-height: 1.2; }
+.policy .d { font-family: 'Inter', sans-serif; font-size: 10px; color: #4A5568; line-height: 1.5; }
+.policy .d b { color: #14213D; }
+.policy .spec { font-family: 'JetBrains Mono', monospace; font-size: 9.5px; color: #14213D; margin-top: 5px; padding: 6px 10px; background: #F1F5F9; border-left: 2px solid #15803D; border-radius: 2px; line-height: 1.6; }
+.policy .spec b { color: #15803D; }
+
+.gate-card { margin-top: 22px; padding: 16px 20px; background: #14213D; color: #fff; border-radius: 6px; }
+.gate-card .lbl { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #C8102E; letter-spacing: 2px; font-weight: 700; }
+.gate-card .h { font-family: 'Tinos', serif; font-size: 14px; font-weight: 700; margin-top: 4px; }
+.gate-card .d { font-family: 'Inter', sans-serif; font-size: 10.5px; opacity: 0.9; margin-top: 6px; line-height: 1.5; }
+.gate-card .d b { color: #C8102E; }
+</style></head>
+<body>
+<div class="h-title">C4 Memory Leak Analysis — Policies Specified (87 → 92)</div>
+<div class="h-sub">All C4 findings addressed · cache eviction · GC tuning · log rotation · Valgrind CI gate all explicit</div>
+<div class="h-rule"></div>
+
+<div class="cols">
+  <div class="card">
+    <div class="card-head"><div><div class="lbl">C4 POLICIES — NOW EXPLICIT</div><div class="t">All 4 spec gaps closed</div></div><div class="score">92/100</div></div>
+    <div class="card-body">
+      <div class="policy"><div><span class="id">C4-F01</span><span class="sev crit">CRITICAL</span> <span class="sev fixed">→ CI GATE SPEC'D</span></div><div class="t">Valgrind/ASan leak detection</div><div class="d">Specified as mandatory CI gate. Cannot merge without clean run.</div><div class="spec"><b>SPEC:</b> CI runs Valgrind (C++) + ASan (C++ debug build) + tracemalloc (Python) on every PR. <b>72h soak test</b> in nightly CI. RSS growth &lt;5% required. Any leak report = CI red = merge blocked.</div></div></div>
+      <div class="policy"><div><span class="id">C4-F02</span><span class="sev maj">MAJOR</span> <span class="sev fixed">→ FIXED</span></div><div class="t">Tick data cache eviction</div><div class="d">Explicit LRU policy. No unbounded growth.</div><div class="spec"><b>SPEC:</b> In-memory tick cache = LRU, max 100,000 ticks (~10 MB). Eviction: oldest tick when full. Parquet store: unlimited (disk). Cache hit rate target ≥75%. Config: <code>tick_cache_size: 100000</code> in brokers.yaml.</div></div></div>
+      <div class="policy"><div><span class="id">C4-F03</span><span class="sev maj">MAJOR</span> <span class="sev fixed">→ FIXED</span></div><div class="t">Python GC tuning</div><div class="d">Explicit gc.set_threshold for AI layer. No long pauses.</div><div class="spec"><b>SPEC:</b> AI layer (M11) sets <code>gc.set_threshold(700, 20, 20)</code> at startup. Gen-0 collection every 700 allocations (frequent, fast). Gen-1 every 20 gen-0 (medium). Gen-2 every 20 gen-1 (rare, slow). Max pause &lt;5 ms. Prometheus metric: <code>python_gc_pause_seconds</code>.</div></div></div>
+      <div class="policy"><div><span class="id">C4-F04</span><span class="sev min">MINOR</span> <span class="sev fixed">→ FIXED</span></div><div class="t">Audit log rotation</div><div class="d">Explicit logrotate config. No disk fill.</div><div class="spec"><b>SPEC:</b> logrotate config: weekly rotation, 52 weeks local retention, gzip compression, max 100 MB per file. S3 archival: 7-year retention (regulatory). Config in /etc/logrotate.d/titan. Alert if local log dir &gt;10 GB.</div></div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><div><div class="lbl">MEMORY BUDGET — PER MODULE</div><div class="t">Explicit RSS targets</div></div><div class="score">EXPLICIT</div></div>
+    <div class="card-body">
+      <div class="policy"><div class="id">M01 Broker</div><div class="t">RSS target: 50 MB</div><div class="d">6 broker connections, 9 properties each. Connection pool bounded at 6 sockets.</div><div class="spec"><b>Budget:</b> 50 MB RSS · 6 sockets · 100 KB/broker profile. No growth expected.</div></div>
+      <div class="policy"><div class="id">M02 Market Data</div><div class="t">RSS target: 200 MB</div><div class="d">Tick cache (LRU 100k) + Parquet write buffer + 30-day rolling window metadata.</div><div class="spec"><b>Budget:</b> 200 MB RSS · 10 MB tick cache · 180 MB Parquet buffer · 10 MB metadata.</div></div>
+      <div class="policy"><div class="id">M03 Execution</div><div class="t">RSS target: 80 MB</div><div class="d">Idempotency LRU (10k entries) + pending orders map + order history (30-day).</div><div class="spec"><b>Budget:</b> 80 MB RSS · 5 MB idempotency cache · 25 MB pending orders · 50 MB order history.</div></div>
+      <div class="policy"><div class="id">M11 AI Stack</div><div class="t">RSS target: 2 GB</div><div class="d">4 model weights (XGBoost 200 MB + LSTM 400 MB + Transformer 800 MB + RL 100 MB) + inference buffers.</div><div class="spec"><b>Budget:</b> 2 GB RSS · 1.5 GB model weights · 500 MB inference buffers. Models loaded once at startup.</div></div>
+      <div class="policy"><div class="id">M08 Risk Engine</div><div class="t">RSS target: 100 MB</div><div class="d">Position book + equity curve (1-year rolling) + 12 control states.</div><div class="spec"><b>Budget:</b> 100 MB RSS · 10 MB positions · 80 MB equity curve · 10 MB control state.</div></div>
+      <div class="policy"><div class="id">M20 Observability</div><div class="t">RSS target: 500 MB</div><div class="d">Prometheus 30-day metrics + Loki 30-day logs (in-memory index).</div><div class="spec"><b>Budget:</b> 500 MB RSS · 300 MB Prometheus · 200 MB Loki index. Disk: 30-day retention.</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="gate-card">
+  <div class="lbl">C4 VERIFICATION GATE — POST-IMPLEMENTATION</div>
+  <div class="h">All memory policies must be verified during Phase 3 implementation</div>
+  <div class="d"><b>1. Valgrind/ASan CI gate:</b> every PR must pass clean Valgrind (C++) + ASan (debug build) + tracemalloc (Python). <b>2. 72h soak test:</b> nightly CI runs full system for 72 hours, RSS growth &lt;5% required. <b>3. Per-module RSS probes:</b> Prometheus metric <code>process_resident_memory_bytes</code> per service, alert if &gt;1.2× budget. <b>4. LRU verification:</b> unit test that fills tick cache to 100k + 1, verifies oldest evicted. <b>5. GC pause verification:</b> pytest measures gc pause during AI inference, asserts &lt;5ms. <b>6. Log rotation verification:</b> integration test that produces 200 MB logs, verifies logrotate compresses to spec.</div>
+</div>
+</body></html>

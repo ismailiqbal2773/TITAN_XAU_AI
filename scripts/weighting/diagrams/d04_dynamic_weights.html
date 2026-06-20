@@ -1,0 +1,109 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>d04</title>
+<link href="https://fonts.googleapis.com/css2?family=Tinos:wght@400;700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { width: 1600px; height: 1200px; background: #ffffff; font-family: 'Inter', sans-serif; color: #14213D; padding: 50px 60px; }
+.h-title { font-family: 'Tinos', serif; font-size: 30px; font-weight: 900; letter-spacing: -0.5px; }
+.h-sub { font-family: 'Inter', sans-serif; font-size: 13px; color: #4A5568; margin-top: 4px; }
+.h-rule { width: 80px; height: 3px; background: #C8102E; margin: 14px 0 24px 0; }
+
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+.card { border: 1px solid #CBD5E1; border-radius: 6px; overflow: hidden; }
+.card-head { background: #14213D; color: #fff; padding: 12px 18px; }
+.card-head .lbl { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C8102E; letter-spacing: 2px; font-weight: 700; }
+.card-head .t { font-family: 'Tinos', serif; font-size: 14px; font-weight: 700; margin-top: 2px; }
+.card-body { padding: 12px 16px; }
+
+.scenario { padding: 10px 0; border-bottom: 1px dashed #CBD5E1; }
+.scenario:last-child { border-bottom: none; }
+.scenario .regime { font-family: 'Tinos', serif; font-size: 13px; font-weight: 700; color: #C8102E; margin-bottom: 6px; }
+.scenario .desc { font-family: 'Inter', sans-serif; font-size: 10px; color: #4A5568; margin-bottom: 8px; line-height: 1.5; }
+
+.weight-bar { display: grid; grid-template-columns: 120px 1fr 60px; gap: 8px; align-items: center; margin: 4px 0; }
+.weight-bar .model { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #14213D; font-weight: 700; }
+.weight-bar .track { background: #F1F5F9; height: 14px; border-radius: 2px; overflow: hidden; }
+.weight-bar .fill { height: 100%; background: linear-gradient(90deg, #14213D 0%, #C8102E 100%); }
+.weight-bar .val { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #C8102E; font-weight: 700; text-align: right; }
+
+.note { margin-top: 12px; font-family: 'Inter', sans-serif; font-size: 9.5px; color: #4A5568; font-style: italic; line-height: 1.5; }
+.note b { color: #C8102E; }
+
+.adaptation { margin-top: 22px; padding: 16px 20px; background: #14213D; color: #fff; border-radius: 6px; }
+.adaptation .lbl { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #C8102E; letter-spacing: 2px; font-weight: 700; }
+.adaptation .h { font-family: 'Tinos', serif; font-size: 15px; font-weight: 700; margin-top: 4px; }
+.adaptation .d { font-family: 'Inter', sans-serif; font-size: 11px; opacity: 0.9; margin-top: 8px; line-height: 1.6; }
+.adaptation .d b { color: #4ADE80; }
+</style></head>
+<body>
+<div class="h-title">Dynamic Weight Flow — Worked Examples</div>
+<div class="h-sub">Weights computed (not looked up) · same 4 algorithms produce different weights per regime · no hardcoded mapping</div>
+<div class="h-rule"></div>
+
+<div class="cols">
+  <div class="card">
+    <div class="card-head"><div><div class="lbl">SCENARIO 1 · TRENDING MARKET</div><div class="t">Regime = TREND · Meta-Bandit selects MAB</div></div></div>
+    <div class="card-body">
+      <div class="scenario">
+        <div class="regime">TREND — Transformer dominates</div>
+        <div class="desc">Strong directional move. Transformer's attention mechanism captures long-range patterns. LSTM follows the trend. XGBoost (tree-based) is weaker on sustained trends.</div>
+        <div class="weight-bar"><div class="model">Transformer</div><div class="track"><div class="fill" style="width:45%"></div></div><div class="val">45%</div></div>
+        <div class="weight-bar"><div class="model">LSTM</div><div class="track"><div class="fill" style="width:35%"></div></div><div class="val">35%</div></div>
+        <div class="weight-bar"><div class="model">XGBoost</div><div class="track"><div class="fill" style="width:15%"></div></div><div class="val">15%</div></div>
+        <div class="weight-bar"><div class="model">RL Manager</div><div class="track"><div class="fill" style="width:5%"></div></div><div class="val">5%</div></div>
+        <div class="note"><b>NOTE:</b> These weights are NOT hardcoded. They EMERGE from MAB algorithm because Transformer has highest recent Sharpe in trend regime (M3 metric) + highest regime performance (M7 metric). If Transformer starts underperforming, weights shift automatically within 60s.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><div><div class="lbl">SCENARIO 2 · RANGE MARKET</div><div class="t">Regime = RANGE · Meta-Bandit selects Bayesian</div></div></div>
+    <div class="card-body">
+      <div class="scenario">
+        <div class="regime">RANGE — XGBoost dominates</div>
+        <div class="desc">Sideways consolidation. XGBoost's tree-based features capture S/R bounces well. LSTM struggles with mean-reversion signals. Transformer overfits noise in ranges.</div>
+        <div class="weight-bar"><div class="model">XGBoost</div><div class="track"><div class="fill" style="width:50%"></div></div><div class="val">50%</div></div>
+        <div class="weight-bar"><div class="model">LSTM</div><div class="track"><div class="fill" style="width:30%"></div></div><div class="val">30%</div></div>
+        <div class="weight-bar"><div class="model">Transformer</div><div class="track"><div class="fill" style="width:15%"></div></div><div class="val">15%</div></div>
+        <div class="weight-bar"><div class="model">RL Manager</div><div class="track"><div class="fill" style="width:5%"></div></div><div class="val">5%</div></div>
+        <div class="note"><b>NOTE:</b> Again NOT hardcoded. Bayesian algorithm selected because range regime has fewer trades (smaller sample) → Bayesian's uncertainty quantification is advantageous. XGBoost gets 50% because its accuracy (M1) and PF (M2) are highest in range regime over W100.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><div><div class="lbl">SCENARIO 3 · VOLATILE MARKET</div><div class="t">Regime = VOLATILE · Meta-Bandit selects Online Linear</div></div></div>
+    <div class="card-body">
+      <div class="scenario">
+        <div class="regime">VOLATILE — Balanced with RL emphasis</div>
+        <div class="desc">High ATR. All models struggle, but RL Trade Manager excels at position management (scaling, exits) during volatile swings. Online Linear selected because it can learn complex 7-metric interactions.</div>
+        <div class="weight-bar"><div class="model">RL Manager</div><div class="track"><div class="fill" style="width:35%"></div></div><div class="val">35%</div></div>
+        <div class="weight-bar"><div class="model">Transformer</div><div class="track"><div class="fill" style="width:25%"></div></div><div class="val">25%</div></div>
+        <div class="weight-bar"><div class="model">LSTM</div><div class="track"><div class="fill" style="width:25%"></div></div><div class="val">25%</div></div>
+        <div class="weight-bar"><div class="model">XGBoost</div><div class="track"><div class="fill" style="width:15%"></div></div><div class="val">15%</div></div>
+        <div class="note"><b>NOTE:</b> Online Linear algorithm selected by Meta-Bandit because volatile regime has complex metric interactions (high slippage sensitivity M5 + high latency sensitivity M6). RL gets 35% because its regime performance (M7) in volatile is highest.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><div><div class="lbl">SCENARIO 4 · NEWS MARKET</div><div class="t">Regime = NEWS · Meta-Bandit selects Weighted Voting</div></div></div>
+    <div class="card-body">
+      <div class="scenario">
+        <div class="regime">NEWS — Equal weights (high uncertainty)</div>
+        <div class="desc">During news events, all models are unreliable. Weighted Voting distributes weights more evenly because all Sharpes are low and similar. No model gets dominant weight.</div>
+        <div class="weight-bar"><div class="model">XGBoost</div><div class="track"><div class="fill" style="width:28%"></div></div><div class="val">28%</div></div>
+        <div class="weight-bar"><div class="model">LSTM</div><div class="track"><div class="fill" style="width:26%"></div></div><div class="val">26%</div></div>
+        <div class="weight-bar"><div class="model">Transformer</div><div class="track"><div class="fill" style="width:24%"></div></div><div class="val">24%</div></div>
+        <div class="weight-bar"><div class="model">RL Manager</div><div class="track"><div class="fill" style="width:22%"></div></div><div class="val">22%</div></div>
+        <div class="note"><b>NOTE:</b> Weighted Voting selected because news regime is short-lived and all models perform similarly. exp(λ × Sharpe) with low Sharpes → near-uniform weights. The system <b>automatically hedges</b> during uncertainty.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="adaptation">
+  <div class="lbl">ADAPTATION — WEIGHTS CHANGE EVERY 60 SECONDS</div>
+  <div class="h">No hardcoded regime → weight mapping. Weights EMERGE from performance.</div>
+  <div class="d">The same 4 algorithms run every cycle (60s). The Meta-Bandit selects which algorithm to use based on recent weight-quality in the current regime. <b>If Transformer starts underperforming in trend regime, its weight drops within 60s — no human intervention, no code change.</b> If a new regime pattern emerges that no algorithm handles well, the Meta-Bandit explores all 4 algorithms (Thompson Sampling's exploration) until it finds the best one. <b>This is true adaptive intelligence — the system learns which model to trust, in which regime, using which algorithm, all in real-time.</b></div>
+</div>
+</body></html>

@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>TITAN XAU AI — Deployment Architecture</title>
+<style>
+  @page { size: 1600px 1200px; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #ffffff; font-family: 'Tinos','FreeSerif',serif; color: #14213D; }
+  .canvas { width: 1600px; height: 1200px; padding: 50px 60px; box-sizing: border-box; }
+  .title-bar { display: flex; align-items: baseline; gap: 18px; border-bottom: 2px solid #14213D; padding-bottom: 12px; margin-bottom: 24px; }
+  .title-bar .num { font-size: 56px; font-weight: 900; color: #C8102E; line-height: 1; }
+  .title-bar h1 { font-size: 28px; font-weight: 700; margin: 0; }
+  .title-bar .sub { font-size: 13px; color: #4A5568; margin-left: auto; font-family: 'JetBrains Mono',monospace; }
+  svg { display: block; margin: 0 auto; background: #FAFBFC; border: 1px solid #E2E8F0; }
+  .table { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-top: 12px; }
+  .table th { background: #14213D; color: #ffffff; padding: 6px 8px; text-align: left; font-weight: 700; }
+  .table td { padding: 5px 8px; border-bottom: 1px solid #E2E8F0; }
+  .table tr:nth-child(even) td { background: #F8FAFC; }
+  .table .mod { color: #14213D; font-family: 'JetBrains Mono',monospace; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="title-bar">
+    <span class="num">06</span>
+    <h1>Deployment Architecture — Three-Zone HA Topology</h1>
+    <span class="sub">Primary (NY4) · Hot-Standby (EQ4) · DR (LD4) · WireGuard mesh</span>
+  </div>
+
+  <svg width="1480" height="780" viewBox="0 0 1480 780">
+    <!-- Internet / broker cloud -->
+    <ellipse cx="740" cy="60" rx="180" ry="40" fill="#F8FAFC" stroke="#14213D" stroke-width="1.5" stroke-dasharray="4 2"/>
+    <text x="740" y="65" text-anchor="middle" font-size="13" font-weight="700" fill="#14213D">MT5 Broker DC (IC Markets / Pepperstone)</text>
+
+    <!-- Zone 1: Primary NY4 -->
+    <g>
+      <rect x="40" y="140" width="440" height="540" fill="#FEF3F2" stroke="#C8102E" stroke-width="2" rx="6"/>
+      <rect x="40" y="140" width="440" height="34" fill="#C8102E" rx="6"/>
+      <text x="260" y="162" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff" font-family="Tinos">ZONE 1 — PRIMARY · NY4 (New York)</text>
+
+      <!-- VPS box -->
+      <rect x="60" y="190" width="400" height="470" fill="#ffffff" stroke="#14213D" stroke-width="1" rx="4"/>
+
+      <!-- Containers -->
+      <rect x="80" y="210" width="170" height="50" fill="#14213D"/>
+      <text x="165" y="232" text-anchor="middle" fill="#ffffff" font-size="11" font-weight="700">titan-core</text>
+      <text x="165" y="248" text-anchor="middle" fill="#C8102E" font-size="9">C++ · pinned CPU 2-3</text>
+
+      <rect x="270" y="210" width="170" height="50" fill="#14213D"/>
+      <text x="355" y="232" text-anchor="middle" fill="#ffffff" font-size="11" font-weight="700">titan-strategy</text>
+      <text x="355" y="248" text-anchor="middle" fill="#C8102E" font-size="9">Python · CPU 4-7</text>
+
+      <rect x="80" y="275" width="170" height="50" fill="#14213D"/>
+      <text x="165" y="297" text-anchor="middle" fill="#ffffff" font-size="11" font-weight="700">mt5-terminal</text>
+      <text x="165" y="313" text-anchor="middle" fill="#C8102E" font-size="9">Wine · CPU 0-1</text>
+
+      <rect x="270" y="275" width="170" height="50" fill="#F0FDF4" stroke="#14213D"/>
+      <text x="355" y="297" text-anchor="middle" font-size="11" font-weight="700" fill="#14213D">redis (state cache)</text>
+      <text x="355" y="313" text-anchor="middle" font-size="9" fill="#4A5568">Sentinel · CPU 8</text>
+
+      <rect x="80" y="340" width="360" height="40" fill="#F0FDF4" stroke="#14213D"/>
+      <text x="260" y="362" text-anchor="middle" font-size="11" font-weight="700" fill="#14213D">TimescaleDB (historical ticks + trades)</text>
+
+      <rect x="80" y="395" width="170" height="40" fill="#F0FDF4" stroke="#14213D"/>
+      <text x="165" y="417" text-anchor="middle" font-size="10" font-weight="700" fill="#14213D">Prometheus + Grafana</text>
+
+      <rect x="270" y="395" width="170" height="40" fill="#F0FDF4" stroke="#14213D"/>
+      <text x="355" y="417" text-anchor="middle" font-size="10" font-weight="700" fill="#14213D">Loki (log store)</text>
+
+      <rect x="80" y="450" width="170" height="40" fill="#F0FDF4" stroke="#14213D"/>
+      <text x="165" y="472" text-anchor="middle" font-size="10" font-weight="700" fill="#14213D">AlertManager</text>
+
+      <rect x="270" y="450" width="170" height="40" fill="#F0FDF4" stroke="#14213D"/>
+      <text x="355" y="472" text-anchor="middle" font-size="10" font-weight="700" fill="#14213D">License Agent</text>
+
+      <rect x="80" y="510" width="360" height="40" fill="#FEF3F2" stroke="#C8102E"/>
+      <text x="260" y="532" text-anchor="middle" font-size="11" font-weight="700" fill="#C8102E">VRRP MASTER (priority 200)</text>
+
+      <rect x="80" y="560" width="360" height="80" fill="#FAFBFC" stroke="#14213D" stroke-dasharray="3 2"/>
+      <text x="260" y="580" text-anchor="middle" font-size="10" font-weight="700" fill="#14213D">nftables + WireGuard + tc (QoS)</text>
+      <text x="260" y="600" text-anchor="middle" font-size="9" fill="#4A5568">public_ip  :  1.2.3.4 (MT5 broker allowlist)</text>
+      <text x="260" y="618" text-anchor="middle" font-size="9" fill="#4A5568">wg_ip       :  10.10.0.1</text>
+    </g>
+
+    <!-- Zone 2: Hot-Standby EQ4 -->
+    <g>
+      <rect x="520" y="140" width="440" height="540" fill="#FAFBFC" stroke="#14213D" stroke-width="2" rx="6"/>
+      <rect x="520" y="140" width="440" height="34" fill="#14213D" rx="6"/>
+      <text x="740" y="162" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff" font-family="Tinos">ZONE 2 — HOT-STANDBY · EQ4 (Equinix NY)</text>
+
+      <rect x="540" y="190" width="400" height="470" fill="#ffffff" stroke="#14213D" stroke-width="1" rx="4"/>
+
+      <rect x="560" y="210" width="170" height="50" fill="#14213D"/>
+      <text x="645" y="232" text-anchor="middle" fill="#ffffff" font-size="11" font-weight="700">titan-core</text>
+      <text x="645" y="248" text-anchor="middle" fill="#C8102E" font-size="9">C++ · idle until failover</text>
+
+      <rect x="750" y="210" width="170" height="50" fill="#14213D"/>
+      <text x="835" y="232" text-anchor="middle" fill="#ffffff" font-size="11" font-weight="700">titan-strategy</text>
+      <text x="835" y="248" text-anchor="middle" fill="#C8102E" font-size="9">Python · warm</text>
+
+      <rect x="560" y="275" width="170" height="50" fill="#14213D"/>
+      <text x="645" y="297" text-anchor="middle" fill="#ffffff" font-size="11" font-weight="700">mt5-terminal</text>
+      <text x="645" y="313" text-anchor="middle" fill="#C8102E" font-size="9">standby (read-only)</text>
+
+      <rect x="750" y="275" width="170" height="50" fill="#F0FDF4" stroke="#14213D"/>
+      <text x="835" y="297" text-anchor="middle" font-size="11" font-weight="700" fill="#14213D">redis (replica)</text>
+      <text x="835" y="313" text-anchor="middle" font-size="9" fill="#4A5568">Sentinel · CPU 8</text>
+
+      <rect x="560" y="340" width="360" height="40" fill="#F0FDF4" stroke="#14213D"/>
+      <text x="740" y="362" text-anchor="middle" font-size="11" font-weight="700" fill="#14213D">TimescaleDB (streaming replica)</text>
+
+      <rect x="560" y="395" width="360" height="40" fill="#F0FDF4" stroke="#14213D"/>
+      <text x="740" y="417" text-anchor="middle" font-size="10" font-weight="700" fill="#14213D">Prometheus + Grafana (federated)</text>
+
+      <rect x="560" y="450" width="360" height="40" fill="#F0FDF4" stroke="#14213D"/>
+      <text x="740" y="472" text-anchor="middle" font-size="10" font-weight="700" fill="#14213D">License Agent (shared)</text>
+
+      <rect x="560" y="510" width="360" height="40" fill="#FAFBFC" stroke="#14213D" stroke-dasharray="3 2"/>
+      <text x="740" y="532" text-anchor="middle" font-size="11" font-weight="700" fill="#14213D">VRRP BACKUP (priority 100)</text>
+
+      <rect x="560" y="560" width="360" height="80" fill="#FAFBFC" stroke="#14213D" stroke-dasharray="3 2"/>
+      <text x="740" y="580" text-anchor="middle" font-size="10" font-weight="700" fill="#14213D">nftables + WireGuard + tc</text>
+      <text x="740" y="600" text-anchor="middle" font-size="9" fill="#4A5568">public_ip  :  5.6.7.8</text>
+      <text x="740" y="618" text-anchor="middle" font-size="9" fill="#4A5568">wg_ip       :  10.10.0.2</text>
+    </g>
+
+    <!-- Zone 3: DR LD4 -->
+    <g>
+      <rect x="1000" y="140" width="440" height="540" fill="#FAFBFC" stroke="#14213D" stroke-width="1.5" stroke-dasharray="6 3" rx="6"/>
+      <rect x="1000" y="140" width="440" height="34" fill="#4A5568" rx="6"/>
+      <text x="1220" y="162" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff" font-family="Tinos">ZONE 3 — DR · LD4 (London, geo-remote)</text>
+
+      <rect x="1020" y="190" width="400" height="470" fill="#ffffff" stroke="#14213D" stroke-width="1" rx="4"/>
+
+      <rect x="1040" y="210" width="360" height="50" fill="#F8FAFC" stroke="#14213D" stroke-dasharray="3 2"/>
+      <text x="1220" y="232" text-anchor="middle" font-size="11" font-weight="700" fill="#4A5568">titan-core (cold-start image, paused)</text>
+      <text x="1220" y="248" text-anchor="middle" font-size="9" fill="#4A5568">Activated only on z1+z2 failure</text>
+
+      <rect x="1040" y="275" width="360" height="40" fill="#F0FDF4" stroke="#14213D"/>
+      <text x="1220" y="297" text-anchor="middle" font-size="10" font-weight="700" fill="#14213D">TimescaleDB (WAL archive replay, 60s lag)</text>
+
+      <rect x="1040" y="330" width="360" height="40" fill="#F0FDF4" stroke="#14213D"/>
+      <text x="1220" y="352" text-anchor="middle" font-size="10" font-weight="700" fill="#14213D">Redis (async replica, 5s lag)</text>
+
+      <rect x="1040" y="385" width="360" height="80" fill="#FAFBFC" stroke="#14213D" stroke-dasharray="3 2"/>
+      <text x="1220" y="405" text-anchor="middle" font-size="10" font-weight="700" fill="#4A5568">Manual / automated RTO activation</text>
+      <text x="1220" y="423" text-anchor="middle" font-size="9" fill="#4A5568">License: cold-standby clause (no extra charge)</text>
+      <text x="1220" y="441" text-anchor="middle" font-size="9" fill="#4A5568">MT5 broker failover via separate sub-account</text>
+
+      <rect x="1040" y="480" width="360" height="40" fill="#FEF3F2" stroke="#C8102E" stroke-dasharray="3 2"/>
+      <text x="1220" y="502" text-anchor="middle" font-size="10" font-weight="700" fill="#C8102E">VRRP DISABLED (manual failover)</text>
+
+      <rect x="1040" y="535" width="360" height="100" fill="#FAFBFC" stroke="#14213D" stroke-dasharray="3 2"/>
+      <text x="1220" y="555" text-anchor="middle" font-size="10" font-weight="700" fill="#4A5568">nftables + WireGuard (high-latency path)</text>
+      <text x="1220" y="575" text-anchor="middle" font-size="9" fill="#4A5568">public_ip  :  9.10.11.12</text>
+      <text x="1220" y="593" text-anchor="middle" font-size="9" fill="#4A5568">wg_ip       :  10.10.0.3</text>
+      <text x="1220" y="611" text-anchor="middle" font-size="9" fill="#4A5568">RTT to NY4 : ~70ms (acceptable for DR)</text>
+    </g>
+
+    <!-- External entities -->
+    <g>
+      <rect x="80" y="720" width="200" height="50" fill="#F8FAFC" stroke="#14213D"/>
+      <text x="180" y="742" text-anchor="middle" font-size="11" font-weight="700">License Server (SaaS)</text>
+      <text x="180" y="758" text-anchor="middle" font-size="9" fill="#4A5568">license.titan.io · mTLS</text>
+
+      <rect x="320" y="720" width="200" height="50" fill="#F8FAFC" stroke="#14213D"/>
+      <text x="420" y="742" text-anchor="middle" font-size="11" font-weight="700">PagerDuty</text>
+      <text x="420" y="758" text-anchor="middle" font-size="9" fill="#4A5568">alerts · webhook</text>
+
+      <rect x="560" y="720" width="200" height="50" fill="#F8FAFC" stroke="#14213D"/>
+      <text x="660" y="742" text-anchor="middle" font-size="11" font-weight="700">Operator Console (Web)</text>
+      <text x="660" y="758" text-anchor="middle" font-size="9" fill="#4A5568">titan-console.io · OIDC</text>
+
+      <rect x="800" y="720" width="200" height="50" fill="#F8FAFC" stroke="#14213D"/>
+      <text x="900" y="742" text-anchor="middle" font-size="11" font-weight="700">MLflow Registry</text>
+      <text x="900" y="758" text-anchor="middle" font-size="9" fill="#4A5568">model artifacts · S3</text>
+
+      <rect x="1040" y="720" width="200" height="50" fill="#F8FAFC" stroke="#14213D"/>
+      <text x="1140" y="742" text-anchor="middle" font-size="11" font-weight="700">HashiCorp Vault</text>
+      <text x="1140" y="758" text-anchor="middle" font-size="9" fill="#4A5568">secrets · dynamic creds</text>
+
+      <rect x="1280" y="720" width="160" height="50" fill="#F8FAFC" stroke="#14213D"/>
+      <text x="1360" y="742" text-anchor="middle" font-size="11" font-weight="700">GitLab CI</text>
+      <text x="1360" y="758" text-anchor="middle" font-size="9" fill="#4A5568">build / deploy</text>
+    </g>
+
+    <!-- Lines from broker to zones -->
+    <g stroke="#C8102E" stroke-width="2" fill="none" marker-end="url(#ar3)">
+      <line x1="640" y1="95" x2="260" y2="140"/>
+      <line x1="740" y1="95" x2="740" y2="140"/>
+      <line x1="840" y1="95" x2="1220" y2="140" stroke-dasharray="4 2"/>
+    </g>
+
+    <!-- WireGuard mesh between zones -->
+    <g stroke="#14213D" stroke-width="2" fill="none" stroke-dasharray="6 3">
+      <line x1="480" y1="600" x2="520" y2="600"/>
+      <text x="500" y="592" text-anchor="middle" font-size="9" font-family="JetBrains Mono">WG</text>
+      <line x1="960" y1="600" x2="1000" y2="600"/>
+      <text x="980" y="592" text-anchor="middle" font-size="9" font-family="JetBrains Mono">WG</text>
+    </g>
+
+    <!-- Failover arrow -->
+    <g stroke="#C8102E" stroke-width="2" fill="none" marker-end="url(#ar3R)">
+      <path d="M 460 530 Q 500 480 540 530" />
+      <text x="500" y="475" text-anchor="middle" font-size="10" font-family="JetBrains Mono" fill="#C8102E">VRRP failover &lt;3s</text>
+      <path d="M 940 530 Q 980 480 1020 530" stroke-dasharray="4 2"/>
+      <text x="980" y="475" text-anchor="middle" font-size="10" font-family="JetBrains Mono" fill="#C8102E">manual DR &lt;15min</text>
+    </g>
+
+    <!-- Lines from zones to external -->
+    <g stroke="#14213D" stroke-width="1" fill="none" opacity="0.6">
+      <line x1="200" y1="690" x2="180" y2="720"/>
+      <line x1="260" y1="690" x2="420" y2="720"/>
+      <line x1="340" y1="690" x2="660" y2="720"/>
+      <line x1="740" y1="690" x2="900" y2="720"/>
+      <line x1="820" y1="690" x2="1140" y2="720"/>
+      <line x1="900" y1="690" x2="1360" y2="720"/>
+    </g>
+
+    <defs>
+      <marker id="ar3" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
+        <path d="M0,0 L0,6 L7,3 z" fill="#C8102E"/>
+      </marker>
+      <marker id="ar3R" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+        <path d="M0,0 L0,6 L9,3 z" fill="#C8102E"/>
+      </marker>
+    </defs>
+  </svg>
+
+  <table class="table">
+    <tr><th>Zone</th><th>Location</th><th>Instance Type</th><th>vCPU / RAM</th><th>Disk</th><th>Monthly Cost (USD)</th><th>Role</th></tr>
+    <tr><td class="mod">Z1 Primary</td><td>NY4 (Equinix NY9)</td><td>Dedicated Ryzen 9</td><td>12c / 32GB</td><td>2×1TB NVMe</td><td>$280</td><td>Active trading — all services hot</td></tr>
+    <tr><td class="mod">Z2 Hot-Standby</td><td>EQ4 (Equinix NY2)</td><td>Dedicated Ryzen 7</td><td>8c / 32GB</td><td>1TB NVMe</td><td>$180</td><td>Replica, takes over in &lt;3s on Z1 failure</td></tr>
+    <tr><td class="mod">Z3 DR</td><td>LD4 (Equinix London)</td><td>VPS (Hetzner CX41)</td><td>8vCPU / 16GB</td><td>160GB SSD</td><td>$45</td><td>Cold standby; geo-remote failover</td></tr>
+    <tr><td class="mod">License SaaS</td><td>AWS eu-west-1</td><td>t3.medium</td><td>2vCPU / 4GB</td><td>50GB</td><td>$30</td><td>JWT issuance, heartbeat collection</td></tr>
+    <tr class="mod"><td colspan="6"><b>TOTAL monthly infrastructure cost (single tenant)</b></td><td><b>~$535</b></td></tr>
+  </table>
+</div>
+</body>
+</html>

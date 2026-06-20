@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>ECI — Decision Model</title>
+<style>
+  @page { size: 1600px 1000px; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #ffffff; font-family: 'Tinos','FreeSerif',serif; color: #14213D; }
+  .canvas { width: 1600px; height: 1000px; padding: 50px 60px; box-sizing: border-box; }
+  .title-bar { display: flex; align-items: baseline; gap: 18px; border-bottom: 2px solid #14213D; padding-bottom: 12px; margin-bottom: 24px; }
+  .title-bar .num { font-size: 48px; font-weight: 900; color: #C8102E; line-height: 1; }
+  .title-bar h1 { font-size: 26px; font-weight: 700; margin: 0; }
+  .title-bar .sub { font-size: 13px; color: #4A5568; margin-left: auto; font-family: 'JetBrains Mono',monospace; }
+  svg { display: block; margin: 0 auto; background: #FAFBFC; border: 1px solid #E2E8F0; }
+  .table { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-top: 14px; }
+  .table th { background: #14213D; color: #ffffff; padding: 6px 8px; text-align: left; font-weight: 700; }
+  .table td { padding: 5px 8px; border-bottom: 1px solid #E2E8F0; }
+  .table tr:nth-child(even) td { background: #F8FAFC; }
+  .table .mod { color: #14213D; font-family: 'JetBrains Mono',monospace; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="title-bar">
+    <span class="num">02</span>
+    <h1>Decision Model — Edge = Expected PnL − Total Cost</h1>
+    <span class="sub">5 cost components · dynamic threshold · trade only if edge > 0</span>
+  </div>
+
+  <svg width="1480" height="560" viewBox="0 0 1480 560">
+    <text x="40" y="30" font-size="14" font-weight="700" fill="#C8102E" font-family="Tinos">EDGE FORMULA</text>
+
+    <rect x="40" y="45" width="1400" height="80" fill="#14213D"/>
+    <text x="740" y="75" text-anchor="middle" fill="#ffffff" font-size="16" font-weight="700" font-family="Tinos">edge = expected_pnl − (spread_cost + commission_cost + swap_cost + slippage_cost + latency_cost)</text>
+    <text x="740" y="100" text-anchor="middle" fill="#C8102E" font-size="12" font-family="JetBrains Mono">DECISION: edge > threshold → APPROVE · edge ≤ threshold → REJECT</text>
+    <text x="740" y="118" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="10" font-family="JetBrains Mono">threshold = max(0.5 bps, ATR_pct × 2 bps) — dynamic, increases with volatility</text>
+
+    <text x="40" y="160" font-size="14" font-weight="700" fill="#C8102E" font-family="Tinos">5 COST COMPONENTS (all in bps of notional)</text>
+
+    <!-- 5 cost cards -->
+    <rect x="40" y="175" width="260" height="160" fill="#F0FDF4" stroke="#14213D" stroke-width="2"/>
+    <rect x="40" y="175" width="260" height="30" fill="#14213D"/>
+    <text x="170" y="194" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700" font-family="JetBrains Mono">C1: Spread Cost</text>
+    <g font-family="JetBrains Mono" font-size="10" fill="#4A5568">
+      <text x="55" y="225">spread_bps = (ask - bid) / mid × 10000</text>
+      <text x="55" y="245">cost = spread_bps × qty × mid / 10000</text>
+      <text x="55" y="265">round-trip: × 2 (open + close)</text>
+      <text x="55" y="290">Source: real-time tick</text>
+      <text x="55" y="310">Conservative: use p95 spread</text>
+      <text x="55" y="325">(worst-case estimate)</text>
+    </g>
+
+    <rect x="320" y="175" width="260" height="160" fill="#F0FDF4" stroke="#14213D" stroke-width="2"/>
+    <rect x="320" y="175" width="260" height="30" fill="#14213D"/>
+    <text x="450" y="194" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700" font-family="JetBrains Mono">C2: Commission</text>
+    <g font-family="JetBrains Mono" font-size="10" fill="#4A5568">
+      <text x="335" y="225">PER_LOT: rate × qty (USD)</text>
+      <text x="335" y="245">PER_MILLION: rate × notional / 1M</text>
+      <text x="335" y="265">PCT: rate × notional</text>
+      <text x="335" y="290">Source: BrokerProfile (BCE)</text>
+      <text x="335" y="310">round-trip: × 2</text>
+      <text x="335" y="325">bps = cost / notional × 10000</text>
+    </g>
+
+    <rect x="600" y="175" width="260" height="160" fill="#F0FDF4" stroke="#14213D" stroke-width="2"/>
+    <rect x="600" y="175" width="260" height="30" fill="#14213D"/>
+    <text x="730" y="194" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700" font-family="JetBrains Mono">C3: Swap</text>
+    <g font-family="JetBrains Mono" font-size="10" fill="#4A5568">
+      <text x="615" y="225">POINTS: swap_rate × qty × nights</text>
+      <text x="615" y="245">PCT: notional × rate × nights / 360</text>
+      <text x="615" y="265">NONE: 0 (Exness swap-free)</text>
+      <text x="615" y="290">Source: BrokerProfile</text>
+      <text x="615" y="310">estimated nights = hold_time</text>
+      <text x="615" y="325">hold_time from RL or strategy</text>
+    </g>
+
+    <rect x="880" y="175" width="260" height="160" fill="#F0FDF4" stroke="#14213D" stroke-width="2"/>
+    <rect x="880" y="175" width="260" height="30" fill="#14213D"/>
+    <text x="1010" y="194" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700" font-family="JetBrains Mono">C4: Slippage</text>
+    <g font-family="JetBrains Mono" font-size="10" fill="#4A5568">
+      <text x="895" y="225">linear: slip = α × qty</text>
+      <text x="895" y="245">sqrt: slip = α × √qty</text>
+      <text x="895" y="265">learned: ML model (historical)</text>
+      <text x="895" y="290">regime-adjusted: × vol_factor</text>
+      <text x="895" y="310">round-trip: × 2</text>
+      <text x="895" y="325">α from rolling 100-trade fit</text>
+    </g>
+
+    <rect x="1160" y="175" width="260" height="160" fill="#F0FDF4" stroke="#14213D" stroke-width="2"/>
+    <rect x="1160" y="175" width="260" height="30" fill="#14213D"/>
+    <text x="1290" y="194" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700" font-family="JetBrains Mono">C5: Latency</text>
+    <g font-family="JetBrains Mono" font-size="10" fill="#4A5568">
+      <text x="1175" y="225">latency_cost = L × σ_price</text>
+      <text x="1175" y="245">L = expected fill latency (ms)</text>
+      <text x="1175" y="265">σ_price = price vol per ms</text>
+      <text x="1175" y="290">Source: LatencyMonitor p95</text>
+      <text x="1175" y="310">σ_price from ATR / bar_duration</text>
+      <text x="1175" y="325">round-trip: × 2</text>
+    </g>
+
+    <!-- Decision matrix -->
+    <text x="40" y="380" font-size="14" font-weight="700" fill="#C8102E" font-family="Tinos">DECISION SCENARIOS (example: $100k equity, 0.5 lot XAUUSD @ $1950)</text>
+
+    <rect x="40" y="395" width="1400" height="130" fill="#F8FAFC" stroke="#14213D"/>
+    <g font-family="JetBrains Mono" font-size="10" fill="#14213D">
+      <rect x="40" y="395" width="1400" height="28" fill="#14213D"/>
+      <text x="60" y="413" fill="#ffffff" font-weight="700">Scenario</text>
+      <text x="240" y="413" fill="#ffffff" font-weight="700">Spread</text>
+      <text x="360" y="413" fill="#ffffff" font-weight="700">Comm</text>
+      <text x="480" y="413" fill="#ffffff" font-weight="700">Swap</text>
+      <text x="600" y="413" fill="#ffffff" font-weight="700">Slip</text>
+      <text x="720" y="413" fill="#ffffff" font-weight="700">Latency</text>
+      <text x="860" y="413" fill="#ffffff" font-weight="700">Total Cost</text>
+      <text x="1020" y="413" fill="#ffffff" font-weight="700">Exp PnL</text>
+      <text x="1160" y="413" fill="#ffffff" font-weight="700">Edge</text>
+      <text x="1320" y="413" fill="#ffffff" font-weight="700">Decision</text>
+
+      <text x="60" y="440">Normal market (IC Markets Raw)</text>
+      <text x="240" y="440">1.5 bps</text>
+      <text x="360" y="440">0.7 bps</text>
+      <text x="480" y="440">0.0 bps</text>
+      <text x="600" y="440">0.8 bps</text>
+      <text x="720" y="440">0.3 bps</text>
+      <text x="860" y="440" font-weight="bold">3.3 bps</text>
+      <text x="1020" y="440">8.0 bps</text>
+      <text x="1160" y="440" fill="#15803D" font-weight="bold">+4.7 bps</text>
+      <text x="1320" y="440" fill="#15803D" font-weight="bold">APPROVE ✓</text>
+
+      <text x="60" y="465">Wide spread (Exness Standard)</text>
+      <text x="240" y="465">4.5 bps</text>
+      <text x="360" y="465">0.0 bps</text>
+      <text x="480" y="465">0.0 bps</text>
+      <text x="600" y="465">1.2 bps</text>
+      <text x="720" y="465">0.5 bps</text>
+      <text x="860" y="465" font-weight="bold">6.2 bps</text>
+      <text x="1020" y="465">8.0 bps</text>
+      <text x="1160" y="465" fill="#B45309" font-weight="bold">+1.8 bps</text>
+      <text x="1320" y="465" fill="#B45309" font-weight="bold">APPROVE (thin)</text>
+
+      <text x="60" y="490">News approaching (spread widens)</text>
+      <text x="240" y="490">12.0 bps</text>
+      <text x="360" y="490">0.7 bps</text>
+      <text x="480" y="490">0.0 bps</text>
+      <text x="600" y="490">3.5 bps</text>
+      <text x="720" y="490">1.0 bps</text>
+      <text x="860" y="490" font-weight="bold">17.2 bps</text>
+      <text x="1020" y="490">8.0 bps</text>
+      <text x="1160" y="490" fill="#C8102E" font-weight="bold">-9.2 bps</text>
+      <text x="1320" y="490" fill="#C8102E" font-weight="bold">REJECT ✗</text>
+
+      <text x="60" y="515">High vol + large size</text>
+      <text x="240" y="515">3.0 bps</text>
+      <text x="360" y="515">1.4 bps</text>
+      <text x="480" y="515">0.5 bps</text>
+      <text x="600" y="515">4.2 bps</text>
+      <text x="720" y="515">1.5 bps</text>
+      <text x="860" y="515" font-weight="bold">10.6 bps</text>
+      <text x="1020" y="515">8.0 bps</text>
+      <text x="1160" y="515" fill="#C8102E" font-weight="bold">-2.6 bps</text>
+      <text x="1320" y="515" fill="#C8102E" font-weight="bold">REJECT ✗</text>
+    </g>
+  </svg>
+</div>
+</body>
+</html>

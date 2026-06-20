@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Mean Reversion Strategy — MR Score &amp; Indicators</title>
+<style>
+  @page { size: 1600px 900px; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #ffffff; font-family: 'Tinos','FreeSerif',serif; color: #14213D; }
+  .canvas { width: 1600px; height: 900px; padding: 50px 60px; box-sizing: border-box; }
+  .title-bar { display: flex; align-items: baseline; gap: 18px; border-bottom: 2px solid #14213D; padding-bottom: 12px; margin-bottom: 24px; }
+  .title-bar .num { font-size: 48px; font-weight: 900; color: #C8102E; line-height: 1; }
+  .title-bar h1 { font-size: 26px; font-weight: 700; margin: 0; }
+  .title-bar .sub { font-size: 13px; color: #4A5568; margin-left: auto; font-family: 'JetBrains Mono',monospace; }
+  svg { display: block; margin: 0 auto; background: #FAFBFC; border: 1px solid #E2E8F0; }
+  .table { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-top: 14px; }
+  .table th { background: #14213D; color: #ffffff; padding: 6px 8px; text-align: left; font-weight: 700; }
+  .table td { padding: 5px 8px; border-bottom: 1px solid #E2E8F0; }
+  .table tr:nth-child(even) td { background: #F8FAFC; }
+  .table .mod { color: #14213D; font-family: 'JetBrains Mono',monospace; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="title-bar">
+    <span class="num">05</span>
+    <h1>Mean Reversion Score — 4-Indicator Composite Model</h1>
+    <span class="sub">BB (0.30) + RSI (0.30) + ATR (0.20) + Hurst (0.20) → [0, 1]</span>
+  </div>
+
+  <svg width="1480" height="400" viewBox="0 0 1480 400">
+    <text x="40" y="30" font-size="14" font-weight="700" fill="#C8102E" font-family="Tinos">MR SCORE FORMULA</text>
+
+    <rect x="40" y="45" width="1400" height="80" fill="#14213D"/>
+    <text x="740" y="80" text-anchor="middle" fill="#ffffff" font-size="16" font-weight="700" font-family="Tinos">MR_score = 0.30 × BB_score + 0.30 × RSI_score + 0.20 × ATR_score + 0.20 × Hurst_score</text>
+    <text x="740" y="105" text-anchor="middle" fill="#C8102E" font-size="12" font-family="JetBrains Mono">range: [0, 1] · 1.0 = perfect mean reversion setup · threshold: 0.65 (L0), 0.72 (L1), 0.80 (L2)</text>
+
+    <line x1="210" y1="125" x2="210" y2="160" stroke="#14213D" stroke-width="2" marker-end="url(#ar5)"/>
+    <line x1="560" y1="125" x2="560" y2="160" stroke="#14213D" stroke-width="2" marker-end="url(#ar5)"/>
+    <line x1="910" y1="125" x2="910" y2="160" stroke="#14213D" stroke-width="2" marker-end="url(#ar5)"/>
+    <line x1="1260" y1="125" x2="1260" y2="160" stroke="#14213D" stroke-width="2" marker-end="url(#ar5)"/>
+
+    <defs><marker id="ar5" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L7,3 z" fill="#14213D"/></marker></defs>
+
+    <!-- BB -->
+    <rect x="60" y="160" width="300" height="200" fill="#F0FDF4" stroke="#14213D"/>
+    <rect x="60" y="160" width="300" height="32" fill="#14213D"/>
+    <text x="210" y="180" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700" font-family="JetBrains Mono">BB_score (weight: 0.30)</text>
+    <text x="80" y="210" font-size="10" fill="#4A5568" font-family="JetBrains Mono">%B = (price - lower) / (upper - lower)</text>
+    <text x="80" y="228" font-size="10" fill="#4A5568" font-family="JetBrains Mono">%B &lt; 0.05 → score = (0.5 - %B) × 2</text>
+    <text x="80" y="246" font-size="10" fill="#4A5568" font-family="JetBrains Mono">%B &gt; 0.95 → score = (%B - 0.5) × 2</text>
+    <text x="80" y="264" font-size="10" fill="#4A5568" font-family="JetBrains Mono">0.40 &lt; %B &lt; 0.60 → score = 0 (mid)</text>
+    <text x="80" y="290" font-size="10" fill="#C8102E" font-family="JetBrains Mono">Long: %B &lt; 0.05 (price at lower band)</text>
+    <text x="80" y="308" font-size="10" fill="#C8102E" font-family="JetBrains Mono">Short: %B &gt; 0.95 (price at upper band)</text>
+    <text x="80" y="335" font-size="10" fill="#14213D" font-family="JetBrains Mono" font-weight="bold">Max score: 1.0 (price at band edge)</text>
+
+    <!-- RSI -->
+    <rect x="410" y="160" width="300" height="200" fill="#F0FDF4" stroke="#14213D"/>
+    <rect x="410" y="160" width="300" height="32" fill="#14213D"/>
+    <text x="560" y="180" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700" font-family="JetBrains Mono">RSI_score (weight: 0.30)</text>
+    <text x="430" y="210" font-size="10" fill="#4A5568" font-family="JetBrains Mono">14-period Wilder RSI</text>
+    <text x="430" y="228" font-size="10" fill="#4A5568" font-family="JetBrains Mono">RSI &lt; 30 → score = (50 - RSI) / 50</text>
+    <text x="430" y="246" font-size="10" fill="#4A5568" font-family="JetBrains Mono">RSI &gt; 70 → score = (RSI - 50) / 50</text>
+    <text x="430" y="264" font-size="10" fill="#4A5568" font-family="JetBrains Mono">40 &lt; RSI &lt; 60 → score = 0 (neutral)</text>
+    <text x="430" y="290" font-size="10" fill="#C8102E" font-family="JetBrains Mono">Long: RSI &lt; 30 (oversold)</text>
+    <text x="430" y="308" font-size="10" fill="#C8102E" font-family="JetBrains Mono">Short: RSI &gt; 70 (overbought)</text>
+    <text x="430" y="335" font-size="10" fill="#14213D" font-family="JetBrains Mono" font-weight="bold">Divergence: RSI ↗ price ↘ = bonus 0.1</text>
+
+    <!-- ATR -->
+    <rect x="760" y="160" width="300" height="200" fill="#F0FDF4" stroke="#14213D"/>
+    <rect x="760" y="160" width="300" height="32" fill="#14213D"/>
+    <text x="910" y="180" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700" font-family="JetBrains Mono">ATR_score (weight: 0.20)</text>
+    <text x="780" y="210" font-size="10" fill="#4A5568" font-family="JetBrains Mono">14-period ATR / price (normalized)</text>
+    <text x="780" y="228" font-size="10" fill="#4A5568" font-family="JetBrains Mono">atr_pct = percentile vs 252-bar</text>
+    <text x="780" y="246" font-size="10" fill="#4A5568" font-family="JetBrains Mono">atr_pct &lt; 0.20 → score = 1.0 (calm)</text>
+    <text x="780" y="264" font-size="10" fill="#4A5568" font-family="JetBrains Mono">atr_pct &gt; 0.60 → score = 0 (too volatile)</text>
+    <text x="780" y="282" font-size="10" fill="#4A5568" font-family="JetBrains Mono">linear interpolation between</text>
+    <text x="780" y="300" font-size="10" fill="#4A5568" font-family="JetBrains Mono">score = 1 - (atr_pct / 0.6)</text>
+    <text x="780" y="335" font-size="10" fill="#14213D" font-family="JetBrains Mono" font-weight="bold">Low vol = better MR (tighter range)</text>
+
+    <!-- Hurst -->
+    <rect x="1110" y="160" width="300" height="200" fill="#F0FDF4" stroke="#14213D"/>
+    <rect x="1110" y="160" width="300" height="32" fill="#14213D"/>
+    <text x="1260" y="180" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700" font-family="JetBrains Mono">Hurst_score (weight: 0.20)</text>
+    <text x="1130" y="210" font-size="10" fill="#4A5568" font-family="JetBrains Mono">R/S analysis · 100-bar window</text>
+    <text x="1130" y="228" font-size="10" fill="#4A5568" font-family="JetBrains Mono">H &lt; 0.5 → mean-reverting</text>
+    <text x="1130" y="246" font-size="10" fill="#4A5568" font-family="JetBrains Mono">H = 0.5 → random walk</text>
+    <text x="1130" y="264" font-size="10" fill="#4A5568" font-family="JetBrains Mono">H &gt; 0.5 → trending (bad for MR)</text>
+    <text x="1130" y="282" font-size="10" fill="#4A5568" font-family="JetBrains Mono">score = (0.5 - H) / 0.5</text>
+    <text x="1130" y="300" font-size="10" fill="#4A5568" font-family="JetBrains Mono">clipped to [0, 1]</text>
+    <text x="1130" y="335" font-size="10" fill="#14213D" font-family="JetBrains Mono" font-weight="bold">Lower H = stronger reversion tendency</text>
+  </svg>
+
+  <table class="table">
+    <tr><th>Recovery Level</th><th>MR Score Threshold</th><th>Size Multiplier</th><th>Min Indicators</th><th>Cooldown</th><th>On Win</th><th>On Loss</th></tr>
+    <tr><td class="mod">Level 0 (initial)</td><td>0.65</td><td>1.0x</td><td>1 of 4</td><td>—</td><td>Reset to L0</td><td>→ Level 1</td></tr>
+    <tr><td class="mod">Level 1 (first recovery)</td><td>0.72</td><td>1.3x</td><td>2 of 4</td><td>3 bars</td><td>Reset to L0</td><td>→ Level 2</td></tr>
+    <tr><td class="mod">Level 2 (final recovery)</td><td>0.80</td><td>1.6x (MAX)</td><td>3 of 4</td><td>5 bars</td><td>Reset to L0</td><td>→ HALT (L3)</td></tr>
+    <tr style="background:#FEF3F2"><td class="mod">Level 3 (halted)</td><td>—</td><td>0x (blocked)</td><td>—</td><td>—</td><td>—</td><td>Operator must manually reset</td></tr>
+  </table>
+</div>
+</body>
+</html>

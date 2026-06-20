@@ -1,0 +1,96 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>d03</title>
+<link href="https://fonts.googleapis.com/css2?family=Tinos:wght@400;700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { width: 1600px; height: 1100px; background: #ffffff; font-family: 'Inter', sans-serif; color: #14213D; padding: 50px 60px; }
+.h-title { font-family: 'Tinos', serif; font-size: 30px; font-weight: 900; letter-spacing: -0.5px; }
+.h-sub { font-family: 'Inter', sans-serif; font-size: 13px; color: #4A5568; margin-top: 4px; }
+.h-rule { width: 80px; height: 3px; background: #C8102E; margin: 14px 0 24px 0; }
+
+.formula-block { background: #14213D; color: #fff; padding: 22px 28px; border-radius: 6px; margin-bottom: 22px; }
+.formula-block .lbl { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #C8102E; letter-spacing: 2px; font-weight: 700; }
+.formula-block .eq { font-family: 'JetBrains Mono', monospace; font-size: 18px; margin-top: 10px; line-height: 1.6; }
+.formula-block .eq .var { color: #94A3B8; }
+.formula-block .eq .num { color: #C8102E; font-weight: 700; }
+.formula-block .note { font-family: 'Inter', sans-serif; font-size: 11px; opacity: 0.85; margin-top: 10px; line-height: 1.5; }
+
+.cols { display: grid; grid-template-columns: 1.2fr 1fr; gap: 22px; }
+.table-card { border: 1px solid #CBD5E1; border-radius: 6px; overflow: hidden; }
+.table-head { background: #14213D; color: #fff; padding: 12px 18px; font-family: 'Tinos', serif; font-size: 15px; font-weight: 700; }
+table { width: 100%; border-collapse: collapse; }
+th { background: #F1F5F9; padding: 8px 12px; text-align: left; font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #4A5568; letter-spacing: 1px; border-bottom: 1px solid #CBD5E1; }
+td { padding: 9px 12px; border-bottom: 1px solid #E2E8F0; font-family: 'Inter', sans-serif; font-size: 11px; vertical-align: middle; }
+tr:nth-child(even) td { background: #F8FAFC; }
+td.n { font-family: 'JetBrains Mono', monospace; color: #14213D; font-weight: 600; }
+td.c { font-family: 'JetBrains Mono', monospace; color: #C8102E; font-weight: 700; }
+
+.example-card { background: #F1F5F9; border-left: 4px solid #C8102E; padding: 16px 20px; border-radius: 4px; }
+.example-card .lbl { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C8102E; letter-spacing: 2px; font-weight: 700; }
+.example-card .h { font-family: 'Tinos', serif; font-size: 15px; font-weight: 700; color: #14213D; margin-top: 4px; }
+.example-card .calc { font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: #14213D; margin-top: 10px; line-height: 1.7; }
+.example-card .calc .ok { color: #15803D; font-weight: 700; }
+.example-card .calc .bad { color: #C8102E; font-weight: 700; }
+.example-card .result { font-family: 'Tinos', serif; font-size: 22px; font-weight: 900; color: #14213D; margin-top: 12px; }
+.example-card .verdict { font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 4px 10px; border-radius: 3px; display: inline-block; margin-left: 10px; }
+.verdict.pass { background: #14213D; color: #fff; }
+
+.bands { margin-top: 22px; }
+.band-row { display: grid; grid-template-columns: 130px 1fr 100px; gap: 12px; padding: 12px 16px; border-radius: 4px; margin-bottom: 6px; align-items: center; font-family: 'Inter', sans-serif; font-size: 11px; }
+.band-row .lbl { font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; padding: 4px 8px; border-radius: 3px; text-align: center; color: #fff; letter-spacing: 1px; }
+.band-row .desc { color: #14213D; line-height: 1.5; }
+.band-row .act { font-family: 'JetBrains Mono', monospace; font-size: 10px; text-align: right; font-weight: 700; }
+.cert { background: #DCFCE7; } .cert .lbl { background: #15803D; } .cert .act { color: #15803D; }
+.cond { background: #FEF3C7; } .cond .lbl { background: #B45309; } .cond .act { color: #B45309; }
+.rej { background: #FEE2E2; } .rej .lbl { background: #C8102E; } .rej .act { color: #C8102E; }
+</style></head>
+<body>
+<div class="h-title">Survival Score — Calculation</div>
+<div class="h-sub">Single composite metric · 0-100 scale · combines profitability + risk constraints across 10,000 simulations</div>
+<div class="h-rule"></div>
+
+<div class="formula-block">
+  <div class="lbl">SURVIVAL SCORE FORMULA</div>
+  <div class="eq"><span class="var">SurvivalScore</span> = (<span class="num">N_survived</span> / <span class="num">10000</span>) × <span class="num">100</span></div>
+  <div class="eq" style="margin-top:8px">where <span class="var">N_survived</span> = # sims satisfying ALL of:</div>
+  <div class="eq" style="margin-top:4px">  ① <span class="var">FinalEquity</span> &gt; <span class="var">InitialEquity</span>  <span style="opacity:0.5">(profitable)</span></div>
+  <div class="eq">  ② <span class="var">MaxDrawdown</span> ≤ <span class="num">8%</span>  <span style="opacity:0.5">(capital preservation)</span></div>
+  <div class="eq">  ③ <span class="var">Sharpe</span> ≥ <span class="num">1.0</span>  <span style="opacity:0.5">(risk-adjusted floor)</span></div>
+  <div class="note">A simulation "survives" only if it remains profitable AND within risk constraints. The 8% MDD threshold (vs 5% live target) gives 60% headroom for Monte Carlo's stress conditions. Below 95% = strategy is fragile to the 3 randomization dimensions.</div>
+</div>
+
+<div class="cols">
+  <div class="table-card">
+    <div class="table-head">Percentile Distribution Across 10k Sims</div>
+    <table>
+      <thead><tr><th>Percentile</th><th>Sharpe</th><th>MDD</th><th>CAGR</th><th>Final Equity</th><th>Survives?</th></tr></thead>
+      <tbody>
+        <tr><td class="n">P5 (worst 5%)</td><td class="c">1.12</td><td class="c">8.4%</td><td>12.1%</td><td>1.14×</td><td>YES</td></tr>
+        <tr><td class="n">P25</td><td>1.78</td><td>6.8%</td><td>22.4%</td><td>1.27×</td><td>YES</td></tr>
+        <tr><td class="n">P50 (median)</td><td>2.14</td><td>5.4%</td><td>32.7%</td><td>1.41×</td><td>YES</td></tr>
+        <tr><td class="n">P75</td><td>2.51</td><td>4.1%</td><td>44.2%</td><td>1.58×</td><td>YES</td></tr>
+        <tr><td class="n">P95 (best 5%)</td><td>3.02</td><td>2.9%</td><td>58.6%</td><td>1.84×</td><td>YES</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="example-card">
+    <div class="lbl">WORKED EXAMPLE · TREND v3.2</div>
+    <div class="h">10,000 simulations · 742 trades each</div>
+    <div class="calc">
+Sims profitable: <span class="ok">9,847</span> / 10,000
+Sims with MDD ≤ 8%: <span class="ok">9,712</span> / 10,000
+Sims with Sharpe ≥ 1.0: <span class="ok">9,683</span> / 10,000
+Sims meeting ALL 3: <span class="ok">9,612</span> / 10,000
+
+SurvivalScore = 9,612 / 10,000 × 100
+            = <span class="ok">96.12</span>
+    </div>
+    <div class="result">96.1 / 100 <span class="verdict pass">CERTIFIED</span></div>
+  </div>
+</div>
+
+<div class="bands">
+  <div class="band-row cert"><div class="lbl">CERTIFIED</div><div class="desc">Survival Score ≥ 95% AND P5 Sharpe ≥ 1.0 AND P5 MDD ≤ 8%. Strategy is robust across all 3 randomization dimensions.</div><div class="act">LIVE OK</div></div>
+  <div class="band-row cond"><div class="lbl">CONDITIONAL</div><div class="desc">Survival Score 85-94% OR P5 Sharpe 0.8-0.99 OR P5 MDD 8-10%. Strategy is moderately robust — paper trading with reduced size.</div><div class="act">PAPER ONLY</div></div>
+  <div class="band-row rej"><div class="lbl">REJECTED</div><div class="desc">Survival Score &lt; 85% OR P5 Sharpe &lt; 0.8 OR P5 MDD &gt; 10%. Strategy is fragile to live trading conditions.</div><div class="act">VETO</div></div>
+</div>
+</body></html>

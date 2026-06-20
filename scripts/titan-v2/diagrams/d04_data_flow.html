@@ -1,0 +1,111 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>d04</title>
+<link href="https://fonts.googleapis.com/css2?family=Tinos:wght@400;700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { width: 1600px; height: 1100px; background: #ffffff; font-family: 'Inter', sans-serif; color: #14213D; padding: 50px 60px; }
+.h-title { font-family: 'Tinos', serif; font-size: 30px; font-weight: 900; letter-spacing: -0.5px; }
+.h-sub { font-family: 'Inter', sans-serif; font-size: 13px; color: #4A5568; margin-top: 4px; }
+.h-rule { width: 80px; height: 3px; background: #C8102E; margin: 14px 0 24px 0; }
+
+.flow { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0; margin-top: 18px; position: relative; }
+.stage { padding: 14px 12px; background: #F8FAFC; border: 1px solid #CBD5E1; border-top: 3px solid #14213D; border-radius: 6px; position: relative; min-height: 240px; }
+.stage.accent { border-top-color: #C8102E; }
+.stage.final { background: #14213D; color: #fff; border-top-color: #C8102E; }
+.stage .n { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C8102E; font-weight: 700; letter-spacing: 1.5px; }
+.stage .t { font-family: 'Tinos', serif; font-size: 13px; font-weight: 700; color: #14213D; margin: 3px 0 6px 0; line-height: 1.15; }
+.stage.final .n { color: #C8102E; }
+.stage.final .t, .stage.final .d { color: #fff; }
+.stage.final .d { opacity: 0.9; }
+.stage .d { font-family: 'Inter', sans-serif; font-size: 9.5px; color: #4A5568; line-height: 1.4; }
+.stage .meta { font-family: 'JetBrains Mono', monospace; font-size: 8.5px; color: #14213D; margin-top: 8px; padding-top: 6px; border-top: 1px dashed #CBD5E1; }
+.stage.final .meta { color: #C8102E; border-top-color: #4A5568; }
+.stage .arrow { position: absolute; right: -10px; top: 50%; transform: translateY(-50%); width: 20px; height: 20px; background: #C8102E; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; z-index: 2; }
+.stage:last-child .arrow { display: none; }
+
+.swim { margin-top: 28px; display: grid; grid-template-columns: 130px 1fr; gap: 14px; }
+.lane-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; color: #C8102E; letter-spacing: 2px; padding-top: 10px; border-right: 2px solid #C8102E; padding-right: 14px; text-align: right; }
+.lane-content { padding: 10px 14px; background: #F1F5F9; border-radius: 4px; font-family: 'Inter', sans-serif; font-size: 11px; color: #14213D; line-height: 1.6; }
+.lane-content b { color: #C8102E; }
+
+.timing { margin-top: 22px; padding: 14px 18px; background: #14213D; color: #fff; border-radius: 6px; }
+.timing .lbl { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #C8102E; letter-spacing: 2px; font-weight: 700; }
+.timing .h { font-family: 'Tinos', serif; font-size: 14px; font-weight: 700; margin-top: 4px; }
+.timing-bar { margin-top: 12px; display: grid; grid-template-columns: 130px 1fr 80px; gap: 12px; align-items: center; font-family: 'Inter', sans-serif; font-size: 11px; }
+.timing-bar .name { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #C8102E; font-weight: 700; }
+.timing-bar .track { background: rgba(255,255,255,0.1); height: 10px; border-radius: 2px; overflow: hidden; }
+.timing-bar .fill { height: 100%; background: linear-gradient(90deg, #14213D 0%, #C8102E 100%); }
+.timing-bar .val { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #C8102E; text-align: right; font-weight: 700; }
+</style></head>
+<body>
+<div class="h-title">Data Flow Diagram — Tick to Execution</div>
+<div class="h-sub">7-stage pipeline · 142 ms signal-to-broker latency budget · all stages async &amp; parallelizable</div>
+<div class="h-rule"></div>
+
+<div class="flow">
+  <div class="stage">
+    <div class="n">STAGE 1</div><div class="t">Broker Tick Stream</div>
+    <div class="d">MT5 terminal pushes real-time ticks (bid/ask/vol) every 100-500 ms.</div>
+    <div class="meta">In: MT5 socket<br>Out: raw_tick events<br>QPS: ~10/s</div>
+    <div class="arrow">→</div>
+  </div>
+  <div class="stage accent">
+    <div class="n">STAGE 2</div><div class="t">Tick Ingest &amp; Validate</div>
+    <div class="d">14 quality gates (gaps, monotonicity, outliers). Pass → Parquet store; fail → drop + alert.</div>
+    <div class="meta">Latency: 2 ms<br>CPU: 1 core<br>Drop rate: &lt; 0.1%</div>
+    <div class="arrow">→</div>
+  </div>
+  <div class="stage accent">
+    <div class="n">STAGE 3</div><div class="t">Feature Engineering</div>
+    <div class="d">Compute 87 features: price action, indicators, regime hints, spread/ATR. Caching layer.</div>
+    <div class="meta">Latency: 8 ms<br>Features: 87<br>Cache hit: 78%</div>
+    <div class="arrow">→</div>
+  </div>
+  <div class="stage accent">
+    <div class="n">STAGE 4</div><div class="t">Regime Detection</div>
+    <div class="d">3-model vote (HMM + Logit + Heuristic) → 4-state label: trend/range/volatile/news.</div>
+    <div class="meta">Latency: 12 ms<br>Confidence ≥ 0.65<br>Vote ≥ 2/3</div>
+    <div class="arrow">→</div>
+  </div>
+  <div class="stage accent">
+    <div class="n">STAGE 5</div><div class="t">AI Ensemble</div>
+    <div class="d">XGBoost + LSTM + Transformer + RL vote. Majority + confidence ≥ 0.65 → signal.</div>
+    <div class="meta">Latency: 95 ms<br>Models: 4 + 1<br>Conf floor: 0.65</div>
+    <div class="arrow">→</div>
+  </div>
+  <div class="stage">
+    <div class="n">STAGE 6</div><div class="t">Risk Gate</div>
+    <div class="d">12 controls (MDD, per-trade, exposure, margin, correlation). Veto → drop signal.</div>
+    <div class="meta">Latency: 4 ms<br>Controls: 12<br>Veto rate: ~3%</div>
+    <div class="arrow">→</div>
+  </div>
+  <div class="stage final">
+    <div class="n">STAGE 7</div><div class="t">Execution Dispatch</div>
+    <div class="d">Async order router → broker. Idempotency key. Fill confirmation → audit.</div>
+    <div class="meta">Latency: 21 ms<br>Throughput: 50 ops/s<br>Audit: 100%</div>
+  </div>
+</div>
+
+<div class="swim">
+  <div class="lane-label">EVENT BUS</div>
+  <div class="lane-content">All stages publish/subscribe via <b>NATS JetStream</b> topics: <b>ticks</b> → <b>features</b> → <b>regime</b> → <b>signals</b> → <b>orders</b> → <b>fills</b> → <b>audit</b>. Each stage is independent, horizontally scalable, and replayable from any offset. 3-day retention enables backtesting from production events.</div>
+</div>
+<div class="swim" style="margin-top:10px">
+  <div class="lane-label">STATE</div>
+  <div class="lane-content">Stateful services: <b>Risk Engine</b> (position book, exposure), <b>Execution Engine</b> (open orders, fills), <b>Regime Detector</b> (current state). All other stages stateless. State persisted to disk every 100 ms; recovery &lt; 5 seconds.</div>
+</div>
+<div class="swim" style="margin-top:10px">
+  <div class="lane-label">BACKPRESSURE</div>
+  <div class="lane-content">If any stage exceeds its latency budget by 2×, downstream stages see <b>"stale signal"</b> flag and the risk engine vetoes execution. Prevents trading on delayed data — critical for institutional safety.</div>
+</div>
+
+<div class="timing">
+  <div class="lbl">LATENCY BUDGET BREAKDOWN — SIGNAL-TO-BROKER PATH</div>
+  <div class="h">Total: 142 ms (P99) · Budget: 150 ms · Safety margin: 8 ms</div>
+  <div class="timing-bar"><div class="name">Tick ingest</div><div class="track"><div class="fill" style="width:5%"></div></div><div class="val">2 ms</div></div>
+  <div class="timing-bar"><div class="name">Feature eng</div><div class="track"><div class="fill" style="width:18%"></div></div><div class="val">8 ms</div></div>
+  <div class="timing-bar"><div class="name">Regime detect</div><div class="track"><div class="fill" style="width:27%"></div></div><div class="val">12 ms</div></div>
+  <div class="timing-bar"><div class="name">AI ensemble</div><div class="track"><div class="fill" style="width:67%"></div></div><div class="val">95 ms</div></div>
+  <div class="timing-bar"><div class="name">Risk gate</div><div class="track"><div class="fill" style="width:9%"></div></div><div class="val">4 ms</div></div>
+  <div class="timing-bar"><div class="name">Exec dispatch</div><div class="track"><div class="fill" style="width:15%"></div></div><div class="val">21 ms</div></div>
+</div>
+</body></html>

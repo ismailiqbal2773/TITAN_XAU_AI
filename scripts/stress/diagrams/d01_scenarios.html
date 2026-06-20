@@ -1,0 +1,139 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>d01</title>
+<link href="https://fonts.googleapis.com/css2?family=Tinos:wght@400;700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { width: 1600px; height: 1200px; background: #ffffff; font-family: 'Inter', sans-serif; color: #14213D; padding: 50px 60px; }
+.h-title { font-family: 'Tinos', serif; font-size: 30px; font-weight: 900; letter-spacing: -0.5px; }
+.h-sub { font-family: 'Inter', sans-serif; font-size: 13px; color: #4A5568; margin-top: 4px; }
+.h-rule { width: 80px; height: 3px; background: #C8102E; margin: 14px 0 26px 0; }
+
+.cols { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+.scn-card { border: 1px solid #CBD5E1; border-radius: 6px; overflow: hidden; }
+.scn-head { padding: 12px 16px; color: #fff; }
+.scn-head .n { font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 2px; font-weight: 700; opacity: 0.85; }
+.scn-head .t { font-family: 'Tinos', serif; font-size: 14px; font-weight: 700; margin-top: 2px; }
+.scn.a .scn-head { background: #C8102E; }
+.scn.b .scn-head { background: #B45309; }
+.scn.c .scn-head { background: #14213D; }
+.scn.d .scn-head { background: #6B21A8; }
+.scn.e .scn-head { background: #047857; }
+.scn.f .scn-head { background: #14213D; }
+.scn-body { padding: 12px 14px; background: #F8FAFC; }
+.scn-row { padding: 6px 0; border-bottom: 1px dashed #CBD5E1; font-family: 'Inter', sans-serif; font-size: 10px; line-height: 1.4; }
+.scn-row:last-child { border-bottom: none; }
+.scn-row .k { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C8102E; font-weight: 700; }
+.scn-row .v { color: #14213D; margin-top: 2px; }
+.scn-row .v b { color: #C8102E; }
+
+.bottom { margin-top: 22px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.bb { padding: 14px 16px; border-radius: 6px; }
+.bb.a { background: #14213D; color: #fff; }
+.bb.b { background: #C8102E; color: #fff; }
+.bb.c { background: #F1F5F9; border: 1px solid #CBD5E1; }
+.bb.d { background: #F1F5F9; border: 1px solid #CBD5E1; }
+.bb .lbl { font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 2px; opacity: 0.75; font-weight: 700; }
+.bb.c .lbl, .bb.d .lbl { color: #C8102E; opacity: 1; }
+.bb .v { font-family: 'Tinos', serif; font-size: 22px; font-weight: 900; margin-top: 4px; line-height: 1; }
+.bb .d { font-family: 'Inter', sans-serif; font-size: 10px; opacity: 0.9; margin-top: 5px; line-height: 1.4; }
+.bb.c .d, .bb.d .d { color: #14213D; opacity: 1; }
+
+.flow { margin-top: 22px; padding: 14px 18px; background: #14213D; color: #fff; border-radius: 6px; }
+.flow .lbl { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #C8102E; letter-spacing: 2px; font-weight: 700; }
+.flow .h { font-family: 'Tinos', serif; font-size: 14px; font-weight: 700; margin-top: 4px; }
+.flow-steps { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; }
+.fs { font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 600; color: #fff; }
+.fa { font-family: 'JetBrains Mono', monospace; color: #C8102E; font-size: 14px; font-weight: 700; }
+</style></head>
+<body>
+<div class="h-title">Stress Testing Framework — 6 Scenarios</div>
+<div class="h-sub">Each scenario simulates a different adverse market / infrastructure condition · all 6 must pass for CERTIFIED</div>
+<div class="h-rule"></div>
+
+<div class="cols">
+  <div class="scn-card scn a">
+    <div class="scn-head"><div class="n">SCN-01</div><div class="t">Flash Crash</div></div>
+    <div class="scn-body">
+      <div class="scn-row"><div class="k">SIMULATION</div><div class="v">XAUUSD drops <b>8% in 90 seconds</b>, then recovers 60% over 4 minutes</div></div>
+      <div class="scn-row"><div class="k">HISTORICAL BASIS</div><div class="v">Aug 2020 silver flash, Mar 2020 COVID crash</div></div>
+      <div class="scn-row"><div class="k">TESTS</div><div class="v">Kill-switch, stop-loss fills, position flatten</div></div>
+      <div class="scn-row"><div class="k">RECOVERY</div><div class="v">Halt trading 5 min · resume with reduced size</div></div>
+      <div class="scn-row"><div class="k">PASS MDD</div><div class="v"><b>≤ 12%</b> (vs 5% live target — 2.4× headroom)</div></div>
+    </div>
+  </div>
+  <div class="scn-card scn b">
+    <div class="scn-head"><div class="n">SCN-02</div><div class="t">High Spread</div></div>
+    <div class="scn-body">
+      <div class="scn-row"><div class="k">SIMULATION</div><div class="v">Spread widens to <b>5× baseline for 30 min</b> (simulated NFP event)</div></div>
+      <div class="scn-row"><div class="k">HISTORICAL BASIS</div><div class="v">NFP/FOMC/CPI release ±2 min windows</div></div>
+      <div class="scn-row"><div class="k">TESTS</div><div class="v">News filter, order rejection, cost cap</div></div>
+      <div class="scn-row"><div class="k">RECOVERY</div><div class="v">Auto-suppress entries · resume after spread &lt; 2× baseline</div></div>
+      <div class="scn-row"><div class="k">PASS COST DRAG</div><div class="v"><b>≤ 45%</b> (vs 35% normal — 10 pp headroom)</div></div>
+    </div>
+  </div>
+  <div class="scn-card scn c">
+    <div class="scn-head"><div class="n">SCN-03</div><div class="t">Server Lag</div></div>
+    <div class="scn-body">
+      <div class="scn-row"><div class="k">SIMULATION</div><div class="v">Tick-to-execution latency <b>2× budget for 60s</b> (300 ms P99)</div></div>
+      <div class="scn-row"><div class="k">HISTORICAL BASIS</div><div class="v">VPS CPU contention, network congestion</div></div>
+      <div class="scn-row"><div class="k">TESTS</div><div class="v">Stale-signal veto, backpressure, drop-tick logic</div></div>
+      <div class="scn-row"><div class="k">RECOVERY</div><div class="v">Risk engine auto-vetoes stale signals · alert ops</div></div>
+      <div class="scn-row"><div class="k">PASS STALE %</div><div class="v"><b>≥ 95%</b> signals correctly vetoed (no stale fills)</div></div>
+    </div>
+  </div>
+  <div class="scn-card scn d">
+    <div class="scn-head"><div class="n">SCN-04</div><div class="t">Broker Disconnect</div></div>
+    <div class="scn-body">
+      <div class="scn-row"><div class="k">SIMULATION</div><div class="v">MT5 socket drops <b>for 90s</b>, then auto-reconnects</div></div>
+      <div class="scn-row"><div class="k">HISTORICAL BASIS</div><div class="v">Broker-side maintenance, ISP outage</div></div>
+      <div class="scn-row"><div class="k">TESTS</div><div class="v">Reconnect logic, position sync, missing-tick handling</div></div>
+      <div class="scn-row"><div class="k">RECOVERY</div><div class="v">Auto-reconnect &lt; 5s · position reconciliation · flat check</div></div>
+      <div class="scn-row"><div class="k">PASS RECONCILE</div><div class="v"><b>100%</b> positions reconciled, 0 phantom orders</div></div>
+    </div>
+  </div>
+  <div class="scn-card scn e">
+    <div class="scn-head"><div class="n">SCN-05</div><div class="t">Extreme Volatility</div></div>
+    <div class="scn-body">
+      <div class="scn-row"><div class="k">SIMULATION</div><div class="v">ATR spikes to <b>4× 30-day avg for 2 hours</b></div></div>
+      <div class="scn-row"><div class="k">HISTORICAL BASIS</div><div class="v">Geopolitical event, central bank surprise</div></div>
+      <div class="scn-row"><div class="k">TESTS</div><div class="v">Vol regime detection, position sizing, exposure cap</div></div>
+      <div class="scn-row"><div class="k">RECOVERY</div><div class="v">Auto-reduce size 50% · widen stops · halt new entries</div></div>
+      <div class="scn-row"><div class="k">PASS MDD</div><div class="v"><b>≤ 10%</b> during vol spike (vs 5% live — 2× headroom)</div></div>
+    </div>
+  </div>
+  <div class="scn-card scn f">
+    <div class="scn-head"><div class="n">SCN-06</div><div class="t">Gap Open</div></div>
+    <div class="scn-body">
+      <div class="scn-row"><div class="k">SIMULATION</div><div class="v">Sunday open gaps <b>+3% / −3%</b> from Friday close</div></div>
+      <div class="scn-row"><div class="k">HISTORICAL BASIS</div><div class="v">Weekend event risk (geopolitical, news)</div></div>
+      <div class="scn-row"><div class="k">TESTS</div><div class="v">Weekend position policy, gap-risk buffer, stop fills</div></div>
+      <div class="scn-row"><div class="k">RECOVERY</div><div class="v">Flat by Friday 22:00 GMT · no weekend exposure</div></div>
+      <div class="scn-row"><div class="k">PASS GAP LOSS</div><div class="v"><b>≤ 2%</b> account equity (no weekend gap exposure)</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="bottom">
+  <div class="bb a"><div class="lbl">SCENARIOS</div><div class="v">6</div><div class="d">Flash crash · spread · lag · disconnect · vol · gap</div></div>
+  <div class="bb b"><div class="lbl">CERTIFICATION</div><div class="v">3-BAND</div><div class="d">CERTIFIED / CONDITIONAL / REJECTED</div></div>
+  <div class="bb c"><div class="lbl">RUNTIME</div><div class="v">~25 min</div><div class="d">6 scenarios × ~4 min each (parallelizable)</div></div>
+  <div class="bb d"><div class="lbl">CADENCE</div><div class="v">Quarterly</div><div class="d">+ on-demand · + pre-deployment mandatory</div></div>
+</div>
+
+<div class="flow">
+  <div class="lbl">STRESS TEST PIPELINE</div>
+  <div class="h">All 6 scenarios run in sequence · aggregate verdict = logical AND of all 6</div>
+  <div class="flow-steps">
+    <div class="fs">1 · Load Strategy</div>
+    <div class="fa">→</div>
+    <div class="fs">2 · Run 6 Scenarios</div>
+    <div class="fa">→</div>
+    <div class="fs">3 · Per-Scn Verdict</div>
+    <div class="fa">→</div>
+    <div class="fs">4 · Aggregate</div>
+    <div class="fa">→</div>
+    <div class="fs">5 · Certification</div>
+    <div class="fa">→</div>
+    <div class="fs">6 · Report + Archive</div>
+  </div>
+</div>
+</body></html>

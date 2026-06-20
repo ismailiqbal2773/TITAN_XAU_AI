@@ -1,0 +1,92 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>d02</title>
+<link href="https://fonts.googleapis.com/css2?family=Tinos:wght@400;700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { width: 1600px; height: 1200px; background: #ffffff; font-family: 'Inter', sans-serif; color: #14213D; padding: 50px 60px; }
+.h-title { font-family: 'Tinos', serif; font-size: 30px; font-weight: 900; letter-spacing: -0.5px; }
+.h-sub { font-family: 'Inter', sans-serif; font-size: 13px; color: #4A5568; margin-top: 4px; }
+.h-rule { width: 80px; height: 3px; background: #C8102E; margin: 14px 0 24px 0; }
+
+.metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.metric { border: 1px solid #CBD5E1; border-left: 4px solid #14213D; border-radius: 6px; padding: 14px 16px; background: #F8FAFC; }
+.metric.accent { border-left-color: #C8102E; }
+.metric .n { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C8102E; font-weight: 700; letter-spacing: 1.5px; }
+.metric .t { font-family: 'Tinos', serif; font-size: 13px; font-weight: 700; color: #14213D; margin: 3px 0 5px 0; }
+.metric .d { font-family: 'Inter', sans-serif; font-size: 9.5px; color: #4A5568; line-height: 1.5; }
+.metric .d b { color: #14213D; }
+.metric .formula { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #14213D; margin-top: 6px; padding: 5px 9px; background: #fff; border: 1px solid #CBD5E1; border-radius: 3px; line-height: 1.6; }
+.metric .formula b { color: #C8102E; }
+.metric .window { font-family: 'JetBrains Mono', monospace; font-size: 8.5px; color: #4A5568; margin-top: 5px; padding-top: 5px; border-top: 1px dashed #CBD5E1; }
+
+.inputs-card { margin-top: 22px; border: 1px solid #CBD5E1; border-radius: 6px; overflow: hidden; }
+.inputs-head { background: #14213D; color: #fff; padding: 12px 18px; font-family: 'Tinos', serif; font-size: 14px; font-weight: 700; }
+.inputs-body { padding: 14px 18px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.input-item { padding: 8px 12px; background: #F1F5F9; border-left: 3px solid #C8102E; border-radius: 4px; }
+.input-item .n { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C8102E; font-weight: 700; }
+.input-item .t { font-family: 'Inter', sans-serif; font-size: 10.5px; font-weight: 600; color: #14213D; margin-top: 2px; }
+.input-item .d { font-family: 'Inter', sans-serif; font-size: 9px; color: #4A5568; margin-top: 2px; line-height: 1.4; }
+</style></head>
+<body>
+<div class="h-title">7 Performance Metrics — Per Model</div>
+<div class="h-sub">7 metrics computed per model per cycle · NumPy vectorized · feeds into 4 weighting algorithms</div>
+<div class="h-rule"></div>
+
+<div class="metrics">
+  <div class="metric accent">
+    <div class="n">M1 · ACCURACY</div><div class="t">Model Accuracy</div>
+    <div class="d">Directional accuracy: did model predict correct trade direction?</div>
+    <div class="formula"><b>accuracy</b> = correct_directions / total_predictions</div>
+    <div class="window">Window: W100 (100 trades)</div>
+  </div>
+  <div class="metric">
+    <div class="n">M2 · PROFIT FACTOR</div><div class="t">Profit Factor</div>
+    <div class="d">Gross profit / gross loss for trades where this model was primary contributor.</div>
+    <div class="formula"><b>PF</b> = gross_profit / gross_loss</div>
+    <div class="window">Window: W100</div>
+  </div>
+  <div class="metric">
+    <div class="n">M3 · SHARPE</div><div class="t">Sharpe Ratio</div>
+    <div class="d">Risk-adjusted return of model's attributed trades.</div>
+    <div class="formula"><b>Sharpe</b> = mean(R) / std(R) × √252</div>
+    <div class="window">Window: W250</div>
+  </div>
+  <div class="metric">
+    <div class="n">M4 · DD CONTRIBUTION</div><div class="t">Drawdown Contribution</div>
+    <div class="d">How much this model contributed to system MDD. Lower = better.</div>
+    <div class="formula"><b>DDC</b> = model_attributed_loss / total_system_MDD</div>
+    <div class="window">Window: W250</div>
+  </div>
+  <div class="metric">
+    <div class="n">M5 · SLIPPAGE SENS</div><div class="t">Slippage Sensitivity</div>
+    <div class="d">Correlation between model's trade frequency and slippage cost.</div>
+    <div class="formula"><b>SlipSens</b> = corr(trade_freq, slippage_cost)</div>
+    <div class="window">Window: W100</div>
+  </div>
+  <div class="metric">
+    <div class="n">M6 · LATENCY SENS</div><div class="t">Latency Sensitivity</div>
+    <div class="d">How much model's Sharpe degrades when latency increases.</div>
+    <div class="formula"><b>LatSens</b> = Sharpe_low_latency - Sharpe_high_latency</div>
+    <div class="window">Window: W250</div>
+  </div>
+  <div class="metric accent">
+    <div class="n">M7 · REGIME PERF</div><div class="t">Regime Performance</div>
+    <div class="d">Per-regime win rate for this model. Drives regime-conditional weighting.</div>
+    <div class="formula"><b>RegimePerf</b> = WR(regime=current) over W100</div>
+    <div class="window">Window: W100 per regime</div>
+  </div>
+</div>
+
+<div class="inputs-card">
+  <div class="inputs-head">8 Inputs (from NATS + CEO Supervisor)</div>
+  <div class="inputs-body">
+    <div class="input-item"><div class="n">IN-1</div><div class="t">Model Predictions</div><div class="d">XGBoost/LSTM/Transformer/RL signal + direction</div></div>
+    <div class="input-item"><div class="n">IN-2</div><div class="t">Model Confidence</div><div class="d">Softmax probability or confidence score 0-1</div></div>
+    <div class="input-item"><div class="n">IN-3</div><div class="t">Recent Performance</div><div class="d">Rolling window trade outcomes (W50/W100/W250)</div></div>
+    <div class="input-item"><div class="n">IN-4</div><div class="t">Current Regime</div><div class="d">Trend / Range / Volatile / News (from M04)</div></div>
+    <div class="input-item"><div class="n">IN-5</div><div class="t">Execution Quality</div><div class="d">EQS score 0-100 (from CEO Module 18)</div></div>
+    <div class="input-item"><div class="n">IN-6</div><div class="t">Risk Score</div><div class="d">Risk score 0-100 (from CEO Module 18)</div></div>
+    <div class="input-item"><div class="n">IN-7</div><div class="t">Broker Score</div><div class="d">BQS per broker 0-100 (from CEO Module 18)</div></div>
+    <div class="input-item"><div class="n">IN-8</div><div class="t">CEO Directives</div><div class="d">Influence caps + disabled models (from CEO)</div></div>
+  </div>
+</div>
+</body></html>

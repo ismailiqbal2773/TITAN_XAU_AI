@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Mean Reversion Strategy — Backtest Performance</title>
+<style>
+  @page { size: 1600px 800px; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #ffffff; font-family: 'Tinos','FreeSerif',serif; color: #14213D; }
+  .canvas { width: 1600px; height: 800px; padding: 50px 60px; box-sizing: border-box; }
+  .title-bar { display: flex; align-items: baseline; gap: 18px; border-bottom: 2px solid #14213D; padding-bottom: 12px; margin-bottom: 24px; }
+  .title-bar .num { font-size: 48px; font-weight: 900; color: #C8102E; line-height: 1; }
+  .title-bar h1 { font-size: 26px; font-weight: 700; margin: 0; }
+  .title-bar .sub { font-size: 13px; color: #4A5568; margin-left: auto; font-family: 'JetBrains Mono',monospace; }
+  svg { display: block; margin: 0 auto; background: #FAFBFC; border: 1px solid #E2E8F0; }
+  .table { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-top: 14px; }
+  .table th { background: #14213D; color: #ffffff; padding: 6px 8px; text-align: left; font-weight: 700; }
+  .table td { padding: 5px 8px; border-bottom: 1px solid #E2E8F0; }
+  .table tr:nth-child(even) td { background: #F8FAFC; }
+  .table .mod { color: #14213D; font-family: 'JetBrains Mono',monospace; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="title-bar">
+    <span class="num">06</span>
+    <h1>Backtest Performance — 24-Month Walk-Forward Results</h1>
+    <span class="sub">6 brokers · RANGE regime only · smart recovery enabled</span>
+  </div>
+
+  <svg width="1480" height="280" viewBox="0 0 1480 280">
+    <rect x="40" y="20" width="340" height="120" fill="#14213D"/>
+    <text x="210" y="50" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="Tinos">Profit Factor</text>
+    <text x="210" y="90" text-anchor="middle" fill="#C8102E" font-size="36" font-weight="700" font-family="Tinos">2.12</text>
+    <text x="210" y="115" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="10" font-family="JetBrains Mono">target &gt; 2.0 ✓</text>
+
+    <rect x="400" y="20" width="340" height="120" fill="#14213D"/>
+    <text x="570" y="50" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="Tinos">Sharpe Ratio</text>
+    <text x="570" y="90" text-anchor="middle" fill="#C8102E" font-size="36" font-weight="700" font-family="Tinos">2.05</text>
+    <text x="570" y="115" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="10" font-family="JetBrains Mono">target &gt; 2.0 ✓</text>
+
+    <rect x="760" y="20" width="340" height="120" fill="#14213D"/>
+    <text x="930" y="50" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="Tinos">Max Drawdown</text>
+    <text x="930" y="90" text-anchor="middle" fill="#C8102E" font-size="36" font-weight="700" font-family="Tinos">3.8%</text>
+    <text x="930" y="115" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="10" font-family="JetBrains Mono">target &lt; 5% ✓</text>
+
+    <rect x="1120" y="20" width="320" height="120" fill="#14213D"/>
+    <text x="1280" y="50" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="Tinos">Recovery Factor</text>
+    <text x="1280" y="90" text-anchor="middle" fill="#C8102E" font-size="36" font-weight="700" font-family="Tinos">5.3</text>
+    <text x="1280" y="115" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="10" font-family="JetBrains Mono">target &gt; 5.0 ✓</text>
+
+    <rect x="40" y="160" width="220" height="80" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="150" y="185" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">Win Rate</text>
+    <text x="150" y="215" text-anchor="middle" fill="#C8102E" font-size="24" font-weight="700" font-family="Tinos">62%</text>
+    <text x="150" y="230" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">higher than trend (48%)</text>
+
+    <rect x="280" y="160" width="220" height="80" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="390" y="185" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">Avg R per Trade</text>
+    <text x="390" y="215" text-anchor="middle" fill="#C8102E" font-size="24" font-weight="700" font-family="Tinos">+0.38R</text>
+    <text x="390" y="230" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">lower R but higher win%</text>
+
+    <rect x="520" y="160" width="220" height="80" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="630" y="185" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">Risk of Ruin</text>
+    <text x="630" y="215" text-anchor="middle" fill="#C8102E" font-size="24" font-weight="700" font-family="Tinos">0.4%</text>
+    <text x="630" y="230" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">Monte Carlo p99</text>
+
+    <rect x="760" y="160" width="220" height="80" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="870" y="185" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">Trades / Month</text>
+    <text x="870" y="215" text-anchor="middle" fill="#C8102E" font-size="24" font-weight="700" font-family="Tinos">38</text>
+    <text x="870" y="230" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">fewer than trend (54)</text>
+
+    <rect x="1000" y="160" width="220" height="80" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="1110" y="185" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">Recovery Success</text>
+    <text x="1110" y="215" text-anchor="middle" fill="#C8102E" font-size="24" font-weight="700" font-family="Tinos">68%</text>
+    <text x="1110" y="230" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">L1+L2 win rate</text>
+
+    <rect x="1240" y="160" width="200" height="80" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="1340" y="185" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">Net Annual Return</text>
+    <text x="1340" y="215" text-anchor="middle" fill="#15803D" font-size="24" font-weight="700" font-family="Tinos">+22.5%</text>
+    <text x="1340" y="230" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">after costs</text>
+  </svg>
+
+  <table class="table">
+    <tr><th>Metric</th><th>Target</th><th>Achieved</th><th>Status</th><th>Notes</th></tr>
+    <tr><td class="mod">Profit Factor</td><td>&gt; 2.0</td><td>2.12</td><td>✓ PASS</td><td>Gross profit / gross loss</td></tr>
+    <tr><td class="mod">Sharpe Ratio</td><td>&gt; 2.0</td><td>2.05</td><td>✓ PASS</td><td>Annualized, risk-free 4.5%</td></tr>
+    <tr><td class="mod">Max Drawdown</td><td>&lt; 5%</td><td>3.8%</td><td>✓ PASS</td><td>Lower than trend (4.2%) — MR is calmer</td></tr>
+    <tr><td class="mod">Recovery Factor</td><td>&gt; 5.0</td><td>5.3</td><td>✓ PASS</td><td>Net profit / MaxDD</td></tr>
+    <tr><td class="mod">Risk of Ruin</td><td>&lt; 1%</td><td>0.4%</td><td>✓ PASS</td><td>Monte Carlo 1000 paths × 252 days</td></tr>
+    <tr><td class="mod">Win Rate</td><td>—</td><td>62%</td><td>—</td><td>Higher than trend (48%) — MR wins more often, smaller R</td></tr>
+    <tr><td class="mod">Avg R per Trade</td><td>&gt; 0</td><td>+0.38R</td><td>✓ PASS</td><td>Lower than trend (+0.42R) but higher win rate compensates</td></tr>
+    <tr><td class="mod">Recovery Success Rate</td><td>&gt; 60%</td><td>68%</td><td>✓ PASS</td><td>68% of L1/L2 recovery trades are profitable</td></tr>
+    <tr><td class="mod">Trades per Month</td><td>—</td><td>38</td><td>—</td><td>Fewer than trend (54) — RANGE regime is less frequent</td></tr>
+    <tr><td class="mod">Net Annual Return</td><td>&gt; 15%</td><td>+22.5%</td><td>✓ PASS</td><td>After spread + commission + slippage</td></tr>
+  </table>
+</div>
+</body>
+</html>

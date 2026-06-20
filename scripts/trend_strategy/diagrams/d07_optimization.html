@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Trend Following Strategy — Optimization Parameters</title>
+<style>
+  @page { size: 1600px 1100px; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #ffffff; font-family: 'Tinos','FreeSerif',serif; color: #14213D; }
+  .canvas { width: 1600px; height: 1100px; padding: 50px 60px; box-sizing: border-box; }
+  .title-bar { display: flex; align-items: baseline; gap: 18px; border-bottom: 2px solid #14213D; padding-bottom: 12px; margin-bottom: 24px; }
+  .title-bar .num { font-size: 48px; font-weight: 900; color: #C8102E; line-height: 1; }
+  .title-bar h1 { font-size: 26px; font-weight: 700; margin: 0; }
+  .title-bar .sub { font-size: 13px; color: #4A5568; margin-left: auto; font-family: 'JetBrains Mono',monospace; }
+  svg { display: block; margin: 0 auto; background: #FAFBFC; border: 1px solid #E2E8F0; }
+  .table { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-top: 14px; }
+  .table th { background: #14213D; color: #ffffff; padding: 6px 8px; text-align: left; font-weight: 700; }
+  .table td { padding: 5px 8px; border-bottom: 1px solid #E2E8F0; }
+  .table tr:nth-child(even) td { background: #F8FAFC; }
+  .table .mod { color: #14213D; font-family: 'JetBrains Mono',monospace; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="title-bar">
+    <span class="num">07</span>
+    <h1>Optimization Parameters — Tunable Knobs &amp; Search Space</h1>
+    <span class="sub">38 parameters · bounded ranges · walk-forward optimized</span>
+  </div>
+
+  <svg width="1480" height="100" viewBox="0 0 1480 100">
+    <rect x="40" y="20" width="1440" height="60" fill="#14213D"/>
+    <text x="760" y="45" text-anchor="middle" fill="#ffffff" font-size="14" font-weight="700" font-family="Tinos">Optimization Approach — Walk-Forward Bayesian Search</text>
+    <text x="760" y="65" text-anchor="middle" fill="#C8102E" font-size="10" font-family="JetBrains Mono">38 params · 200 trials per fold · Optuna TPE sampler · 5-fold walk-forward</text>
+  </svg>
+
+  <table class="table" style="margin-top: 24px;">
+    <tr><th>Category</th><th>Parameter</th><th>Symbol</th><th>Default</th><th>Search Range</th><th>Step</th><th>Optimization Method</th></tr>
+
+    <tr><td class="mod" rowspan="4">GATE</td><td>Regime confidence threshold</td><td>conf_min</td><td>0.65</td><td>[0.55, 0.80]</td><td>0.05</td><td>Bayesian TPE</td></tr>
+    <tr><td>P(VOLATILE) max</td><td>p_vol_max</td><td>0.20</td><td>[0.10, 0.30]</td><td>0.05</td><td>Bayesian TPE</td></tr>
+    <tr><td>TF alignment requirement</td><td>tf_count</td><td>3</td><td>{2, 3}</td><td>1</td><td>Grid</td></tr>
+    <tr><td>EMA fast period</td><td>ema_fast</td><td>20</td><td>[10, 30]</td><td>2</td><td>Bayesian TPE</td></tr>
+
+    <tr><td class="mod" rowspan="3">GATE (cont)</td><td>EMA slow period</td><td>ema_slow</td><td>50</td><td>[40, 100]</td><td>5</td><td>Bayesian TPE</td></tr>
+    <tr><td>Session start (UTC)</td><td>session_start</td><td>7</td><td>{0, 7, 8}</td><td>1</td><td>Grid</td></tr>
+    <tr><td>Session end (UTC)</td><td>session_end</td><td>22</td><td>{20, 21, 22}</td><td>1</td><td>Grid</td></tr>
+
+    <tr><td class="mod" rowspan="4">E1 MARKET STRUCTURE</td><td>Fractal window</td><td>fractal_window</td><td>5</td><td>{3, 5, 7}</td><td>2</td><td>Grid</td></tr>
+    <tr><td>Min swings in sequence</td><td>min_swings</td><td>2</td><td>{2, 3}</td><td>1</td><td>Grid</td></tr>
+    <tr><td>BOS retest tolerance (ATR)</td><td>bos_tolerance</td><td>0.3</td><td>[0.1, 0.5]</td><td>0.1</td><td>Bayesian TPE</td></tr>
+    <tr><td>Stop buffer (ATR)</td><td>ms_stop_buffer</td><td>0.5</td><td>[0.2, 1.0]</td><td>0.1</td><td>Bayesian TPE</td></tr>
+
+    <tr><td class="mod" rowspan="4">E2 BREAKOUT</td><td>Breakout lookback</td><td>bo_lookback</td><td>20</td><td>[10, 40]</td><td>5</td><td>Bayesian TPE</td></tr>
+    <tr><td>Volume multiplier</td><td>bo_vol_mult</td><td>1.5</td><td>[1.2, 2.0]</td><td>0.1</td><td>Bayesian TPE</td></tr>
+    <tr><td>ATR expansion ratio</td><td>bo_atr_exp</td><td>1.2</td><td>[1.1, 1.5]</td><td>0.05</td><td>Bayesian TPE</td></tr>
+    <tr><td>Body ratio min</td><td>bo_body_min</td><td>0.60</td><td>[0.50, 0.70]</td><td>0.05</td><td>Bayesian TPE</td></tr>
+
+    <tr><td class="mod" rowspan="4">E3 PULLBACK</td><td>Fib zone lower</td><td>pb_fib_low</td><td>0.382</td><td>[0.236, 0.382]</td><td>0.05</td><td>Bayesian TPE</td></tr>
+    <tr><td>Fib zone upper</td><td>pb_fib_high</td><td>0.500</td><td>[0.500, 0.618]</td><td>0.05</td><td>Bayesian TPE</td></tr>
+    <tr><td>RSI zone lower</td><td>pb_rsi_low</td><td>40</td><td>[30, 45]</td><td>5</td><td>Grid</td></tr>
+    <tr><td>RSI zone upper</td><td>pb_rsi_high</td><td>50</td><td>[50, 60]</td><td>5</td><td>Grid</td></tr>
+
+    <tr><td class="mod" rowspan="3">E4 LIQUIDITY SWEEP</td><td>Wick beyond threshold (ATR)</td><td>ls_wick_beyond</td><td>0.1</td><td>[0.05, 0.3]</td><td>0.05</td><td>Bayesian TPE</td></tr>
+    <tr><td>Volume z-score min</td><td>ls_vol_z</td><td>2.0</td><td>[1.5, 3.0]</td><td>0.5</td><td>Bayesian TPE</td></tr>
+    <tr><td>Reversal candle min body</td><td>ls_body_min</td><td>0.50</td><td>[0.40, 0.70]</td><td>0.05</td><td>Bayesian TPE</td></tr>
+
+    <tr><td class="mod" rowspan="3">E5 ORDER BLOCK / FVG</td><td>OB zone tolerance (ATR)</td><td>ob_zone_tol</td><td>0.5</td><td>[0.2, 1.0]</td><td>0.1</td><td>Bayesian TPE</td></tr>
+    <tr><td>FVG min gap (ATR)</td><td>fvg_min_gap</td><td>0.3</td><td>[0.1, 0.5]</td><td>0.1</td><td>Bayesian TPE</td></tr>
+    <tr><td>Reaction candle min wick</td><td>ob_wick_min</td><td>0.40</td><td>[0.30, 0.60]</td><td>0.05</td><td>Bayesian TPE</td></tr>
+
+    <tr><td class="mod" rowspan="4">MANAGEMENT</td><td>Break Even trigger (R)</td><td>be_trigger</td><td>1.0</td><td>[0.75, 1.50]</td><td>0.25</td><td>Bayesian TPE</td></tr>
+    <tr><td>Partial 1 trigger (R)</td><td>p1_trigger</td><td>2.0</td><td>[1.50, 2.50]</td><td>0.25</td><td>Bayesian TPE</td></tr>
+    <tr><td>Partial 1 close %</td><td>p1_pct</td><td>0.50</td><td>[0.33, 0.66]</td><td>0.05</td><td>Bayesian TPE</td></tr>
+    <tr><td>Partial 2 trigger (R)</td><td>p2_trigger</td><td>3.0</td><td>[2.50, 4.00]</td><td>0.50</td><td>Bayesian TPE</td></tr>
+
+    <tr><td class="mod" rowspan="3">MANAGEMENT (cont)</td><td>Partial 2 close %</td><td>p2_pct</td><td>0.25</td><td>[0.20, 0.50]</td><td>0.05</td><td>Bayesian TPE</td></tr>
+    <tr><td>Trail ATR multiplier (start)</td><td>trail_mult_start</td><td>2.5</td><td>[2.0, 3.5]</td><td>0.25</td><td>Bayesian TPE</td></tr>
+    <tr><td>Trail ATR multiplier (end)</td><td>trail_mult_end</td><td>1.5</td><td>[1.0, 2.0]</td><td>0.25</td><td>Bayesian TPE</td></tr>
+
+    <tr><td class="mod" rowspan="4">RISK</td><td>Base risk %</td><td>base_risk</td><td>1.0</td><td>[0.5, 2.0]</td><td>0.25</td><td>Bayesian TPE</td></tr>
+    <tr><td>Risk floor %</td><td>risk_floor</td><td>0.3</td><td>[0.2, 0.5]</td><td>0.05</td><td>Grid</td></tr>
+    <tr><td>Risk ceiling %</td><td>risk_ceil</td><td>1.5</td><td>[1.0, 2.5]</td><td>0.25</td><td>Grid</td></tr>
+    <tr><td>Max concurrent positions</td><td>max_concurrent</td><td>3</td><td>{1, 2, 3, 4}</td><td>1</td><td>Grid</td></tr>
+
+    <tr><td class="mod" rowspan="3">RISK (cont)</td><td>Daily loss limit %</td><td>daily_loss</td><td>2.0</td><td>[1.0, 3.0]</td><td>0.5</td><td>Grid</td></tr>
+    <tr><td>Win streak press threshold</td><td>streak_press</td><td>3</td><td>{2, 3, 4}</td><td>1</td><td>Grid</td></tr>
+    <tr><td>Win streak press factor</td><td>streak_factor</td><td>1.2</td><td>[1.1, 1.3]</td><td>0.05</td><td>Bayesian TPE</td></tr>
+
+    <tr><td class="mod" rowspan="2">EXIT</td><td>Regime change bars to confirm</td><td>exit_regime_bars</td><td>2</td><td>{1, 2, 3}</td><td>1</td><td>Grid</td></tr>
+    <tr><td>EOD close time (UTC)</td><td>eod_time</td><td>22</td><td>{20, 21, 22, 23}</td><td>1</td><td>Grid</td></tr>
+  </table>
+</div>
+</body>
+</html>

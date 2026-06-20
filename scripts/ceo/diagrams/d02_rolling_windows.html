@@ -1,0 +1,98 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>d02</title>
+<link href="https://fonts.googleapis.com/css2?family=Tinos:wght@400;700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { width: 1600px; height: 1200px; background: #ffffff; font-family: 'Inter', sans-serif; color: #14213D; padding: 50px 60px; }
+.h-title { font-family: 'Tinos', serif; font-size: 30px; font-weight: 900; letter-spacing: -0.5px; }
+.h-sub { font-family: 'Inter', sans-serif; font-size: 13px; color: #4A5568; margin-top: 4px; }
+.h-rule { width: 80px; height: 3px; background: #C8102E; margin: 14px 0 24px 0; }
+
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+
+.windows-card { border: 1px solid #CBD5E1; border-radius: 6px; overflow: hidden; }
+.windows-head { background: #14213D; color: #fff; padding: 12px 18px; }
+.windows-head .lbl { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C8102E; letter-spacing: 2px; font-weight: 700; }
+.windows-head .t { font-family: 'Tinos', serif; font-size: 14px; font-weight: 700; margin-top: 2px; }
+.windows-body { padding: 12px 16px; }
+
+.win { padding: 10px 0; border-bottom: 1px dashed #CBD5E1; }
+.win:last-child { border-bottom: none; }
+.win .head { display: flex; justify-content: space-between; align-items: center; }
+.win .n { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #C8102E; font-weight: 700; }
+.win .scope { font-family: 'Inter', sans-serif; font-size: 10px; color: #4A5568; font-style: italic; }
+.win .t { font-family: 'Tinos', serif; font-size: 13px; font-weight: 700; color: #14213D; margin: 3px 0 4px 0; }
+.win .d { font-family: 'Inter', sans-serif; font-size: 10px; color: #4A5568; line-height: 1.5; }
+.win .d b { color: #14213D; }
+.win .specs { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #14213D; margin-top: 5px; padding: 5px 9px; background: #F1F5F9; border-left: 2px solid #C8102E; border-radius: 2px; line-height: 1.5; }
+
+.metrics-table { margin-top: 22px; }
+table { width: 100%; border-collapse: collapse; }
+th { background: #14213D; color: #fff; padding: 9px 12px; text-align: left; font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 1px; }
+td { padding: 9px 12px; border-bottom: 1px solid #E2E8F0; font-family: 'Inter', sans-serif; font-size: 10.5px; vertical-align: top; }
+tr:nth-child(even) td { background: #F8FAFC; }
+td.n { font-family: 'JetBrains Mono', monospace; color: #C8102E; font-weight: 700; font-size: 10px; }
+td.t { font-family: 'Tinos', serif; color: #14213D; font-weight: 700; font-size: 11px; }
+td.c { font-family: 'JetBrains Mono', monospace; color: #14213D; font-size: 9.5px; }
+
+.formula-card { background: #14213D; color: #fff; padding: 16px 20px; border-radius: 6px; margin-top: 18px; }
+.formula-card .lbl { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #C8102E; letter-spacing: 2px; font-weight: 700; }
+.formula-card .h { font-family: 'Tinos', serif; font-size: 14px; font-weight: 700; margin-top: 4px; }
+.formula-card .eq { font-family: 'JetBrains Mono', monospace; font-size: 11px; margin-top: 8px; line-height: 1.7; color: #94A3B8; }
+.formula-card .eq b { color: #C8102E; }
+</style></head>
+<body>
+<div class="h-title">Rolling Windows — 4 Sizes × 8 Metrics × Per Model</div>
+<div class="h-sub">Multi-scale view · short-term sensitivity (50) + long-term stability (500) · bounded O(N) memory</div>
+<div class="h-rule"></div>
+
+<div class="cols">
+  <div class="windows-card">
+    <div class="windows-head"><div><div class="lbl">4 ROLLING WINDOWS</div><div class="t">Per model per metric</div></div></div>
+    <div class="windows-body">
+      <div class="win"><div class="head"><div class="n">W50</div><div class="scope">short-term</div></div><div class="t">50-Trade Window</div><div class="d"><b>Scope:</b> last 50 trades (~1 week). <b>Use:</b> detect acute degradation, sudden regime shifts, immediate broker issues.</div><div class="specs">decay: none · memory: 50×8×4 models = 1600 floats · refresh: every trade</div></div>
+      <div class="win"><div class="head"><div class="n">W100</div><div class="scope">medium-term</div></div><div class="t">100-Trade Window</div><div class="d"><b>Scope:</b> last 100 trades (~2 weeks). <b>Use:</b> confirm W50 signals, smooth short-term noise, detect emerging drift.</div><div class="specs">decay: none · memory: 100×8×4 models = 3200 floats · refresh: every trade</div></div>
+      <div class="win"><div class="head"><div class="n">W250</div><div class="scope">long-term</div></div><div class="t">250-Trade Window</div><div class="d"><b>Scope:</b> last 250 trades (~1 month). <b>Use:</b> stable baseline, overfitting detection (vs IS baseline), drift confirmation.</div><div class="specs">decay: none · memory: 250×8×4 models = 8000 floats · refresh: every trade</div></div>
+      <div class="win"><div class="head"><div class="n">W500</div><div class="scope">strategic</div></div><div class="t">500-Trade Window</div><div class="d"><b>Scope:</b> last 500 trades (~2 months). <b>Use:</b> strategic baseline, persistent drift, structural changes, regime transition.</div><div class="specs">decay: none · memory: 500×8×4 models = 16000 floats · refresh: every trade</div></div>
+    </div>
+  </div>
+
+  <div>
+    <div class="windows-card">
+      <div class="windows-head"><div><div class="lbl">8 TRACKED METRICS</div><div class="t">Per window per model</div></div></div>
+      <div class="windows-body">
+        <table style="width:100%">
+          <thead><tr><th>METRIC</th><th>FORMULA</th><th>WINDOW USE</th></tr></thead>
+          <tbody>
+            <tr><td class="n">WinRate</td><td class="c">wins / total</td><td class="c">all 4 windows</td></tr>
+            <tr><td class="n">ProfitFactor</td><td class="c">gross_profit / gross_loss</td><td class="c">all 4 windows</td></tr>
+            <tr><td class="n">Sharpe</td><td class="c">mean(ret) / std(ret) × √252</td><td class="c">all 4 windows</td></tr>
+            <tr><td class="n">Sortino</td><td class="c">mean(ret) / std(neg_ret) × √252</td><td class="c">all 4 windows</td></tr>
+            <tr><td class="n">MaxDD</td><td class="c">max(peak - trough) / peak</td><td class="c">all 4 windows</td></tr>
+            <tr><td class="n">RecoveryFactor</td><td class="c">net_profit / |MaxDD|</td><td class="c">all 4 windows</td></tr>
+            <tr><td class="n">Latency</td><td class="c">P99 signal-to-broker ms</td><td class="c">all 4 windows</td></tr>
+            <tr><td class="n">Slippage</td><td class="c">mean |fill - signal|</td><td class="c">all 4 windows</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="formula-card">
+      <div class="lbl">MEMORY BUDGET</div>
+      <div class="h">Bounded O(N) — no unbounded growth</div>
+      <div class="eq"><b>Total floats:</b> 4 models × 8 metrics × 4 windows × max_size<br>= 4 × 8 × (50+100+250+500) = <b>28,800 floats</b><br>= ~230 KB (float64) · <b>negligible</b></div>
+    </div>
+  </div>
+</div>
+
+<div class="metrics-table">
+  <table>
+    <thead><tr><th style="width:60px">ID</th><th style="width:200px">WINDOW ROLE</th><th style="width:180px">DETECTOR USE</th><th style="width:280px">RATIONALE</th><th style="width:200px">ALERT SENSITIVITY</th></tr></thead>
+    <tbody>
+      <tr><td class="n">W50</td><td class="t">Acute / Tactical</td><td class="c">degradation, instability, broker issues</td><td>Fastest signal — catches problems within a week. Prone to noise.</td><td class="c">YELLOW trigger (sensitive)</td></tr>
+      <tr><td class="n">W100</td><td class="t">Confirmation</td><td class="c">drift confirmation, exec deterioration</td><td>Smooths W50 noise. If W50 + W100 agree → real signal.</td><td class="c">YELLOW→RED trigger</td></tr>
+      <tr><td class="n">W250</td><td class="t">Strategic Baseline</td><td class="c">overfitting (vs IS), persistent drift</td><td>1-month baseline. Compares against in-sample stats from backtest.</td><td class="c">RED trigger (decisive)</td></tr>
+      <tr><td class="n">W500</td><td class="t">Structural</td><td class="c">structural change, regime transition</td><td>2-month view. Detects slow regime drift, broker cost profile changes.</td><td class="c">RED trigger + manual review</td></tr>
+    </tbody>
+  </table>
+</div>
+</body></html>

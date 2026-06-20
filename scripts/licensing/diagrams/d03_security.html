@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Commercial Licensing — Security Design</title>
+<style>
+  @page { size: 1600px 1000px; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #ffffff; font-family: 'Tinos','FreeSerif',serif; color: #14213D; }
+  .canvas { width: 1600px; height: 1000px; padding: 50px 60px; box-sizing: border-box; }
+  .title-bar { display: flex; align-items: baseline; gap: 18px; border-bottom: 2px solid #14213D; padding-bottom: 12px; margin-bottom: 24px; }
+  .title-bar .num { font-size: 48px; font-weight: 900; color: #C8102E; line-height: 1; }
+  .title-bar h1 { font-size: 26px; font-weight: 700; margin: 0; }
+  .title-bar .sub { font-size: 13px; color: #4A5568; margin-left: auto; font-family: 'JetBrains Mono',monospace; }
+  svg { display: block; margin: 0 auto; background: #FAFBFC; border: 1px solid #E2E8F0; }
+  .table { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-top: 14px; }
+  .table th { background: #14213D; color: #ffffff; padding: 6px 8px; text-align: left; font-weight: 700; }
+  .table td { padding: 5px 8px; border-bottom: 1px solid #E2E8F0; }
+  .table tr:nth-child(even) td { background: #F8FAFC; }
+  .table .mod { color: #14213D; font-family: 'JetBrains Mono',monospace; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="title-bar">
+    <span class="num">03</span>
+    <h1>Security Design — Cryptography · Key Management · Transport</h1>
+    <span class="sub">RSA-4096 · AES-256 · TLS 1.3 · mTLS · HSM-backed keys</span>
+  </div>
+  <svg width="1480" height="500" viewBox="0 0 1480 500">
+    <text x="40" y="30" font-size="14" font-weight="700" fill="#C8102E" font-family="Tinos">(a) Cryptographic Stack</text>
+
+    <rect x="40" y="50" width="340" height="200" fill="#F0FDF4" stroke="#14213D" stroke-width="2"/>
+    <rect x="40" y="50" width="340" height="32" fill="#14213D"/>
+    <text x="210" y="70" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="JetBrains Mono">LICENSE SIGNING</text>
+    <g font-family="JetBrains Mono" font-size="10" fill="#4A5568">
+      <text x="60" y="105">Algorithm: RSA-4096</text>
+      <text x="60" y="123">Purpose: sign JWT license tokens</text>
+      <text x="60" y="141">Private key: HSM-backed (AWS KMS)</text>
+      <text x="60" y="159">Public key: embedded in client binary</text>
+      <text x="60" y="177">Signature: RS256 (RFC 7518)</text>
+      <text x="60" y="200" fill="#C8102E" font-weight="bold">Key rotation: annually</text>
+      <text x="60" y="218" fill="#4A5568">old key accepted for 30 days</text>
+      <text x="60" y="236" fill="#4A5568">after rotation (grace period)</text>
+    </g>
+
+    <rect x="400" y="50" width="340" height="200" fill="#F0FDF4" stroke="#14213D" stroke-width="2"/>
+    <rect x="400" y="50" width="340" height="32" fill="#14213D"/>
+    <text x="570" y="70" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="JetBrains Mono">LICENSE STORAGE</text>
+    <g font-family="JetBrains Mono" font-size="10" fill="#4A5568">
+      <text x="420" y="105">Algorithm: AES-256-GCM</text>
+      <text x="420" y="123">Purpose: encrypt JWT at rest</text>
+      <text x="420" y="141">Key: derived from hw_fingerprint</text>
+      <text x="420" y="159">KDF: PBKDF2 (100k iterations)</text>
+      <text x="420" y="177">IV: random per encryption</text>
+      <text x="420" y="200" fill="#C8102E" font-weight="bold">No key stored on disk</text>
+      <text x="420" y="218" fill="#4A5568">key re-derived on each startup</text>
+      <text x="420" y="236" fill="#4A5568">from hardware fingerprint</text>
+    </g>
+
+    <rect x="760" y="50" width="340" height="200" fill="#F0FDF4" stroke="#14213D" stroke-width="2"/>
+    <rect x="760" y="50" width="340" height="32" fill="#14213D"/>
+    <text x="930" y="70" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="JetBrains Mono">TRANSPORT SECURITY</text>
+    <g font-family="JetBrains Mono" font-size="10" fill="#4A5568">
+      <text x="780" y="105">Protocol: TLS 1.3 (mandatory)</text>
+      <text x="780" y="123">Cipher: TLS_AES_256_GCM_SHA384</text>
+      <text x="780" y="141">mTLS: client cert required</text>
+      <text x="780" y="159">Client cert: embedded in binary</text>
+      <text x="780" y="177">Cert rotation: 90 days</text>
+      <text x="780" y="200" fill="#C8102E" font-weight="bold">No TLS 1.2 or below</text>
+      <text x="780" y="218" fill="#4A5568">certificate pinning enforced</text>
+      <text x="780" y="236" fill="#4A5568">HSTS · no fallback</text>
+    </g>
+
+    <rect x="1120" y="50" width="320" height="200" fill="#FEF3F2" stroke="#C8102E" stroke-width="2"/>
+    <rect x="1120" y="50" width="320" height="32" fill="#C8102E"/>
+    <text x="1280" y="70" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="JetBrains Mono">HARDWARE FINGERPRINT</text>
+    <g font-family="JetBrains Mono" font-size="10" fill="#4A5568">
+      <text x="1140" y="105">3 identifiers → 1 composite hash</text>
+      <text x="1140" y="123">CPUID: SHA-256(cpuid_eax+ebx+ecx+edx)</text>
+      <text x="1140" y="141">MB: SHA-256(baseboard_serial)</text>
+      <text x="1140" y="159">SID: SHA-256(machine_guid)</text>
+      <text x="1140" y="177">Composite: SHA-256(cpu_hash + mb_hash + sid_hash)</text>
+      <text x="1140" y="200" fill="#C8102E" font-weight="bold">Cannot be spoofed without</text>
+      <text x="1140" y="218" fill="#C8102E" font-weight="bold">replacing physical hardware</text>
+      <text x="1140" y="236" fill="#4A5568">3 activations/year (RAM/disk OK)</text>
+    </g>
+
+    <text x="40" y="290" font-size="14" font-weight="700" fill="#C8102E" font-family="Tinos">(b) Key Management Lifecycle</text>
+    <rect x="40" y="310" width="1400" height="160" fill="#F8FAFC" stroke="#14213D"/>
+    <g font-family="JetBrains Mono" font-size="10" fill="#4A5568">
+      <text x="60" y="335" font-weight="700" fill="#C8102E">RSA Signing Key Pair (server-side)</text>
+      <text x="60" y="355">· Generated in AWS KMS (HSM-backed) · never leaves HSM</text>
+      <text x="60" y="370">· Public key embedded in client binary at build time (hardcoded, not downloadable)</text>
+      <text x="60" y="385">· Rotation: annual · old key accepted 30 days post-rotation</text>
+      <text x="60" y="400">· Emergency rotation: CTO + Security Officer (2-person)</text>
+
+      <text x="60" y="425" font-weight="700" fill="#C8102E">AES Storage Key (client-side)</text>
+      <text x="60" y="445">· Derived from hw_fingerprint via PBKDF2 (100k iterations) · never stored on disk</text>
+      <text x="60" y="460">· Re-derived on each startup · unique per machine · lost if hardware changed (re-activation required)</text>
+    </g>
+  </svg>
+  <table class="table">
+    <tr><th>Security Layer</th><th>Algorithm</th><th>Purpose</th><th>Key Location</th><th>Rotation</th><th>Compromise Impact</th></tr>
+    <tr><td class="mod">License Signing</td><td>RSA-4096 (RS256)</td><td>Sign JWT license tokens</td><td>Private: AWS KMS HSM · Public: embedded in client</td><td>Annual (30-day overlap)</td><td>Private key compromise = all licenses forgeable (emergency rotation)</td></tr>
+    <tr><td class="mod">License Storage</td><td>AES-256-GCM</td><td>Encrypt JWT at rest on client</td><td>Derived from hw_fingerprint (PBKDF2 100k) · never on disk</td><td>Per machine (hardware-bound)</td><td>Copied JWT won't decrypt on different machine</td></tr>
+    <tr><td class="mod">Transport</td><td>TLS 1.3 + mTLS</td><td>Secure client↔server communication</td><td>Client cert: embedded · Server cert: AWS ACM</td><td>Client: 90 days · Server: auto</td><td>MITM prevented by cert pinning + mTLS</td></tr>
+    <tr><td class="mod">Hardware Fingerprint</td><td>SHA-256 (3-factor composite)</td><td>Bind license to physical hardware</td><td>Computed at runtime · never stored</td><td>Changes only on hardware replacement</td><td>Cannot be spoofed without physical access</td></tr>
+  </table>
+</div>
+</body>
+</html>

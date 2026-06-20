@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>TITAN XAU AI — Folder Structure</title>
+<style>
+  @page { size: 1400px 1800px; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #ffffff; font-family: 'JetBrains Mono','Sarasa Mono SC','DejaVu Sans Mono', monospace; color: #14213D; }
+  .canvas { width: 1400px; height: 1800px; padding: 60px 80px; box-sizing: border-box; position: relative; }
+  .title-bar { display: flex; align-items: baseline; gap: 18px; border-bottom: 2px solid #14213D; padding-bottom: 14px; margin-bottom: 32px; }
+  .title-bar .num { font-size: 64px; font-weight: 900; color: #C8102E; line-height: 1; font-family: 'Tinos','FreeSerif',serif; }
+  .title-bar h1 { font-size: 32px; font-weight: 700; margin: 0; font-family: 'Tinos','FreeSerif',serif; }
+  .title-bar .sub { font-size: 14px; color: #4A5568; margin-left: auto; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 50px; }
+  .col h2 { font-size: 16px; color: #C8102E; text-transform: uppercase; letter-spacing: 2px; margin: 0 0 14px 0; padding-bottom: 8px; border-bottom: 1px solid #C8102E; font-family: 'Tinos','FreeSerif',serif;}
+  pre { font-size: 12.5px; line-height: 1.55; margin: 0; white-space: pre; color: #14213D; }
+  .dir { color: #14213D; font-weight: 700; }
+  .file { color: #4A5568; }
+  .anno { color: #C8102E; font-style: italic; }
+  .legend { position: absolute; bottom: 30px; left: 80px; right: 80px; padding-top: 14px; border-top: 1px solid #14213D; display: flex; gap: 30px; font-size: 11px; color: #4A5568; }
+  .legend span b { color: #14213D; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="title-bar">
+    <span class="num">01</span>
+    <h1>Complete Folder Structure — Repository Layout</h1>
+    <span class="sub">TITAN XAU AI · v1.0 · Commercial License Build</span>
+  </div>
+  <div class="grid">
+    <div class="col">
+      <h2>C++ Execution Core (src/ · include/)</h2>
+<pre>
+<span class="dir">titan-xau-ai/</span>
+├── <span class="dir">src/</span>                        <span class="anno"># C++20 hot-path binaries</span>
+│   ├── <span class="dir">core/</span>                   <span class="anno"># Event loop, queues, time</span>
+│   │   ├── event_bus.cpp
+│   │   ├── lock_free_queue.cpp
+│   │   ├── cpu_affinity.cpp
+│   │   └── timestamp.cpp
+│   ├── <span class="dir">market_data/</span>            <span class="anno"># Tick ingest & normalize</span>
+│   │   ├── tick_normalizer.cpp
+│   │   ├── session_calendar.cpp
+│   │   └── fx_converter.cpp
+│   ├── <span class="dir">bridge/</span>                 <span class="anno"># Broker abstraction</span>
+│   │   ├── mt5_bridge.cpp
+│   │   ├── fix_adapter.cpp
+│   │   └── ib_adapter.cpp
+│   ├── <span class="dir">risk/</span>                   <span class="anno"># Pre/post-trade gates</span>
+│   │   ├── pre_trade_gate.cpp
+│   │   ├── post_trade_monitor.cpp
+│   │   ├── exposure_aggregator.cpp
+│   │   └── kill_switch.cpp
+│   ├── <span class="dir">execution/</span>              <span class="anno"># Order routing</span>
+│   │   ├── order_manager.cpp
+│   │   ├── smart_router.cpp
+│   │   ├── fill_tracker.cpp
+│   │   └── slippage_model.cpp
+│   └── <span class="dir">ffi/</span>                    <span class="anno"># PyO3 / cffi bindings</span>
+│       ├── pybindings.cpp
+│       └── flatbuffer_schemas.cpp
+├── <span class="dir">include/</span>                    <span class="anno"># Public headers</span>
+│   ├── core/
+│   ├── market_data/
+│   ├── bridge/
+│   ├── risk/
+│   └── execution/
+├── <span class="dir">python/</span>                     <span class="anno"># Python 3.12 layer</span>
+│   ├── <span class="dir">strategy/</span>               <span class="anno"># Strategy orchestration</span>
+│   │   ├── base_strategy.py
+│   │   ├── strategy_coordinator.py
+│   │   ├── momentum_xau.py
+│   │   ├── mean_reversion_xau.py
+│   │   └── news_aware.py
+│   ├── <span class="dir">features/</span>               <span class="anno"># Feature engineering</span>
+│   │   ├── feature_engine.py
+│   │   ├── ta_features.py
+│   │   ├── microstructure_features.py
+│   │   └── session_features.py
+│   ├── <span class="dir">signal/</span>                 <span class="anno"># Signal generation</span>
+│   │   ├── signal_engine.py
+│   │   ├── ensemble_combiner.py
+│   │   └── signal_filter.py
+│   ├── <span class="dir">ml/</span>                     <span class="anno"># ML inference + training</span>
+│   │   ├── inference_engine.py
+│   │   ├── model_registry.py
+│   │   ├── train_pipeline.py
+│   │   └── walk_forward.py
+│   ├── <span class="dir">backtest/</span>               <span class="anno"># Replay engine</span>
+│   │   ├── replay_engine.py
+│   │   ├── simulated_executor.py
+│   │   ├── metrics_calculator.py
+│   │   └── monte_carlo.py
+│   └── <span class="dir">research/</span>               <span class="anno"># Jupyter notebooks</span>
+│       └── exploratory/
+├── <span class="dir">tests/</span>                      <span class="anno"># All test types</span>
+│   ├── unit/
+│   ├── integration/
+│   ├── component/
+│   ├── backtest/
+│   └── chaos/
+</pre>
+    </div>
+    <div class="col">
+      <h2>Infrastructure, Configs & Operations</h2>
+<pre>
+├── <span class="dir">configs/</span>                    <span class="anno"># Runtime configuration</span>
+│   ├── titan-core.yaml        <span class="anno"># CPU pinning, hugepages</span>
+│   ├── risk.yaml              <span class="anno"># Limits, blackout windows</span>
+│   ├── strategy.yaml          <span class="anno"># Strategy params</span>
+│   ├── monitoring.yaml        <span class="anno"># Prometheus rules</span>
+│   ├── license.yaml           <span class="anno"># License server config</span>
+│   └── environments/
+│       ├── dev.yaml
+│       ├── staging.yaml
+│       └── production.yaml
+├── <span class="dir">deploy/</span>                     <span class="anno"># Deployment artifacts</span>
+│   ├── <span class="dir">docker/</span>                 <span class="anno"># Container images</span>
+│   │   ├── titan-core.Dockerfile
+│   │   ├── titan-strategy.Dockerfile
+│   │   └── mt5-terminal.Dockerfile
+│   ├── <span class="dir">k8s/</span>                    <span class="anno"># K8s manifests</span>
+│   │   ├── titan-namespace.yaml
+│   │   ├── titan-core-deploy.yaml
+│   │   ├── titan-strategy-deploy.yaml
+│   │   ├── monitoring-stack.yaml
+│   │   └── network-policies.yaml
+│   ├── <span class="dir">terraform/</span>              <span class="anno"># VPS provisioning</span>
+│   │   ├── vps-primary.tf
+│   │   ├── vps-standby.tf
+│   │   ├── vps-dr.tf
+│   │   └── wireguard-mesh.tf
+│   └── <span class="dir">ansible/</span>                <span class="anno"># OS hardening playbooks</span>
+│       ├── kernel-tuning.yml
+│       ├── cpu-pinning.yml
+│       └── security-hardening.yml
+├── <span class="dir">scripts/</span>                    <span class="anno"># Operational scripts</span>
+│   ├── install.sh
+│   ├── start-titan.sh
+│   ├── stop-titan.sh
+│   ├── kill-switch.sh
+│   ├── backup-state.sh
+│   └── restore-state.sh
+├── <span class="dir">ci/</span>                         <span class="anno"># CI/CD pipelines</span>
+│   ├── gitlab-ci.yml
+│   ├── backtest-gate.py
+│   └── canary-promote.py
+├── <span class="dir">docs/</span>                       <span class="anno"># Architecture & API docs</span>
+│   ├── architecture/
+│   ├── api/
+│   ├── runbooks/
+│   └── adr/                   <span class="anno"># Architecture Decision Records</span>
+├── <span class="dir">third_party/</span>                <span class="anno"># Vendored deps</span>
+│   ├── pybind11/
+│   ├── moodycamel/
+│   └── flatbuffers/
+├── <span class="dir">tools/</span>                      <span class="anno"># Dev tooling</span>
+│   ├── profiler/
+│   ├── linter/
+│   └── codegen/
+├── <span class="dir">licenses/</span>                   <span class="anno"># Legal & licensing</span>
+│   ├── EULA.txt
+│   ├── third-party-notices.txt
+│   └── audit-trail-schema.json
+├── <span class="dir">monitoring/</span>                 <span class="anno"># Observability stack</span>
+│   ├── grafana-dashboards/
+│   ├── prometheus-rules/
+│   ├── loki-config/
+│   └── alertmanager-templates/
+├── CMakeLists.txt             <span class="anno"># C++ build</span>
+├── pyproject.toml             <span class="anno"># Python build</span>
+├── .env.template
+├── .gitignore
+└── README.md
+</pre>
+    </div>
+  </div>
+  <div class="legend">
+    <span><b style="color:#14213D">■</b> Directory</span>
+    <span><b style="color:#4A5568">■</b> File</span>
+    <span><b style="color:#C8102E">■</b> Annotation</span>
+    <span style="margin-left:auto">Layer separation: C++ on hot path (sub-ms) · Python on intelligence layer (10ms+)</span>
+  </div>
+</div>
+</body>
+</html>

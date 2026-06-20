@@ -1,0 +1,136 @@
+# TITAN XAU AI — Configuration
+# /home/z/my-project/titan/config/titan.yaml
+
+system:
+  name: "TITAN XAU AI"
+  version: "1.0.0"
+  environment: "production"
+  log_level: "INFO"
+
+# MetaTrader5 Connection
+mt5:
+  terminal_path: "C:\\Program Files\\MetaTrader 5\\terminal64.exe"
+  login: 0          # Set your MT5 login
+  password: ""       # Set your MT5 password
+  server: ""         # Set your broker server
+  timeout: 60000
+
+# Broker Profiles
+brokers:
+  exness:
+    server_prefix: "Exness"
+    symbol_suffix: ""
+    contract_size: 100
+    min_lot: 0.01
+    lot_step: 0.01
+    leverage: 500
+    margin_mode: "retail"
+    timezone: "EET"
+  icmarkets:
+    server_prefix: "ICMarkets"
+    symbol_suffix: ".c"
+    contract_size: 100
+    min_lot: 0.01
+    lot_step: 0.01
+    leverage: 500
+    margin_mode: "retail"
+    timezone: "EET"
+  pepperstone:
+    server_prefix: "Pepperstone"
+    symbol_suffix: ""
+    contract_size: 100
+    min_lot: 0.01
+    lot_step: 0.01
+    leverage: 500
+    margin_mode: "retail"
+    timezone: "EET"
+  tickmill:
+    server_prefix: "Tickmill"
+    symbol_suffix: ""
+    contract_size: 100
+    min_lot: 0.01
+    lot_step: 0.01
+    leverage: 500
+    margin_mode: "retail"
+    timezone: "EET"
+  fp_markets:
+    server_prefix: "FP Markets"
+    symbol_suffix: ""
+    contract_size: 100
+    min_lot: 0.01
+    lot_step: 0.01
+    leverage: 500
+    margin_mode: "retail"
+    timezone: "EET"
+  fusion_markets:
+    server_prefix: "Fusion Markets"
+    symbol_suffix: ""
+    contract_size: 100
+    min_lot: 0.01
+    lot_step: 0.01
+    leverage: 500
+    margin_mode: "retail"
+    timezone: "EET"
+
+# Symbol Configuration
+symbols:
+  primary: "XAUUSD"
+  alternate_names:
+    - "XAUUSD"
+    - "XAUUSD.c"
+    - "XAUUSD.m"
+    - "XAUUSD."
+    - "GOLD"
+    - "XAU/USD"
+
+# Database
+database:
+  sqlite_path: "/home/z/my-project/titan/data/titan.db"
+  redis_host: "localhost"
+  redis_port: 6379
+  redis_db: 0
+
+# Risk Engine
+risk:
+  max_daily_drawdown: 5.0          # % of equity
+  max_overall_drawdown: 10.0       # % of initial balance
+  max_per_trade_risk: 1.0          # % of equity per trade
+  max_concurrent_positions: 5
+  kill_switch_latency_ms: 500      # max ms to flatten
+  margin_alert_threshold: 200      # % margin level alert
+  correlation_threshold: 0.85      # hedge flag threshold
+
+# Execution
+execution:
+  max_ops_per_second: 50
+  idempotency_cache_size: 10000
+  max_retries: 2
+  retry_backoff_ms: 500
+  signal_to_broker_budget_ms: 150
+
+# Market Data
+market_data:
+  tick_cache_size: 100000
+  parquet_path: "/home/z/my-project/titan/data/ticks"
+  quality_gates:
+    max_gap_seconds: 5
+    max_spread_usd: 5.0
+    weekend_close: "Fri 22:00"
+    weekend_open: "Sun 23:00"
+
+# Licensing (M21)
+licensing:
+  jwt_secret: "${TITAN_JWT_SECRET}"     # set via env var; ≥16 chars
+  store_path: "/home/z/my-project/titan/data/licenses.db"
+  heartbeat_interval_seconds: 60
+  grace_seconds: 604800                 # 7 days post-expiry grace
+  default_tier: "yearly"
+  activation_ttl_seconds: 86400
+
+# Compliance (M22)
+compliance:
+  enabled: true
+  firm_id: "ftmo"                       # ftmo|fundednext|e8|the5ers|funding_pips|custom
+  phase: "phase1"                       # phase1|phase2|funded
+  initial_balance: 100000
+  audit_db_path: "/home/z/my-project/titan/data/compliance_audit.db"

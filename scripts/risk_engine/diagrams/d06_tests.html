@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Risk Engine — Validation Tests</title>
+<style>
+  @page { size: 1600px 900px; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #ffffff; font-family: 'Tinos','FreeSerif',serif; color: #14213D; }
+  .canvas { width: 1600px; height: 900px; padding: 50px 60px; box-sizing: border-box; }
+  .title-bar { display: flex; align-items: baseline; gap: 18px; border-bottom: 2px solid #14213D; padding-bottom: 12px; margin-bottom: 24px; }
+  .title-bar .num { font-size: 48px; font-weight: 900; color: #C8102E; line-height: 1; }
+  .title-bar h1 { font-size: 26px; font-weight: 700; margin: 0; }
+  .title-bar .sub { font-size: 13px; color: #4A5568; margin-left: auto; font-family: 'JetBrains Mono',monospace; }
+  svg { display: block; margin: 0 auto; background: #FAFBFC; border: 1px solid #E2E8F0; }
+  .table { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-top: 14px; }
+  .table th { background: #14213D; color: #ffffff; padding: 6px 8px; text-align: left; font-weight: 700; }
+  .table td { padding: 5px 8px; border-bottom: 1px solid #E2E8F0; }
+  .table tr:nth-child(even) td { background: #F8FAFC; }
+  .table .mod { color: #14213D; font-family: 'JetBrains Mono',monospace; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="title-bar">
+    <span class="num">06</span>
+    <h1>Validation Tests — Risk Engine CI Gates</h1>
+    <span class="sub">Unit · Integration · Chaos · Stress · Recovery</span>
+  </div>
+
+  <svg width="1480" height="200" viewBox="0 0 1480 200">
+    <polygon points="40,180 720,180 660,120 100,120" fill="#F0FDF4" stroke="#14213D" stroke-width="2"/>
+    <text x="380" y="145" text-anchor="middle" font-size="14" font-weight="700" fill="#14213D" font-family="Tinos">UNIT TESTS (120)</text>
+    <text x="380" y="162" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">per-mode params · formulas · breaker logic</text>
+
+    <polygon points="100,120 660,120 600,60 160,60" fill="#FEF3F2" stroke="#14213D" stroke-width="2"/>
+    <text x="380" y="85" text-anchor="middle" font-size="13" font-weight="700" fill="#14213D" font-family="Tinos">INTEGRATION + CHAOS + STRESS (80 tests)</text>
+    <text x="380" y="102" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">kill switch · circuit breakers · mode switching · 200 tests total</text>
+
+    <text x="780" y="40" font-size="14" font-weight="700" fill="#C8102E" font-family="Tinos">CI GATES</text>
+    <g font-family="JetBrains Mono" font-size="11" fill="#14213D">
+      <text x="780" y="65">Kill switch &lt; 500ms end-to-end (verified)</text>
+      <text x="780" y="85">Circuit breakers fire at exact thresholds</text>
+      <text x="780" y="105">Mode switch: Conservative in &lt;1s on degrade</text>
+      <text x="780" y="125">No position exceeds risk_per_trade × equity</text>
+      <text x="780" y="145">Exposure never exceeds max_exposure</text>
+      <text x="780" y="165">Equity guardrail: flatten &lt; 2s on L3 breach</text>
+    </g>
+  </svg>
+
+  <table class="table">
+    <tr><th>Test ID</th><th>Category</th><th>Scenario</th><th>Expected Result</th><th>Gate</th></tr>
+    <tr><td class="mod">UT-DD-001</td><td>Unit / Daily DD</td><td>Equity drops 1.6% from daily peak (Conservative mode)</td><td>Hard breaker: halt new entries</td><td>Must pass</td></tr>
+    <tr><td class="mod">UT-DD-002</td><td>Unit / Daily DD</td><td>Equity drops 1.0% from daily peak (Conservative mode)</td><td>Soft breaker: size × 0.5</td><td>Must pass</td></tr>
+    <tr><td class="mod">UT-DD-003</td><td>Unit / Weekly DD</td><td>Equity drops 3.1% from 7-day peak (Balanced mode)</td><td>Hard breaker: halt + operator alert</td><td>Must pass</td></tr>
+    <tr><td class="mod">UT-MODE-001</td><td>Unit / Mode Switch</td><td>Switch from Aggressive to Conservative</td><td>All params updated in <1s · audit logged</td><td>Must pass</td></tr>
+    <tr><td class="mod">UT-MODE-002</td><td>Unit / Mode Switch</td><td>Operator requests Competition mode without auth</td><td>REJECTED · audit: UNAUTHORIZED_MODE_SWITCH</td><td>Must pass</td></tr>
+    <tr><td class="mod">UT-SIZE-001</td><td>Unit / Position Size</td><td>$100k equity · 0.5% risk · $2 stop · $1 tick</td><td>qty = 0.25 lots</td><td>Must pass</td></tr>
+    <tr><td class="mod">UT-EXP-001</td><td>Unit / Exposure</td><td>3 open positions totaling 4.9% equity (Conservative)</td><td>4th entry REJECTED · max_exposure = 3%</td><td>Must pass</td></tr>
+    <tr><td class="mod">UT-CONC-001</td><td>Unit / Concurrency</td><td>2 open trades (Conservative mode) · new signal</td><td>REJECTED · max_open_trades = 2</td><td>Must pass</td></tr>
+    <tr><td class="mod">UT-LOSS-001</td><td>Unit / Loss Streak</td><td>3 consecutive losses (Conservative mode)</td><td>Size × 0.5 · status THROTTLED</td><td>Must pass</td></tr>
+    <tr><td class="mod">UT-LOSS-002</td><td>Unit / Loss Streak</td><td>5 consecutive losses (Conservative mode)</td><td>HALT · no new entries · page operator</td><td>Must pass</td></tr>
+    <tr><td class="mod">UT-EQG-001</td><td>Unit / Equity Guardrail</td><td>Equity drops to 89% of start (Conservative)</td><td>Flatten all · page operator P1</td><td>Must pass</td></tr>
+    <tr><td class="mod">UT-KS-001</td><td>Unit / Kill Switch</td><td>Manual kill switch trigger (2-person auth)</td><td>Halt → cancel → flatten → notify · <500ms</td><td>Must pass</td></tr>
+    <tr><td class="mod">UT-KS-002</td><td>Unit / Kill Switch</td><td>Kill switch triggered · cooldown active (within 5min)</td><td>Re-arm REJECTED · audit: COOLDOWN_ACTIVE</td><td>Must pass</td></tr>
+    <tr><td class="mod">CT-001</td><td>Chaos / Live</td><td>Broker disconnect mid-position · kill switch fires</td><td>Positions flattened on reconnect · 0 lost</td><td>Must pass</td></tr>
+    <tr><td class="mod">CT-002</td><td>Chaos / Live</td><td>3 consecutive losses → 5th loss during throttle</td><td>Auto-halt · no 6th entry · operator paged</td><td>Must pass</td></tr>
+    <tr><td class="mod">ST-001</td><td>Stress / Load</td><td>100 concurrent signals · Conservative mode</td><td>Max 2 accepted · 98 rejected · all audited</td><td>Must pass</td></tr>
+  </table>
+</div>
+</body>
+</html>

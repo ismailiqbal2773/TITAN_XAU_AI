@@ -1,0 +1,17 @@
+{
+  "source": "Dukascopy",
+  "start_date": "2020-03-01 23:00:00+00:00",
+  "end_date": "2024-12-31 21:58:00+00:00",
+  "years_covered": 4.83,
+  "tick_count_est": 78308500,
+  "m1_bars": 783085,
+  "coverage_pct_month": 51.7,
+  "coverage_pct_bar": 43.5,
+  "missing_pct": 48.3,
+  "duplicates_pct": 0.0,
+  "real_data_pct": 100,
+  "synthetic_data_pct": 0,
+  "calibrated_data_pct": 0,
+  "data_type": "REAL (Dukascopy tick data)",
+  "yearly_breakdown": {
+    

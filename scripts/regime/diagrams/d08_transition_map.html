@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Regime Detection — Regime Transition Map</title>
+<style>
+  @page { size: 1600px 800px; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #ffffff; font-family: 'Tinos','FreeSerif',serif; color: #14213D; }
+  .canvas { width: 1600px; height: 800px; padding: 50px 60px; box-sizing: border-box; }
+  .title-bar { display: flex; align-items: baseline; gap: 18px; border-bottom: 2px solid #14213D; padding-bottom: 12px; margin-bottom: 24px; }
+  .title-bar .num { font-size: 48px; font-weight: 900; color: #C8102E; line-height: 1; }
+  .title-bar h1 { font-size: 26px; font-weight: 700; margin: 0; }
+  .title-bar .sub { font-size: 13px; color: #4A5568; margin-left: auto; font-family: 'JetBrains Mono',monospace; }
+  svg { display: block; margin: 0 auto; background: #FAFBFC; border: 1px solid #E2E8F0; }
+  .table { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-top: 14px; }
+  .table th { background: #14213D; color: #ffffff; padding: 6px 8px; text-align: left; font-weight: 700; }
+  .table td { padding: 5px 8px; border-bottom: 1px solid #E2E8F0; }
+  .table tr:nth-child(even) td { background: #F8FAFC; }
+  .table .mod { color: #14213D; font-family: 'JetBrains Mono',monospace; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="title-bar">
+    <span class="num">08</span>
+    <h1>Regime Transition Map — Empirical State Probabilities</h1>
+    <span class="sub">4 states · 16 transitions · empirical probabilities from 24mo backtest</span>
+  </div>
+
+  <svg width="1480" height="500" viewBox="0 0 1480 500">
+    <defs>
+      <marker id="arT" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+        <path d="M0,0 L0,6 L9,3 z" fill="#14213D"/>
+      </marker>
+      <marker id="arTR" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+        <path d="M0,0 L0,6 L9,3 z" fill="#C8102E"/>
+      </marker>
+    </defs>
+
+    <!-- 4 regime states -->
+    <!-- TREND -->
+    <circle cx="280" cy="200" r="80" fill="#14213D"/>
+    <text x="280" y="195" text-anchor="middle" fill="#ffffff" font-size="20" font-weight="700" font-family="Tinos">TREND</text>
+    <text x="280" y="218" text-anchor="middle" fill="#C8102E" font-size="11" font-family="JetBrains Mono">38% of time</text>
+    <text x="280" y="232" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="9" font-family="JetBrains Mono">avg dwell: 18 bars</text>
+
+    <!-- RANGE -->
+    <circle cx="740" cy="120" r="80" fill="#F0FDF4" stroke="#14213D" stroke-width="3"/>
+    <text x="740" y="115" text-anchor="middle" font-size="20" font-weight="700" font-family="Tinos">RANGE</text>
+    <text x="740" y="138" text-anchor="middle" fill="#C8102E" font-size="11" font-family="JetBrains Mono">42% of time</text>
+    <text x="740" y="152" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">avg dwell: 24 bars</text>
+
+    <!-- VOLATILE -->
+    <circle cx="740" cy="380" r="80" fill="#FEFBEB" stroke="#B45309" stroke-width="3"/>
+    <text x="740" y="375" text-anchor="middle" font-size="18" font-weight="700" fill="#B45309" font-family="Tinos">VOLATILE</text>
+    <text x="740" y="398" text-anchor="middle" fill="#C8102E" font-size="11" font-family="JetBrains Mono">12% of time</text>
+    <text x="740" y="412" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">avg dwell: 6 bars</text>
+
+    <!-- NEWS -->
+    <circle cx="1200" cy="200" r="80" fill="#C8102E"/>
+    <text x="1200" y="195" text-anchor="middle" fill="#ffffff" font-size="20" font-weight="700" font-family="Tinos">NEWS</text>
+    <text x="1200" y="218" text-anchor="middle" fill="#ffffff" opacity="0.9" font-size="11" font-family="JetBrains Mono">8% of time</text>
+    <text x="1200" y="232" text-anchor="middle" fill="#ffffff" opacity="0.9" font-size="9" font-family="JetBrains Mono">avg dwell: 3 bars</text>
+
+    <!-- Transitions with probabilities -->
+    <!-- TREND self-loop -->
+    <path d="M 220 130 Q 280 50 340 130" stroke="#14213D" stroke-width="2.5" fill="none" marker-end="url(#arT)"/>
+    <text x="280" y="50" text-anchor="middle" font-size="10" font-weight="700" fill="#14213D" font-family="JetBrains Mono">0.82 (stay)</text>
+
+    <!-- TREND → RANGE -->
+    <line x1="355" y1="170" x2="660" y2="130" stroke="#14213D" stroke-width="2" marker-end="url(#arT)"/>
+    <text x="500" y="140" text-anchor="middle" font-size="10" fill="#14213D" font-family="JetBrains Mono">0.10</text>
+
+    <!-- TREND → VOLATILE -->
+    <line x1="355" y1="230" x2="660" y2="360" stroke="#14213D" stroke-width="2" marker-end="url(#arT)"/>
+    <text x="500" y="320" text-anchor="middle" font-size="10" fill="#14213D" font-family="JetBrains Mono">0.06</text>
+
+    <!-- TREND → NEWS -->
+    <line x1="360" y1="200" x2="1120" y2="200" stroke="#C8102E" stroke-width="1.5" stroke-dasharray="6 3" marker-end="url(#arTR)"/>
+    <text x="740" y="195" text-anchor="middle" font-size="10" fill="#C8102E" font-family="JetBrains Mono">0.02 (news event)</text>
+
+    <!-- RANGE self-loop -->
+    <path d="M 820 60 Q 740 20 660 60" stroke="#14213D" stroke-width="2.5" fill="none" marker-end="url(#arT)"/>
+    <text x="740" y="20" text-anchor="middle" font-size="10" font-weight="700" fill="#14213D" font-family="JetBrains Mono">0.78 (stay)</text>
+
+    <!-- RANGE → TREND -->
+    <line x1="660" y1="170" x2="355" y2="190" stroke="#14213D" stroke-width="2" marker-end="url(#arT)" opacity="0.5"/>
+    <text x="500" y="170" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono" opacity="0.6">0.12</text>
+
+    <!-- RANGE → VOLATILE -->
+    <line x1="740" y1="200" x2="740" y2="300" stroke="#14213D" stroke-width="2" marker-end="url(#arT)"/>
+    <text x="755" y="255" font-size="10" fill="#14213D" font-family="JetBrains Mono">0.07</text>
+
+    <!-- RANGE → NEWS -->
+    <line x1="820" y1="130" x2="1120" y2="180" stroke="#C8102E" stroke-width="1.5" stroke-dasharray="6 3" marker-end="url(#arTR)"/>
+    <text x="980" y="140" text-anchor="middle" font-size="10" fill="#C8102E" font-family="JetBrains Mono">0.03</text>
+
+    <!-- VOLATILE self-loop -->
+    <path d="M 820 440 Q 740 480 660 440" stroke="#B45309" stroke-width="2.5" fill="none" marker-end="url(#arT)"/>
+    <text x="740" y="480" text-anchor="middle" font-size="10" font-weight="700" fill="#B45309" font-family="JetBrains Mono">0.45 (stay)</text>
+
+    <!-- VOLATILE → TREND -->
+    <line x1="660" y1="350" x2="355" y2="230" stroke="#14213D" stroke-width="2" marker-end="url(#arT)"/>
+    <text x="450" y="290" text-anchor="middle" font-size="10" fill="#14213D" font-family="JetBrains Mono">0.18</text>
+
+    <!-- VOLATILE → RANGE -->
+    <line x1="740" y1="300" x2="740" y2="200" stroke="#14213D" stroke-width="2" marker-end="url(#arT)" opacity="0.6"/>
+    <text x="755" y="270" font-size="10" fill="#4A5568" font-family="JetBrains Mono" opacity="0.6">0.25</text>
+
+    <!-- VOLATILE → NEWS -->
+    <line x1="820" y1="370" x2="1120" y2="230" stroke="#C8102E" stroke-width="1.5" stroke-dasharray="6 3" marker-end="url(#arTR)"/>
+    <text x="980" y="320" text-anchor="middle" font-size="10" fill="#C8102E" font-family="JetBrains Mono">0.12</text>
+
+    <!-- NEWS self-loop -->
+    <path d="M 1260 130 Q 1200 50 1140 130" stroke="#C8102E" stroke-width="2.5" fill="none" marker-end="url(#arTR)"/>
+    <text x="1200" y="50" text-anchor="middle" font-size="10" font-weight="700" fill="#C8102E" font-family="JetBrains Mono">0.15 (stay)</text>
+
+    <!-- NEWS → TREND -->
+    <line x1="1120" y1="200" x2="360" y2="200" stroke="#C8102E" stroke-width="1.5" stroke-dasharray="6 3" marker-end="url(#arTR)" opacity="0.4"/>
+    <text x="740" y="215" font-size="10" fill="#C8102E" font-family="JetBrains Mono" opacity="0.6">0.25</text>
+
+    <!-- NEWS → VOLATILE -->
+    <line x1="1120" y1="230" x2="820" y2="370" stroke="#C8102E" stroke-width="1.5" stroke-dasharray="6 3" marker-end="url(#arTR)"/>
+    <text x="980" y="295" font-size="10" fill="#C8102E" font-family="JetBrains Mono">0.45</text>
+
+    <!-- NEWS → RANGE -->
+    <line x1="1120" y1="180" x2="820" y2="130" stroke="#C8102E" stroke-width="1.5" stroke-dasharray="6 3" marker-end="url(#arTR)" opacity="0.4"/>
+    <text x="980" y="160" font-size="10" fill="#C8102E" font-family="JetBrains Mono" opacity="0.6">0.15</text>
+  </svg>
+
+  <table class="table">
+    <tr><th>From → To</th><th>P(transition)</th><th>Typical Trigger</th><th>Avg Bars in Transition</th><th>Strategy Implication</th></tr>
+    <tr><td class="mod">TREND → TREND</td><td>0.82</td><td>ADX &gt; 25 sustained · EMA slope consistent</td><td>18</td><td>Momentum strategy continues</td></tr>
+    <tr><td class="mod">TREND → RANGE</td><td>0.10</td><td>ADX drops below 20 · EMA slope flattens</td><td>2-3</td><td>Pause momentum · enable mean reversion</td></tr>
+    <tr><td class="mod">TREND → VOLATILE</td><td>0.06</td><td>ATR spikes &gt; 2σ · BBW expands rapidly</td><td>1-2</td><td>Reduce size · widen stops</td></tr>
+    <tr><td class="mod">TREND → NEWS</td><td>0.02</td><td>Scheduled news event (FOMC/NFP/CPI)</td><td>1 (immediate)</td><td>Flatten or hedge · news-aware strategy</td></tr>
+    <tr><td class="mod">RANGE → RANGE</td><td>0.78</td><td>Low ADX · narrow BBW · H &lt; 0.5</td><td>24</td><td>Mean reversion strategy continues</td></tr>
+    <tr><td class="mod">RANGE → TREND</td><td>0.12</td><td>Breakout · BBW expands · ADX rising</td><td>3-5</td><td>Pause MR · enable momentum</td></tr>
+    <tr><td class="mod">RANGE → VOLATILE</td><td>0.07</td><td>Surprise news or liquidity event</td><td>1-2</td><td>Halt new entries</td></tr>
+    <tr><td class="mod">RANGE → NEWS</td><td>0.03</td><td>Scheduled news during range</td><td>1</td><td>News-aware strategy</td></tr>
+    <tr><td class="mod">VOLATILE → VOLATILE</td><td>0.45</td><td>Volatility clustering (GARCH effect)</td><td>6</td><td>Reduce size · widen stops</td></tr>
+    <tr><td class="mod">VOLATILE → TREND</td><td>0.18</td><td>Direction emerges from vol</td><td>3-4</td><td>Momentum with caution</td></tr>
+    <tr><td class="mod">VOLATILE → RANGE</td><td>0.25</td><td>Volatility decays · BBW contracts</td><td>2-3</td><td>Resume mean reversion</td></tr>
+    <tr><td class="mod">VOLATILE → NEWS</td><td>0.12</td><td>News event during vol (common)</td><td>1</td><td>News-aware strategy</td></tr>
+    <tr><td class="mod">NEWS → NEWS</td><td>0.15</td><td>Multi-day news cycle (FOMC week)</td><td>3</td><td>News-aware continues</td></tr>
+    <tr><td class="mod">NEWS → VOLATILE</td><td>0.45</td><td>Post-news volatility (most common)</td><td>1-2</td><td>Reduce size · wait for vol to settle</td></tr>
+    <tr><td class="mod">NEWS → TREND</td><td>0.25</td><td>News establishes new trend</td><td>2-3</td><td>Momentum on news direction</td></tr>
+    <tr><td class="mod">NEWS → RANGE</td><td>0.15</td><td>News priced in · reverts to range</td><td>2-3</td><td>Resume mean reversion</td></tr>
+  </table>
+</div>
+</body>
+</html>

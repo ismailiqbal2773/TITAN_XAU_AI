@@ -1,0 +1,109 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>d04</title>
+<link href="https://fonts.googleapis.com/css2?family=Tinos:wght@400;700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { width: 1600px; height: 1100px; background: #ffffff; font-family: 'Inter', sans-serif; color: #14213D; padding: 50px 60px; }
+.h-title { font-family: 'Tinos', serif; font-size: 30px; font-weight: 900; letter-spacing: -0.5px; }
+.h-sub { font-family: 'Inter', sans-serif; font-size: 13px; color: #4A5568; margin-top: 4px; }
+.h-rule { width: 80px; height: 3px; background: #C8102E; margin: 14px 0 28px 0; }
+
+.formula { background: #14213D; color: #fff; padding: 22px 28px; border-radius: 6px; margin-bottom: 22px; }
+.formula .lbl { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #C8102E; letter-spacing: 2px; font-weight: 700; }
+.formula .eq { font-family: 'JetBrains Mono', monospace; font-size: 18px; margin-top: 8px; line-height: 1.5; }
+.formula .eq .var { color: #94A3B8; }
+.formula .eq .num { color: #C8102E; font-weight: 700; }
+.formula .note { font-family: 'Inter', sans-serif; font-size: 11px; opacity: 0.85; margin-top: 10px; line-height: 1.5; }
+
+.grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 22px; }
+.table-card { border: 1px solid #CBD5E1; border-radius: 6px; overflow: hidden; }
+.table-head { background: #14213D; color: #fff; padding: 12px 18px; font-family: 'Tinos', serif; font-size: 16px; font-weight: 700; }
+table { width: 100%; border-collapse: collapse; }
+th { background: #F1F5F9; padding: 8px 12px; text-align: left; font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #4A5568; letter-spacing: 1px; border-bottom: 1px solid #CBD5E1; }
+td { padding: 9px 12px; border-bottom: 1px solid #E2E8F0; font-family: 'Inter', sans-serif; font-size: 11px; vertical-align: middle; }
+tr:nth-child(even) td { background: #F8FAFC; }
+td.w { font-family: 'JetBrains Mono', monospace; font-weight: 700; color: #C8102E; }
+td.n { font-family: 'JetBrains Mono', monospace; color: #14213D; font-weight: 600; }
+.bar { display: inline-block; height: 12px; background: #C8102E; vertical-align: middle; border-radius: 2px; }
+
+.example-card { background: #F1F5F9; border-left: 4px solid #C8102E; padding: 16px 20px; border-radius: 4px; }
+.example-card .lbl { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C8102E; letter-spacing: 2px; font-weight: 700; }
+.example-card .h { font-family: 'Tinos', serif; font-size: 16px; font-weight: 700; color: #14213D; margin-top: 4px; }
+.example-card .calc { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #14213D; margin-top: 10px; line-height: 1.7; }
+.example-card .calc .ok { color: #15803D; font-weight: 700; }
+.example-card .calc .bad { color: #C8102E; font-weight: 700; }
+.example-card .result { font-family: 'Tinos', serif; font-size: 22px; font-weight: 900; color: #14213D; margin-top: 12px; }
+.example-card .verdict { font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 4px 10px; border-radius: 3px; display: inline-block; margin-left: 10px; }
+.verdict.pass { background: #14213D; color: #fff; }
+.verdict.cond { background: #B45309; color: #fff; }
+.verdict.fail { background: #C8102E; color: #fff; }
+
+.bands { margin-top: 18px; }
+.band-row { display: grid; grid-template-columns: 110px 1fr 90px; gap: 12px; padding: 10px 14px; border-radius: 4px; margin-bottom: 6px; align-items: center; font-family: 'Inter', sans-serif; font-size: 11px; }
+.band-row .lbl { font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; padding: 4px 8px; border-radius: 3px; text-align: center; color: #fff; }
+.band-row .desc { color: #14213D; }
+.band-row .act { font-family: 'JetBrains Mono', monospace; font-size: 10px; text-align: right; font-weight: 700; }
+.band-certified { background: #DCFCE7; }
+.band-certified .lbl { background: #15803D; }
+.band-certified .act { color: #15803D; }
+.band-conditional { background: #FEF3C7; }
+.band-conditional .lbl { background: #B45309; }
+.band-conditional .act { color: #B45309; }
+.band-rejected { background: #FEE2E2; }
+.band-rejected .lbl { background: #C8102E; }
+.band-rejected .act { color: #C8102E; }
+</style></head>
+<body>
+<div class="h-title">Score Calculation Matrix</div>
+<div class="h-sub">Weighted aggregate across 8 suites · Per-suite scoring with severity deductions · 3-band certification thresholds</div>
+<div class="h-rule"></div>
+
+<div class="formula">
+  <div class="lbl">AGGREGATE SCORE FORMULA</div>
+  <div class="eq"><span class="var">Score</span> = Σ (<span class="var">SuiteScore</span><sub>i</sub> × <span class="var">Weight</span><sub>i</sub>) / Σ <span class="var">Weight</span><sub>i</sub></div>
+  <div class="eq" style="margin-top:6px"><span class="var">SuiteScore</span> = 100 − (<span class="num">10</span> × CriticalFails) − (<span class="num">3</span> × MajorFails) − (<span class="num">0.5</span> × MinorFails)</div>
+  <div class="note">Critical failures cap SuiteScore at 49. Per-suite score floored at 0. Final aggregate rounded to nearest 0.1.</div>
+</div>
+
+<div class="grid">
+  <div class="table-card">
+    <div class="table-head">Suite Weight Matrix</div>
+    <table>
+      <thead><tr><th style="width:50px">Suite</th><th>Module</th><th style="width:60px">Checks</th><th style="width:80px">Weight</th><th style="width:240px">Weight Contribution</th></tr></thead>
+      <tbody>
+        <tr><td class="n">S1</td><td>Broker Compatibility</td><td class="n">18</td><td class="w">12%</td><td><span class="bar" style="width:60px"></span></td></tr>
+        <tr><td class="n">S2</td><td>Risk Engine</td><td class="n">24</td><td class="w">18%</td><td><span class="bar" style="width:90px"></span></td></tr>
+        <tr><td class="n">S3</td><td>Spread Engine</td><td class="n">14</td><td class="w">10%</td><td><span class="bar" style="width:50px"></span></td></tr>
+        <tr><td class="n">S4</td><td>Slippage Engine</td><td class="n">16</td><td class="w">10%</td><td><span class="bar" style="width:50px"></span></td></tr>
+        <tr><td class="n">S5</td><td>AI Engine</td><td class="n">22</td><td class="w">18%</td><td><span class="bar" style="width:90px"></span></td></tr>
+        <tr><td class="n">S6</td><td>Execution Engine</td><td class="n">20</td><td class="w">14%</td><td><span class="bar" style="width:70px"></span></td></tr>
+        <tr><td class="n">S7</td><td>Regime Detection</td><td class="n">16</td><td class="w">10%</td><td><span class="bar" style="width:50px"></span></td></tr>
+        <tr><td class="n">S8</td><td>Licensing</td><td class="n">14</td><td class="w">8%</td><td><span class="bar" style="width:40px"></span></td></tr>
+        <tr style="background:#14213D;color:#fff"><td colspan="2" style="color:#fff;font-weight:700">TOTAL</td><td class="n" style="color:#fff">144</td><td class="w" style="color:#C8102E">100%</td><td style="color:#fff">Full coverage of TITAN stack</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="example-card">
+    <div class="lbl">WORKED EXAMPLE</div>
+    <div class="h">Production VPS validation run</div>
+    <div class="calc">
+S1 (Broker): 0 crit, 1 maj, 2 min → 100 − 0 − 3 − 1.0 = <span class="ok">96.0</span><br>
+S2 (Risk): 0 crit, 0 maj, 1 min → 100 − 0 − 0 − 0.5 = <span class="ok">99.5</span><br>
+S3 (Spread): 0 crit, 1 maj, 0 min → 100 − 0 − 3 − 0 = <span class="ok">97.0</span><br>
+S4 (Slippage): 0 crit, 0 maj, 0 min → 100 − 0 − 0 − 0 = <span class="ok">100.0</span><br>
+S5 (AI): 0 crit, 2 maj, 1 min → 100 − 0 − 6 − 0.5 = <span class="ok">93.5</span><br>
+S6 (Exec): 0 crit, 1 maj, 0 min → 100 − 0 − 3 − 0 = <span class="ok">97.0</span><br>
+S7 (Regime): 0 crit, 0 maj, 2 min → 100 − 0 − 0 − 1.0 = <span class="ok">99.0</span><br>
+S8 (Licensing): 0 crit, 0 maj, 0 min → 100 − 0 − 0 − 0 = <span class="ok">100.0</span><br>
+<br>
+Weighted: (96×12 + 99.5×18 + 97×10 + 100×10 + 93.5×18 + 97×14 + 99×10 + 100×8) / 100
+    </div>
+    <div class="result">96.6 / 100 <span class="verdict pass">CERTIFIED</span></div>
+  </div>
+</div>
+
+<div class="bands">
+  <div class="band-row band-certified"><div class="lbl">CERTIFIED</div><div class="desc">Score ≥ 85 AND 0 critical failures AND ≤ 6 major failures AND 3 stable consecutive runs</div><div class="act">TRADE OK</div></div>
+  <div class="band-row band-conditional"><div class="lbl">CONDITIONAL</div><div class="desc">Score 70–84 OR exactly 1 critical failure with documented engineering waiver</div><div class="act">DAILY RECHECK</div></div>
+  <div class="band-row band-rejected"><div class="lbl">REJECTED</div><div class="desc">Score &lt; 70 OR ≥ 2 critical failures OR unstable consecutive runs (flakiness detected)</div><div class="act">HALT TRADE</div></div>
+</div>
+</body></html>

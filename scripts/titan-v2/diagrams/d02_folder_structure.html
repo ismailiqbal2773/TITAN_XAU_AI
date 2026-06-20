@@ -1,0 +1,95 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>d02</title>
+<link href="https://fonts.googleapis.com/css2?family=Tinos:wght@400;700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { width: 1600px; height: 1200px; background: #ffffff; font-family: 'Inter', sans-serif; color: #14213D; padding: 50px 60px; }
+.h-title { font-family: 'Tinos', serif; font-size: 30px; font-weight: 900; letter-spacing: -0.5px; }
+.h-sub { font-family: 'Inter', sans-serif; font-size: 13px; color: #4A5568; margin-top: 4px; }
+.h-rule { width: 80px; height: 3px; background: #C8102E; margin: 14px 0 24px 0; }
+
+.tree { font-family: 'JetBrains Mono', monospace; font-size: 11.5px; line-height: 1.75; color: #14213D; background: #F8FAFC; padding: 22px 28px; border: 1px solid #CBD5E1; border-left: 4px solid #C8102E; border-radius: 4px; }
+.tree .root { font-weight: 700; color: #14213D; }
+.tree .dir { font-weight: 700; color: #14213D; }
+.tree .file { color: #4A5568; }
+.tree .desc { color: #C8102E; font-style: italic; font-weight: 600; }
+.tree .accent { color: #C8102E; font-weight: 700; }
+.tree .indent { padding-left: 24px; }
+.tree .indent2 { padding-left: 48px; }
+.tree .indent3 { padding-left: 72px; }
+.tree .indent4 { padding-left: 96px; }
+.tree .indent5 { padding-left: 120px; }
+
+.legend { margin-top: 22px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.leg { padding: 12px 14px; border-radius: 5px; background: #F1F5F9; border: 1px solid #CBD5E1; }
+.leg .lbl { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C8102E; letter-spacing: 1.5px; font-weight: 700; }
+.leg .h { font-family: 'Tinos', serif; font-size: 12px; font-weight: 700; color: #14213D; margin-top: 3px; }
+.leg .d { font-family: 'Inter', sans-serif; font-size: 10px; color: #4A5568; margin-top: 3px; line-height: 1.4; }
+</style></head>
+<body>
+<div class="h-title">Folder Structure Tree</div>
+<div class="h-sub">Monorepo layout · C++20 core + Python 3.12 AI layer · PyO3 bridge · Single deployable artifact per VPS</div>
+<div class="h-rule"></div>
+
+<div class="tree">
+<span class="root">titan-xau-ai/</span>  <span class="desc">← monorepo root, single deployable</span>
+<span class="indent"><span class="dir">├── core/</span>                          <span class="desc">← C++20 execution core (low-latency)</span></span>
+<span class="indent2">├── broker_adapter/         <span class="desc">← MT5 bridge, 6-broker runtime detection</span></span>
+<span class="indent2">├── market_data/            <span class="desc">← tick ingest, Parquet store, 14 quality gates</span></span>
+<span class="indent2">├── execution/              <span class="desc">← async dispatcher, idempotency, 50 ops/s</span></span>
+<span class="indent2">├── risk/                   <span class="desc">← 4 risk modes, 12 controls, kill &lt;500 ms</span></span>
+<span class="indent2">├── slippage/               <span class="desc">← EQS scoring, P50/P90/P99 distribution</span></span>
+<span class="indent2">├── spread/                 <span class="desc">← variable spread baseline, news widening</span></span>
+<span class="indent2">└── CMakeLists.txt</span>
+<span class="indent"><span class="dir">├── ai/</span>                            <span class="desc">← Python 3.12 AI layer</span></span>
+<span class="indent2">├── models/                 <span class="desc">← XGBoost, LSTM, Transformer, RL agent</span></span>
+<span class="indent2">├── ensemble/               <span class="desc">← voting layer, confidence threshold</span></span>
+<span class="indent2">├── regime/                 <span class="desc">← 4-state detection, 3-model vote</span></span>
+<span class="indent2">├── strategies/             <span class="desc">← trend, range, volatility engines</span></span>
+<span class="indent2">├── training/               <span class="desc">← retraining pipeline, champion/challenger</span></span>
+<span class="indent2">└── requirements.txt</span>
+<span class="indent"><span class="dir">├── bridge/</span>                       <span class="desc">← PyO3 bindings (C++ ↔ Python)</span></span>
+<span class="indent2">├── bindings.cppi</span>
+<span class="indent2">└── pyproject.toml</span>
+<span class="indent"><span class="dir">├── validation/</span>                   <span class="desc">← validation + testing frameworks</span></span>
+<span class="indent2">├── backtest/               <span class="desc">← tick-based, 5 cost components, 24 metrics</span></span>
+<span class="indent2">├── walk_forward/           <span class="desc">← anchored/rolling, WFE ≥ 85%</span></span>
+<span class="indent2">├── monte_carlo/            <span class="desc">← 10k permutations, survival ≥ 95%</span></span>
+<span class="indent2">├── stress_test/            <span class="desc">← flash crash, news shock, broker outage</span></span>
+<span class="indent2">├── validator/              <span class="desc">← 8 suites, 144 checks, 3-band cert</span></span>
+<span class="indent2">└── tests/                  <span class="desc">← unit / integration / e2e / chaos / soak</span></span>
+<span class="indent"><span class="dir">├── licensing/</span>                    <span class="desc">← commercial licensing &amp; anti-tamper</span></span>
+<span class="indent2">├── client/                 <span class="desc">← JWT verify, hw_fingerprint, 5 anti-crack</span></span>
+<span class="indent2">├── server/                 <span class="desc">← license issuer, tenant mgmt, revocation</span></span>
+<span class="indent2">└── crypto/                 <span class="desc">← RSA-4096, AES-256, HSM integration</span></span>
+<span class="indent"><span class="dir">├── observability/</span>                <span class="desc">← monitoring &amp; telemetry</span></span>
+<span class="indent2">├── metrics/                <span class="desc">← Prometheus exporters, 12 gauges</span></span>
+<span class="indent2">├── logging/                <span class="desc">← structured JSON, 7-year retention</span></span>
+<span class="indent2">├── tracing/                <span class="desc">← OpenTelemetry, distributed traces</span></span>
+<span class="indent2">└── alerting/               <span class="desc">← PagerDuty, Slack, email integration</span></span>
+<span class="indent"><span class="dir">├── deployment/</span>                   <span class="desc">← deployment &amp; ops</span></span>
+<span class="indent2">├── docker/                 <span class="desc">← container images, multi-stage builds</span></span>
+<span class="indent2">├── ansible/                <span class="desc">← VPS provisioning, config mgmt</span></span>
+<span class="indent2">├── terraform/              <span class="desc">← AWS infra (license server, S3 archive)</span></span>
+<span class="indent2">└── scripts/                <span class="desc">← deploy.sh, rollback.sh, health-check.sh</span></span>
+<span class="indent"><span class="dir">├── docs/</span>                         <span class="desc">← architecture &amp; operations docs</span></span>
+<span class="indent2">├── architecture/           <span class="desc">← this document + 13 module specs</span></span>
+<span class="indent2">├── api/                    <span class="desc">← REST + WebSocket API reference</span></span>
+<span class="indent2">├── runbooks/               <span class="desc">← incident response, DR procedures</span></span>
+<span class="indent2">└── compliance/             <span class="desc">← audit reports, regulatory filings</span></span>
+<span class="indent"><span class="dir">├── config/</span>                       <span class="desc">← runtime configuration</span></span>
+<span class="indent2">├── brokers.yaml            <span class="desc">← 6 broker profiles, cost tables</span></span>
+<span class="indent2">├── strategies.yaml         <span class="desc">← strategy params, regime mapping</span></span>
+<span class="indent2">├── risk_limits.yaml        <span class="desc">← MDD, per-trade risk, exposure caps</span></span>
+<span class="indent2">└── licensing.yaml          <span class="desc">← tier features, JWT expiry policy</span></span>
+<span class="indent"><span class="dir">└── .github/</span>                      <span class="desc">← CI/CD</span></span>
+<span class="indent2">├── workflows/              <span class="desc">← build, test, security scan, deploy</span></span>
+<span class="indent2">└── policies/               <span class="desc">← branch protection, code review rules</span></span>
+</div>
+
+<div class="legend">
+  <div class="leg"><div class="lbl">CORE</div><div class="h">C++20 Execution</div><div class="d">Low-latency critical path: broker, execution, risk, slippage, spread</div></div>
+  <div class="leg"><div class="lbl">AI LAYER</div><div class="h">Python 3.12</div><div class="d">ML models, regime detection, strategies, retraining pipeline</div></div>
+  <div class="leg"><div class="lbl">BRIDGE</div><div class="h">PyO3 Bindings</div><div class="d">Zero-copy data exchange between C++ core and Python AI</div></div>
+  <div class="leg"><div class="lbl">VALIDATION</div><div class="h">5 Frameworks</div><div class="d">Backtest, WFA, Monte Carlo, Stress, Validator — all gate live trading</div></div>
+</div>
+</body></html>

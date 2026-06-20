@@ -1,0 +1,19 @@
+=== TITAN Download Daemon Started: 2026-06-20T19:10:00Z ===
+Total batches queued: 120
+
+[1/120] 2020-04-01 → 2020-04-05  @ 19:10:00
+TITAN Real Data Downloader (SCHEMA-ALIGNED)
+  Range:   2020-04-01 -> 2020-04-05
+  Output:  /home/z/my-project/titan/data/sources/dukascopy/daily
+  Workers: 8  Timeout: 30s  Retries: 4
+
+
+Done. 0 new bars written. 3 days skipped (already present).
+Total elapsed: 0.0s
+
+[2/120] 2020-04-06 → 2020-04-10  @ 19:10:02
+TITAN Real Data Downloader (SCHEMA-ALIGNED)
+  Range:   2020-04-06 -> 2020-04-10
+  Output:  /home/z/my-project/titan/data/sources/dukascopy/daily
+  Workers: 8  Timeout: 30s  Retries: 4
+

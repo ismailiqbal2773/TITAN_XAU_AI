@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Broker Compatibility Engine — Test Pyramid &amp; Broker Profiles</title>
+<style>
+  @page { size: 1600px 1100px; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #ffffff; font-family: 'Tinos','FreeSerif',serif; color: #14213D; }
+  .canvas { width: 1600px; height: 1100px; padding: 50px 60px; box-sizing: border-box; }
+  .title-bar { display: flex; align-items: baseline; gap: 18px; border-bottom: 2px solid #14213D; padding-bottom: 12px; margin-bottom: 24px; }
+  .title-bar .num { font-size: 48px; font-weight: 900; color: #C8102E; line-height: 1; }
+  .title-bar h1 { font-size: 26px; font-weight: 700; margin: 0; }
+  .title-bar .sub { font-size: 13px; color: #4A5568; margin-left: auto; font-family: 'JetBrains Mono',monospace; }
+  svg { display: block; margin: 0 auto; background: #FAFBFC; border: 1px solid #E2E8F0; }
+  .table { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-top: 14px; }
+  .table th { background: #14213D; color: #ffffff; padding: 6px 8px; text-align: left; font-weight: 700; }
+  .table td { padding: 5px 8px; border-bottom: 1px solid #E2E8F0; }
+  .table tr:nth-child(even) td { background: #F8FAFC; }
+  .table .mod { color: #14213D; font-family: 'JetBrains Mono',monospace; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="title-bar">
+    <span class="num">06</span>
+    <h1>Test Pyramid &amp; Broker Profile Reference</h1>
+    <span class="sub">5-layer test strategy · 6 broker profiles with known-good values</span>
+  </div>
+
+  <svg width="1480" height="500" viewBox="0 0 1480 500">
+    <text x="40" y="30" font-size="14" font-weight="700" fill="#C8102E" font-family="Tinos">(a) Test Pyramid</text>
+
+    <!-- Pyramid -->
+    <polygon points="40,400 720,400 660,330 100,330" fill="#F0FDF4" stroke="#14213D" stroke-width="2"/>
+    <text x="380" y="365" text-anchor="middle" font-size="14" font-weight="700" fill="#14213D" font-family="Tinos">UNIT TESTS</text>
+    <text x="380" y="382" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">pytest + GoogleTest · 200+ tests · 85% coverage</text>
+    <text x="380" y="395" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">per-detector, per-validator, property-based</text>
+
+    <polygon points="100,330 660,330 600,260 160,260" fill="#FEF3F2" stroke="#14213D" stroke-width="2"/>
+    <text x="380" y="295" text-anchor="middle" font-size="14" font-weight="700" fill="#14213D" font-family="Tinos">INTEGRATION</text>
+    <text x="380" y="312" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Pact contracts · probe ↔ detector ↔ validator</text>
+    <text x="380" y="325" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">60+ contract tests</text>
+
+    <polygon points="160,260 600,260 540,190 220,190" fill="#F0FDF4" stroke="#14213D" stroke-width="2"/>
+    <text x="380" y="225" text-anchor="middle" font-size="14" font-weight="700" fill="#14213D" font-family="Tinos">BROKER PROFILES</text>
+    <text x="380" y="242" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">6 known brokers + generic · golden-value tests</text>
+    <text x="380" y="255" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">20+ profile match tests</text>
+
+    <polygon points="220,190 540,190 480,120 280,120" fill="#FEF3F2" stroke="#14213D" stroke-width="2"/>
+    <text x="380" y="155" text-anchor="middle" font-size="13" font-weight="700" fill="#14213D" font-family="Tinos">REGRESSION (snapshot)</text>
+    <text x="380" y="172" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">replay 100+ captured broker sessions</text>
+    <text x="380" y="185" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">snapshot diff · nightly</text>
+
+    <polygon points="280,120 480,120 430,50 330,50" fill="#FEF3F2" stroke="#C8102E" stroke-width="2.5"/>
+    <text x="380" y="78" text-anchor="middle" font-size="12" font-weight="700" fill="#C8102E" font-family="Tinos">LIVE BROKER TESTS</text>
+    <text x="380" y="94" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">weekly · all 6 brokers</text>
+    <text x="380" y="107" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">paper-trade 0.01 lot probe</text>
+
+    <!-- Right side: test matrix preview -->
+    <text x="780" y="30" font-size="14" font-weight="700" fill="#C8102E" font-family="Tinos">(b) Test Coverage by Property</text>
+
+    <g font-family="JetBrains Mono" font-size="11" fill="#14213D">
+      <!-- header -->
+      <rect x="780" y="50" width="660" height="28" fill="#14213D"/>
+      <text x="800" y="68" fill="#ffffff" font-weight="700">Property</text>
+      <text x="1000" y="68" fill="#ffffff" font-weight="700">Unit</text>
+      <text x="1100" y="68" fill="#ffffff" font-weight="700">Integration</text>
+      <text x="1240" y="68" fill="#ffffff" font-weight="700">Profile</text>
+      <text x="1340" y="68" fill="#ffffff" font-weight="700">Live</text>
+
+      <!-- rows -->
+      <g transform="translate(0, 90)">
+        <text x="800" y="0" font-weight="700">digits (2,3,4,5)</text>
+        <text x="1000" y="0" fill="#15803D">✓ 12</text>
+        <text x="1100" y="0" fill="#15803D">✓ 4</text>
+        <text x="1240" y="0" fill="#15803D">✓ 6</text>
+        <text x="1340" y="0" fill="#15803D">✓ 6</text>
+      </g>
+      <g transform="translate(0, 115)">
+        <text x="800" y="0" font-weight="700">point</text>
+        <text x="1000" y="0" fill="#15803D">✓ 8</text>
+        <text x="1100" y="0" fill="#15803D">✓ 4</text>
+        <text x="1240" y="0" fill="#15803D">✓ 6</text>
+        <text x="1340" y="0" fill="#15803D">✓ 6</text>
+      </g>
+      <g transform="translate(0, 140)">
+        <text x="800" y="0" font-weight="700">contract_size</text>
+        <text x="1000" y="0" fill="#15803D">✓ 10</text>
+        <text x="1100" y="0" fill="#15803D">✓ 4</text>
+        <text x="1240" y="0" fill="#15803D">✓ 6</text>
+        <text x="1340" y="0" fill="#15803D">✓ 6</text>
+      </g>
+      <g transform="translate(0, 165)">
+        <text x="800" y="0" font-weight="700">tick_size</text>
+        <text x="1000" y="0" fill="#15803D">✓ 8</text>
+        <text x="1100" y="0" fill="#15803D">✓ 4</text>
+        <text x="1240" y="0" fill="#15803D">✓ 6</text>
+        <text x="1340" y="0" fill="#15803D">✓ 6</text>
+      </g>
+      <g transform="translate(0, 190)">
+        <text x="800" y="0" font-weight="700">tick_value (cross-check)</text>
+        <text x="1000" y="0" fill="#15803D">✓ 15</text>
+        <text x="1100" y="0" fill="#15803D">✓ 6</text>
+        <text x="1240" y="0" fill="#15803D">✓ 6</text>
+        <text x="1340" y="0" fill="#15803D">✓ 6</text>
+      </g>
+      <g transform="translate(0, 215)">
+        <text x="800" y="0" font-weight="700">leverage</text>
+        <text x="1000" y="0" fill="#15803D">✓ 6</text>
+        <text x="1100" y="0" fill="#15803D">✓ 3</text>
+        <text x="1240" y="0" fill="#15803D">✓ 6</text>
+        <text x="1340" y="0" fill="#15803D">✓ 6</text>
+      </g>
+      <g transform="translate(0, 240)">
+        <text x="800" y="0" font-weight="700">spread_type</text>
+        <text x="1000" y="0" fill="#15803D">✓ 14</text>
+        <text x="1100" y="0" fill="#15803D">✓ 4</text>
+        <text x="1240" y="0" fill="#15803D">✓ 6</text>
+        <text x="1340" y="0" fill="#15803D">✓ 6</text>
+      </g>
+      <g transform="translate(0, 265)">
+        <text x="800" y="0" font-weight="700">commission_type</text>
+        <text x="1000" y="0" fill="#15803D">✓ 16</text>
+        <text x="1100" y="0" fill="#15803D">✓ 4</text>
+        <text x="1240" y="0" fill="#15803D">✓ 6</text>
+        <text x="1340" y="0" fill="#15803D">✓ 6</text>
+      </g>
+      <g transform="translate(0, 290)">
+        <text x="800" y="0" font-weight="700">swap_type</text>
+        <text x="1000" y="0" fill="#15803D">✓ 12</text>
+        <text x="1100" y="0" fill="#15803D">✓ 4</text>
+        <text x="1240" y="0" fill="#15803D">✓ 6</text>
+        <text x="1340" y="0" fill="#15803D">✓ 6</text>
+      </g>
+      <g transform="translate(0, 315)">
+        <text x="800" y="0" font-weight="700">account_type (cent/micro/$)</text>
+        <text x="1000" y="0" fill="#15803D">✓ 18</text>
+        <text x="1100" y="0" fill="#15803D">✓ 6</text>
+        <text x="1240" y="0" fill="#15803D">✓ 6</text>
+        <text x="1340" y="0" fill="#15803D">✓ 6</text>
+      </g>
+      <g transform="translate(0, 340)">
+        <text x="800" y="0" font-weight="700">broker fingerprint (6)</text>
+        <text x="1000" y="0" fill="#15803D">✓ 12</text>
+        <text x="1100" y="0" fill="#15803D">✓ 6</text>
+        <text x="1240" y="0" fill="#15803D">✓ 6</text>
+        <text x="1340" y="0" fill="#15803D">✓ 6</text>
+      </g>
+      <g transform="translate(0, 365)">
+        <text x="800" y="0" font-weight="700">error handling (13 codes)</text>
+        <text x="1000" y="0" fill="#15803D">✓ 26</text>
+        <text x="1100" y="0" fill="#15803D">✓ 8</text>
+        <text x="1240" y="0" fill="#C8102E">—</text>
+        <text x="1340" y="0" fill="#15803D">✓ 6</text>
+      </g>
+      <g transform="translate(0, 390)">
+        <text x="800" y="0" font-weight="700" fill="#C8102E">TOTAL</text>
+        <text x="1000" y="0" font-weight="700" fill="#C8102E">157</text>
+        <text x="1100" y="0" font-weight="700" fill="#C8102E">57</text>
+        <text x="1240" y="0" font-weight="700" fill="#C8102E">66</text>
+        <text x="1340" y="0" font-weight="700" fill="#C8102E">72</text>
+      </g>
+    </g>
+  </svg>
+
+  <table class="table">
+    <tr><th>Broker</th><th>Server Name (regex)</th><th>Digits (XAUUSD)</th><th>Contract Size</th><th>Typical Leverage</th><th>Spread Type</th><th>Commission</th><th>Account Types</th></tr>
+    <tr><td class="mod">Exness</td><td>(?i)exness</td><td>2 (cent) / 5 (standard)</td><td>100 (cent) / 100000 (std)</td><td>1:Unlimited</td><td>VARIABLE</td><td>NONE (mark-up)</td><td>Cent, Micro, Dollar, Raw</td></tr>
+    <tr><td class="mod">IC Markets</td><td>(?i)icmarkets|ic markets</td><td>2 (standard) / 5 (raw)</td><td>100000</td><td>1:500 (std) / 1:500 (raw)</td><td>VARIABLE</td><td>PER_MILLION ($3.50/$1M raw)</td><td>Micro, Dollar, Raw</td></tr>
+    <tr><td class="mod">Pepperstone</td><td>(?i)pepperstone|pepper</td><td>2 (standard) / 5 (razor)</td><td>100000</td><td>1:500</td><td>VARIABLE</td><td>PER_MILLION ($3.50 raw)</td><td>Micro, Dollar, Raw</td></tr>
+    <tr><td class="mod">Tickmill</td><td>(?i)tickmill|tick mill</td><td>2 (classic) / 5 (pro/VIP)</td><td>100000</td><td>1:500</td><td>VARIABLE</td><td>PER_MILLION ($2 VIP)</td><td>Micro, Dollar, Raw</td></tr>
+    <tr><td class="mod">FP Markets</td><td>(?i)fpmarkets|fp markets</td><td>2 (standard) / 5 (raw)</td><td>100000</td><td>1:500</td><td>VARIABLE</td><td>PER_MILLION ($3 raw)</td><td>Micro, Dollar, Raw</td></tr>
+    <tr><td class="mod">Fusion Markets</td><td>(?i)fusion|fusion markets</td><td>2 (standard) / 5 (zero)</td><td>100000</td><td>1:500</td><td>VARIABLE</td><td>PER_MILLION ($2.25 zero)</td><td>Micro, Dollar, Raw</td></tr>
+    <tr><td class="mod">GENERIC</td><td>(no match)</td><td>runtime-detected</td><td>runtime-detected</td><td>runtime-detected</td><td>runtime-detected</td><td>runtime-detected</td><td>runtime-detected</td></tr>
+  </table>
+</div>
+</body>
+</html>

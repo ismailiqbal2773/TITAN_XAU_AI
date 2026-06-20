@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Hybrid AI Stack — Training Pipeline</title>
+<style>
+  @page { size: 1600px 1100px; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #ffffff; font-family: 'Tinos','FreeSerif',serif; color: #14213D; }
+  .canvas { width: 1600px; height: 1100px; padding: 50px 60px; box-sizing: border-box; }
+  .title-bar { display: flex; align-items: baseline; gap: 18px; border-bottom: 2px solid #14213D; padding-bottom: 12px; margin-bottom: 24px; }
+  .title-bar .num { font-size: 48px; font-weight: 900; color: #C8102E; line-height: 1; }
+  .title-bar h1 { font-size: 26px; font-weight: 700; margin: 0; }
+  .title-bar .sub { font-size: 13px; color: #4A5568; margin-left: auto; font-family: 'JetBrains Mono',monospace; }
+  svg { display: block; margin: 0 auto; background: #FAFBFC; border: 1px solid #E2E8F0; }
+  .table { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-top: 14px; }
+  .table th { background: #14213D; color: #ffffff; padding: 6px 8px; text-align: left; font-weight: 700; }
+  .table td { padding: 5px 8px; border-bottom: 1px solid #E2E8F0; }
+  .table tr:nth-child(even) td { background: #F8FAFC; }
+  .table .mod { color: #14213D; font-family: 'JetBrains Mono',monospace; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="title-bar">
+    <span class="num">02</span>
+    <h1>Training Pipeline — 4 Models · Parallel · Walk-Forward</h1>
+    <span class="sub">Data prep → 4 parallel trainers → validation → registry → deploy</span>
+  </div>
+
+  <svg width="1480" height="640" viewBox="0 0 1480 640">
+    <defs>
+      <marker id="ar2" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L7,3 z" fill="#14213D"/></marker>
+    </defs>
+
+    <!-- Data prep -->
+    <rect x="540" y="20" width="400" height="60" fill="#14213D"/>
+    <text x="740" y="45" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="Tinos">1. Data Preparation</text>
+    <text x="740" y="65" text-anchor="middle" fill="#C8102E" font-size="10" font-family="JetBrains Mono">24mo × 6 brokers · label via forward returns · 80/10/10 train/val/test</text>
+
+    <line x1="640" y1="80" x2="200" y2="130" stroke="#14213D" stroke-width="2" marker-end="url(#ar2)"/>
+    <line x1="700" y1="80" x2="540" y2="130" stroke="#14213D" stroke-width="2" marker-end="url(#ar2)"/>
+    <line x1="780" y1="80" x2="880" y2="130" stroke="#14213D" stroke-width="2" marker-end="url(#ar2)"/>
+    <line x1="840" y1="80" x2="1220" y2="130" stroke="#14213D" stroke-width="2" marker-end="url(#ar2)"/>
+
+    <!-- XGBoost trainer -->
+    <rect x="60" y="130" width="280" height="180" fill="#F0FDF4" stroke="#14213D" stroke-width="2"/>
+    <rect x="60" y="130" width="280" height="32" fill="#14213D"/>
+    <text x="200" y="150" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700" font-family="JetBrains Mono">XGBoost Trainer</text>
+    <text x="80" y="180" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Input: 8 features per bar</text>
+    <text x="80" y="195" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Label: dir(forward 10-bar ret)</text>
+    <text x="80" y="215" font-size="10" fill="#4A5568" font-family="JetBrains Mono">500 trees · lr=0.05 · depth=6</text>
+    <text x="80" y="230" font-size="10" fill="#4A5568" font-family="JetBrains Mono">early_stop=50 on val log-loss</text>
+    <text x="80" y="250" font-size="10" fill="#4A5568" font-family="JetBrains Mono">5-fold CV · Optuna hyperopt</text>
+    <text x="80" y="270" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Output: xgb_model.json + SHAP</text>
+    <text x="80" y="295" font-size="10" fill="#C8102E" font-family="JetBrains Mono" font-weight="bold">Time: ~15 min · weekly retrain</text>
+
+    <!-- LSTM trainer -->
+    <rect x="400" y="130" width="280" height="180" fill="#F0FDF4" stroke="#14213D" stroke-width="2"/>
+    <rect x="400" y="130" width="280" height="32" fill="#14213D"/>
+    <text x="540" y="150" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700" font-family="JetBrains Mono">LSTM Trainer</text>
+    <text x="420" y="180" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Input: 60-bar × 8-feature seq</text>
+    <text x="420" y="195" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Label: trend_continue (binary)</text>
+    <text x="420" y="215" font-size="10" fill="#4A5568" font-family="JetBrains Mono">2 LSTM layers · 128 hidden</text>
+    <text x="420" y="230" font-size="10" fill="#4A5568" font-family="JetBrains Mono">dropout=0.2 · Adam lr=0.001</text>
+    <text x="420" y="250" font-size="10" fill="#4A5568" font-family="JetBrains Mono">batch=256 · epochs=100 · es=10</text>
+    <text x="420" y="270" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Output: lstm_model.pt</text>
+    <text x="420" y="295" font-size="10" fill="#C8102E" font-family="JetBrains Mono" font-weight="bold">Time: ~2 hrs · weekly retrain</text>
+
+    <!-- Transformer trainer -->
+    <rect x="740" y="130" width="280" height="180" fill="#F0FDF4" stroke="#14213D" stroke-width="2"/>
+    <rect x="740" y="130" width="280" height="32" fill="#14213D"/>
+    <text x="880" y="150" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700" font-family="JetBrains Mono">Transformer Trainer</text>
+    <text x="760" y="180" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Input: 120-bar × 8-feature seq</text>
+    <text x="760" y="195" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Label: regime context vector</text>
+    <text x="760" y="215" font-size="10" fill="#4A5568" font-family="JetBrains Mono">4 heads · 2 layers · d=64</text>
+    <text x="760" y="230" font-size="10" fill="#4A5568" font-family="JetBrains Mono">pos encoding · AdamW lr=0.0001</text>
+    <text x="760" y="250" font-size="10" fill="#4A5568" font-family="JetBrains Mono">warmup=1000 · batch=128</text>
+    <text x="760" y="270" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Output: transformer_model.pt</text>
+    <text x="760" y="295" font-size="10" fill="#C8102E" font-family="JetBrains Mono" font-weight="bold">Time: ~4 hrs · weekly retrain</text>
+
+    <!-- RL trainer -->
+    <rect x="1080" y="130" width="280" height="180" fill="#FEF3F2" stroke="#C8102E" stroke-width="2"/>
+    <rect x="1080" y="130" width="280" height="32" fill="#C8102E"/>
+    <text x="1220" y="150" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700" font-family="JetBrains Mono">RL Trainer (PPO)</text>
+    <text x="1100" y="180" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Env: simulated XAUUSD exec</text>
+    <text x="1100" y="195" font-size="10" fill="#4A5568" font-family="JetBrains Mono">State: pos + features + PnL</text>
+    <text x="1100" y="215" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Actions: hold/close/trim/add</text>
+    <text x="1100" y="230" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Reward: risk-adj Sharpe (episodic)</text>
+    <text x="1100" y="250" font-size="10" fill="#4A5568" font-family="JetBrains Mono">PPO · clip=0.2 · γ=0.99 · 10k eps</text>
+    <text x="1100" y="270" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Output: rl_policy.pt</text>
+    <text x="1100" y="295" font-size="10" fill="#C8102E" font-family="JetBrains Mono" font-weight="bold">Time: ~8 hrs · monthly retrain</text>
+
+    <!-- Validation -->
+    <line x1="200" y1="310" x2="620" y2="370" stroke="#14213D" stroke-width="2" marker-end="url(#ar2)"/>
+    <line x1="540" y1="310" x2="660" y2="370" stroke="#14213D" stroke-width="2" marker-end="url(#ar2)"/>
+    <line x1="880" y1="310" x2="700" y2="370" stroke="#14213D" stroke-width="2" marker-end="url(#ar2)"/>
+    <line x1="1220" y1="310" x2="740" y2="370" stroke="#C8102E" stroke-width="2" marker-end="url(#ar2)" stroke-dasharray="4 2"/>
+
+    <rect x="500" y="370" width="380" height="80" fill="#14213D"/>
+    <text x="690" y="395" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="Tinos">2. Walk-Forward Validation</text>
+    <text x="690" y="415" text-anchor="middle" fill="#C8102E" font-size="10" font-family="JetBrains Mono">5 folds × 4mo OOS · per-model F1 + ensemble Sharpe</text>
+    <text x="690" y="430" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="9" font-family="JetBrains Mono">gate: per-model F1 > 0.60 · ensemble Sharpe > 2.0</text>
+    <text x="690" y="442" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="9" font-family="JetBrains Mono">RL gate: avg episode reward > baseline (no-RL)</text>
+
+    <line x1="690" y1="450" x2="690" y2="480" stroke="#14213D" stroke-width="2" marker-end="url(#ar2)"/>
+
+    <!-- Registry -->
+    <rect x="500" y="485" width="380" height="60" fill="#F0FDF4" stroke="#14213D" stroke-width="2"/>
+    <text x="690" y="510" text-anchor="middle" font-size="13" font-weight="700" font-family="Tinos">3. Model Registry (MLflow)</text>
+    <text x="690" y="528" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">version + metrics + artifacts + rollback capability</text>
+
+    <line x1="690" y1="545" x2="690" y2="575" stroke="#14213D" stroke-width="2" marker-end="url(#ar2)"/>
+
+    <!-- Deploy -->
+    <rect x="500" y="580" width="380" height="50" fill="#C8102E"/>
+    <text x="690" y="610" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="Tinos">4. Deploy to Inference Cluster</text>
+  </svg>
+
+  <table class="table">
+    <tr><th>Model</th><th>Framework</th><th>Input Shape</th><th>Label</th><th>Hyperparams</th><th>Train Time</th><th>Retrain Cadence</th></tr>
+    <tr><td class="mod">XGBoost</td><td>xgboost 2.0</td><td>[N, 8] (tabular)</td><td>direction (up/down)</td><td>500 trees · depth 6 · lr 0.05</td><td>~15 min</td><td>Weekly (Sun 22:00 UTC)</td></tr>
+    <tr><td class="mod">LSTM</td><td>PyTorch 2.1</td><td>[N, 60, 8] (sequence)</td><td>trend_continue (binary)</td><td>2 layers · 128 hidden · dropout 0.2</td><td>~2 hrs</td><td>Weekly (Sun 22:00 UTC)</td></tr>
+    <tr><td class="mod">Transformer</td><td>PyTorch 2.1</td><td>[N, 120, 8] (sequence)</td><td>regime context vector</td><td>4 heads · 2 layers · d_model 64</td><td>~4 hrs</td><td>Weekly (Sun 22:00 UTC)</td></tr>
+    <tr><td class="mod">RL (PPO)</td><td>Stable-Baselines3</td><td>[1, 42] (state vector)</td><td>reward (risk-adj Sharpe)</td><td>PPO · clip 0.2 · γ 0.99 · 10k episodes</td><td>~8 hrs</td><td>Monthly (1st Sun)</td></tr>
+  </table>
+</div>
+</body>
+</html>

@@ -1,0 +1,87 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>d02</title>
+<link href="https://fonts.googleapis.com/css2?family=Tinos:wght@400;700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { width: 1600px; height: 1100px; background: #ffffff; font-family: 'Inter', sans-serif; color: #14213D; padding: 50px 60px; }
+.h-title { font-family: 'Tinos', serif; font-size: 30px; font-weight: 900; letter-spacing: -0.5px; }
+.h-sub { font-family: 'Inter', sans-serif; font-size: 13px; color: #4A5568; margin-top: 4px; }
+.h-rule { width: 80px; height: 3px; background: #C8102E; margin: 14px 0 26px 0; }
+
+.cols { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.dim-card { border: 1px solid #CBD5E1; border-radius: 6px; overflow: hidden; }
+.dim-head { padding: 14px 18px; color: #fff; }
+.dim-head .lbl { font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 2px; font-weight: 700; opacity: 0.85; }
+.dim-head .t { font-family: 'Tinos', serif; font-size: 16px; font-weight: 700; margin-top: 3px; }
+.dim-head .formula { font-family: 'JetBrains Mono', monospace; font-size: 10.5px; margin-top: 6px; opacity: 0.95; }
+.dim.a .dim-head { background: #14213D; }
+.dim.b .dim-head { background: #C8102E; }
+.dim.c .dim-head { background: #B45309; }
+.dim-body { padding: 14px 18px; background: #F8FAFC; }
+.dim-row { padding: 8px 0; border-bottom: 1px dashed #CBD5E1; }
+.dim-row:last-child { border-bottom: none; }
+.dim-row .k { font-family: 'JetBrains Mono', monospace; font-size: 9.5px; font-weight: 700; color: #14213D; letter-spacing: 0.5px; }
+.dim-row .v { font-family: 'Inter', sans-serif; font-size: 10.5px; color: #4A5568; margin-top: 3px; line-height: 1.5; }
+.dim-row .v b { color: #C8102E; }
+
+.rationale { margin-top: 24px; padding: 16px 20px; background: #14213D; color: #fff; border-radius: 6px; }
+.rationale .lbl { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #C8102E; letter-spacing: 2px; font-weight: 700; }
+.rationale .h { font-family: 'Tinos', serif; font-size: 15px; font-weight: 700; margin-top: 4px; }
+.rationale .d { font-family: 'Inter', sans-serif; font-size: 11px; opacity: 0.9; margin-top: 6px; line-height: 1.5; }
+.rationale .d b { color: #C8102E; }
+</style></head>
+<body>
+<div class="h-title">Three Randomization Dimensions</div>
+<div class="h-sub">Each dimension tests a different fragility hypothesis · independent · all 3 applied per simulation</div>
+<div class="h-rule"></div>
+
+<div class="cols">
+  <div class="dim-card dim a">
+    <div class="dim-head">
+      <div class="lbl">DIMENSION 1 · TRADE ORDER</div>
+      <div class="t">Random Trade Order</div>
+      <div class="formula">trades_shuffled = shuffle(trades)</div>
+    </div>
+    <div class="dim-body">
+      <div class="dim-row"><div class="k">WHAT</div><div class="v">Randomly permute the chronological order of trades from the backtest ledger. Same trades, different sequence.</div></div>
+      <div class="dim-row"><div class="k">DISTRIBUTION</div><div class="v">Uniform random permutation (Fisher-Yates shuffle) · seeded for reproducibility</div></div>
+      <div class="dim-row"><div class="k">WHY</div><div class="v">Tests sensitivity to <b>trade sequencing</b>. Live trade order is not deterministic — strategy may experience clustered losses early. Tests drawdown sequence risk.</div></div>
+      <div class="dim-row"><div class="k">DETECTS</div><div class="v">Strategies that survive in chronological order but blow up when losses cluster. <b>Drawdown sequence fragility.</b></div></div>
+      <div class="dim-row"><div class="k">METRICS AFFECTED</div><div class="v">Max Drawdown (sequence-sensitive), Sharpe (slightly), Recovery Factor, Risk of Ruin</div></div>
+    </div>
+  </div>
+  <div class="dim-card dim b">
+    <div class="dim-head">
+      <div class="lbl">DIMENSION 2 · SLIPPAGE</div>
+      <div class="t">Random Slippage</div>
+      <div class="formula">slip_i ~ LogNormal(μ, σ) per trade</div>
+    </div>
+    <div class="dim-body">
+      <div class="dim-row"><div class="k">WHAT</div><div class="v">For each trade, sample a slippage value from a log-normal distribution calibrated to the broker's live P50/P90/P99.</div></div>
+      <div class="dim-row"><div class="k">DISTRIBUTION</div><div class="v">LogNormal(μ, σ) · μ = ln(P50), σ derived from (P90-P50) and (P99-P50) · broker-specific</div></div>
+      <div class="dim-row"><div class="k">WHY</div><div class="v">Tests sensitivity to <b>execution cost variance</b>. Live slippage is stochastic — a strategy that works at P50 slippage may fail at P99 on every trade.</div></div>
+      <div class="dim-row"><div class="k">DETECTS</div><div class="v">Strategies whose edge is consumed by tail slippage events. <b>Execution cost fragility.</b></div></div>
+      <div class="dim-row"><div class="k">METRICS AFFECTED</div><div class="v">Cost Drag, Profit Factor, CAGR (post-cost), Sharpe (post-cost)</div></div>
+    </div>
+  </div>
+  <div class="dim-card dim c">
+    <div class="dim-head">
+      <div class="lbl">DIMENSION 3 · SPREAD</div>
+      <div class="t">Random Spread</div>
+      <div class="formula">spread_i ~ Beta(α, β) × max_spread</div>
+    </div>
+    <div class="dim-body">
+      <div class="dim-row"><div class="k">WHAT</div><div class="v">For each trade, sample a spread multiplier (1× to 5× baseline) from a Beta distribution. Models news widening + session variation.</div></div>
+      <div class="dim-row"><div class="k">DISTRIBUTION</div><div class="v">Beta(α=2, β=5) × max_spread (5× baseline) · calibrated to broker's spread baseline + stdev</div></div>
+      <div class="dim-row"><div class="k">WHY</div><div class="v">Tests sensitivity to <b>spread variance</b>. Live spreads spike unpredictably (news, liquidity gaps). Strategy may look profitable at average spread but lose at widened spread.</div></div>
+      <div class="dim-row"><div class="k">DETECTS</div><div class="v">Strategies that depend on tight spreads. <b>Spread widening fragility.</b></div></div>
+      <div class="dim-row"><div class="k">METRICS AFFECTED</div><div class="v">Cost Drag, Profit Factor, Win Rate (cost-sensitive exits), Sharpe</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="rationale">
+  <div class="lbl">WHY THESE 3 DIMENSIONS?</div>
+  <div class="h">Each dimension tests a different fragility that backtests hide</div>
+  <div class="d">Backtests use <b>chronological order, fixed P50 slippage, and fixed baseline spread</b> — all of which are convenient fictions. Live trading has <b>random trade order (clustering)</b>, <b>stochastic slippage (P99 tail)</b>, and <b>widening spreads (news events)</b>. The 3 dimensions independently test each fragility: if a strategy survives 10,000 sims across all 3, it is robust to the realities of live execution. <b>Survival Score &lt; 95% means the strategy is fragile to one of these 3 dimensions and will likely fail in live trading.</b></div>
+</div>
+</body></html>

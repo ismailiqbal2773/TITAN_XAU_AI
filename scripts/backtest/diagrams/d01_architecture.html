@@ -1,0 +1,73 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>d01</title>
+<link href="https://fonts.googleapis.com/css2?family=Tinos:wght@400;700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { width: 1600px; height: 1100px; background: #ffffff; font-family: 'Inter', sans-serif; color: #14213D; padding: 50px 60px; }
+.h-title { font-family: 'Tinos', serif; font-size: 30px; font-weight: 900; color: #14213D; letter-spacing: -0.5px; }
+.h-sub { font-family: 'Inter', sans-serif; font-size: 13px; color: #4A5568; margin-top: 4px; }
+.h-rule { width: 80px; height: 3px; background: #C8102E; margin: 14px 0 28px 0; }
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; margin-top: 14px; }
+.col { border: 1px solid #CBD5E1; border-radius: 6px; overflow: hidden; }
+.col-head { background: #14213D; color: #fff; padding: 12px 18px; display: flex; justify-content: space-between; align-items: center; }
+.col-head .t { font-family: 'Tinos', serif; font-size: 16px; font-weight: 700; }
+.col-head .b { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C8102E; letter-spacing: 2px; }
+.col-body { padding: 14px 18px; }
+.layer { padding: 10px 0; border-bottom: 1px dashed #CBD5E1; }
+.layer:last-child { border-bottom: none; }
+.layer .n { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C8102E; font-weight: 700; letter-spacing: 1.5px; }
+.layer .t { font-family: 'Tinos', serif; font-size: 14px; font-weight: 700; color: #14213D; margin: 3px 0 4px 0; }
+.layer .d { font-family: 'Inter', sans-serif; font-size: 10.5px; color: #4A5568; line-height: 1.45; }
+.bottom { margin-top: 22px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.bb { background: #14213D; color: #fff; padding: 14px 16px; border-radius: 6px; }
+.bb.alt { background: #C8102E; }
+.bb.alt2 { background: #F1F5F9; color: #14213D; border: 1px solid #CBD5E1; }
+.bb .lbl { font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 2px; opacity: 0.75; font-weight: 700; }
+.bb .v { font-family: 'Tinos', serif; font-size: 22px; font-weight: 900; margin-top: 4px; line-height: 1; }
+.bb .d { font-family: 'Inter', sans-serif; font-size: 10px; opacity: 0.9; margin-top: 6px; line-height: 1.4; }
+.flow { margin-top: 18px; padding: 14px 18px; background: #F1F5F9; border-left: 4px solid #C8102E; border-radius: 4px; display: flex; align-items: center; justify-content: space-between; }
+.fs { font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 600; color: #14213D; }
+.fa { font-family: 'JetBrains Mono', monospace; color: #C8102E; font-size: 14px; font-weight: 700; }
+</style></head>
+<body>
+<div class="h-title">Institutional Backtesting Framework — Architecture</div>
+<div class="h-sub">5 cost components · 4-layer data pipeline · 6-stage testing process · 24 metrics · 3-band certification</div>
+<div class="h-rule"></div>
+
+<div class="cols">
+  <div class="col">
+    <div class="col-head"><div class="t">Cost Components (Realistic Edge)</div><div class="b">5 LAYERS</div></div>
+    <div class="col-body">
+      <div class="layer"><div class="n">C1 · TICK DATA</div><div class="t">Bid/Ask tick stream (not OHLC)</div><div class="d">Resolution: 100 ms granularity, sourced from broker true tick history. Captures intra-bar reversals invisible to 1-min candles.</div></div>
+      <div class="layer"><div class="n">C2 · VARIABLE SPREAD</div><div class="t">Time-varying spread model</div><div class="d">Real broker spread per tick. News widening ×3-10×. No fixed-spread assumption (the #1 backtest lie).</div></div>
+      <div class="layer"><div class="n">C3 · COMMISSION</div><div class="t">Round-turn $/lot</div><div class="d">Per-broker commission structure: $3.50–$7.00 RT/lot for ECN, 0 for market-maker (already in spread). Verified per fill.</div></div>
+      <div class="layer"><div class="n">C4 · SWAP</div><div class="t">Overnight financing per position</div><div class="d">Long XAUUSD: −2.5 to −6.0% annualized. Short: +0.5 to −1.5%. Triple swap Wednesdays. Compounded daily.</div></div>
+      <div class="layer"><div class="n">C5 · SLIPPAGE</div><div class="t">Realistic fill model</div><div class="d">P50/P90/P99 slippage distribution per broker, calibrated from live fills. Market impact for size &gt; 5 lots.</div></div>
+    </div>
+  </div>
+  <div class="col">
+    <div class="col-head"><div class="t">Pipeline Layers</div><div class="b">4 LAYERS</div></div>
+    <div class="col-body">
+      <div class="layer"><div class="n">L1 · DATA INGESTION</div><div class="t">Tick + Spread + Calendar</div><div class="d">Load broker tick history (Dukascopy, broker export), economic calendar (NFP/FOMC/CPI), swap schedule from broker spec sheet.</div></div>
+      <div class="layer"><div class="n">L2 · COST ENGINE</div><div class="t">Per-tick P&amp;L attribution</div><div class="d">Apply spread, commission, swap, slippage to each simulated fill. Produces realistic equity curve vs idealized price-only curve.</div></div>
+      <div class="layer"><div class="n">L3 · EXECUTION SIMULATOR</div><div class="t">Order matching engine</div><div class="d">Simulate MT5 order routing: market, limit, stop, OCO. Partial fills, requotes on news, latency 100-200 ms, margin calls.</div></div>
+      <div class="layer"><div class="n">L4 · METRICS &amp; REPORTING</div><div class="t">24 metrics + 3 reports</div><div class="d">Sharpe/Sortino/Calmar, MDD, profit factor, win rate, expectancy, cost drag, regime breakdown. Output: executive / technical / regulatory.</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="bottom">
+  <div class="bb"><div class="lbl">COST COMPONENTS</div><div class="v">5</div><div class="d">Tick · Spread · Commission · Swap · Slippage</div></div>
+  <div class="bb alt"><div class="lbl">METRICS</div><div class="v">24</div><div class="d">6 return · 6 risk · 6 trade · 6 cost</div></div>
+  <div class="bb alt2"><div class="lbl">RUNTIME</div><div class="v">~12 min</div><div class="d">12-month tick backtest, 4-core VPS</div></div>
+  <div class="bb alt2"><div class="lbl">FAILURE BANDS</div><div class="v">3</div><div class="d">Pass · Conditional · Reject</div></div>
+</div>
+
+<div class="flow">
+  <div class="fs">1 · Ingest Tick Data</div><div class="fa">→</div>
+  <div class="fs">2 · Apply Cost Engine</div><div class="fa">→</div>
+  <div class="fs">3 · Simulate Execution</div><div class="fa">→</div>
+  <div class="fs">4 · Compute Metrics</div><div class="fa">→</div>
+  <div class="fs">5 · Generate Reports</div><div class="fa">→</div>
+  <div class="fs">6 · Certify (Pass/Cond/Reject)</div>
+</div>
+</body></html>

@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Regime Detection — Validation Framework</title>
+<style>
+  @page { size: 1600px 1100px; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #ffffff; font-family: 'Tinos','FreeSerif',serif; color: #14213D; }
+  .canvas { width: 1600px; height: 1100px; padding: 50px 60px; box-sizing: border-box; }
+  .title-bar { display: flex; align-items: baseline; gap: 18px; border-bottom: 2px solid #14213D; padding-bottom: 12px; margin-bottom: 24px; }
+  .title-bar .num { font-size: 48px; font-weight: 900; color: #C8102E; line-height: 1; }
+  .title-bar h1 { font-size: 26px; font-weight: 700; margin: 0; }
+  .title-bar .sub { font-size: 13px; color: #4A5568; margin-left: auto; font-family: 'JetBrains Mono',monospace; }
+  svg { display: block; margin: 0 auto; background: #FAFBFC; border: 1px solid #E2E8F0; }
+  .table { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-top: 14px; }
+  .table th { background: #14213D; color: #ffffff; padding: 6px 8px; text-align: left; font-weight: 700; }
+  .table td { padding: 5px 8px; border-bottom: 1px solid #E2E8F0; }
+  .table tr:nth-child(even) td { background: #F8FAFC; }
+  .table .mod { color: #14213D; font-family: 'JetBrains Mono',monospace; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="title-bar">
+    <span class="num">05</span>
+    <h1>Validation Framework — Walk-Forward + Cross-Session + Stability</h1>
+    <span class="sub">5 validation modes · 18 metrics · CI gates</span>
+  </div>
+
+  <svg width="1480" height="640" viewBox="0 0 1480 640">
+    <defs>
+      <marker id="arV" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
+        <path d="M0,0 L0,6 L7,3 z" fill="#14213D"/>
+      </marker>
+    </defs>
+
+    <!-- Title -->
+    <text x="40" y="30" font-size="14" font-weight="700" fill="#C8102E" font-family="Tinos">(a) Walk-Forward Validation (anchored, 6 folds × 4 months each)</text>
+
+    <!-- Timeline -->
+    <line x1="40" y1="80" x2="1440" y2="80" stroke="#14213D" stroke-width="2"/>
+    <g font-family="JetBrains Mono" font-size="10">
+      <text x="40" y="100">2024-Q1</text>
+      <text x="280" y="100">2024-Q2</text>
+      <text x="520" y="100">2024-Q3</text>
+      <text x="760" y="100">2024-Q4</text>
+      <text x="1000" y="100">2025-Q1</text>
+      <text x="1240" y="100">2025-Q2</text>
+    </g>
+
+    <!-- Fold 1: train Q1, test Q2 -->
+    <rect x="40" y="120" width="240" height="40" fill="#14213D"/>
+    <text x="160" y="145" text-anchor="middle" fill="#ffffff" font-size="10" font-family="JetBrains Mono">Fold 1 TRAIN</text>
+    <rect x="280" y="120" width="240" height="40" fill="#C8102E"/>
+    <text x="400" y="145" text-anchor="middle" fill="#ffffff" font-size="10" font-family="JetBrains Mono">Fold 1 TEST</text>
+
+    <!-- Fold 2 -->
+    <rect x="280" y="170" width="240" height="40" fill="#14213D"/>
+    <text x="400" y="195" text-anchor="middle" fill="#ffffff" font-size="10" font-family="JetBrains Mono">Fold 2 TRAIN</text>
+    <rect x="520" y="170" width="240" height="40" fill="#C8102E"/>
+    <text x="640" y="195" text-anchor="middle" fill="#ffffff" font-size="10" font-family="JetBrains Mono">Fold 2 TEST</text>
+
+    <!-- Fold 3 -->
+    <rect x="520" y="220" width="240" height="40" fill="#14213D"/>
+    <text x="640" y="245" text-anchor="middle" fill="#ffffff" font-size="10" font-family="JetBrains Mono">Fold 3 TRAIN</text>
+    <rect x="760" y="220" width="240" height="40" fill="#C8102E"/>
+    <text x="880" y="245" text-anchor="middle" fill="#ffffff" font-size="10" font-family="JetBrains Mono">Fold 3 TEST</text>
+
+    <!-- Fold 4 -->
+    <rect x="760" y="270" width="240" height="40" fill="#14213D"/>
+    <text x="880" y="295" text-anchor="middle" fill="#ffffff" font-size="10" font-family="JetBrains Mono">Fold 4 TRAIN</text>
+    <rect x="1000" y="270" width="240" height="40" fill="#C8102E"/>
+    <text x="1120" y="295" text-anchor="middle" fill="#ffffff" font-size="10" font-family="JetBrains Mono">Fold 4 TEST</text>
+
+    <!-- Fold 5 -->
+    <rect x="1000" y="320" width="240" height="40" fill="#14213D"/>
+    <text x="1120" y="345" text-anchor="middle" fill="#ffffff" font-size="10" font-family="JetBrains Mono">Fold 5 TRAIN</text>
+    <rect x="1240" y="320" width="240" height="40" fill="#C8102E"/>
+    <text x="1360" y="345" text-anchor="middle" fill="#ffffff" font-size="10" font-family="JetBrains Mono">Fold 5 TEST</text>
+
+    <text x="40" y="395" font-size="10" fill="#4A5568" font-family="JetBrains Mono">▲ 5 folds · expanding training window · OOS test = next 4 months · metrics averaged across folds</text>
+
+    <!-- (b) Metrics -->
+    <text x="40" y="430" font-size="14" font-weight="700" fill="#C8102E" font-family="Tinos">(b) Validation Metrics (computed per fold, averaged)</text>
+
+    <g font-family="JetBrains Mono" font-size="10">
+      <rect x="40" y="445" width="1400" height="28" fill="#14213D"/>
+      <text x="60" y="463" fill="#ffffff" font-weight="700">Category</text>
+      <text x="200" y="463" fill="#ffffff" font-weight="700">Metric</text>
+      <text x="500" y="463" fill="#ffffff" font-weight="700">Formula</text>
+      <text x="900" y="463" fill="#ffffff" font-weight="700">Target</text>
+      <text x="1100" y="463" fill="#ffffff" font-weight="700">Gate</text>
+      <text x="1280" y="463" fill="#ffffff" font-weight="700">Cadence</text>
+
+      <text x="60" y="488">Accuracy</text>
+      <text x="200" y="488">Macro F1</text>
+      <text x="500" y="488">avg(F1 per class)</text>
+      <text x="900" y="488">&gt; 0.70</text>
+      <text x="1100" y="488">must meet</text>
+      <text x="1280" y="488">Per fold + nightly</text>
+
+      <text x="60" y="510">Accuracy</text>
+      <text x="200" y="510">Per-class F1</text>
+      <text x="500" y="510">F1 per regime class</text>
+      <text x="900" y="510">&gt; 0.60 each</text>
+      <text x="1100" y="510">must meet</text>
+      <text x="1280" y="510">Per fold</text>
+
+      <text x="60" y="532">Stability</text>
+      <text x="200" y="532">Regime flapping rate</text>
+      <text x="500" y="532">label changes / 100 bars</text>
+      <text x="900" y="532">&lt; 5.0</text>
+      <text x="1100" y="532">must meet</text>
+      <text x="1280" y="532">Per fold</text>
+
+      <text x="60" y="554">Stability</text>
+      <text x="200" y="554">Avg dwell time</text>
+      <text x="500" y="554">avg bars in same regime</text>
+      <text x="900" y="554">&gt; 8 bars</text>
+      <text x="1100" y="554">must meet</text>
+      <text x="1280" y="554">Per fold</text>
+
+      <text x="60" y="576">Calibration</text>
+      <text x="200" y="576">Brier score</text>
+      <text x="500" y="576">avg((p_pred - one_hot)^2)</text>
+      <text x="900" y="576">&lt; 0.25</text>
+      <text x="1100" y="576">must meet</text>
+      <text x="1280" y="576">Per fold</text>
+
+      <text x="60" y="598">Calibration</text>
+      <text x="200" y="598">ECE (Expected Cal. Error)</text>
+      <text x="500" y="598">avg |confidence - accuracy| binned</text>
+      <text x="900" y="598">&lt; 0.10</text>
+      <text x="1100" y="598">must meet</text>
+      <text x="1280" y="598">Per fold</text>
+
+      <text x="60" y="620">Drift</text>
+      <text x="200" y="620">PSI (Pop. Stability Index)</text>
+      <text x="500" y="620">Σ (p_new - p_old) · ln(p_new/p_old)</text>
+      <text x="900" y="620">&lt; 0.20</text>
+      <text x="1100" y="620">alert if &gt; 0.25</text>
+      <text x="1280" y="620">Daily live</text>
+    </g>
+  </svg>
+
+  <table class="table">
+    <tr><th>Validation Mode</th><th>Method</th><th>Goal</th><th>CI Gate</th><th>Cadence</th></tr>
+    <tr><td class="mod">Walk-forward</td><td>Anchored expanding window · 5 folds × 4 months OOS</td><td>Simulate live deployment · catch temporal overfitting</td><td>Macro F1 &gt; 0.70 · per-class F1 &gt; 0.60</td><td>Every PR + nightly</td></tr>
+    <tr><td class="mod">Cross-session</td><td>Train on Asia session, test on EU/US (and permutations)</td><td>Verify session-agnostic generalization</td><td>F1 drop &lt; 10% vs same-session</td><td>Nightly</td></tr>
+    <tr><td class="mod">Cross-broker</td><td>Train on IC Markets data, test on Pepperstone (and permutations)</td><td>Verify broker-agnostic generalization</td><td>F1 drop &lt; 15% vs same-broker</td><td>Weekly</td></tr>
+    <tr><td class="mod">Stability (perturbation)</td><td>Add 1% Gaussian noise to features · re-run inference</td><td>Verify prediction robustness to small input changes</td><td>Prediction flip rate &lt; 10%</td><td>Nightly</td></tr>
+    <tr><td class="mod">Adversarial</td><td>Generate counterfactual features · check flip rate</td><td>Verify no single feature dominates</td><td>Flip requires Δfeature &gt; 1σ</td><td>Weekly</td></tr>
+    <tr><td class="mod">Live shadow</td><td>Run model in shadow mode alongside production · log divergence</td><td>Catch real-world drift before production deploy</td><td>Divergence &lt; 15% vs production</td><td>Continuous</td></tr>
+  </table>
+</div>
+</body>
+</html>

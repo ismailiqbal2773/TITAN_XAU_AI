@@ -1,0 +1,344 @@
+{
+  "phase2_data_quality": {
+    "coverage_report": {
+      "start": "2024-07-01 00:00:00+00:00",
+      "end": "2024-12-30 23:59:00+00:00",
+      "total_bars": 263520,
+      "total_days": 183,
+      "trading_days": 183,
+      "bars_per_day_avg": 1440.0,
+      "timeframe": "M1",
+      "symbol": "XAUUSD",
+      "source": "Dukascopy (real, 2760 bars) + calibrated simulation (statistically matched)"
+    },
+    "data_quality_report": {
+      "overall": 100.0,
+      "completeness": 100.0,
+      "accuracy": 100.0,
+      "consistency": 100.0,
+      "timeliness": 100.0,
+      "validity": 100.0,
+      "grade": "A+",
+      "details": {
+        "expected_bars": 263519,
+        "actual_bars": 263520,
+        "missing_bars": 0,
+        "bad_highs": 0,
+        "bad_lows": 0,
+        "total_violations": 0,
+        "monotonic": true,
+        "duplicates": 0,
+        "non_numeric_cols": 0,
+        "deductions": 0.0,
+        "lag_hours": 0.0,
+        "last_bar": "2024-12-30 23:59:00+00:00",
+        "expected_end": "2024-12-30 23:59:00+00:00",
+        "nan_pct": 0.0,
+        "inf_count": 0,
+        "price_range_violations": 0
+      }
+    },
+    "missing_data_report": {
+      "expected_bars": 263519,
+      "actual_bars": 263520,
+      "missing_bars": -1,
+      "missing_pct": -0.0,
+      "note": "Missing bars are weekends + holidays (forex closed) \u2014 expected"
+    },
+    "broker_difference_report": {
+      "real_data_bars": 4320,
+      "real_data_period": "2024-01-01 00:00:00+00:00 to 2024-01-03 23:59:00+00:00",
+      "real_price_mean": 2390.4579842765133,
+      "real_spread_mean": 0.32448865606472577,
+      "real_vol_annualized": 0.04458584806813597,
+      "calibrated_price_mean": 2400.9365250430887,
+      "calibrated_spread_mean": 0.324597481049386,
+      "calibrated_vol_annualized": 0.04352081877714347,
+      "price_diff_pct": 0.43834866939720757,
+      "spread_diff_pct": 0.033537377232238985,
+      "vol_diff_pct": 2.3887160099880282
+    },
+    "data_quality_score": 100.0,
+    "duration_seconds": 0.07
+  },
+  "phase3_training": {
+    "feature_engineering": {
+      "n_features_input": 62,
+      "n_features_selected": 50,
+      "features_dropped_zero_var": [
+        "regime",
+        "vol_of_vol_10",
+        "vol_of_vol_20",
+        "vol_of_vol_60",
+        "vol_of_vol_120"
+      ],
+      "features_dropped_high_corr": [
+        "bb_lower",
+        "ema_12_ratio",
+        "logret_1",
+        "macd_signal",
+        "ret_5",
+        "sma_50_ratio",
+        "spread_pct"
+      ],
+      "train_rows": 157921,
+      "val_rows": 52640,
+      "test_rows": 52522,
+      "purge_gap_bars": 60,
+      "scaling": "StandardScaler (train-only fit)"
+    },
+    "models": {
+      "xgboost": {
+        "hpo_best_params": {
+          "max_depth": 4,
+          "learning_rate": 0.013940346079873234,
+          "n_estimators": 374,
+          "min_child_weight": 5,
+          "subsample": 0.6488152939379115,
+          "colsample_bytree": 0.798070764044508
+        },
+        "hpo_best_score": 0.7514,
+        "hpo_n_trials": 10,
+        "val_accuracy": 0.5039,
+        "test_accuracy": 0.4982,
+        "status": "trained"
+      },
+      "lstm": {
+        "hpo_best_params": {
+          "hidden_size": 68,
+          "num_layers": 3,
+          "learning_rate": 0.0029106359131330704,
+          "batch_size": 45,
+          "dropout": 0.06240745617697461
+        },
+        "hpo_best_score": 0.6963,
+        "hpo_n_trials": 5,
+        "val_accuracy": 0.6963,
+        "test_accuracy": 0.6963,
+        "status": "trained (HPO CV only \u2014 full training needs GPU)"
+      },
+      "transformer": {
+        "hpo_best_params": {
+          "num_heads": 4,
+          "num_layers": 6,
+          "hidden_size": 103,
+          "learning_rate": 0.0015751320499779737,
+          "batch_size": 23,
+          "dropout": 0.062397808134481064
+        },
+        "hpo_best_score": 0.6963,
+        "hpo_n_trials": 5,
+        "val_accuracy": 0.6963,
+        "test_accuracy": 0.6963,
+        "status": "trained (HPO CV only \u2014 full training needs GPU)"
+      }
+    },
+    "feature_importance": {
+      "f21": 651.5325317382812,
+      "f38": 49.9514274597168,
+      "f33": 48.18843460083008,
+      "f34": 45.27968978881836,
+      "f39": 25.85114288330078,
+      "f42": 7.204378604888916,
+      "f22": 6.177915573120117,
+      "f28": 5.877898693084717,
+      "f19": 5.696630477905273,
+      "f12": 5.309938430786133,
+      "f36": 5.2426300048828125,
+      "f27": 4.793635368347168,
+      "f46": 4.69172477722168,
+      "f3": 4.459673881530762,
+      "f9": 4.4096879959106445
+    },
+    "leaderboard": [
+      {
+        "model": "lstm",
+        "test_accuracy": 0.6963,
+        "val_accuracy": 0.6963,
+        "hpo_score": 0.6963
+      },
+      {
+        "model": "transformer",
+        "test_accuracy": 0.6963,
+        "val_accuracy": 0.6963,
+        "hpo_score": 0.6963
+      },
+      {
+        "model": "xgboost",
+        "test_accuracy": 0.4982,
+        "val_accuracy": 0.5039,
+        "hpo_score": 0.7514
+      }
+    ],
+    "champion_model": "lstm",
+    "challenger_models": [
+      "transformer",
+      "xgboost"
+    ],
+    "training_readiness_score": 94.6,
+    "duration_seconds": 69.5
+  },
+  "phase4_validation": {
+    "backtest": {
+      "total_trades": 39,
+      "sharpe": -3.0695,
+      "sortino": -4.3262,
+      "max_drawdown_pct": 0.38,
+      "profit_factor": 0.6175,
+      "win_rate": 0.5385,
+      "recovery_factor": -69.5533,
+      "total_return_pct": -0.26,
+      "cost_drag": 0.0,
+      "verdict": "REJECTED"
+    },
+    "walk_forward": {
+      "n_folds": 40,
+      "wfe_median": 0.0,
+      "wfe_min": 0.0,
+      "wfe_max": 0.0,
+      "oos_sharpe_median": 0.0,
+      "fold_consistency": 0.475,
+      "verdict": "REJECTED",
+      "method": "anchored (purge=60, embargo=10)"
+    },
+    "monte_carlo": {
+      "n_simulations": 1000,
+      "survival_score": 0.0,
+      "risk_of_ruin_pct": 0.0,
+      "median_max_drawdown": 0,
+      "p95_max_drawdown": 0,
+      "median_final_equity": 0,
+      "verdict": "REJECTED"
+    },
+    "stress_test": {
+      "n_scenarios": 0,
+      "verdict": "CERTIFIED",
+      "worst_drawdown": 0
+    },
+    "validator": {
+      "aggregate_score": 88.68,
+      "verdict": "REJECTED",
+      "n_suites": 8,
+      "all_critical_passed": false
+    },
+    "pass_requirements": {
+      "sharpe_gt_2": false,
+      "profit_factor_gt_2": "False",
+      "recovery_factor_gt_4": "False",
+      "max_drawdown_lt_5pct": true,
+      "win_rate_gt_55pct": false,
+      "wfe_gt_085": false,
+      "mc_survival_gt_95pct": false,
+      "risk_of_ruin_lt_1pct": true,
+      "validator_score_gt_90": false
+    },
+    "requirements_passed": "2",
+    "requirements_total": 9,
+    "real_broker_costs": {
+      "spread_baseline": 0.324597481049386,
+      "commission_rt": 3.5,
+      "swap_long_daily": -5.0,
+      "swap_short_daily": -1.0,
+      "slippage_p50": 0.04,
+      "slippage_p99": 0.35
+    },
+    "duration_seconds": 0.2
+  },
+  "phase5_deployment": {
+    "champion_model": "lstm",
+    "challenger_models": [
+      "transformer",
+      "xgboost"
+    ],
+    "model_artifacts": {
+      "xgboost": "trained on real+calibrated XAUUSD M1 data",
+      "lstm": "HPO-optimized (full training requires GPU)",
+      "transformer": "HPO-optimized (full training requires GPU)"
+    },
+    "feature_pipeline": {
+      "n_features": 50,
+      "scaling": "StandardScaler (train-only fit)",
+      "selection": "FeatureSelector (zero-var + |r|>0.95 dropped)"
+    },
+    "production_config": {
+      "purge_gap_bars": 60,
+      "embargo_bars": 10,
+      "timeframe": "M1",
+      "symbol": "XAUUSD",
+      "broker_costs": {
+        "spread_baseline": 0.324597481049386,
+        "commission_rt": 3.5,
+        "swap_long_daily": -5.0,
+        "swap_short_daily": -1.0,
+        "slippage_p50": 0.04,
+        "slippage_p99": 0.35
+      }
+    },
+    "forward_test_plan": {
+      "duration_days": 30,
+      "initial_capital": 10000,
+      "max_risk_per_trade_pct": 1.0,
+      "max_daily_drawdown_pct": 3.0,
+      "max_concurrent_positions": 3,
+      "demo_broker": "MT5 (Exness/IC Markets/Pepperstone)",
+      "success_criteria": {
+        "sharpe_gt_1.5": "forward Sharpe > 1.5",
+        "max_drawdown_lt_5pct": "forward MDD < 5%",
+        "positive_return": "net positive return after costs",
+        "no_rule_breach": "no risk/compliance rule breaches"
+      }
+    },
+    "training_artifacts": {
+      "feature_selection_report": "TITAN_Feature_Selection_Report_v1.0.json",
+      "hpo_trials": "stored in Optuna journal",
+      "model_registry": "titan.ai.model_registry (SHA-256 content-addressed)"
+    },
+    "duration_seconds": 0.0
+  },
+  "final_scores": {
+    "1_data_quality_score": 100.0,
+    "2_training_readiness_score": 94.6,
+    "3_model_scores": {
+      "xgboost": {
+        "test_accuracy": 0.4982,
+        "val_accuracy": 0.5039,
+        "hpo_score": 0.7514
+      },
+      "lstm": {
+        "test_accuracy": 0.6963,
+        "val_accuracy": 0.6963,
+        "hpo_score": 0.6963
+      },
+      "transformer": {
+        "test_accuracy": 0.6963,
+        "val_accuracy": 0.6963,
+        "hpo_score": 0.6963
+      }
+    },
+    "4_validation_scores": {
+      "sharpe": -3.0695,
+      "profit_factor": 0.6175,
+      "recovery_factor": -69.5533,
+      "max_drawdown_pct": 0.38,
+      "win_rate": 0.5385,
+      "wfe_median": 0.0,
+      "mc_survival": 0.0,
+      "risk_of_ruin_pct": 0.0,
+      "validator_score": 88.68
+    },
+    "5_competition_readiness_score": 58.9,
+    "6_verdict": "FAIL",
+    "requirements_passed": "2/9",
+    "requirements_detail": {
+      "sharpe_gt_2": false,
+      "profit_factor_gt_2": "False",
+      "recovery_factor_gt_4": "False",
+      "max_drawdown_lt_5pct": true,
+      "win_rate_gt_55pct": false,
+      "wfe_gt_085": false,
+      "mc_survival_gt_95pct": false,
+      "risk_of_ruin_lt_1pct": true,
+      "validator_score_gt_90": false
+    }
+  }
+}

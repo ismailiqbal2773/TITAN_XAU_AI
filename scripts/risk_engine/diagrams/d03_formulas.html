@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Risk Engine — Risk Formulas</title>
+<style>
+  @page { size: 1600px 1100px; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #ffffff; font-family: 'Tinos','FreeSerif',serif; color: #14213D; }
+  .canvas { width: 1600px; height: 1100px; padding: 50px 60px; box-sizing: border-box; }
+  .title-bar { display: flex; align-items: baseline; gap: 18px; border-bottom: 2px solid #14213D; padding-bottom: 12px; margin-bottom: 24px; }
+  .title-bar .num { font-size: 48px; font-weight: 900; color: #C8102E; line-height: 1; }
+  .title-bar h1 { font-size: 26px; font-weight: 700; margin: 0; }
+  .title-bar .sub { font-size: 13px; color: #4A5568; margin-left: auto; font-family: 'JetBrains Mono',monospace; }
+  svg { display: block; margin: 0 auto; background: #FAFBFC; border: 1px solid #E2E8F0; }
+  .table { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-top: 14px; }
+  .table th { background: #14213D; color: #ffffff; padding: 6px 8px; text-align: left; font-weight: 700; }
+  .table td { padding: 5px 8px; border-bottom: 1px solid #E2E8F0; }
+  .table tr:nth-child(even) td { background: #F8FAFC; }
+  .table .mod { color: #14213D; font-family: 'JetBrains Mono',monospace; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="title-bar">
+    <span class="num">03</span>
+    <h1>Risk Formulas — DD · Position Size · Exposure · Circuit Breakers</h1>
+    <span class="sub">All formulas mode-parameterized · computed continuously</span>
+  </div>
+
+  <svg width="1480" height="680" viewBox="0 0 1480 680">
+    <text x="40" y="30" font-size="14" font-weight="700" fill="#C8102E" font-family="Tinos">(a) Drawdown Formulas</text>
+
+    <rect x="40" y="45" width="1400" height="120" fill="#14213D"/>
+    <text x="740" y="75" text-anchor="middle" fill="#ffffff" font-size="14" font-weight="700" font-family="Tinos">DRAWDOWN CALCULATIONS</text>
+    <text x="740" y="100" text-anchor="middle" fill="#C8102E" font-size="12" font-family="JetBrains Mono">DailyDD = (peak_equity_today - current_equity) / peak_equity_today</text>
+    <text x="740" y="120" text-anchor="middle" fill="#C8102E" font-size="12" font-family="JetBrains Mono">WeeklyDD = (peak_equity_7d - current_equity) / peak_equity_7d</text>
+    <text x="740" y="140" text-anchor="middle" fill="#C8102E" font-size="12" font-family="JetBrains Mono">MonthlyDD = (peak_equity_30d - current_equity) / peak_equity_30d</text>
+    <text x="740" y="158" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="10" font-family="JetBrains Mono">peak = max(equity) over the respective window · resets daily (UTC) · rolling for weekly/monthly</text>
+
+    <text x="40" y="200" font-size="14" font-weight="700" fill="#C8102E" font-family="Tinos">(b) Position Size Formula</text>
+
+    <rect x="40" y="215" width="1400" height="80" fill="#14213D"/>
+    <text x="740" y="245" text-anchor="middle" fill="#ffffff" font-size="14" font-weight="700" font-family="Tinos">POSITION SIZE</text>
+    <text x="740" y="270" text-anchor="middle" fill="#C8102E" font-size="13" font-family="JetBrains Mono">qty = (equity × risk_per_trade%) / (stop_distance × tick_value)</text>
+    <text x="740" y="288" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="10" font-family="JetBrains Mono">risk_per_trade% = mode.risk_per_trade × confidence_factor × streak_factor × vol_factor</text>
+
+    <text x="40" y="330" font-size="14" font-weight="700" fill="#C8102E" font-family="Tinos">(c) Exposure Formula</text>
+
+    <rect x="40" y="345" width="1400" height="60" fill="#14213D"/>
+    <text x="740" y="370" text-anchor="middle" fill="#ffffff" font-size="14" font-weight="700" font-family="Tinos">GROSS EXPOSURE</text>
+    <text x="740" y="392" text-anchor="middle" fill="#C8102E" font-size="12" font-family="JetBrains Mono">exposure = Σ(|qty_i × price_i|) for all open positions · must be &lt; mode.max_exposure × equity</text>
+
+    <text x="40" y="440" font-size="14" font-weight="700" fill="#C8102E" font-family="Tinos">(d) Circuit Breaker Triggers</text>
+
+    <rect x="40" y="455" width="440" height="200" fill="#F0FDF4" stroke="#15803D" stroke-width="2"/>
+    <text x="260" y="480" text-anchor="middle" font-size="13" font-weight="700" fill="#15803D" font-family="Tinos">SOFT Breaker (Throttle)</text>
+    <g font-family="JetBrains Mono" font-size="11" fill="#4A5568">
+      <text x="60" y="510">DailyDD ≥ soft_daily → size × 0.5</text>
+      <text x="60" y="530">WeeklyDD ≥ soft_weekly → size × 0.5</text>
+      <text x="60" y="550">MonthlyDD ≥ soft_monthly → size × 0.5</text>
+      <text x="60" y="575">Loss streak ≥ (halt - 1) → size × 0.5</text>
+      <text x="60" y="600">ATR pct > 80 → size × 0.5</text>
+      <text x="60" y="630" fill="#15803D" font-weight="bold">Action: reduce size, continue trading</text>
+    </g>
+
+    <rect x="500" y="455" width="440" height="200" fill="#FEFBEB" stroke="#B45309" stroke-width="2"/>
+    <text x="720" y="480" text-anchor="middle" font-size="13" font-weight="700" fill="#B45309" font-family="Tinos">HARD Breaker (Halt)</text>
+    <g font-family="JetBrains Mono" font-size="11" fill="#4A5568">
+      <text x="520" y="510">DailyDD ≥ hard_daily → no new entries</text>
+      <text x="520" y="530">WeeklyDD ≥ hard_weekly → no new entries</text>
+      <text x="520" y="550">MonthlyDD ≥ hard_monthly → no new entries</text>
+      <text x="520" y="575">Loss streak ≥ halt → no new entries</text>
+      <text x="520" y="600">Equity < guard_L1 → degrade to Conservative</text>
+      <text x="520" y="630" fill="#B45309" font-weight="bold">Action: halt new entries, manage open</text>
+    </g>
+
+    <rect x="960" y="455" width="440" height="200" fill="#FEF3F2" stroke="#C8102E" stroke-width="2"/>
+    <text x="1180" y="480" text-anchor="middle" font-size="13" font-weight="700" fill="#C8102E" font-family="Tinos">CRITICAL Breaker (Flatten)</text>
+    <g font-family="JetBrains Mono" font-size="11" fill="#4A5568">
+      <text x="980" y="510">Equity < guard_L2 → flatten all</text>
+      <text x="980" y="530">Equity < guard_L3 → flatten + lock</text>
+      <text x="980" y="550">Kill switch engaged → flatten + halt</text>
+      <text x="980" y="575">Broker disconnect → flatten on reconnect</text>
+      <text x="980" y="600">License revoked → flatten + halt</text>
+      <text x="980" y="630" fill="#C8102E" font-weight="bold">Action: flatten ALL, halt, page operator P1</text>
+    </g>
+  </svg>
+
+  <table class="table">
+    <tr><th>Formula</th><th>Variables</th><th>Mode Parameter Source</th><th>Computation Cadence</th><th>Action on Breach</th></tr>
+    <tr><td class="mod">DailyDD = (peak_today - equity) / peak_today</td><td>peak_today, equity</td><td>mode.daily_dd_soft / mode.daily_dd_hard</td><td>Every fill (real-time)</td><td>Soft: size × 0.5 · Hard: halt</td></tr>
+    <tr><td class="mod">WeeklyDD = (peak_7d - equity) / peak_7d</td><td>peak_7d, equity</td><td>mode.weekly_dd_soft / mode.weekly_dd_hard</td><td>Every fill (real-time)</td><td>Soft: size × 0.5 · Hard: halt</td></tr>
+    <tr><td class="mod">MonthlyDD = (peak_30d - equity) / peak_30d</td><td>peak_30d, equity</td><td>mode.monthly_dd_soft / mode.monthly_dd_hard</td><td>Every fill (real-time)</td><td>Soft: size × 0.5 · Hard: halt + P1</td></tr>
+    <tr><td class="mod">qty = (equity × risk%) / (stop_dist × tick_val)</td><td>equity, risk%, stop_dist, tick_val</td><td>mode.risk_per_trade × factors</td><td>Per signal (pre-trade)</td><td>Reject if qty > max allowed</td></tr>
+    <tr><td class="mod">exposure = Σ(|qty_i × price_i|)</td><td>all open positions</td><td>mode.max_exposure × equity</td><td>Every fill (real-time)</td><td>Reject new entry if exceeded</td></tr>
+  </table>
+</div>
+</body>
+</html>

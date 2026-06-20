@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Execution Engine — Order Lifecycle State Machine</title>
+<style>
+  @page { size: 1600px 1100px; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #ffffff; font-family: 'Tinos','FreeSerif',serif; color: #14213D; }
+  .canvas { width: 1600px; height: 1100px; padding: 50px 60px; box-sizing: border-box; }
+  .title-bar { display: flex; align-items: baseline; gap: 18px; border-bottom: 2px solid #14213D; padding-bottom: 12px; margin-bottom: 24px; }
+  .title-bar .num { font-size: 48px; font-weight: 900; color: #C8102E; line-height: 1; }
+  .title-bar h1 { font-size: 26px; font-weight: 700; margin: 0; }
+  .title-bar .sub { font-size: 13px; color: #4A5568; margin-left: auto; font-family: 'JetBrains Mono',monospace; }
+  svg { display: block; margin: 0 auto; background: #FAFBFC; border: 1px solid #E2E8F0; }
+  .table { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-top: 14px; }
+  .table th { background: #14213D; color: #ffffff; padding: 6px 8px; text-align: left; font-weight: 700; }
+  .table td { padding: 5px 8px; border-bottom: 1px solid #E2E8F0; }
+  .table tr:nth-child(even) td { background: #F8FAFC; }
+  .table .mod { color: #14213D; font-family: 'JetBrains Mono',monospace; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="title-bar">
+    <span class="num">03</span>
+    <h1>Order Lifecycle — State Machine &amp; Transition Reference</h1>
+    <span class="sub">7 states · 14 transitions · 4 terminal states</span>
+  </div>
+
+  <svg width="1480" height="540" viewBox="0 0 1480 540">
+    <defs>
+      <marker id="ar3" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+        <path d="M0,0 L0,6 L9,3 z" fill="#14213D"/>
+      </marker>
+      <marker id="ar3R" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+        <path d="M0,0 L0,6 L9,3 z" fill="#C8102E"/>
+      </marker>
+      <marker id="ar3G" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+        <path d="M0,0 L0,6 L9,3 z" fill="#15803D"/>
+      </marker>
+      <marker id="ar3Y" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+        <path d="M0,0 L0,6 L9,3 z" fill="#B45309"/>
+      </marker>
+    </defs>
+
+    <!-- States -->
+    <!-- NEW -->
+    <circle cx="120" cy="100" r="55" fill="#14213D"/>
+    <text x="120" y="95" text-anchor="middle" fill="#ffffff" font-size="14" font-weight="700" font-family="Tinos">NEW</text>
+    <text x="120" y="115" text-anchor="middle" fill="#C8102E" font-size="9" font-family="JetBrains Mono">client_id assigned</text>
+
+    <!-- VALIDATED -->
+    <circle cx="350" cy="100" r="55" fill="#F0FDF4" stroke="#14213D" stroke-width="2"/>
+    <text x="350" y="95" text-anchor="middle" font-size="14" font-weight="700" font-family="Tinos">VALIDATED</text>
+    <text x="350" y="115" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">risk approved</text>
+
+    <!-- SENT -->
+    <circle cx="580" cy="100" r="55" fill="#F0FDF4" stroke="#14213D" stroke-width="2"/>
+    <text x="580" y="95" text-anchor="middle" font-size="14" font-weight="700" font-family="Tinos">SENT</text>
+    <text x="580" y="115" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">submitted to broker</text>
+
+    <!-- PARTIAL -->
+    <circle cx="810" cy="100" r="55" fill="#FEFBEB" stroke="#B45309" stroke-width="2.5"/>
+    <text x="810" y="95" text-anchor="middle" font-size="13" font-weight="700" fill="#B45309" font-family="Tinos">PARTIAL</text>
+    <text x="810" y="115" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">residual qty tracked</text>
+
+    <!-- FILLED (terminal) -->
+    <circle cx="1080" cy="100" r="55" fill="#15803D"/>
+    <text x="1080" y="95" text-anchor="middle" fill="#ffffff" font-size="14" font-weight="700" font-family="Tinos">FILLED</text>
+    <text x="1080" y="115" text-anchor="middle" fill="#ffffff" opacity="0.9" font-size="9" font-family="JetBrains Mono">terminal ✓</text>
+
+    <!-- double ring for terminal -->
+    <circle cx="1080" cy="100" r="65" fill="none" stroke="#15803D" stroke-width="2"/>
+
+    <!-- CANCELED (terminal) -->
+    <circle cx="1300" cy="100" r="55" fill="#14213D"/>
+    <text x="1300" y="95" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="Tinos">CANCELED</text>
+    <text x="1300" y="115" text-anchor="middle" fill="#C8102E" font-size="9" font-family="JetBrains Mono">terminal ✓</text>
+    <circle cx="1300" cy="100" r="65" fill="none" stroke="#14213D" stroke-width="2"/>
+
+    <!-- REJECTED (terminal) -->
+    <circle cx="350" cy="380" r="55" fill="#C8102E"/>
+    <text x="350" y="375" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="Tinos">REJECTED</text>
+    <text x="350" y="395" text-anchor="middle" fill="#ffffff" opacity="0.9" font-size="9" font-family="JetBrains Mono">terminal ✓</text>
+    <circle cx="350" cy="380" r="65" fill="none" stroke="#C8102E" stroke-width="2"/>
+
+    <!-- EXPIRED (terminal) -->
+    <circle cx="580" cy="380" r="55" fill="#4A5568"/>
+    <text x="580" y="375" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="Tinos">EXPIRED</text>
+    <text x="580" y="395" text-anchor="middle" fill="#ffffff" opacity="0.9" font-size="9" font-family="JetBrains Mono">terminal ✓</text>
+    <circle cx="580" cy="380" r="65" fill="none" stroke="#4A5568" stroke-width="2"/>
+
+    <!-- ERROR (terminal) -->
+    <circle cx="810" cy="380" r="55" fill="#C8102E"/>
+    <text x="810" y="375" text-anchor="middle" fill="#ffffff" font-size="14" font-weight="700" font-family="Tinos">ERROR</text>
+    <text x="810" y="395" text-anchor="middle" fill="#ffffff" opacity="0.9" font-size="9" font-family="JetBrains Mono">terminal ✓</text>
+    <circle cx="810" cy="380" r="65" fill="none" stroke="#C8102E" stroke-width="2"/>
+
+    <!-- Transitions -->
+    <!-- NEW → VALIDATED -->
+    <line x1="175" y1="100" x2="295" y2="100" stroke="#15803D" stroke-width="2" marker-end="url(#ar3G)"/>
+    <text x="235" y="92" text-anchor="middle" font-size="9" fill="#15803D" font-family="JetBrains Mono">risk_ok</text>
+
+    <!-- NEW → REJECTED (risk) -->
+    <path d="M 100 155 Q 200 280 305 340" stroke="#C8102E" stroke-width="2" fill="none" marker-end="url(#ar3R)"/>
+    <text x="140" y="240" font-size="9" fill="#C8102E" font-family="JetBrains Mono">risk_reject</text>
+
+    <!-- VALIDATED → SENT -->
+    <line x1="405" y1="100" x2="525" y2="100" stroke="#14213D" stroke-width="2" marker-end="url(#ar3)"/>
+    <text x="465" y="92" text-anchor="middle" font-size="9" fill="#14213D" font-family="JetBrains Mono">dispatch</text>
+
+    <!-- SENT → PARTIAL -->
+    <line x1="635" y1="100" x2="755" y2="100" stroke="#B45309" stroke-width="2" marker-end="url(#ar3Y)"/>
+    <text x="695" y="92" text-anchor="middle" font-size="9" fill="#B45309" font-family="JetBrains Mono">partial_fill</text>
+
+    <!-- SENT → FILLED -->
+    <path d="M 620 60 Q 850 30 1030 75" stroke="#15803D" stroke-width="2" fill="none" marker-end="url(#ar3G)"/>
+    <text x="820" y="35" text-anchor="middle" font-size="9" fill="#15803D" font-family="JetBrains Mono">full_fill</text>
+
+    <!-- SENT → REJECTED -->
+    <path d="M 555 145 Q 450 240 380 330" stroke="#C8102E" stroke-width="2" fill="none" marker-end="url(#ar3R)"/>
+    <text x="430" y="240" font-size="9" fill="#C8102E" font-family="JetBrains Mono">broker_reject</text>
+
+    <!-- SENT → EXPIRED -->
+    <path d="M 580 155 Q 580 250 580 325" stroke="#4A5568" stroke-width="2" fill="none" marker-end="url(#ar3)"/>
+    <text x="595" y="240" font-size="9" fill="#4A5568" font-family="JetBrains Mono">tif_expired</text>
+
+    <!-- SENT → CANCELED -->
+    <path d="M 635 90 Q 900 60 1245 90" stroke="#14213D" stroke-width="2" fill="none" marker-end="url(#ar3)"/>
+    <text x="950" y="60" text-anchor="middle" font-size="9" fill="#14213D" font-family="JetBrains Mono">cancel_request</text>
+
+    <!-- SENT → ERROR -->
+    <path d="M 615 150 Q 750 250 800 325" stroke="#C8102E" stroke-width="2" fill="none" marker-end="url(#ar3R)" stroke-dasharray="4 2"/>
+    <text x="730" y="250" font-size="9" fill="#C8102E" font-family="JetBrains Mono">timeout/unknown</text>
+
+    <!-- PARTIAL → FILLED -->
+    <line x1="865" y1="100" x2="1025" y2="100" stroke="#15803D" stroke-width="2" marker-end="url(#ar3G)"/>
+    <text x="945" y="92" text-anchor="middle" font-size="9" fill="#15803D" font-family="JetBrains Mono">residual_filled</text>
+
+    <!-- PARTIAL → CANCELED -->
+    <path d="M 870 80 Q 1080 30 1250 80" stroke="#14213D" stroke-width="2" fill="none" marker-end="url(#ar3)"/>
+    <text x="1080" y="20" text-anchor="middle" font-size="9" fill="#14213D" font-family="JetBrains Mono">cancel_residual</text>
+
+    <!-- PARTIAL → EXPIRED -->
+    <path d="M 800 155 Q 700 250 610 325" stroke="#4A5568" stroke-width="2" fill="none" marker-end="url(#ar3)"/>
+    <text x="685" y="250" font-size="9" fill="#4A5568" font-family="JetBrains Mono">tif_expired</text>
+
+    <!-- PARTIAL → SENT (re-route residual) -->
+    <path d="M 760 75 Q 660 50 600 75" stroke="#B45309" stroke-width="2" fill="none" marker-end="url(#ar3Y)"/>
+    <text x="680" y="40" text-anchor="middle" font-size="9" fill="#B45309" font-family="JetBrains Mono">reroute_residual</text>
+
+    <!-- VALIDATED → CANCELED (pre-dispatch cancel) -->
+    <path d="M 405 80 Q 800 0 1250 80" stroke="#14213D" stroke-width="2" fill="none" marker-end="url(#ar3)" stroke-dasharray="4 2"/>
+    <text x="800" y="-5" text-anchor="middle" font-size="9" fill="#14213D" font-family="JetBrains Mono">cancel_pre_dispatch</text>
+
+    <!-- legend -->
+    <rect x="40" y="460" width="1420" height="60" fill="#F8FAFC" stroke="#14213D"/>
+    <text x="60" y="480" font-size="11" font-weight="700" fill="#14213D" font-family="Tinos">LEGEND</text>
+    <g font-family="JetBrains Mono" font-size="10">
+      <circle cx="80" cy="500" r="8" fill="#14213D"/>
+      <text x="95" y="503" fill="#14213D">NEW (initial)</text>
+
+      <circle cx="220" cy="500" r="8" fill="#F0FDF4" stroke="#14213D"/>
+      <text x="235" y="503" fill="#14213D">intermediate state</text>
+
+      <circle cx="380" cy="500" r="8" fill="#FEFBEB" stroke="#B45309"/>
+      <text x="395" y="503" fill="#B45309">partial fill (warning)</text>
+
+      <circle cx="560" cy="500" r="8" fill="#15803D"/>
+      <text x="575" y="503" fill="#15803D">FILLED (success terminal)</text>
+
+      <circle cx="780" cy="500" r="8" fill="#C8102E"/>
+      <text x="795" y="503" fill="#C8102E">REJECTED / ERROR (failure terminal)</text>
+
+      <circle cx="1060" cy="500" r="8" fill="#4A5568"/>
+      <text x="1075" y="503" fill="#4A5568">EXPIRED (time terminal)</text>
+
+      <circle cx="1240" cy="500" r="8" fill="#14213D"/>
+      <text x="1255" y="503" fill="#14213D">CANCELED (operator terminal)</text>
+    </g>
+  </svg>
+
+  <table class="table">
+    <tr><th>Transition</th><th>From → To</th><th>Trigger</th><th>Action</th><th>Reversible?</th></tr>
+    <tr><td class="mod">T01</td><td>NEW → VALIDATED</td><td>RiskGate returns APPROVE</td><td>Assign broker-side params; mark ready for dispatch</td><td>No</td></tr>
+    <tr><td class="mod">T02</td><td>NEW → REJECTED</td><td>RiskGate returns REJECT</td><td>Log reject reason; audit; no broker call</td><td>No (terminal)</td></tr>
+    <tr><td class="mod">T03</td><td>VALIDATED → SENT</td><td>Dispatcher.submit() returns OK</td><td>Start 2s submit_timeout timer</td><td>Yes (cancel)</td></tr>
+    <tr><td class="mod">T04</td><td>VALIDATED → CANCELED</td><td>Operator cancel before dispatch</td><td>No broker call; audit</td><td>No (terminal)</td></tr>
+    <tr><td class="mod">T05</td><td>SENT → PARTIAL</td><td>Fill callback with qty &lt; order qty</td><td>Track residual; decide re-route strategy</td><td>Yes (cancel residual)</td></tr>
+    <tr><td class="mod">T06</td><td>SENT → FILLED</td><td>Fill callback with qty == order qty</td><td>Stop timer; mark terminal; emit FillEvent</td><td>No (terminal)</td></tr>
+    <tr><td class="mod">T07</td><td>SENT → REJECTED</td><td>Broker returns rejection</td><td>Classify via RejectionClassifier; decide retry/abort</td><td>Conditional (retry → NEW)</td></tr>
+    <tr><td class="mod">T08</td><td>SENT → EXPIRED</td><td>TIF timer fires (IOC/FOK/Day)</td><td>Issue cancel; expect CANCELED confirmation</td><td>No (terminal)</td></tr>
+    <tr><td class="mod">T09</td><td>SENT → CANCELED</td><td>Operator cancel · broker confirms</td><td>Audit; emit CanceledEvent</td><td>No (terminal)</td></tr>
+    <tr><td class="mod">T10</td><td>SENT → ERROR</td><td>submit_timeout (2s) · bridge disconnect</td><td>Reconcile via ReconciliationEngine; retry or abort</td><td>Conditional (reconcile)</td></tr>
+    <tr><td class="mod">T11</td><td>PARTIAL → FILLED</td><td>Residual order fully fills</td><td>Stop timer; compute total slippage; audit</td><td>No (terminal)</td></tr>
+    <tr><td class="mod">T12</td><td>PARTIAL → CANCELED</td><td>Operator cancels residual</td><td>Issue cancel for residual; audit partial fill</td><td>No (terminal)</td></tr>
+    <tr><td class="mod">T13</td><td>PARTIAL → EXPIRED</td><td>TIF timer fires on residual</td><td>Auto-cancel residual; audit</td><td>No (terminal)</td></tr>
+    <tr><td class="mod">T14</td><td>PARTIAL → SENT</td><td>Residual re-routed (new ticket)</td><td>Re-enter SENT state with reduced qty</td><td>Yes (full lifecycle)</td></tr>
+  </table>
+</div>
+</body>
+</html>

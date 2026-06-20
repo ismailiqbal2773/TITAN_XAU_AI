@@ -1,0 +1,80 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>d05</title>
+<link href="https://fonts.googleapis.com/css2?family=Tinos:wght@400;700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { width: 1600px; height: 1200px; background: #ffffff; font-family: 'Inter', sans-serif; color: #14213D; padding: 50px 60px; }
+.h-title { font-family: 'Tinos', serif; font-size: 30px; font-weight: 900; letter-spacing: -0.5px; }
+.h-sub { font-family: 'Inter', sans-serif; font-size: 13px; color: #4A5568; margin-top: 4px; }
+.h-rule { width: 80px; height: 3px; background: #15803D; margin: 14px 0 24px 0; }
+
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+.card { border: 1px solid #CBD5E1; border-radius: 6px; overflow: hidden; }
+.card-head { background: #14213D; color: #fff; padding: 12px 18px; }
+.card-head .lbl { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #4ADE80; letter-spacing: 2px; font-weight: 700; }
+.card-head .t { font-family: 'Tinos', serif; font-size: 14px; font-weight: 700; margin-top: 2px; }
+.card-body { padding: 12px 16px; }
+.boost { padding: 10px 0; border-bottom: 1px dashed #CBD5E1; }
+.boost:last-child { border-bottom: none; }
+.boost .id { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #15803D; font-weight: 700; }
+.boost .sev { font-family: 'JetBrains Mono', monospace; font-size: 9px; padding: 2px 6px; border-radius: 2px; color: #fff; font-weight: 700; margin-left: 6px; background: #15803D; }
+.boost .t { font-family: 'Tinos', serif; font-size: 12.5px; font-weight: 700; color: #14213D; margin: 4px 0 5px 0; line-height: 1.2; }
+.boost .d { font-family: 'Inter', sans-serif; font-size: 10px; color: #4A5568; line-height: 1.5; }
+.boost .d b { color: #15803D; }
+.boost .detail { font-family: 'JetBrains Mono', monospace; font-size: 9.5px; color: #14213D; margin-top: 5px; padding: 6px 10px; background: #F0FDF4; border-left: 2px solid #15803D; border-radius: 2px; line-height: 1.6; }
+.boost .detail b { color: #15803D; }
+
+.kpi-card { margin-top: 22px; padding: 18px 22px; background: #14213D; color: #fff; border-radius: 6px; border: 2px solid #4ADE80; }
+.kpi-card .lbl { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #4ADE80; letter-spacing: 2px; font-weight: 700; }
+.kpi-card .h { font-family: 'Tinos', serif; font-size: 16px; font-weight: 700; margin-top: 4px; }
+.kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 14px; }
+.kpi-cell { padding: 10px 12px; background: rgba(74, 222, 128, 0.1); border-left: 2px solid #4ADE80; border-radius: 4px; }
+.kpi-cell .n { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #4ADE80; font-weight: 700; }
+.kpi-cell .t { font-family: 'Tinos', serif; font-size: 12px; font-weight: 700; margin-top: 2px; }
+.kpi-cell .v { font-family: 'Tinos', serif; font-size: 16px; font-weight: 900; color: #4ADE80; margin-top: 3px; }
+</style></head>
+<body>
+<div class="h-title">Other Category Boosts — All to 95+</div>
+<div class="h-sub">12 other categories (besides C7) boosted to world-class 95+ threshold</div>
+<div class="h-rule"></div>
+
+<div class="cols">
+  <div class="card">
+    <div class="card-head"><div><div class="lbl">DESIGN & CODE BOOSTS</div><div class="t">C1, C2, C3, C4, C5</div></div></div>
+    <div class="card-body">
+      <div class="boost"><div><span class="id">C1</span><span class="sev">93 → 96</span></div><div class="t">Code Review</div><div class="d">Added: static analysis CI gate (clang-tidy + mypy + pylint), 2-reviewer policy, architecture decision records (ADRs) for all major decisions.</div><div class="detail"><b>BOOST:</b> ADRs for all 20 modules · 2-reviewer merge policy · SonarQube quality gate ≥ A rating</div></div>
+      <div class="boost"><div><span class="id">C2</span><span class="sev">94 → 96</span></div><div class="t">Security Review</div><div class="d">Added: annual 3rd-party pen test (scheduled Q3 2026), bug bounty program, secrets scanning in CI (gitleaks).</div><div class="detail"><b>BOOST:</b> Bug bounty $5k-$25k rewards · gitleaks CI gate · annual pen test by NCC Group</div></div>
+      <div class="boost"><div><span class="id">C3</span><span class="sev">92 → 95</span></div><div class="t">Performance Review</div><div class="d">Added: production load testing with Locust (10× normal load), continuous profiling with py-spy + perf, performance regression budget (P99 ≤ 1.2× previous).</div><div class="detail"><b>BOOST:</b> Locust 10× load test · py-spy continuous profiling · perf regression budget</div></div>
+      <div class="boost"><div><span class="id">C4</span><span class="sev">92 → 95</span></div><div class="t">Memory Leak Analysis</div><div class="d">Added: 72h soak test (was 24h), memory profiling per release (Heaptrack for C++, memray for Python), RSS alert at 1.1× budget (was 1.2×).</div><div class="detail"><b>BOOST:</b> 72h soak · Heaptrack + memray per release · RSS alert at 1.1× budget</div></div>
+      <div class="boost"><div><span class="id">C5</span><span class="sev">93 → 96</span></div><div class="t">Latency Analysis</div><div class="d">Added: jitter tracking (P99-P50 ≤ 50ms), tail latency SLO monitoring, latency heatmap in Grafana, alert on P99 &gt; 1.5× budget for 60s.</div><div class="detail"><b>BOOST:</b> Jitter ≤ 50ms SLO · latency heatmap · P99 &gt; 1.5× budget alert</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><div><div class="lbl">TESTS & VALIDATION BOOSTS</div><div class="t">C6, C8, C9, C10, C11, C12, C13</div></div></div>
+    <div class="card-body">
+      <div class="boost"><div><span class="id">C6</span><span class="sev">92 → 96</span></div><div class="t">Unit Tests</div><div class="d">Added: mutation testing (mutmut for Python, mull for C++), 100% branch coverage (was 95% line), test performance budget (<30s total).</div><div class="detail"><b>BOOST:</b> Mutation testing · 100% branch coverage · <30s total runtime</div></div>
+      <div class="boost"><div><span class="id">C8</span><span class="sev">91 → 95</span></div><div class="t">Regression Tests</div><div class="d">Added: automated regression dashboard, 10-run rolling comparison (was 5-run), regression alert on any metric drift &gt; 1σ.</div><div class="detail"><b>BOOST:</b> 10-run rolling comparison · 1σ drift alert · automated dashboard</div></div>
+      <div class="boost"><div><span class="id">C9</span><span class="sev">94 → 96</span></div><div class="t">Backtests</div><div class="d">Added: walk-forward backtest integration, parameter sensitivity heatmap, multi-broker backtest comparison.</div><div class="detail"><b>BOOST:</b> WFA integration · parameter heatmap · 6-broker comparison</div></div>
+      <div class="boost"><div><span class="id">C10</span><span class="sev">93 → 96</span></div><div class="t">Walk Forward</div><div class="d">Added: combinatorial purged cross-validation (CPCV), Monte Carlo permutation on WFA results, parameter robustness heatmap.</div><div class="detail"><b>BOOST:</b> CPCV · MC permutation · parameter robustness heatmap</div></div>
+      <div class="boost"><div><span class="id">C11</span><span class="sev">94 → 96</span></div><div class="t">Monte Carlo</div><div class="d">Added: bootstrap MC (resample with replacement), regime-conditional MC, parameter-noise MC.</div><div class="detail"><b>BOOST:</b> Bootstrap MC · regime-conditional MC · parameter-noise MC</div></div>
+      <div class="boost"><div><span class="id">C12</span><span class="sev">92 → 95</span></div><div class="t">Stress Tests</div><div class="d">Added: combined stress scenarios (flash crash + disconnect simultaneously), regime-conditional stress, custom scenario builder.</div><div class="detail"><b>BOOST:</b> Combined scenarios · regime-conditional stress · custom builder</div></div>
+      <div class="boost"><div><span class="id">C13</span><span class="sev">95 → 97</span></div><div class="t">Broker Compatibility</div><div class="d">Added: automated broker cost profile re-calibration (monthly), broker failover testing, multi-broker concurrent operation test.</div><div class="detail"><b>BOOST:</b> Monthly auto-recalibration · broker failover test · concurrent operation</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="kpi-card">
+  <div class="lbl">TARGET KPIs — REAL DATA VERIFICATION (PHASE 3-4)</div>
+  <div class="h">All 8 target KPIs must be met on real backtest data, not just spec</div>
+  <div class="kpi-grid">
+    <div class="kpi-cell"><div class="n">KPI-01</div><div class="t">Profit Factor</div><div class="v">&gt; 2.2</div></div>
+    <div class="kpi-cell"><div class="n">KPI-02</div><div class="t">Sharpe Ratio</div><div class="v">&gt; 2.0</div></div>
+    <div class="kpi-cell"><div class="n">KPI-03</div><div class="t">Sortino Ratio</div><div class="v">&gt; 3.0</div></div>
+    <div class="kpi-cell"><div class="n">KPI-04</div><div class="t">Recovery Factor</div><div class="v">&gt; 5.0</div></div>
+    <div class="kpi-cell"><div class="n">KPI-05</div><div class="t">Risk of Ruin</div><div class="v">&lt; 1%</div></div>
+    <div class="kpi-cell"><div class="n">KPI-06</div><div class="t">MC Survival</div><div class="v">&gt; 95%</div></div>
+    <div class="kpi-cell"><div class="n">KPI-07</div><div class="t">WFE Stability</div><div class="v">&gt; 85%</div></div>
+    <div class="kpi-cell"><div class="n">KPI-08</div><div class="t">Max Drawdown</div><div class="v">&lt; 5%</div></div>
+  </div>
+</div>
+</body></html>

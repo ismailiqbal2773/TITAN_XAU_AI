@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Cost Intelligence — Decision Model</title>
+<style>
+  @page { size: 1400px 1700px; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #ffffff; font-family: 'Tinos','FreeSerif',serif; color: #14213D; }
+  .canvas { width: 1400px; height: 1700px; padding: 50px 60px; box-sizing: border-box; }
+  .title-bar { display: flex; align-items: baseline; gap: 18px; border-bottom: 2px solid #14213D; padding-bottom: 12px; margin-bottom: 24px; }
+  .title-bar .num { font-size: 48px; font-weight: 900; color: #C8102E; line-height: 1; }
+  .title-bar h1 { font-size: 26px; font-weight: 700; margin: 0; }
+  .title-bar .sub { font-size: 13px; color: #4A5568; margin-left: auto; font-family: 'JetBrains Mono',monospace; }
+  svg { display: block; margin: 0 auto; background: #FAFBFC; border: 1px solid #E2E8F0; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="title-bar">
+    <span class="num">02</span>
+    <h1>Decision Model — Trade Only If Expected Edge Remains Positive</h1>
+    <span class="sub">Signal edge → total cost → net edge → trade/reduce/reject</span>
+  </div>
+  <svg width="1280" height="1500" viewBox="0 0 1280 1500">
+    <defs>
+      <marker id="ar2" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#14213D"/></marker>
+      <marker id="ar2R" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#C8102E"/></marker>
+      <marker id="ar2G" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#15803D"/></marker>
+    </defs>
+
+    <ellipse cx="640" cy="40" rx="180" ry="24" fill="#14213D"/>
+    <text x="640" y="46" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="Tinos">START — Signal received from strategy</text>
+    <line x1="640" y1="64" x2="640" y2="92" stroke="#14213D" stroke-width="2" marker-end="url(#ar2)"/>
+
+    <rect x="460" y="95" width="360" height="80" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="640" y="120" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">1. COMPUTE SIGNAL EDGE</text>
+    <text x="640" y="140" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">signal_edge_bps = R_multiple × ATR / price × 10000</text>
+    <text x="640" y="158" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">e.g., 1.5R × $2 / $1950 × 10000 = 15.4 bps</text>
+    <line x1="640" y1="175" x2="640" y2="200" stroke="#14213D" stroke-width="2" marker-end="url(#ar2)"/>
+
+    <rect x="460" y="205" width="360" height="80" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="640" y="230" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">2. COMPUTE TOTAL COST</text>
+    <text x="640" y="250" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">total_cost = spread + commission + swap + slippage + latency</text>
+    <text x="640" y="268" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">all in bps · regime-adjusted · size-dependent</text>
+    <line x1="640" y1="285" x2="640" y2="310" stroke="#14213D" stroke-width="2" marker-end="url(#ar2)"/>
+
+    <rect x="380" y="315" width="520" height="120" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="640" y="340" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">3. COMPUTE EXPECTED EDGE</text>
+    <text x="640" y="365" text-anchor="middle" font-size="11" fill="#C8102E" font-family="JetBrains Mono" font-weight="bold">expected_edge_bps = signal_edge_bps - total_cost_bps</text>
+    <text x="640" y="385" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">spread_bps: ~3-8 bps (variable, session-dependent)</text>
+    <text x="640" y="399" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">commission_bps: ~0.7-3.5 bps (per $1M notional)</text>
+    <text x="640" y="413" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">swap_bps: ~0.5-2.0 bps (per 4h holding)</text>
+    <text x="640" y="427" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">slippage_bps: ~1-5 bps (size-dependent) · latency_bps: ~0.5-2 bps</text>
+    <line x1="640" y1="435" x2="640" y2="460" stroke="#14213D" stroke-width="2" marker-end="url(#ar2)"/>
+
+    <polygon points="640,465 840,540 640,615 440,540" fill="#FEF3F2" stroke="#C8102E" stroke-width="2"/>
+    <text x="640" y="510" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">expected_edge > 0?</text>
+    <text x="640" y="528" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">is the trade profitable AFTER all costs?</text>
+    <text x="640" y="545" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">net edge must be positive</text>
+
+    <line x1="640" y1="615" x2="640" y2="645" stroke="#14213D" stroke-width="2" marker-end="url(#ar2)"/>
+    <text x="650" y="635" font-size="11" fill="#15803D" font-family="JetBrains Mono">YES</text>
+    <line x1="440" y1="540" x2="280" y2="540" stroke="#C8102E" stroke-width="2" marker-end="url(#ar2R)"/>
+    <text x="360" y="532" font-size="11" fill="#C8102E" font-family="JetBrains Mono">NO</text>
+    <rect x="80" y="515" width="200" height="60" fill="#C8102E"/>
+    <text x="180" y="540" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="Tinos">NO TRADE</text>
+    <text x="180" y="558" text-anchor="middle" fill="#ffffff" font-size="9" font-family="JetBrains Mono">cost exceeds edge</text>
+    <text x="180" y="570" text-anchor="middle" fill="#ffffff" font-size="9" font-family="JetBrains Mono">audit: NEGATIVE_EDGE</text>
+
+    <polygon points="640,650 840,710 640,770 440,710" fill="#FEF3F2" stroke="#C8102E" stroke-width="2"/>
+    <text x="640" y="700" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">expected_edge > min_edge?</text>
+    <text x="640" y="718" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">min_edge = 3.0 bps (safety margin)</text>
+    <text x="640" y="735" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">ensures edge survives cost variance</text>
+
+    <line x1="840" y1="710" x2="950" y2="710" stroke="#B45309" stroke-width="2" marker-end="url(#ar2)"/>
+    <text x="880" y="702" font-size="11" fill="#B45309" font-family="JetBrains Mono">NO (0-3bps)</text>
+    <rect x="950" y="680" width="260" height="70" fill="#FEFBEB" stroke="#B45309" stroke-width="2"/>
+    <text x="1080" y="705" text-anchor="middle" font-size="12" font-weight="700" fill="#B45309" font-family="Tinos">REDUCE SIZE</text>
+    <text x="1080" y="723" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">size_mult = edge / min_edge</text>
+    <text x="1080" y="737" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">trade with reduced quantity</text>
+    <text x="1080" y="748" text-anchor="middle" font-size="9" fill="#C8102E" font-family="JetBrains Mono" font-weight="bold">audit: THIN_EDGE</text>
+
+    <line x1="640" y1="770" x2="640" y2="800" stroke="#15803D" stroke-width="2" marker-end="url(#ar2G)"/>
+    <text x="650" y="790" font-size="11" fill="#15803D" font-family="JetBrains Mono">YES (>3bps)</text>
+
+    <rect x="460" y="805" width="360" height="80" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="640" y="830" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">4. OPTIMIZE SIZE</text>
+    <text x="640" y="850" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">optimal_qty = max(0, (edge - min_edge) / slip_slope)</text>
+    <text x="640" y="868" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">reduce until marginal cost = marginal edge</text>
+    <line x1="640" y1="885" x2="640" y2="910" stroke="#14213D" stroke-width="2" marker-end="url(#ar2)"/>
+
+    <rect x="460" y="915" width="360" height="60" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="640" y="940" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">5. SELECT BEST BROKER</text>
+    <text x="640" y="960" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">route to broker with lowest projected total_cost</text>
+    <line x1="640" y1="975" x2="640" y2="1000" stroke="#14213D" stroke-width="2" marker-end="url(#ar2)"/>
+
+    <rect x="460" y="1005" width="360" height="60" fill="#FEF3F2" stroke="#C8102E" stroke-width="2"/>
+    <text x="640" y="1030" text-anchor="middle" font-size="12" font-weight="700" fill="#C8102E" font-family="Tinos">6. RISK GATE CHECK</text>
+    <text x="640" y="1048" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">risk_per_trade · max_concurrent · DD limits</text>
+    <line x1="640" y1="1065" x2="640" y2="1090" stroke="#14213D" stroke-width="2" marker-end="url(#ar2)"/>
+
+    <polygon points="640,1095 820,1140 640,1185 460,1140" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="640" y="1140" text-anchor="middle" font-size="11" font-weight="700" font-family="Tinos">risk approved?</text>
+    <line x1="640" y1="1185" x2="640" y2="1215" stroke="#15803D" stroke-width="2" marker-end="url(#ar2G)"/>
+    <text x="650" y="1205" font-size="11" fill="#15803D" font-family="JetBrains Mono">YES</text>
+    <line x1="820" y1="1140" x2="950" y2="1140" stroke="#C8102E" stroke-width="2" marker-end="url(#ar2R)"/>
+    <text x="870" y="1132" font-size="11" fill="#C8102E" font-family="JetBrains Mono">NO</text>
+    <rect x="950" y="1115" width="220" height="55" fill="#14213D"/>
+    <text x="1060" y="1138" text-anchor="middle" fill="#ffffff" font-size="11" font-weight="700">REJECT</text>
+    <text x="1060" y="1155" text-anchor="middle" fill="#C8102E" font-size="9" font-family="JetBrains Mono">RISK_REJECT</text>
+
+    <rect x="460" y="1220" width="360" height="60" fill="#14213D"/>
+    <text x="640" y="1245" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700" font-family="Tinos">7. EMIT COST-ADJUSTED SIGNAL</text>
+    <text x="640" y="1265" text-anchor="middle" fill="#C8102E" font-size="10" font-family="JetBrains Mono">signal + total_cost_bps + expected_edge_bps + broker_id</text>
+    <line x1="640" y1="1280" x2="640" y2="1310" stroke="#14213D" stroke-width="2" marker-end="url(#ar2)"/>
+
+    <ellipse cx="640" cy="1350" rx="220" ry="26" fill="#15803D"/>
+    <text x="640" y="1357" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="Tinos">END — Trade with positive expected net edge</text>
+  </svg>
+</div>
+</body>
+</html>

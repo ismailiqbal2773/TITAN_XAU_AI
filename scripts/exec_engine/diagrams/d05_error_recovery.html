@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Execution Engine — Error Recovery &amp; Retry</title>
+<style>
+  @page { size: 1600px 1100px; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #ffffff; font-family: 'Tinos','FreeSerif',serif; color: #14213D; }
+  .canvas { width: 1600px; height: 1100px; padding: 50px 60px; box-sizing: border-box; }
+  .title-bar { display: flex; align-items: baseline; gap: 18px; border-bottom: 2px solid #14213D; padding-bottom: 12px; margin-bottom: 24px; }
+  .title-bar .num { font-size: 48px; font-weight: 900; color: #C8102E; line-height: 1; }
+  .title-bar h1 { font-size: 26px; font-weight: 700; margin: 0; }
+  .title-bar .sub { font-size: 13px; color: #4A5568; margin-left: auto; font-family: 'JetBrains Mono',monospace; }
+  svg { display: block; margin: 0 auto; background: #FAFBFC; border: 1px solid #E2E8F0; }
+  .table { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-top: 14px; }
+  .table th { background: #14213D; color: #ffffff; padding: 6px 8px; text-align: left; font-weight: 700; }
+  .table td { padding: 5px 8px; border-bottom: 1px solid #E2E8F0; }
+  .table tr:nth-child(even) td { background: #F8FAFC; }
+  .table .mod { color: #14213D; font-family: 'JetBrains Mono',monospace; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="title-bar">
+    <span class="num">05</span>
+    <h1>Error Recovery — Retry, Rejection, Reconciliation</h1>
+    <span class="sub">3-tier retry · 12 reject codes · orphan/phantom resolution</span>
+  </div>
+
+  <svg width="1480" height="660" viewBox="0 0 1480 660">
+    <defs>
+      <marker id="ar5" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
+        <path d="M0,0 L0,6 L7,3 z" fill="#14213D"/>
+      </marker>
+      <marker id="ar5R" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
+        <path d="M0,0 L0,6 L7,3 z" fill="#C8102E"/>
+      </marker>
+      <marker id="ar5G" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
+        <path d="M0,0 L0,6 L7,3 z" fill="#15803D"/>
+      </marker>
+    </defs>
+
+    <!-- (a) Retry Manager -->
+    <text x="40" y="30" font-size="14" font-weight="700" fill="#C8102E" font-family="Tinos">(a) Order Retry System — Exponential Backoff with Jitter</text>
+
+    <rect x="40" y="50" width="200" height="50" fill="#14213D"/>
+    <text x="140" y="80" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700" font-family="Tinos">Order fails / rejected</text>
+    <line x1="240" y1="75" x2="280" y2="75" stroke="#14213D" stroke-width="1.5" marker-end="url(#ar5)"/>
+
+    <polygon points="280,75 350,45 420,75 350,105" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="350" y="73" text-anchor="middle" font-size="10" font-weight="700">retries</text>
+    <text x="350" y="88" text-anchor="middle" font-size="10" font-weight="700">&lt; budget?</text>
+    <text x="350" y="100" text-anchor="middle" font-size="8" fill="#4A5568">budget=3</text>
+
+    <line x1="420" y1="75" x2="460" y2="75" stroke="#14213D" stroke-width="1.5" marker-end="url(#ar5)"/>
+    <text x="440" y="68" font-size="9" fill="#15803D">YES</text>
+
+    <rect x="460" y="50" width="240" height="60" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="580" y="75" text-anchor="middle" font-size="11" font-weight="700" font-family="Tinos">Compute backoff</text>
+    <text x="580" y="92" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">delay = base · 3^(retry) + jitter</text>
+    <text x="580" y="105" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">base=100ms · jitter=±20ms</text>
+    <line x1="700" y1="75" x2="740" y2="75" stroke="#14213D" stroke-width="1.5" marker-end="url(#ar5)"/>
+
+    <rect x="740" y="50" width="200" height="60" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="840" y="75" text-anchor="middle" font-size="11" font-weight="700" font-family="Tinos">Schedule retry</text>
+    <text x="840" y="92" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">timerfd · no busy-wait</text>
+    <text x="840" y="105" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">re-enter NEW state</text>
+    <line x1="940" y1="75" x2="980" y2="75" stroke="#14213D" stroke-width="1.5" marker-end="url(#ar5)"/>
+
+    <rect x="980" y="50" width="180" height="60" fill="#14213D"/>
+    <text x="1070" y="75" text-anchor="middle" fill="#ffffff" font-size="11" font-weight="700" font-family="Tinos">RETRY (new client_id)</text>
+    <text x="1070" y="92" text-anchor="middle" fill="#C8102E" font-size="9" font-family="JetBrains Mono">audit: RETRY_N</text>
+    <text x="1070" y="105" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="9" font-family="JetBrains Mono">new client_id to dedup</text>
+
+    <!-- Budget exhausted -->
+    <line x1="350" y1="105" x2="350" y2="140" stroke="#C8102E" stroke-width="1.5" marker-end="url(#ar5R)"/>
+    <text x="360" y="130" font-size="9" fill="#C8102E">NO</text>
+    <rect x="240" y="140" width="220" height="60" fill="#FEF3F2" stroke="#C8102E" stroke-width="2"/>
+    <text x="350" y="165" text-anchor="middle" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">BUDGET EXHAUSTED</text>
+    <text x="350" y="182" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">→ ABORT order</text>
+    <text x="350" y="194" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">notify operator P2</text>
+
+    <!-- Backoff schedule table -->
+    <rect x="1200" y="50" width="240" height="240" fill="#F8FAFC" stroke="#14213D"/>
+    <text x="1320" y="75" text-anchor="middle" font-size="11" font-weight="700" fill="#14213D" font-family="Tinos">BACKOFF SCHEDULE</text>
+    <g font-family="JetBrains Mono" font-size="10">
+      <text x="1220" y="100" font-weight="700">Retry</text>
+      <text x="1300" y="100" font-weight="700">Delay</text>
+      <text x="1390" y="100" font-weight="700">Cum</text>
+
+      <text x="1220" y="120">1</text>
+      <text x="1300" y="120">100 ms ± 20</text>
+      <text x="1390" y="120">120 ms</text>
+
+      <text x="1220" y="140">2</text>
+      <text x="1300" y="140">300 ms ± 20</text>
+      <text x="1390" y="140">440 ms</text>
+
+      <text x="1220" y="160">3</text>
+      <text x="1300" y="160">900 ms ± 20</text>
+      <text x="1390" y="160">1.36 s</text>
+
+      <text x="1220" y="180">4 (cap)</text>
+      <text x="1300" y="180">2000 ms ± 20</text>
+      <text x="1390" y="180">3.38 s</text>
+
+      <text x="1220" y="210" font-weight="700" fill="#C8102E">Budget=3</text>
+      <text x="1300" y="210" fill="#C8102E">stop after 3</text>
+      <text x="1390" y="210" fill="#C8102E">≤ 1.4s</text>
+
+      <text x="1220" y="240" font-weight="700">Jitter</text>
+      <text x="1300" y="240" colspan="2">uniform ±20 ms</text>
+
+      <text x="1220" y="260" font-weight="700">Cap</text>
+      <text x="1300" y="260" colspan="2">2000 ms (hard ceiling)</text>
+
+      <text x="1220" y="280" font-weight="700">Reset</text>
+      <text x="1300" y="280" colspan="2">on success</text>
+    </g>
+
+    <!-- (b) Rejection Classifier -->
+    <text x="40" y="290" font-size="14" font-weight="700" fill="#C8102E" font-family="Tinos">(b) Broker Rejection Classifier — 12 Codes → 3 Actions</text>
+
+    <rect x="40" y="310" width="200" height="50" fill="#14213D"/>
+    <text x="140" y="340" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700" font-family="Tinos">Broker reject received</text>
+    <line x1="240" y1="335" x2="280" y2="335" stroke="#14213D" stroke-width="1.5" marker-end="url(#ar5)"/>
+
+    <rect x="280" y="310" width="240" height="50" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="400" y="332" text-anchor="middle" font-size="11" font-weight="700" font-family="Tinos">Map MT5 retcode</text>
+    <text x="400" y="348" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">retcode → RejectCode enum</text>
+    <line x1="520" y1="335" x2="560" y2="335" stroke="#14213D" stroke-width="1.5" marker-end="url(#ar5)"/>
+
+    <polygon points="560,335 640,300 720,335 640,370" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="640" y="332" text-anchor="middle" font-size="10" font-weight="700">classify</text>
+    <text x="640" y="347" text-anchor="middle" font-size="10" font-weight="700">category</text>
+
+    <!-- 3 branches -->
+    <line x1="720" y1="335" x2="780" y2="280" stroke="#15803D" stroke-width="1.5" marker-end="url(#ar5G)"/>
+    <text x="750" y="270" font-size="9" fill="#15803D">RETRYABLE</text>
+    <rect x="780" y="260" width="200" height="60" fill="#F0FDF4" stroke="#15803D"/>
+    <text x="880" y="282" text-anchor="middle" font-size="11" font-weight="700" fill="#15803D" font-family="Tinos">→ RetryManager</text>
+    <text x="880" y="298" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">requote, no_prices,</text>
+    <text x="880" y="310" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">price_off, timeout</text>
+
+    <line x1="720" y1="335" x2="780" y2="335" stroke="#B45309" stroke-width="1.5" marker-end="url(#ar5)"/>
+    <text x="750" y="330" font-size="9" fill="#B45309">SOFT</text>
+    <rect x="780" y="320" width="200" height="60" fill="#FEFBEB" stroke="#B45309"/>
+    <text x="880" y="342" text-anchor="middle" font-size="11" font-weight="700" fill="#B45309" font-family="Tinos">→ Reduce size + retry</text>
+    <text x="880" y="358" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">no_money, invalid_volume,</text>
+    <text x="880" y="370" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">price_changed</text>
+
+    <line x1="720" y1="335" x2="780" y2="400" stroke="#C8102E" stroke-width="1.5" marker-end="url(#ar5R)"/>
+    <text x="750" y="415" font-size="9" fill="#C8102E">FATAL</text>
+    <rect x="780" y="380" width="200" height="60" fill="#FEF3F2" stroke="#C8102E" stroke-width="2"/>
+    <text x="880" y="402" text-anchor="middle" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">→ ABORT + kill switch</text>
+    <text x="880" y="418" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">disabled, no_connection,</text>
+    <text x="880" y="430" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">broker_blocked</text>
+
+    <!-- Reject code table preview (right) -->
+    <rect x="1020" y="310" width="420" height="220" fill="#F8FAFC" stroke="#14213D"/>
+    <text x="1230" y="335" text-anchor="middle" font-size="12" font-weight="700" fill="#14213D" font-family="Tinos">REJECT CODE REFERENCE (12)</text>
+    <g font-family="JetBrains Mono" font-size="9.5">
+      <text x="1040" y="358" font-weight="700">MT5 retcode</text>
+      <text x="1160" y="358" font-weight="700">RejectCode</text>
+      <text x="1320" y="358" font-weight="700">Category</text>
+      <text x="1410" y="358" font-weight="700">Action</text>
+
+      <text x="1040" y="378">10004</text><text x="1160" y="378">REQUOTE</text><text x="1320" y="378" fill="#15803D">RETRYABLE</text><text x="1410" y="378">retry</text>
+      <text x="1040" y="395">10008</text><text x="1160" y="395">PRICE_CHANGED</text><text x="1320" y="395" fill="#B45309">SOFT</text><text x="1410" y="395">size--</text>
+      <text x="1040" y="412">10013</text><text x="1160" y="412">INVALID_VOLUME</text><text x="1320" y="412" fill="#B45309">SOFT</text><text x="1410" y="412">size--</text>
+      <text x="1040" y="429">10014</text><text x="1160" y="429">NO_MONEY</text><text x="1320" y="429" fill="#B45309">SOFT</text><text x="1410" y="429">size--</text>
+      <text x="1040" y="446">10015</text><text x="1160" y="446">PRICE_OFF</text><text x="1320" y="446" fill="#15803D">RETRYABLE</text><text x="1410" y="446">retry</text>
+      <text x="1040" y="463">10018</text><text x="1160" y="463">MARKET_CLOSED</text><text x="1320" y="463" fill="#C8102E">FATAL</text><text x="1410" y="463">abort</text>
+      <text x="1040" y="480">10019</text><text x="1160" y="480">NO_PRICES</text><text x="1320" y="480" fill="#15803D">RETRYABLE</text><text x="1410" y="480">retry</text>
+      <text x="1040" y="497">10024</text><text x="1160" y="497">TOO_MANY_REQ</text><text x="1320" y="497" fill="#15803D">RETRYABLE</text><text x="1410" y="497">retry</text>
+      <text x="1040" y="514">10026</text><text x="1160" y="514">BROKER_BLOCKED</text><text x="1320" y="514" fill="#C8102E">FATAL</text><text x="1410" y="514">kill</text>
+      <text x="1040" y="531">(other)</text><text x="1160" y="531">UNKNOWN</text><text x="1320" y="531" fill="#C8102E">FATAL</text><text x="1410" y="531">abort</text>
+    </g>
+
+    <!-- (c) Reconciliation -->
+    <text x="40" y="560" font-size="14" font-weight="700" fill="#C8102E" font-family="Tinos">(c) Reconciliation Engine — Orphan / Phantom Resolution (every 5s)</text>
+
+    <rect x="40" y="580" width="200" height="50" fill="#14213D"/>
+    <text x="140" y="610" text-anchor="middle" fill="#ffffff" font-size="11" font-weight="700" font-family="Tinos">Snapshot broker state</text>
+    <line x1="240" y1="605" x2="280" y2="605" stroke="#14213D" stroke-width="1.5" marker-end="url(#ar5)"/>
+
+    <rect x="280" y="580" width="220" height="50" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="390" y="602" text-anchor="middle" font-size="11" font-weight="700" font-family="Tinos">Diff local vs broker</text>
+    <text x="390" y="618" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">order_id set difference</text>
+    <line x1="500" y1="605" x2="540" y2="605" stroke="#14213D" stroke-width="1.5" marker-end="url(#ar5)"/>
+
+    <polygon points="540,605 620,575 700,605 620,635" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="620" y="602" text-anchor="middle" font-size="10" font-weight="700">discrepancy</text>
+    <text x="620" y="617" text-anchor="middle" font-size="10" font-weight="700">type?</text>
+
+    <line x1="700" y1="605" x2="760" y2="580" stroke="#C8102E" stroke-width="1.5" marker-end="url(#ar5R)"/>
+    <text x="730" y="575" font-size="9" fill="#C8102E">ORPHAN</text>
+    <rect x="760" y="560" width="220" height="60" fill="#FEF3F2" stroke="#C8102E"/>
+    <text x="870" y="582" text-anchor="middle" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">Orphan: local-only order</text>
+    <text x="870" y="598" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">→ cancel local + audit</text>
+    <text x="870" y="610" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">→ escalate to operator</text>
+
+    <line x1="700" y1="605" x2="760" y2="630" stroke="#C8102E" stroke-width="1.5" marker-end="url(#ar5R)"/>
+    <text x="730" y="645" font-size="9" fill="#C8102E">PHANTOM</text>
+    <rect x="760" y="620" width="220" height="60" fill="#FEF3F2" stroke="#C8102E"/>
+    <text x="870" y="642" text-anchor="middle" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">Phantom: broker-only order</text>
+    <text x="870" y="658" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">→ adopt into local state</text>
+    <text x="870" y="670" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">→ flatten if unknown</text>
+  </svg>
+
+  <table class="table">
+    <tr><th>Error Scenario</th><th>Detection</th><th>Recovery Action</th><th>Operator Alert</th><th>Audit</th></tr>
+    <tr><td class="mod">Submit timeout (2s, no broker response)</td><td>Submit timer fires</td><td>Reconcile → if broker has order, adopt; if not, retry</td><td>P2 email</td><td>Yes</td></tr>
+    <tr><td class="mod">Broker reject — REQUOTE (10004)</td><td>retcode from OnTrade</td><td>Retry up to 3× with backoff; refresh expected price</td><td>Log only</td><td>Yes</td></tr>
+    <tr><td class="mod">Broker reject — NO_MONEY (10014)</td><td>retcode from OnTrade</td><td>Reduce size 50% + retry once; if fails, abort</td><td>P2 email</td><td>Yes</td></tr>
+    <tr><td class="mod">Broker reject — MARKET_CLOSED (10018)</td><td>retcode from OnTrade</td><td>Abort order; queue for re-submission on market open</td><td>Log only</td><td>Yes</td></tr>
+    <tr><td class="mod">Broker disconnect mid-flight</td><td>Bridge heartbeat fail</td><td>Mark all SENT orders as ERROR; reconcile on reconnect</td><td>P1 PagerDuty</td><td>Yes</td></tr>
+    <tr><td class="mod">Partial fill (qty &lt; order qty)</td><td>Fill callback</td><td>Track residual; re-route or cancel per strategy</td><td>Log only</td><td>Yes</td></tr>
+    <tr><td class="mod">Duplicate fill (fill_id seen)</td><td>fill_id Bloom filter</td><td>Drop duplicate; log warning; do not double-count</td><td>Log only</td><td>Yes</td></tr>
+    <tr><td class="mod">Orphan (local thinks order exists, broker doesn't)</td><td>5s reconciliation</td><td>Cancel local; audit; investigate root cause</td><td>P2 email</td><td>Yes</td></tr>
+    <tr><td class="mod">Phantom (broker has order, local doesn't)</td><td>5s reconciliation</td><td>Adopt if from this client; flatten if unknown</td><td>P1 PagerDuty</td><td>Yes</td></tr>
+    <tr><td class="mod">EQS score &lt; 40 (CRITICAL)</td><td>Rolling 10-order avg</td><td>Auto-pause strategy; engage risk-off mode</td><td>P1 PagerDuty</td><td>Yes</td></tr>
+    <tr><td class="mod">Slippage outlier (|slip-μ| &gt; 3σ)</td><td>SlippageMonitor</td><td>Reduce position size 50% for 1h; investigate</td><td>P2 email</td><td>Yes</td></tr>
+    <tr><td class="mod">Retry budget exhausted (3 retries)</td><td>RetryManager counter</td><td>Abort order; log; do not re-enter NEW</td><td>P2 email</td><td>Yes</td></tr>
+    <tr><td class="mod">Idempotency violation (duplicate client_id)</td><td>Bloom filter check</td><td>Drop duplicate; log; alert if rate &gt; 1/min</td><td>P2 email</td><td>Yes</td></tr>
+    <tr><td class="mod">Kill switch engaged mid-order</td><td>Atomic flag check</td><td>Cancel pending; flatten filled portion; halt</td><td>P1 PagerDuty (already engaged)</td><td>Yes</td></tr>
+  </table>
+</div>
+</body>
+</html>

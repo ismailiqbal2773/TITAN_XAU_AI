@@ -1,0 +1,90 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>d01</title>
+<link href="https://fonts.googleapis.com/css2?family=Tinos:wght@400;700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { width: 1600px; height: 1200px; background: #ffffff; font-family: 'Inter', sans-serif; color: #14213D; padding: 50px 60px; }
+.h-title { font-family: 'Tinos', serif; font-size: 30px; font-weight: 900; letter-spacing: -0.5px; }
+.h-sub { font-family: 'Inter', sans-serif; font-size: 13px; color: #4A5568; margin-top: 4px; }
+.h-rule { width: 80px; height: 3px; background: #C8102E; margin: 14px 0 24px 0; }
+
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+.col { border: 1px solid #CBD5E1; border-radius: 6px; overflow: hidden; }
+.col-head { background: #14213D; color: #fff; padding: 12px 18px; }
+.col-head .lbl { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C8102E; letter-spacing: 2px; font-weight: 700; }
+.col-head .t { font-family: 'Tinos', serif; font-size: 15px; font-weight: 700; margin-top: 2px; }
+.col-body { padding: 12px 16px; }
+.cat { padding: 8px 0; border-bottom: 1px dashed #CBD5E1; display: grid; grid-template-columns: 40px 1fr 80px 70px; gap: 10px; align-items: center; }
+.cat:last-child { border-bottom: none; }
+.cat .n { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #C8102E; font-weight: 700; }
+.cat .t { font-family: 'Inter', sans-serif; font-size: 11px; color: #14213D; font-weight: 600; line-height: 1.3; }
+.cat .t .d { display: block; font-weight: 400; color: #4A5568; font-size: 9.5px; margin-top: 1px; }
+.cat .scope { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #4A5568; text-align: center; }
+.cat .score { font-family: 'Tinos', serif; font-size: 14px; font-weight: 900; text-align: center; padding: 4px 8px; border-radius: 3px; color: #fff; }
+.score.pass { background: #15803D; }
+.score.cond { background: #B45309; }
+.score.fail { background: #C8102E; }
+
+.summary-band { margin-top: 22px; background: #14213D; color: #fff; padding: 18px 22px; border-radius: 6px; }
+.summary-band .lbl { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #C8102E; letter-spacing: 2px; font-weight: 700; }
+.summary-band .h { font-family: 'Tinos', serif; font-size: 18px; font-weight: 900; margin-top: 4px; }
+.summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 14px; }
+.sc { padding: 12px 14px; background: rgba(255,255,255,0.08); border-left: 3px solid #C8102E; border-radius: 4px; }
+.sc .v { font-family: 'Tinos', serif; font-size: 22px; font-weight: 900; }
+.sc .v.pass { color: #4ADE80; }
+.sc .v.cond { color: #FCD34D; }
+.sc .v.fail { color: #FCA5A5; }
+.sc .d { font-family: 'Inter', sans-serif; font-size: 10px; opacity: 0.85; margin-top: 4px; line-height: 1.4; }
+
+.verdict-band { margin-top: 16px; padding: 16px 20px; background: #C8102E; color: #fff; border-radius: 6px; text-align: center; }
+.verdict-band .lbl { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 3px; font-weight: 700; opacity: 0.9; }
+.verdict-band .v { font-family: 'Tinos', serif; font-size: 28px; font-weight: 900; margin-top: 4px; }
+.verdict-band .d { font-family: 'Inter', sans-serif; font-size: 11px; margin-top: 6px; opacity: 0.95; line-height: 1.5; }
+</style></head>
+<body>
+<div class="h-title">Production Readiness Review — 13 Categories</div>
+<div class="h-sub">Strict 90/100 threshold per category · all critical issues must be fixed before PRODUCTION READY</div>
+<div class="h-rule"></div>
+
+<div class="cols">
+  <div class="col">
+    <div class="col-head"><div class="lbl">CATEGORY GROUP A · DESIGN & CODE</div><div class="t">5 categories</div></div>
+    <div class="col-body">
+      <div class="cat"><div class="n">C1</div><div class="t">Code Review<span class="d">Spec quality, design patterns, consistency</span></div><div class="scope">SPEC</div><div class="score cond">88</div></div>
+      <div class="cat"><div class="n">C2</div><div class="t">Security Review<span class="d">mTLS, JWT, AES-256, anti-tamper, audit</span></div><div class="scope">SPEC</div><div class="score pass">94</div></div>
+      <div class="cat"><div class="n">C3</div><div class="t">Performance Review<span class="d">142ms latency budget, 50 ops/s, scalability</span></div><div class="scope">SPEC</div><div class="score pass">92</div></div>
+      <div class="cat"><div class="n">C4</div><div class="t">Memory Leak Analysis<span class="d">RAII, GC tuning, bounded queues, probes</span></div><div class="scope">SPEC</div><div class="score cond">87</div></div>
+      <div class="cat"><div class="n">C5</div><div class="t">Latency Analysis<span class="d">Per-stage budget, P99 measurement, jitter</span></div><div class="scope">SPEC</div><div class="score pass">93</div></div>
+    </div>
+  </div>
+  <div class="col">
+    <div class="col-head"><div class="lbl">CATEGORY GROUP B · TESTS & VALIDATION</div><div class="t">8 categories</div></div>
+    <div class="col-body">
+      <div class="cat"><div class="n">C6</div><div class="t">Unit Tests<span class="d">2100-test pyramid base layer</span></div><div class="scope">SPEC</div><div class="score cond">86</div></div>
+      <div class="cat"><div class="n">C7</div><div class="t">Integration Tests<span class="d">Cross-service contracts, NATS, mTLS</span></div><div class="scope">SPEC</div><div class="score cond">85</div></div>
+      <div class="cat"><div class="n">C8</div><div class="t">Regression Tests<span class="d">Last-5 comparison, WFE/Score drops</span></div><div class="scope">SPEC</div><div class="score pass">91</div></div>
+      <div class="cat"><div class="n">C9</div><div class="t">Backtests<span class="d">12-mo tick, 5 costs, 24 metrics, 3-band</span></div><div class="scope">SPEC</div><div class="score pass">94</div></div>
+      <div class="cat"><div class="n">C10</div><div class="t">Walk Forward Tests<span class="d">5-7 folds, WFE ≥ 0.85</span></div><div class="scope">SPEC</div><div class="score pass">93</div></div>
+      <div class="cat"><div class="n">C11</div><div class="t">Monte Carlo Tests<span class="d">10k sims, 3 dims, Survival ≥ 95%</span></div><div class="scope">SPEC</div><div class="score pass">94</div></div>
+      <div class="cat"><div class="n">C12</div><div class="t">Stress Tests<span class="d">6 scenarios, kill-switch &lt;500ms</span></div><div class="scope">SPEC</div><div class="score pass">92</div></div>
+      <div class="cat"><div class="n">C13</div><div class="t">Broker Compatibility Tests<span class="d">6 brokers, 9 properties, runtime detect</span></div><div class="scope">SPEC</div><div class="score pass">95</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="summary-band">
+  <div class="lbl">AGGREGATE SCORECARD · 13 CATEGORIES</div>
+  <div class="h">10 of 13 categories meet 90/100 threshold · 3 categories below threshold</div>
+  <div class="summary-grid">
+    <div class="sc"><div class="v pass">10</div><div class="d">Categories ≥ 90/100 (PASS)</div></div>
+    <div class="sc"><div class="v cond">3</div><div class="d">Categories 85-89 (CONDITIONAL)</div></div>
+    <div class="sc"><div class="v fail">0</div><div class="d">Categories &lt; 85 (FAIL)</div></div>
+    <div class="sc"><div class="v cond">91.0</div><div class="d">Aggregate weighted score</div></div>
+  </div>
+</div>
+
+<div class="verdict-band">
+  <div class="lbl">FINAL VERDICT</div>
+  <div class="v">CONDITIONAL APPROVAL — NOT YET PRODUCTION READY</div>
+  <div class="d">3 categories below 90/100 threshold (C1 Code Review 88, C4 Memory Leak 87, C6 Unit Tests 86, C7 Integration Tests 85). All critical issues must be fixed before PRODUCTION READY status is granted. See Chapter 14 for the 7 critical issues list and remediation roadmap.</div>
+</div>
+</body></html>

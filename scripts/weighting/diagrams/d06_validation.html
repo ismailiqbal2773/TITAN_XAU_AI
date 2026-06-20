@@ -1,0 +1,102 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>d06</title>
+<link href="https://fonts.googleapis.com/css2?family=Tinos:wght@400;700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { width: 1600px; height: 1200px; background: #ffffff; font-family: 'Inter', sans-serif; color: #14213D; padding: 50px 60px; }
+.h-title { font-family: 'Tinos', serif; font-size: 30px; font-weight: 900; letter-spacing: -0.5px; }
+.h-sub { font-family: 'Inter', sans-serif; font-size: 13px; color: #4A5568; margin-top: 4px; }
+.h-rule { width: 80px; height: 3px; background: #C8102E; margin: 14px 0 24px 0; }
+
+.cols { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+.card { border: 1px solid #CBD5E1; border-radius: 6px; overflow: hidden; }
+.card-head { background: #14213D; color: #fff; padding: 12px 16px; }
+.card-head .lbl { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C8102E; letter-spacing: 2px; font-weight: 700; }
+.card-head .t { font-family: 'Tinos', serif; font-size: 13px; font-weight: 700; margin-top: 2px; }
+.card-head .count { font-family: 'Tinos', serif; font-size: 18px; font-weight: 900; float: right; color: #4ADE80; }
+.card-body { padding: 10px 14px; }
+
+.test { padding: 7px 0; border-bottom: 1px dashed #CBD5E1; }
+.test:last-child { border-bottom: none; }
+.test .id { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C8102E; font-weight: 700; }
+.test .sev { font-family: 'JetBrains Mono', monospace; font-size: 8px; padding: 1px 5px; border-radius: 2px; color: #fff; font-weight: 700; margin-left: 4px; }
+.sev.crit { background: #C8102E; }
+.sev.maj { background: #B45309; }
+.sev.min { background: #94A3B8; }
+.test .t { font-family: 'Tinos', serif; font-size: 11px; font-weight: 700; color: #14213D; margin: 2px 0 3px 0; line-height: 1.2; }
+.test .d { font-family: 'Inter', sans-serif; font-size: 9.5px; color: #4A5568; line-height: 1.4; }
+
+.total { margin-top: 22px; padding: 16px 22px; background: #14213D; color: #fff; border-radius: 6px; border: 2px solid #C8102E; }
+.total .lbl { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #C8102E; letter-spacing: 2px; font-weight: 700; }
+.total .h { font-family: 'Tinos', serif; font-size: 16px; font-weight: 900; margin-top: 4px; }
+.total .h .accent { color: #4ADE80; }
+.total .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 12px; }
+.tcell { padding: 10px 12px; background: rgba(74, 222, 128, 0.1); border-left: 2px solid #4ADE80; border-radius: 3px; }
+.tcell .v { font-family: 'Tinos', serif; font-size: 22px; font-weight: 900; color: #4ADE80; }
+.tcell .d { font-family: 'Inter', sans-serif; font-size: 10px; opacity: 0.9; margin-top: 3px; line-height: 1.4; }
+</style></head>
+<body>
+<div class="h-title">Validation Framework — Unit + Integration Tests</div>
+<div class="h-sub">95 tests · 50 unit + 35 integration + 10 validator · 100% CI-gated · zero flaky tolerance</div>
+<div class="h-rule"></div>
+
+<div class="cols">
+  <div class="card">
+    <div class="card-head"><div><div class="lbl">UNIT TESTS</div><div class="t">Pure-function</div></div><div class="count">50</div></div>
+    <div class="card-body">
+      <div class="test"><div><span class="id">UT-001</span><span class="sev crit">CRIT</span></div><div class="t">Weights sum to 1.0</div><div class="d">All 4 algorithms produce weights that sum to exactly 1.0.</div></div>
+      <div class="test"><div><span class="id">UT-002</span><span class="sev crit">CRIT</span></div><div class="t">Weights non-negative</div><div class="d">No weight can be negative. Floor at 0.0.</div></div>
+      <div class="test"><div><span class="id">UT-010</span><span class="sev crit">CRIT</span></div><div class="t">Bayesian: Beta posterior correct</div><div class="d">After 10 wins, 5 losses → Beta(11, 6). Sample within [0,1].</div></div>
+      <div class="test"><div><span class="id">UT-015</span><span class="sev crit">CRIT</span></div><div class="t">MAB: Thompson sampling explores</div><div class="d">Low-performing arm gets non-zero weight via Beta sampling.</div></div>
+      <div class="test"><div><span class="id">UT-020</span><span class="sev maj">MAJ</span></div><div class="t">Weighted Voting: softmax correct</div><div class="d">exp(λ×Sharpe) / Σexp → known input, known output.</div></div>
+      <div class="test"><div><span class="id">UT-025</span><span class="sev maj">MAJ</span></div><div class="t">Online Linear: SGD update</div><div class="d">After gradient step, loss decreases. w ← w - η×∇L.</div></div>
+      <div class="test"><div><span class="id">UT-030</span><span class="sev crit">CRIT</span></div><div class="t">MetaBandit: selects best algo</div><div class="d">After 100 cycles, best algorithm selected ≥80% of time.</div></div>
+      <div class="test"><div><span class="id">UT-035</span><span class="sev maj">MAJ</span></div><div class="t">7 metrics computed correctly</div><div class="d">Known inputs → known accuracy/PF/Sharpe/DDC/slip/lat/regime.</div></div>
+      <div class="test"><div><span class="id">UT-040</span><span class="sev crit">CRIT</span></div><div class="t">CEO directive respected</div><div class="d">CEO caps XGBoost at 50% → weight never exceeds 50%.</div></div>
+      <div class="test"><div><span class="id">UT-045</span><span class="sev min">MIN</span></div><div class="t">Disabled model weight = 0</div><div class="d">CEO disables LSTM → LSTM weight exactly 0, others re-normalize.</div></div>
+      <div class="test"><div><span class="id">UT-050</span><span class="sev min">MIN</span></div><div class="t">CPU <30ms per cycle</div><div class="d">Full cycle (ingest + metrics + 4 algos + meta-bandit + emit) <30ms.</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><div><div class="lbl">INTEGRATION TESTS</div><div class="t">End-to-end</div></div><div class="count">35</div></div>
+    <div class="card-body">
+      <div class="test"><div><span class="id">IT-001</span><span class="sev crit">CRIT</span></div><div class="t">E2E: inputs → weights → ensemble</div><div class="d">Feed 8 inputs → 4 algorithms run → Meta-Bandit selects → weights emitted to ensemble voter.</div></div>
+      <div class="test"><div><span class="id">IT-002</span><span class="sev crit">CRIT</span></div><div class="t">Regime change → weight shift</div><div class="d">Switch regime from TREND to RANGE → weights shift within 60s.</div></div>
+      <div class="test"><div><span class="id">IT-003</span><span class="sev crit">CRIT</span></div><div class="t">CEO override → weight capped</div><div class="d">CEO reduces Transformer influence 50% → Transformer weight halved.</div></div>
+      <div class="test"><div><span class="id">IT-004</span><span class="sev crit">CRIT</span></div><div class="t">CEO disables model → weight 0</div><div class="d">CEO disables LSTM → LSTM=0, others normalized to sum=1.</div></div>
+      <div class="test"><div><span class="id">IT-010</span><span class="sev maj">MAJ</span></div><div class="t">Feedback loop updates algorithms</div><div class="d">Trade outcome fed back → all 4 algorithms update parameters.</div></div>
+      <div class="test"><div><span class="id">IT-011</span><span class="sev maj">MAJ</span></div><div class="t">Meta-Bandit adapts per regime</div><div class="d">100 cycles in TREND → Meta-Bandit converges on best algo for TREND.</div></div>
+      <div class="test"><div><span class="id">IT-020</span><span class="sev maj">MAJ</span></div><div class="t">NATS subscription</div><div class="d">1000 events → all ingested within 5s, no loss.</div></div>
+      <div class="test"><div><span class="id">IT-025</span><span class="sev min">MIN</span></div><div class="t">Offline mode</div><div class="d">No network → engine operates normally (all local computation).</div></div>
+      <div class="test"><div><span class="id">IT-030</span><span class="sev min">MIN</span></div><div class="t">72h soak</div><div class="d">72h continuous operation → no memory leaks, weights stable.</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><div><div class="lbl">VALIDATOR TESTS</div><div class="t">Compliance</div></div><div class="count">10</div></div>
+    <div class="card-body">
+      <div class="test"><div><span class="id">VT-001</span><span class="sev crit">CRIT</span></div><div class="t">No fixed weights</div><div class="d">Code scan: no hardcoded weight arrays. All weights computed.</div></div>
+      <div class="test"><div><span class="id">VT-002</span><span class="sev crit">CRIT</span></div><div class="t">No regime→weight mapping</div><div class="d">No dict[regime] = weights. Weights emerge from algorithms.</div></div>
+      <div class="test"><div><span class="id">VT-003</span><span class="sev crit">CRIT</span></div><div class="t">No GPU dependency</div><div class="d">CUDA_VISIBLE_DEVICES="" → engine operates normally.</div></div>
+      <div class="test"><div><span class="id">VT-004</span><span class="sev crit">CRIT</span></div><div class="t">No cloud/paid API</div><div class="d">Network monitor: 0 outbound HTTP. All local.</div></div>
+      <div class="test"><div><span class="id">VT-005</span><span class="sev crit">CRIT</span></div><div class="t">CPU <30ms per cycle</div><div class="d">P99 cycle time <30ms on 4-vCPU VPS.</div></div>
+      <div class="test"><div><span class="id">VT-006</span><span class="sev crit">CRIT</span></div><div class="t">Weights sum to 1.0</div><div class="d">Every cycle: Σ weights = 1.0 (within float tolerance).</div></div>
+      <div class="test"><div><span class="id">VT-007</span><span class="sev maj">MAJ</span></div><div class="t">Weights change over time</div><div class="d">100 cycles → at least 3 distinct weight vectors observed.</div></div>
+      <div class="test"><div><span class="id">VT-008</span><span class="sev maj">MAJ</span></div><div class="t">CEO directives respected</div><div class="d">CEO cap always applied. Disabled model always 0.</div></div>
+      <div class="test"><div><span class="id">VT-009</span><span class="sev min">MIN</span></div><div class="t">4 algorithms registered</div><div class="d">Engine has exactly 4 IWeightingAlgorithm instances.</div></div>
+      <div class="test"><div><span class="id">VT-010</span><span class="sev min">MIN</span></div><div class="t">Meta-Bandit present</div><div class="d">MetaBandit instance active, selecting algorithm per cycle.</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="total">
+  <div class="lbl">TEST SUITE TOTALS</div>
+  <div class="h"><span class="accent">95 tests</span> · 50 unit + 35 integration + 10 validator · 100% CI-gated</div>
+  <div class="grid">
+    <div class="tcell"><div class="v">50</div><div class="d">Unit tests (pure-function, <1ms each)</div></div>
+    <div class="tcell"><div class="v">35</div><div class="d">Integration tests (e2e flows, real NATS)</div></div>
+    <div class="tcell"><div class="v">10</div><div class="d">Validator tests (compliance, invariants)</div></div>
+    <div class="tcell"><div class="v">100%</div><div class="d">CI-gated · zero flaky tolerance</div></div>
+  </div>
+</div>
+</body></html>

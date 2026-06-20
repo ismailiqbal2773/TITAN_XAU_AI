@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Risk Engine — Emergency Shutdown Logic</title>
+<style>
+  @page { size: 1400px 1700px; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #ffffff; font-family: 'Tinos','FreeSerif',serif; color: #14213D; }
+  .canvas { width: 1400px; height: 1700px; padding: 50px 60px; box-sizing: border-box; }
+  .title-bar { display: flex; align-items: baseline; gap: 18px; border-bottom: 2px solid #14213D; padding-bottom: 12px; margin-bottom: 24px; }
+  .title-bar .num { font-size: 48px; font-weight: 900; color: #C8102E; line-height: 1; }
+  .title-bar h1 { font-size: 26px; font-weight: 700; margin: 0; }
+  .title-bar .sub { font-size: 13px; color: #4A5568; margin-left: auto; font-family: 'JetBrains Mono',monospace; }
+  svg { display: block; margin: 0 auto; background: #FAFBFC; border: 1px solid #E2E8F0; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="title-bar">
+    <span class="num">04</span>
+    <h1>Emergency Shutdown Logic — Kill Switch Flowchart</h1>
+    <span class="sub">4 triggers · 4 actions · &lt;500ms end-to-end · cooldown 5min</span>
+  </div>
+
+  <svg width="1280" height="1500" viewBox="0 0 1280 1500">
+    <defs>
+      <marker id="ar4" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#14213D"/></marker>
+      <marker id="ar4R" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#C8102E"/></marker>
+    </defs>
+
+    <ellipse cx="640" cy="40" rx="180" ry="24" fill="#14213D"/>
+    <text x="640" y="46" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="Tinos">MONITORING — continuous risk evaluation</text>
+    <line x1="640" y1="64" x2="640" y2="92" stroke="#14213D" stroke-width="2" marker-end="url(#ar4)"/>
+
+    <polygon points="640,95 860,160 640,225 420,160" fill="#FEF3F2" stroke="#C8102E" stroke-width="2"/>
+    <text x="640" y="130" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">Kill switch trigger?</text>
+    <text x="640" y="148" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">4 trigger types</text>
+    <text x="640" y="165" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">hard DD · manual · license · broker</text>
+    <text x="640" y="182" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">equity guard L2/L3</text>
+    <text x="640" y="200" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">critical circuit breaker</text>
+
+    <line x1="640" y1="225" x2="640" y2="250" stroke="#C8102E" stroke-width="2" marker-end="url(#ar4R)"/>
+    <text x="650" y="240" font-size="11" fill="#C8102E" font-family="JetBrains Mono">YES</text>
+
+    <!-- 4 triggers detailed -->
+    <text x="40" y="280" font-size="13" font-weight="700" fill="#C8102E" font-family="Tinos">TRIGGER SOURCES (any one activates kill switch):</text>
+
+    <rect x="40" y="295" width="280" height="120" fill="#FEF3F2" stroke="#C8102E" stroke-width="2"/>
+    <text x="180" y="320" text-anchor="middle" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">T1: Hard Drawdown</text>
+    <text x="60" y="345" font-size="10" fill="#4A5568" font-family="JetBrains Mono">DailyDD ≥ hard_daily</text>
+    <text x="60" y="362" font-size="10" fill="#4A5568" font-family="JetBrains Mono">WeeklyDD ≥ hard_weekly</text>
+    <text x="60" y="379" font-size="10" fill="#4A5568" font-family="JetBrains Mono">MonthlyDD ≥ hard_monthly</text>
+    <text x="60" y="400" font-size="10" fill="#C8102E" font-family="JetBrains Mono" font-weight="bold">→ auto, no human input</text>
+
+    <rect x="340" y="295" width="280" height="120" fill="#FEF3F2" stroke="#C8102E" stroke-width="2"/>
+    <text x="480" y="320" text-anchor="middle" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">T2: Manual Operator</text>
+    <text x="360" y="345" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Operator console button</text>
+    <text x="360" y="362" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Requires 2-person rule:</text>
+    <text x="360" y="379" font-size="10" fill="#4A5568" font-family="JetBrains Mono">TRADER init + SUPERVISOR approve</text>
+    <text x="360" y="400" font-size="10" fill="#C8102E" font-family="JetBrains Mono" font-weight="bold">→ 5min auth window</text>
+
+    <rect x="640" y="295" width="280" height="120" fill="#FEF3F2" stroke="#C8102E" stroke-width="2"/>
+    <text x="780" y="320" text-anchor="middle" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">T3: License Revoked</text>
+    <text x="660" y="345" font-size="10" fill="#4A5568" font-family="JetBrains Mono">License server heartbeat fail</text>
+    <text x="660" y="362" font-size="10" fill="#4A5568" font-family="JetBrains Mono">JWT expired/revoked</text>
+    <text x="660" y="379" font-size="10" fill="#4A5568" font-family="JetBrains Mono">7-day grace expired</text>
+    <text x="660" y="400" font-size="10" fill="#C8102E" font-family="JetBrains Mono" font-weight="bold">→ auto, immediate</text>
+
+    <rect x="940" y="295" width="280" height="120" fill="#FEF3F2" stroke="#C8102E" stroke-width="2"/>
+    <text x="1080" y="320" text-anchor="middle" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">T4: System Critical</text>
+    <text x="960" y="345" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Broker disconnect mid-trade</text>
+    <text x="960" y="362" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Equity < guard_L3 (e.g. 85%)</text>
+    <text x="960" y="379" font-size="10" fill="#4A5568" font-family="JetBrains Mono">2+ models degraded (AI halt)</text>
+    <text x="960" y="400" font-size="10" fill="#C8102E" font-family="JetBrains Mono" font-weight="bold">→ auto, immediate</text>
+
+    <!-- Action 1: Halt -->
+    <text x="40" y="460" font-size="13" font-weight="700" fill="#C8102E" font-family="Tinos">SHUTDOWN SEQUENCE (4 actions, sequential, &lt;500ms total):</text>
+    <rect x="460" y="475" width="360" height="80" fill="#14213D"/>
+    <text x="640" y="500" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="Tinos">ACTION 1: HALT NEW ORDERS</text>
+    <text x="640" y="520" text-anchor="middle" fill="#C8102E" font-size="10" font-family="JetBrains Mono">set atomic armed flag → OrderManager checks</text>
+    <text x="640" y="535" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="9" font-family="JetBrains Mono">latency: &lt;1ms (atomic store)</text>
+    <text x="640" y="548" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="9" font-family="JetBrains Mono">no new orders accepted from any strategy</text>
+    <line x1="640" y1="555" x2="640" y2="580" stroke="#14213D" stroke-width="2" marker-end="url(#ar4)"/>
+
+    <!-- Action 2: Cancel -->
+    <rect x="460" y="585" width="360" height="80" fill="#14213D"/>
+    <text x="640" y="610" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="Tinos">ACTION 2: CANCEL PENDING</text>
+    <text x="640" y="630" text-anchor="middle" fill="#C8102E" font-size="10" font-family="JetBrains Mono">cancel all SENT/PENDING orders via broker</text>
+    <text x="640" y="645" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="9" font-family="JetBrains Mono">latency: ~50ms (broker cancel RTT)</text>
+    <text x="640" y="658" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="9" font-family="JetBrains Mono">wait for cancel confirmations (timeout 2s)</text>
+    <line x1="640" y1="665" x2="640" y2="690" stroke="#14213D" stroke-width="2" marker-end="url(#ar4)"/>
+
+    <!-- Action 3: Flatten -->
+    <rect x="460" y="695" width="360" height="80" fill="#C8102E"/>
+    <text x="640" y="720" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="Tinos">ACTION 3: FLATTEN ALL</text>
+    <text x="640" y="740" text-anchor="middle" fill="#ffffff" font-size="10" font-family="JetBrains Mono">market-close all open positions</text>
+    <text x="640" y="755" text-anchor="middle" fill="#ffffff" opacity="0.9" font-size="9" font-family="JetBrains Mono">latency: ~200ms (market order RTT + fill)</text>
+    <text x="640" y="768" text-anchor="middle" fill="#ffffff" opacity="0.9" font-size="9" font-family="JetBrains Mono">accept slippage — speed > price</text>
+    <line x1="640" y1="775" x2="640" y2="800" stroke="#14213D" stroke-width="2" marker-end="url(#ar4)"/>
+
+    <!-- Action 4: Notify -->
+    <rect x="460" y="805" width="360" height="80" fill="#14213D"/>
+    <text x="640" y="830" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="Tinos">ACTION 4: NOTIFY</text>
+    <text x="640" y="850" text-anchor="middle" fill="#C8102E" font-size="10" font-family="JetBrains Mono">PagerDuty P1 + Telegram + Email + Console</text>
+    <text x="640" y="865" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="9" font-family="JetBrains Mono">latency: ~100ms (async, non-blocking)</text>
+    <text x="640" y="878" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="9" font-family="JetBrains Mono">include: trigger reason · equity · positions · timestamp</text>
+    <line x1="640" y1="885" x2="640" y2="910" stroke="#14213D" stroke-width="2" marker-end="url(#ar4)"/>
+
+    <!-- Cooldown -->
+    <rect x="460" y="915" width="360" height="70" fill="#FEFBEB" stroke="#B45309" stroke-width="2"/>
+    <text x="640" y="940" text-anchor="middle" font-size="13" font-weight="700" fill="#B45309" font-family="Tinos">COOLDOWN: 5 MINUTES</text>
+    <text x="640" y="960" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">no re-arm possible for 5 minutes</text>
+    <text x="640" y="975" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">prevents panic re-triggering</text>
+    <line x1="640" y1="985" x2="640" y2="1010" stroke="#14213D" stroke-width="2" marker-end="url(#ar4)"/>
+
+    <!-- Re-arm -->
+    <polygon points="640,1015 820,1075 640,1135 460,1075" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="640" y="1065" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">Re-arm request?</text>
+    <text x="640" y="1085" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">after cooldown expires</text>
+    <text x="640" y="1100" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">requires SUPERVISOR auth</text>
+    <text x="640" y="1115" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">+ audit reason code</text>
+
+    <line x1="640" y1="1135" x2="640" y2="1160" stroke="#14213D" stroke-width="2" marker-end="url(#ar4)"/>
+
+    <polygon points="640,1165 820,1215 640,1265 460,1215" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="640" y="1215" text-anchor="middle" font-size="11" font-weight="700" font-family="Tinos">authorized?</text>
+    <line x1="640" y1="1265" x2="640" y2="1290" stroke="#15803D" stroke-width="2" marker-end="url(#ar4)"/>
+    <text x="650" y="1280" font-size="11" fill="#15803D" font-family="JetBrains Mono">YES</text>
+    <line x1="820" y1="1215" x2="950" y2="1215" stroke="#C8102E" stroke-width="2" marker-end="url(#ar4R)"/>
+    <text x="870" y="1207" font-size="11" fill="#C8102E" font-family="JetBrains Mono">NO</text>
+    <rect x="950" y="1195" width="240" height="50" fill="#14213D"/>
+    <text x="1070" y="1217" text-anchor="middle" fill="#ffffff" font-size="11" font-weight="700">REMAIN HALTED</text>
+    <text x="1070" y="1233" text-anchor="middle" fill="#C8102E" font-size="9" font-family="JetBrains Mono">operator must retry</text>
+
+    <!-- Post re-arm -->
+    <rect x="460" y="1295" width="360" height="80" fill="#14213D"/>
+    <text x="640" y="1320" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="Tinos">RE-ARM: DEGRADE TO CONSERVATIVE</text>
+    <text x="640" y="1340" text-anchor="middle" fill="#C8102E" font-size="10" font-family="JetBrains Mono">mode auto-set to Conservative (regardless of previous)</text>
+    <text x="640" y="1355" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="9" font-family="JetBrains Mono">size × 0.5 for first 30 min after re-arm</text>
+    <text x="640" y="368" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="9" font-family="JetBrains Mono">audit: kill_switch.rearmed with reason</text>
+    <line x1="640" y1="1375" x2="640" y2="1400" stroke="#14213D" stroke-width="2" marker-end="url(#ar4)"/>
+
+    <ellipse cx="640" cy="1440" rx="200" ry="26" fill="#15803D"/>
+    <text x="640" y="1447" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="Tinos">END — Trading resumes in Conservative mode</text>
+  </svg>
+</div>
+</body>
+</html>

@@ -1,0 +1,118 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>d03</title>
+<link href="https://fonts.googleapis.com/css2?family=Tinos:wght@400;700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { width: 1600px; height: 1100px; background: #ffffff; font-family: 'Inter', sans-serif; color: #14213D; padding: 50px 60px; }
+.h-title { font-family: 'Tinos', serif; font-size: 30px; font-weight: 900; letter-spacing: -0.5px; }
+.h-sub { font-family: 'Inter', sans-serif; font-size: 13px; color: #4A5568; margin-top: 4px; }
+.h-rule { width: 80px; height: 3px; background: #C8102E; margin: 14px 0 30px 0; }
+
+.stages { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin-top: 14px; }
+.stage { background: #F8FAFC; border: 1px solid #CBD5E1; border-top: 3px solid #14213D; border-radius: 6px; padding: 14px 12px; min-height: 280px; position: relative; }
+.stage.final { background: #14213D; color: #fff; border-color: #C8102E; border-top-color: #C8102E; }
+.stage.final .n { color: #C8102E; }
+.stage.final .t { color: #fff; }
+.stage.final .d, .stage.final .sub { color: #94A3B8; }
+.stage.final .sub b { color: #C8102E; }
+.stage .n { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C8102E; font-weight: 700; letter-spacing: 1.5px; }
+.stage .t { font-family: 'Tinos', serif; font-size: 14px; font-weight: 700; color: #14213D; margin: 4px 0 8px 0; line-height: 1.2; }
+.stage .d { font-family: 'Inter', sans-serif; font-size: 10px; color: #4A5568; line-height: 1.45; }
+.stage .sub { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #14213D; margin-top: 8px; padding-top: 8px; border-top: 1px dashed #CBD5E1; }
+.stage .sub b { color: #C8102E; }
+
+.detail-grid { margin-top: 28px; display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+.detail-card { border: 1px solid #CBD5E1; border-radius: 6px; overflow: hidden; }
+.detail-head { background: #C8102E; color: #fff; padding: 10px 16px; font-family: 'Tinos', serif; font-size: 14px; font-weight: 700; }
+.detail-body { padding: 12px 16px; }
+.detail-row { display: grid; grid-template-columns: 130px 1fr; gap: 12px; padding: 7px 0; border-bottom: 1px dashed #E2E8F0; font-family: 'Inter', sans-serif; font-size: 10.5px; }
+.detail-row:last-child { border-bottom: none; }
+.detail-row .k { font-family: 'JetBrains Mono', monospace; font-size: 9.5px; font-weight: 700; color: #14213D; letter-spacing: 0.5px; }
+.detail-row .v { color: #4A5568; line-height: 1.5; }
+.detail-row .v b { color: #C8102E; }
+
+.timeline { margin-top: 22px; padding: 14px 18px; background: #14213D; color: #fff; border-radius: 6px; }
+.timeline .lbl { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C8102E; letter-spacing: 2px; font-weight: 700; }
+.timeline .row { display: grid; grid-template-columns: 80px 1fr; gap: 12px; margin-top: 8px; align-items: center; font-family: 'Inter', sans-serif; font-size: 11px; }
+.timeline .row .time { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #C8102E; font-weight: 700; }
+.timeline .bar { background: rgba(255,255,255,0.1); height: 8px; border-radius: 2px; overflow: hidden; }
+.timeline .bar .fill { height: 100%; background: #C8102E; }
+</style></head>
+<body>
+<div class="h-title">Backtesting Process — 6 Stages</div>
+<div class="h-sub">From raw tick data to certification-ready strategy · End-to-end runtime ~12 minutes per 12-month backtest on 4-core VPS</div>
+<div class="h-rule"></div>
+
+<div class="stages">
+  <div class="stage">
+    <div class="n">STAGE 01</div>
+    <div class="t">Data Acquisition</div>
+    <div class="d">Acquire tick data from broker (or Dukascopy for cross-validation), economic calendar, broker swap schedule, dividend schedule (none for XAU but format preserved).</div>
+    <div class="sub"><b>Inputs:</b> broker export, NFP/FOMC/CPI calendar<br><b>Output:</b> raw tick stream + event tags</div>
+  </div>
+  <div class="stage">
+    <div class="n">STAGE 02</div>
+    <div class="t">Data Validation</div>
+    <div class="d">Validate tick data integrity: gap detection, timestamp monotonicity, outlier filtering, weekend gap removal, daylight savings adjustment, broker timezone alignment.</div>
+    <div class="sub"><b>Checks:</b> 14 data quality gates<br><b>Reject:</b> if &gt; 0.1% ticks fail</div>
+  </div>
+  <div class="stage">
+    <div class="n">STAGE 03</div>
+    <div class="t">Cost Engine Setup</div>
+    <div class="d">Load broker cost profile (spread P50/P90/P99, commission RT, swap long/short, slippage distribution). Calibrate against last 30 days of live fills. Verify P50 within ±15% of live.</div>
+    <div class="sub"><b>Calibration:</b> rolling 30-day live comparison<br><b>Drift:</b> PSI &gt; 0.25 = recalibrate</div>
+  </div>
+  <div class="stage">
+    <div class="n">STAGE 04</div>
+    <div class="t">Strategy Execution</div>
+    <div class="d">Run strategy on tick stream with cost engine applied. Simulate order routing (market/limit/stop/OCO), partial fills, requotes on news, margin calls, latency 100-200 ms. Record every fill with full attribution.</div>
+    <div class="sub"><b>Engine:</b> TickReplayExecutor (C++)<br><b>Speed:</b> ~2M ticks/sec</div>
+  </div>
+  <div class="stage">
+    <div class="n">STAGE 05</div>
+    <div class="t">Metrics Computation</div>
+    <div class="d">Compute 24 metrics: 6 return (CAGR/total/avg/win-loss), 6 risk (Sharpe/Sortino/Calmar/MDD/Volatility/CVaR), 6 trade (win rate/profit factor/expectancy/avg hold/trades per day/Payette ratio), 6 cost (cost drag/spread cost/commission/swap/slippage/realistic vs idealized).</div>
+    <div class="sub"><b>Output:</b> metrics.json<br><b>Benchmarks:</b> vs buy-hold + 1-2-3</div>
+  </div>
+  <div class="stage final">
+    <div class="n">STAGE 06</div>
+    <div class="t">Reporting &amp; Certification</div>
+    <div class="d">Generate 3 reports (executive / technical / regulatory). Apply failure criteria: 3-band verdict (Pass / Conditional / Reject). Archive to S3 with 7-year retention. Dispatch to engineering.</div>
+    <div class="sub"><b>Verdict:</b> PASS / COND / REJECT<br><b>Archive:</b> S3 + signed manifest</div>
+  </div>
+</div>
+
+<div class="detail-grid">
+  <div class="detail-card">
+    <div class="detail-head">Data Validation Checks (Stage 2)</div>
+    <div class="detail-body">
+      <div class="detail-row"><div class="k">GAP-001</div><div class="v">Tick timestamp gaps &lt; 5 seconds during trading hours. <b>Reject</b> if &gt; 1 gap per trading day.</div></div>
+      <div class="detail-row"><div class="k">GAP-002</div><div class="v">No tick data missing during NFP/FOMC windows (highest-value events).</div></div>
+      <div class="detail-row"><div class="k">MONO-001</div><div class="v">Timestamps strictly monotonic. No duplicates, no backwards jumps.</div></div>
+      <div class="detail-row"><div class="k">OUT-001</div><div class="v">Price outliers: |Δtick| &gt; 5×ATR flagged, manually verified.</div></div>
+      <div class="detail-row"><div class="k">WKND-001</div><div class="v">Weekend gaps (Fri 22:00 → Sun 23:00 UTC) removed, no synthetic fills.</div></div>
+      <div class="detail-row"><div class="k">TZ-001</div><div class="v">All timestamps normalized to UTC. Broker server TZ offset verified.</div></div>
+    </div>
+  </div>
+  <div class="detail-card">
+    <div class="detail-head">Execution Simulator Realism (Stage 4)</div>
+    <div class="detail-body">
+      <div class="detail-row"><div class="k">LATENCY</div><div class="v">Signal-to-broker latency <b>100-200 ms</b> (P50/P99 from live measurement).</div></div>
+      <div class="detail-row"><div class="k">REQUOTE</div><div class="v">Market orders during news (spread &gt; 3× baseline) get requoted 70% of time.</div></div>
+      <div class="detail-row"><div class="k">PARTIAL</div><div class="v">Orders &gt; 5 lots get partial fills (50/30/20 split) at successively worse prices.</div></div>
+      <div class="detail-row"><div class="k">MARGIN</div><div class="v">Margin calls triggered at ML ≤ 100%. Stop-out at ML ≤ 50%.</div></div>
+      <div class="detail-row"><div class="k">SLIPPAGE</div><div class="v">Sampled from broker-specific P50/P90/P99 distribution per fill.</div></div>
+      <div class="detail-row"><div class="k">SWAP</div><div class="v">Triple swap Wednesdays. Compounded daily. Applied at 22:00 GMT.</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="timeline">
+  <div class="lbl">RUNTIME BREAKDOWN (12-MONTH BACKTEST, 4-CORE VPS)</div>
+  <div class="row"><div class="time">~30 sec</div><div class="bar"><div class="fill" style="width:4%"></div></div></div>
+  <div class="row"><div class="time">~1 min</div><div class="bar"><div class="fill" style="width:8%"></div></div></div>
+  <div class="row"><div class="time">~1 min</div><div class="bar"><div class="fill" style="width:8%"></div></div></div>
+  <div class="row"><div class="time">~8 min</div><div class="bar"><div class="fill" style="width:67%"></div></div></div>
+  <div class="row"><div class="time">~1 min</div><div class="bar"><div class="fill" style="width:8%"></div></div></div>
+  <div class="row"><div class="time">~30 sec</div><div class="bar"><div class="fill" style="width:4%"></div></div></div>
+</div>
+</body></html>

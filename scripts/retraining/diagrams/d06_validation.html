@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Retraining Framework — Validation Process</title>
+<style>
+  @page { size: 1600px 800px; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #ffffff; font-family: 'Tinos','FreeSerif',serif; color: #14213D; }
+  .canvas { width: 1600px; height: 800px; padding: 50px 60px; box-sizing: border-box; }
+  .title-bar { display: flex; align-items: baseline; gap: 18px; border-bottom: 2px solid #14213D; padding-bottom: 12px; margin-bottom: 24px; }
+  .title-bar .num { font-size: 48px; font-weight: 900; color: #C8102E; line-height: 1; }
+  .title-bar h1 { font-size: 26px; font-weight: 700; margin: 0; }
+  .title-bar .sub { font-size: 13px; color: #4A5568; margin-left: auto; font-family: 'JetBrains Mono',monospace; }
+  svg { display: block; margin: 0 auto; background: #FAFBFC; border: 1px solid #E2E8F0; }
+  .table { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-top: 14px; }
+  .table th { background: #14213D; color: #ffffff; padding: 6px 8px; text-align: left; font-weight: 700; }
+  .table td { padding: 5px 8px; border-bottom: 1px solid #E2E8F0; }
+  .table tr:nth-child(even) td { background: #F8FAFC; }
+  .table .mod { color: #14213D; font-family: 'JetBrains Mono',monospace; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="title-bar">
+    <span class="num">06</span>
+    <h1>Validation Process — CI Gates &amp; Test Cases</h1>
+    <span class="sub">8 validation gates · 150 tests · all must pass for promotion</span>
+  </div>
+  <svg width="1480" height="200" viewBox="0 0 1480 200">
+    <polygon points="40,180 720,180 660,120 100,120" fill="#F0FDF4" stroke="#14213D" stroke-width="2"/>
+    <text x="380" y="145" text-anchor="middle" font-size="14" font-weight="700" fill="#14213D" font-family="Tinos">UNIT TESTS (60)</text>
+    <text x="380" y="162" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">PSI calc · F1 tracking · rollback logic · version control</text>
+    <polygon points="100,120 660,120 600,60 160,60" fill="#FEF3F2" stroke="#14213D" stroke-width="2"/>
+    <text x="380" y="85" text-anchor="middle" font-size="13" font-weight="700" fill="#14213D" font-family="Tinos">INTEGRATION + CHAOS (90 tests)</text>
+    <text x="380" y="102" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">champion-challenger · rollback · drift trigger · emergency retrain · 150 total</text>
+    <text x="780" y="40" font-size="14" font-weight="700" fill="#C8102E" font-family="Tinos">8 CI GATES (all must pass)</text>
+    <g font-family="JetBrains Mono" font-size="11" fill="#14213D">
+      <text x="780" y="65">G1: Per-model F1 > 0.60 (walk-forward)</text>
+      <text x="780" y="85">G2: Ensemble Sharpe > 2.0 (walk-forward)</text>
+      <text x="780" y="105">G3: Challenger Sharpe ≥ Champion Sharpe - 5%</text>
+      <text x="780" y="125">G4: MaxDD < 5% · RoR < 1%</text>
+      <text x="780" y="145">G5: PSI < 0.20 (no drift after retrain)</text>
+      <text x="780" y="165">G6: RL reward > no-RL baseline</text>
+      <text x="780" y="185">G7: Rollback verified (< 30s) · G8: Audit log complete</text>
+    </g>
+  </svg>
+  <table class="table">
+    <tr><th>Test ID</th><th>Category</th><th>Scenario</th><th>Expected Result</th><th>Gate</th></tr>
+    <tr><td class="mod">UT-DRIFT-001</td><td>Unit / PSI</td><td>Feature distribution shifts (PSI = 0.28)</td><td>Auto-retrain triggered · audit: PSI_EMERGENCY</td><td>Must pass</td></tr>
+    <tr><td class="mod">UT-DRIFT-002</td><td>Unit / PSI</td><td>Feature stable (PSI = 0.05)</td><td>No action · log: STABLE</td><td>Must pass</td></tr>
+    <tr><td class="mod">UT-DECAY-001</td><td>Unit / Decay</td><td>F1 drops from 0.76 to 0.62 (18% drop)</td><td>Emergency retrain triggered</td><td>Must pass</td></tr>
+    <tr><td class="mod">UT-CC-001</td><td>Unit / Champion-Challenger</td><td>Challenger Sharpe = 2.35, Champion = 2.28</td><td>Promote: challenger → champion</td><td>Must pass</td></tr>
+    <tr><td class="mod">UT-CC-002</td><td>Unit / Champion-Challenger</td><td>Challenger Sharpe = 2.10, Champion = 2.28</td><td>Archive challenger · keep champion</td><td>Must pass</td></tr>
+    <tr><td class="mod">UT-ROLLBACK-001</td><td>Unit / Rollback</td><td>Trigger rollback (Sharpe drop 15%)</td><td>Revert to previous champion · < 30s · audit logged</td><td>Must pass</td></tr>
+    <tr><td class="mod">UT-VERSION-001</td><td>Unit / Version Control</td><td>Register new model in MLflow</td><td>Version assigned · metrics stored · lineage tracked</td><td>Must pass</td></tr>
+    <tr><td class="mod">IT-WEEKLY-001</td><td>Integration / Weekly</td><td>Sunday 22:00 UTC scheduled retrain</td><td>XGBoost+LSTM+Transformer retrained · validated · registered</td><td>CI gate</td></tr>
+    <tr><td class="mod">IT-EMERGENCY-001</td><td>Integration / Emergency</td><td>PSI > 0.25 triggers emergency retrain</td><td>Retrain skips canary · direct promote · audit: EMERGENCY</td><td>CI gate</td></tr>
+    <tr><td class="mod">CT-001</td><td>Chaos / Live</td><td>Champion crashes during A/B test</td><td>Auto-rollback to previous champion · < 30s · 0 data loss</td><td>Must pass</td></tr>
+    <tr><td class="mod">CT-002</td><td>Chaos / Live</td><td>Training pipeline fails mid-retrain</td><td>Abort · keep current champion · alert P2 · retry next schedule</td><td>Must pass</td></tr>
+    <tr><td class="mod">CT-003</td><td>Chaos / Live</td><td>MLflow unavailable during rollback</td><td>Use local cached model · fallback MLflow sync on recovery</td><td>Must pass</td></tr>
+  </table>
+</div>
+</body>
+</html>

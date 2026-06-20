@@ -1,0 +1,81 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>d04</title>
+<link href="https://fonts.googleapis.com/css2?family=Tinos:wght@400;700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { width: 1600px; height: 1100px; background: #ffffff; font-family: 'Inter', sans-serif; color: #14213D; padding: 50px 60px; }
+.h-title { font-family: 'Tinos', serif; font-size: 30px; font-weight: 900; letter-spacing: -0.5px; }
+.h-sub { font-family: 'Inter', sans-serif; font-size: 13px; color: #4A5568; margin-top: 4px; }
+.h-rule { width: 80px; height: 3px; background: #C8102E; margin: 14px 0 24px 0; }
+
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+.card { border: 1px solid #CBD5E1; border-radius: 6px; overflow: hidden; }
+.card-head { padding: 12px 18px; color: #fff; font-family: 'Tinos', serif; font-size: 15px; font-weight: 700; display: flex; justify-content: space-between; align-items: center; }
+.card-head .badge { font-family: 'JetBrains Mono', monospace; font-size: 9px; padding: 3px 8px; border-radius: 3px; background: rgba(255,255,255,0.18); letter-spacing: 1px; }
+.card.pass .card-head { background: #14213D; }
+.card.fail .card-head { background: #C8102E; }
+.card-body { padding: 14px 18px; }
+.rule { padding: 9px 0; border-bottom: 1px dashed #CBD5E1; display: grid; grid-template-columns: 80px 1fr; gap: 12px; align-items: start; }
+.rule:last-child { border-bottom: none; }
+.rule .lbl { font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 700; padding: 3px 8px; border-radius: 3px; text-align: center; color: #fff; letter-spacing: 1px; }
+.lbl.crit { background: #C8102E; }
+.lbl.maj { background: #B45309; }
+.lbl.min { background: #94A3B8; }
+.lbl.pass { background: #14213D; }
+.rule .body { font-family: 'Inter', sans-serif; font-size: 10.5px; color: #14213D; line-height: 1.5; }
+.rule .body b { color: #C8102E; }
+
+.summary { margin-top: 22px; background: #14213D; color: #fff; padding: 18px 22px; border-radius: 6px; }
+.summary .lbl { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #C8102E; letter-spacing: 2px; font-weight: 700; }
+.summary .h { font-family: 'Tinos', serif; font-size: 17px; font-weight: 700; margin-top: 4px; }
+.summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 12px; }
+.summary-cell { padding: 12px 14px; background: rgba(255,255,255,0.07); border-left: 3px solid #C8102E; border-radius: 4px; }
+.summary-cell .v { font-family: 'Tinos', serif; font-size: 18px; font-weight: 900; }
+.summary-cell .d { font-family: 'Inter', sans-serif; font-size: 10px; opacity: 0.85; margin-top: 3px; line-height: 1.4; }
+</style></head>
+<body>
+<div class="h-title">Pass / Failure Criteria</div>
+<div class="h-sub">12 hard rules (5 critical + 5 major + 2 minor) · 3-band certification verdict · Survival Score floor is non-negotiable</div>
+<div class="h-rule"></div>
+
+<div class="cols">
+  <div class="card pass">
+    <div class="card-head"><span>PASS Criteria — CERTIFIED</span><span class="badge">LIVE OK</span></div>
+    <div class="card-body">
+      <div class="rule"><div class="lbl pass">PASS-01</div><div class="body"><b>Survival Score ≥ 95%</b> — at least 9,500 of 10,000 simulations remained profitable AND within risk constraints (MDD ≤ 8%, Sharpe ≥ 1.0).</div></div>
+      <div class="rule"><div class="lbl pass">PASS-02</div><div class="body"><b>P5 Sharpe ≥ 1.0</b> — the worst 5% of simulations still achieve Sharpe ≥ 1.0 (institutional floor).</div></div>
+      <div class="rule"><div class="lbl pass">PASS-03</div><div class="body"><b>P5 Max Drawdown ≤ 8%</b> — the worst 5% of simulations stay within 8% drawdown (60% headroom over 5% live target).</div></div>
+      <div class="rule"><div class="lbl pass">PASS-04</div><div class="body"><b>P5 CAGR ≥ 10%</b> — the worst 5% of simulations still return ≥ 10% annualized (positive real return).</div></div>
+      <div class="rule"><div class="lbl pass">PASS-05</div><div class="body"><b>Risk of Ruin &lt; 1%</b> — fewer than 100 of 10,000 simulations lose ≥ 50% of capital.</div></div>
+      <div class="rule"><div class="lbl pass">PASS-06</div><div class="body"><b>P5 Final Equity &gt; 1.0×</b> — even the worst 5% of simulations end with more capital than they started.</div></div>
+      <div class="rule"><div class="lbl pass">PASS-07</div><div class="body"><b>Spread sensitivity low</b> — Survival Score at 2× baseline spread drops by &lt; 5 percentage points.</div></div>
+    </div>
+  </div>
+  <div class="card fail">
+    <div class="card-head"><span>FAILURE Criteria — REJECTED</span><span class="badge">VETO</span></div>
+    <div class="card-body">
+      <div class="rule"><div class="lbl crit">CRIT-01</div><div class="body"><b>Survival Score &lt; 85%</b> — more than 15% of simulations fail. Strategy is fragile across the 3 randomization dimensions.</div></div>
+      <div class="rule"><div class="lbl crit">CRIT-02</div><div class="body"><b>P5 Sharpe &lt; 0.8</b> — worst 5% of sims are no better than buy-hold. Strategy has no edge in adverse conditions.</div></div>
+      <div class="rule"><div class="lbl crit">CRIT-03</div><div class="body"><b>P5 MDD &gt; 10%</b> — worst 5% of sims exceed 10% drawdown (2× the 5% live floor). Capital preservation fails.</div></div>
+      <div class="rule"><div class="lbl crit">CRIT-04</div><div class="body"><b>Risk of Ruin ≥ 5%</b> — more than 500 of 10k sims lose ≥ 50% of capital. Catastrophic tail risk.</div></div>
+      <div class="rule"><div class="lbl crit">CRIT-05</div><div class="body"><b>Negative P5 CAGR</b> — worst 5% of sims lose money over the period. Edge does not survive randomization.</div></div>
+      <div class="rule"><div class="lbl maj">MAJ-01</div><div class="body"><b>Survival Score 85-94%</b> — moderate fragility. Paper trading only with reduced position sizing.</div></div>
+      <div class="rule"><div class="lbl maj">MAJ-02</div><div class="body"><b>P5 Sharpe 0.8-0.99</b> — borderline edge in worst 5%. Conditional approval with monitoring.</div></div>
+      <div class="rule"><div class="lbl maj">MAJ-03</div><div class="body"><b>P5 MDD 8-10%</b> — exceeds live target in worst 5%. Tighter risk controls required.</div></div>
+      <div class="rule"><div class="lbl maj">MAJ-04</div><div class="body"><b>Spread sensitivity high</b> — Survival Score drops &gt; 10 pp at 2× baseline spread. Strategy is spread-dependent.</div></div>
+      <div class="rule"><div class="lbl maj">MAJ-05</div><div class="body"><b>Slippage sensitivity high</b> — Survival Score drops &gt; 10 pp at P99 slippage on all trades.</div></div>
+      <div class="rule"><div class="lbl min">MIN-01</div><div class="body"><b>P5 CAGR 5-10%</b> — marginal return in worst 5%. Advisory only.</div></div>
+      <div class="rule"><div class="lbl min">MIN-02</div><div class="body"><b>Risk of Ruin 1-5%</b> — small but non-negligible tail. Monitor.</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="summary">
+  <div class="lbl">CERTIFICATION GATES — 3-BAND DECISION</div>
+  <div class="h">Applied after all 10,000 simulations complete</div>
+  <div class="summary-grid">
+    <div class="summary-cell"><div class="v">CERTIFIED</div><div class="d">Score ≥ 95 · P5 Sharpe ≥ 1.0 · P5 MDD ≤ 8% · RoR &lt; 1%. Live trading authorized. Quarterly re-MC.</div></div>
+    <div class="summary-cell"><div class="v">CONDITIONAL</div><div class="d">Score 85-94 OR P5 Sharpe 0.8-0.99 OR P5 MDD 8-10%. Paper only. 30-day re-MC required.</div></div>
+    <div class="summary-cell"><div class="v">REJECTED</div><div class="d">Score &lt; 85 OR P5 Sharpe &lt; 0.8 OR P5 MDD &gt; 10% OR RoR ≥ 5%. Trading HALTED. Engineering review.</div></div>
+  </div>
+</div>
+</body></html>

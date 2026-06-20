@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Institutional Execution Engine — Architecture</title>
+<style>
+  @page { size: 1600px 1100px; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #ffffff; font-family: 'Tinos','FreeSerif',serif; color: #14213D; }
+  .canvas { width: 1600px; height: 1100px; padding: 50px 60px; box-sizing: border-box; }
+  .title-bar { display: flex; align-items: baseline; gap: 18px; border-bottom: 2px solid #14213D; padding-bottom: 12px; margin-bottom: 24px; }
+  .title-bar .num { font-size: 48px; font-weight: 900; color: #C8102E; line-height: 1; }
+  .title-bar h1 { font-size: 28px; font-weight: 700; margin: 0; }
+  .title-bar .sub { font-size: 13px; color: #4A5568; margin-left: auto; font-family: 'JetBrains Mono',monospace; }
+  svg { display: block; margin: 0 auto; background: #FAFBFC; border: 1px solid #E2E8F0; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="title-bar">
+    <span class="num">01</span>
+    <h1>Execution Engine — Internal Architecture (5 Layers)</h1>
+    <span class="sub">Ingest · Decision · Execution · Monitoring · Recovery</span>
+  </div>
+
+  <svg width="1480" height="850" viewBox="0 0 1480 850">
+    <!-- External left: Signal source -->
+    <rect x="20" y="380" width="160" height="90" fill="#F8FAFC" stroke="#14213D" stroke-width="1.5"/>
+    <text x="100" y="410" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">Strategy Coordinator</text>
+    <text x="100" y="430" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">signal events</text>
+    <text x="100" y="445" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">direction + size + type</text>
+
+    <!-- External right: MT5 Bridge -->
+    <rect x="1300" y="380" width="160" height="90" fill="#14213D"/>
+    <text x="1380" y="410" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700" font-family="Tinos">MT5 Bridge</text>
+    <text x="1380" y="430" text-anchor="middle" fill="#C8102E" font-size="9" font-family="JetBrains Mono">OrderSend / OnTrade</text>
+    <text x="1380" y="445" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="9" font-family="JetBrains Mono">fill callbacks</text>
+
+    <!-- Engine container -->
+    <rect x="220" y="40" width="1060" height="800" fill="#FAFBFC" stroke="#C8102E" stroke-width="2" rx="8"/>
+    <rect x="220" y="40" width="1060" height="36" fill="#C8102E" rx="8"/>
+    <text x="750" y="63" text-anchor="middle" fill="#ffffff" font-size="14" font-weight="700" font-family="Tinos">Institutional Execution Engine (IEE)</text>
+
+    <!-- L1 Ingest -->
+    <text x="250" y="105" font-size="12" font-weight="700" fill="#C8102E" font-family="JetBrains Mono">L1 · INGEST (tick + signal ingress)</text>
+    <rect x="250" y="115" width="220" height="80" fill="#FEF3F2" stroke="#14213D"/>
+    <text x="360" y="140" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">TickIngestor</text>
+    <text x="360" y="158" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">ZMQ SUB · zero-copy</text>
+    <text x="360" y="172" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">~50k ticks/s sustained</text>
+    <text x="360" y="186" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">SPSC ring buffer</text>
+
+    <rect x="490" y="115" width="220" height="80" fill="#FEF3F2" stroke="#14213D"/>
+    <text x="600" y="140" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">SignalIngestor</text>
+    <text x="600" y="158" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">async callback</text>
+    <text x="600" y="172" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">SPSC queue depth=1024</text>
+    <text x="600" y="186" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">no blocking</text>
+
+    <rect x="730" y="115" width="220" height="80" fill="#FEF3F2" stroke="#14213D"/>
+    <text x="840" y="140" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">TimerService</text>
+    <text x="840" y="158" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">monotonic ns clock</text>
+    <text x="840" y="172" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">timerfd · no syscalls</text>
+    <text x="840" y="186" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">1ms resolution</text>
+
+    <rect x="970" y="115" width="220" height="80" fill="#FEF3F2" stroke="#14213D"/>
+    <text x="1080" y="140" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">CallbackRouter</text>
+    <text x="1080" y="158" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">order fill / cancel</text>
+    <text x="1080" y="172" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">reject callbacks</text>
+    <text x="1080" y="186" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">callback dispatch</text>
+
+    <!-- L2 Decision -->
+    <text x="250" y="225" font-size="12" font-weight="700" fill="#C8102E" font-family="JetBrains Mono">L2 · DECISION (pre-execution gating)</text>
+
+    <rect x="250" y="235" width="250" height="80" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="375" y="260" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">OrderBuilder</text>
+    <text x="375" y="278" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">signal → Order object</text>
+    <text x="375" y="292" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">type / TIF / price / qty</text>
+    <text x="375" y="306" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">pre-allocated pool</text>
+
+    <rect x="520" y="235" width="250" height="80" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="645" y="260" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">RiskGateClient</text>
+    <text x="645" y="278" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">synchronous veto call</text>
+    <text x="645" y="292" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">position / leverage / news</text>
+    <text x="645" y="306" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">~0.15ms p99</text>
+
+    <rect x="790" y="235" width="250" height="80" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="915" y="260" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">VenueSelector</text>
+    <text x="915" y="278" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">MKT / LMT / STP / STPLmt</text>
+    <text x="915" y="292" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">failover chain</text>
+    <text x="915" y="306" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">slippage-aware routing</text>
+
+    <rect x="1060" y="235" width="200" height="80" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="1160" y="260" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">IdempotencyGuard</text>
+    <text x="1160" y="278" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">dedup by client_id</text>
+    <text x="1160" y="292" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">Bloom filter + map</text>
+    <text x="1160" y="306" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">1M entries · 8MB RAM</text>
+
+    <!-- L3 Execution -->
+    <text x="250" y="345" font-size="12" font-weight="700" fill="#C8102E" font-family="JetBrains Mono">L3 · EXECUTION (hot path · CPU-pinned)</text>
+
+    <rect x="250" y="355" width="220" height="90" fill="#14213D"/>
+    <text x="360" y="382" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="Tinos">OrderManager</text>
+    <text x="360" y="402" text-anchor="middle" fill="#C8102E" font-size="9" font-family="JetBrains Mono">state machine owner</text>
+    <text x="360" y="416" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="9" font-family="JetBrains Mono">CPU 2-3 isolated</text>
+    <text x="360" y="430" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="9" font-family="JetBrains Mono">no heap alloc on hot path</text>
+
+    <rect x="490" y="355" width="220" height="90" fill="#14213D"/>
+    <text x="600" y="382" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="Tinos">OrderDispatcher</text>
+    <text x="600" y="402" text-anchor="middle" fill="#C8102E" font-size="9" font-family="JetBrains Mono">async submit to bridge</text>
+    <text x="600" y="416" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="9" font-family="JetBrains Mono">batch up to 4 orders</text>
+    <text x="600" y="430" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="9" font-family="JetBrains Mono">SPSC to MT5 thread</text>
+
+    <rect x="730" y="355" width="220" height="90" fill="#14213D"/>
+    <text x="840" y="382" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="Tinos">FillProcessor</text>
+    <text x="840" y="402" text-anchor="middle" fill="#C8102E" font-size="9" font-family="JetBrains Mono">full + partial fill handling</text>
+    <text x="840" y="416" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="9" font-family="JetBrains Mono">residual qty tracking</text>
+    <text x="840" y="430" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="9" font-family="JetBrains Mono">fill_id dedup</text>
+
+    <rect x="970" y="355" width="220" height="90" fill="#14213D"/>
+    <text x="1080" y="382" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="Tinos">CancelProcessor</text>
+    <text x="1080" y="402" text-anchor="middle" fill="#C8102E" font-size="9" font-family="JetBrains Mono">async cancel</text>
+    <text x="1080" y="416" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="9" font-family="JetBrains Mono">graceful vs force</text>
+    <text x="1080" y="430" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="9" font-family="JetBrains Mono">timeout 500ms</text>
+
+    <!-- L4 Monitoring -->
+    <text x="250" y="475" font-size="12" font-weight="700" fill="#C8102E" font-family="JetBrains Mono">L4 · MONITORING (TCA + EQS + slippage)</text>
+
+    <rect x="250" y="485" width="320" height="80" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="410" y="510" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">SlippageMonitor</text>
+    <text x="410" y="528" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">expected vs realized</text>
+    <text x="410" y="542" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">rolling 100-trade μ, σ</text>
+    <text x="410" y="556" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">3σ outlier detection</text>
+
+    <rect x="590" y="485" width="320" height="80" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="750" y="510" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">ExecutionQualityScorer (EQS)</text>
+    <text x="750" y="528" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">7-factor weighted score</text>
+    <text x="750" y="542" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">0–100 per order + daily roll-up</text>
+    <text x="750" y="556" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">emitted on every fill</text>
+
+    <rect x="930" y="485" width="220" height="80" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="1040" y="510" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">TCACollector</text>
+    <text x="1040" y="528" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">transaction cost analysis</text>
+    <text x="1040" y="542" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">spread + commission + slip</text>
+    <text x="1040" y="556" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">daily report to operator</text>
+
+    <!-- L5 Recovery -->
+    <text x="250" y="595" font-size="12" font-weight="700" fill="#C8102E" font-family="JetBrains Mono">L5 · RECOVERY (retry + reconciliation + reject handling)</text>
+
+    <rect x="250" y="605" width="280" height="80" fill="#FEF3F2" stroke="#C8102E" stroke-width="2"/>
+    <text x="390" y="630" text-anchor="middle" font-size="12" font-weight="700" fill="#C8102E" font-family="Tinos">RetryManager</text>
+    <text x="390" y="648" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">exponential backoff</text>
+    <text x="390" y="662" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">retry budget: 3 / order</text>
+    <text x="390" y="676" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">jitter to avoid thundering herd</text>
+
+    <rect x="550" y="605" width="280" height="80" fill="#FEF3F2" stroke="#C8102E" stroke-width="2"/>
+    <text x="690" y="630" text-anchor="middle" font-size="12" font-weight="700" fill="#C8102E" font-family="Tinos">ReconciliationEngine</text>
+    <text x="690" y="648" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">local vs broker state</text>
+    <text x="690" y="662" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">orphan + phantom detection</text>
+    <text x="690" y="676" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">periodic: every 5s</text>
+
+    <rect x="850" y="605" width="280" height="80" fill="#FEF3F2" stroke="#C8102E" stroke-width="2"/>
+    <text x="990" y="630" text-anchor="middle" font-size="12" font-weight="700" fill="#C8102E" font-family="Tinos">RejectionClassifier</text>
+    <text x="990" y="648" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">12 reject codes mapped</text>
+    <text x="990" y="662" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">retry / abort / escalate</text>
+    <text x="990" y="676" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">kill switch on fatal</text>
+
+    <!-- L6 Persistence + Observability -->
+    <text x="250" y="715" font-size="12" font-weight="700" fill="#C8102E" font-family="JetBrains Mono">L6 · PERSISTENCE &amp; OBSERVABILITY (off hot path)</text>
+
+    <rect x="250" y="725" width="280" height="80" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="390" y="750" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">AuditLogger</text>
+    <text x="390" y="768" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">append-only WORM</text>
+    <text x="390" y="782" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">hash-chained events</text>
+    <text x="390" y="796" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">batched 10ms flush</text>
+
+    <rect x="550" y="725" width="280" height="80" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="690" y="750" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">MetricsExporter</text>
+    <text x="690" y="768" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">Prometheus counters</text>
+    <text x="690" y="782" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">latency histograms</text>
+    <text x="690" y="796" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">15s scrape</text>
+
+    <rect x="850" y="725" width="280" height="80" fill="#F0FDF4" stroke="#14213D"/>
+    <text x="990" y="750" text-anchor="middle" font-size="12" font-weight="700" font-family="Tinos">StateReplicator</text>
+    <text x="990" y="768" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">Redis hot state sync</text>
+    <text x="990" y="782" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">Z2 standby mirror</text>
+    <text x="990" y="796" text-anchor="middle" font-size="9" fill="#4A5568" font-family="JetBrains Mono">&lt;1s replication lag</text>
+
+    <!-- Arrows -->
+    <g stroke="#C8102E" stroke-width="2" fill="none" marker-end="url(#arE)">
+      <line x1="180" y1="425" x2="250" y2="155"/>
+      <line x1="1240" y1="425" x2="1300" y2="425"/>
+      <line x1="490" y1="395" x2="490" y2="425" stroke-dasharray="4 2"/>
+    </g>
+    <g stroke="#14213D" stroke-width="1" fill="none" opacity="0.4" stroke-dasharray="3 3">
+      <line x1="600" y1="195" x2="600" y2="230"/>
+      <line x1="600" y1="320" x2="600" y2="350"/>
+      <line x1="600" y1="450" x2="600" y2="480"/>
+      <line x1="600" y1="570" x2="600" y2="600"/>
+      <line x1="600" y1="690" x2="600" y2="720"/>
+    </g>
+
+    <defs>
+      <marker id="arE" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
+        <path d="M0,0 L0,6 L7,3 z" fill="#C8102E"/>
+      </marker>
+    </defs>
+  </svg>
+</div>
+</body>
+</html>

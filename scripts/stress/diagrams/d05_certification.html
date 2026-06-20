@@ -1,0 +1,133 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>d05</title>
+<link href="https://fonts.googleapis.com/css2?family=Tinos:wght@400;700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { width: 1600px; height: 1100px; background: #ffffff; font-family: 'Inter', sans-serif; color: #14213D; padding: 50px 60px; }
+.h-title { font-family: 'Tinos', serif; font-size: 30px; font-weight: 900; letter-spacing: -0.5px; }
+.h-sub { font-family: 'Inter', sans-serif; font-size: 13px; color: #4A5568; margin-top: 4px; }
+.h-rule { width: 80px; height: 3px; background: #C8102E; margin: 14px 0 24px 0; }
+
+.cols { display: grid; grid-template-columns: 1.1fr 1fr; gap: 22px; }
+
+.report-card { border: 1px solid #CBD5E1; border-radius: 6px; overflow: hidden; }
+.report-head { background: #14213D; color: #fff; padding: 12px 18px; }
+.report-head .lbl { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C8102E; letter-spacing: 2px; font-weight: 700; }
+.report-head .t { font-family: 'Tinos', serif; font-size: 15px; font-weight: 700; margin-top: 2px; }
+.report-body { padding: 14px 18px; }
+.report-row { display: grid; grid-template-columns: 130px 1fr; gap: 12px; padding: 7px 0; border-bottom: 1px dashed #E2E8F0; font-family: 'Inter', sans-serif; font-size: 10.5px; }
+.report-row:last-child { border-bottom: none; }
+.report-row .k { font-family: 'JetBrains Mono', monospace; font-size: 9.5px; font-weight: 700; color: #14213D; letter-spacing: 0.5px; }
+.report-row .v { color: #4A5568; line-height: 1.5; }
+.report-row .v b { color: #C8102E; }
+
+.tiers-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-top: 16px; }
+.tier { background: #F8FAFC; border: 1px solid #CBD5E1; border-top: 3px solid #14213D; border-radius: 6px; padding: 12px; }
+.tier.exec { border-top-color: #C8102E; }
+.tier.reg { border-top-color: #B45309; }
+.tier .aud { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C8102E; font-weight: 700; letter-spacing: 1.5px; }
+.tier .t { font-family: 'Tinos', serif; font-size: 13px; font-weight: 700; color: #14213D; margin: 4px 0 6px 0; }
+.tier .d { font-family: 'Inter', sans-serif; font-size: 9.5px; color: #4A5568; line-height: 1.5; }
+.tier .fmt { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #14213D; margin-top: 6px; padding-top: 6px; border-top: 1px dashed #CBD5E1; }
+
+.example-card { background: #14213D; color: #fff; border-radius: 6px; padding: 16px 18px; }
+.example-card .lbl { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #C8102E; letter-spacing: 2px; font-weight: 700; }
+.example-card .h { font-family: 'Tinos', serif; font-size: 14px; font-weight: 700; margin-top: 4px; }
+.example-table { width: 100%; margin-top: 12px; border-collapse: collapse; }
+.example-table th { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #94A3B8; letter-spacing: 1.5px; text-align: left; padding: 6px 8px; border-bottom: 1px solid #4A5568; }
+.example-table td { font-family: 'Inter', sans-serif; font-size: 10.5px; padding: 6px 8px; border-bottom: 1px solid #2D3748; }
+.example-table td.metric { font-weight: 700; color: #fff; }
+.example-table td.val { font-family: 'JetBrains Mono', monospace; }
+.example-table td.pass { color: #15803D; font-family: 'JetBrains Mono', monospace; font-weight: 700; }
+.example-table td.warn { color: #F59E0B; font-family: 'JetBrains Mono', monospace; font-weight: 700; }
+
+.footer-block { margin-top: 18px; padding: 14px 18px; background: #F1F5F9; border-left: 4px solid #C8102E; border-radius: 4px; }
+.footer-block .lbl { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C8102E; letter-spacing: 2px; font-weight: 700; }
+.footer-block .row { display: grid; grid-template-columns: 120px 1fr; gap: 10px; padding: 4px 0; font-family: 'Inter', sans-serif; font-size: 10.5px; }
+.footer-block .row .k { font-family: 'JetBrains Mono', monospace; font-size: 9.5px; font-weight: 700; color: #14213D; }
+.footer-block .row .v { color: #4A5568; line-height: 1.5; }
+.footer-block .row .v b { color: #14213D; }
+</style></head>
+<body>
+<div class="h-title">Certification Criteria &amp; Worked Example</div>
+<div class="h-sub">6 scenario verdicts aggregate to single certification · 3-band decision · S3 archived 7 years</div>
+<div class="h-rule"></div>
+
+<div class="cols">
+  <div>
+    <div class="report-card">
+      <div class="report-head"><div class="lbl">CERTIFICATION PIPELINE</div><div class="t">6 Scenarios → Aggregate → Verdict</div></div>
+      <div class="report-body">
+        <div class="report-row"><div class="k">AGGREGATION</div><div class="v">Final verdict = <b>logical AND</b> of 6 scenario verdicts. If ANY scenario = REJECTED → final = REJECTED.</div></div>
+        <div class="report-row"><div class="k">CERTIFIED</div><div class="v">All 6 scenarios PASS · 0 critical · 0 major · kill-switch SLA met · 100% position reconciliation</div></div>
+        <div class="report-row"><div class="k">CONDITIONAL</div><div class="v">1 major failure OR 1 critical with documented waiver · paper trading only · 30-day re-stress</div></div>
+        <div class="report-row"><div class="k">REJECTED</div><div class="v">Any critical (no waiver) OR ≥ 2 major · trading HALTED · engineering review required</div></div>
+        <div class="report-row"><div class="k">ARCHIVE</div><div class="v"><b>s3://titan-stress/{strategy}/{version}/{timestamp}/</b> · 7-year retention · RSA-2048 signed manifest</div></div>
+        <div class="report-row"><div class="k">DISPATCH</div><div class="v">PagerDuty P1 for REJECT · P3 for PASS · Slack #titan-stress · email to stakeholders</div></div>
+        <div class="report-row"><div class="k">CADENCE</div><div class="v">Pre-deployment (mandatory) · Quarterly scheduled · On-demand via CLI / REST</div></div>
+        <div class="report-row"><div class="k">REGRESSION</div><div class="v">Each stress test compared to last 5 · any scenario downgrade = P1 regression alert</div></div>
+      </div>
+    </div>
+    <div style="margin-top:16px">
+      <div class="tiers-grid">
+        <div class="tier exec">
+          <div class="aud">EXECUTIVE</div>
+          <div class="t">1-page brief</div>
+          <div class="d">Verdict, per-scenario results, kill-switch SLA, recovery timeline, comparison to last 5 runs.</div>
+          <div class="fmt">PDF · 1 page</div>
+        </div>
+        <div class="tier">
+          <div class="aud">TECHNICAL</div>
+          <div class="t">Full scenario dump</div>
+          <div class="d">All 6 scenarios with tick-level logs, equity curves, recovery actions, failure analysis.</div>
+          <div class="fmt">PDF + JSON · 20-30 pp</div>
+        </div>
+        <div class="tier reg">
+          <div class="aud">REGULATORY</div>
+          <div class="t">Audit trail</div>
+          <div class="d">Scenario parameters, historical basis, reproducibility manifest, sign-off chain.</div>
+          <div class="fmt">PDF · 10-15 pp</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="example-card">
+    <div class="lbl">WORKED EXAMPLE · TREND v3.2 STRESS TEST</div>
+    <div class="h">6 scenarios · seed = 42 · 12-month tick data</div>
+    <table class="example-table">
+      <thead><tr><th>Scenario</th><th>Metric</th><th>Value</th><th>Threshold</th><th>Verdict</th></tr></thead>
+      <tbody>
+        <tr><td class="metric">Flash Crash</td><td>MDD</td><td class="val">9.4%</td><td class="val">≤ 12%</td><td class="pass">PASS</td></tr>
+        <tr><td class="metric">Flash Crash</td><td>Kill-switch</td><td class="val">312 ms</td><td class="val">≤ 500 ms</td><td class="pass">PASS</td></tr>
+        <tr><td class="metric">High Spread</td><td>Cost drag</td><td class="val">38.2%</td><td class="val">≤ 45%</td><td class="pass">PASS</td></tr>
+        <tr><td class="metric">High Spread</td><td>Entries suppressed</td><td class="val">100%</td><td class="val">100%</td><td class="pass">PASS</td></tr>
+        <tr><td class="metric">Server Lag</td><td>Stale veto</td><td class="val">97.3%</td><td class="val">≥ 95%</td><td class="pass">PASS</td></tr>
+        <tr><td class="metric">Server Lag</td><td>Stale fills</td><td class="val">0</td><td class="val">0</td><td class="pass">PASS</td></tr>
+        <tr><td class="metric">Broker Disconnect</td><td>Reconnect</td><td class="val">3.1 s</td><td class="val">≤ 5 s</td><td class="pass">PASS</td></tr>
+        <tr><td class="metric">Broker Disconnect</td><td>Reconcile</td><td class="val">100%</td><td class="val">100%</td><td class="pass">PASS</td></tr>
+        <tr><td class="metric">Extreme Vol</td><td>MDD</td><td class="val">7.8%</td><td class="val">≤ 10%</td><td class="pass">PASS</td></tr>
+        <tr><td class="metric">Extreme Vol</td><td>Size reduction</td><td class="val">50%</td><td class="val">≥ 50%</td><td class="pass">PASS</td></tr>
+        <tr><td class="metric">Gap Open</td><td>Gap loss</td><td class="val">0.0%</td><td class="val">≤ 2%</td><td class="pass">PASS</td></tr>
+        <tr><td class="metric">Gap Open</td><td>Weekend flat</td><td class="val">100%</td><td class="val">100%</td><td class="pass">PASS</td></tr>
+      </tbody>
+    </table>
+    <div style="margin-top:14px;padding-top:12px;border-top:1px solid #4A5568;display:grid;grid-template-columns:1fr 1fr;gap:12px;font-family:'JetBrains Mono',monospace;font-size:10.5px">
+      <div>Scenarios PASS: <span style="color:#15803D;font-weight:700">6 / 6</span></div>
+      <div>Critical fails: <span style="color:#15803D;font-weight:700">0</span></div>
+      <div>Major fails: <span style="color:#15803D;font-weight:700">0</span></div>
+      <div>Recovery time: <span style="color:#15803D;font-weight:700">8.2 min avg</span></div>
+      <div style="grid-column:1/3">Verdict: <span style="background:#15803D;color:#fff;padding:3px 10px;border-radius:3px;font-weight:700">CERTIFIED</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="footer-block">
+  <div class="lbl">REPORT CONTENTS — TECHNICAL TIER (FULL DETAIL)</div>
+  <div class="row"><div class="k">SECTION 1</div><div class="v"><b>Test configuration</b> — strategy version, dataset, seed, scenario parameters, broker profile.</div></div>
+  <div class="row"><div class="k">SECTION 2</div><div class="v"><b>Per-scenario results</b> — for each of 6 scenarios: metric value, threshold, pass/fail, tick-level equity curve, recovery actions taken.</div></div>
+  <div class="row"><div class="k">SECTION 3</div><div class="v"><b>Kill-switch audit</b> — every kill-switch trigger with timestamp, latency, positions flattened, audit hash.</div></div>
+  <div class="row"><div class="k">SECTION 4</div><div class="v"><b>Recovery timeline</b> — DETECT → HALT → FLATTEN → PROTECT → RECOVER → RESUME with timestamps and durations.</div></div>
+  <div class="row"><div class="k">SECTION 5</div><div class="v"><b>Failure analysis</b> — for any failed scenario: root cause, dimension of failure (kill-switch / filter / sizing / reconnect).</div></div>
+  <div class="row"><div class="k">SECTION 6</div><div class="v"><b>Certification verdict</b> — 3-band decision, aggregate score, hard veto triggers fired, waiver IDs (if any).</div></div>
+</div>
+</body></html>

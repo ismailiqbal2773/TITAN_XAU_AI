@@ -1,0 +1,121 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>d03</title>
+<link href="https://fonts.googleapis.com/css2?family=Tinos:wght@400;700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { width: 1600px; height: 1200px; background: #ffffff; font-family: 'Inter', sans-serif; color: #14213D; padding: 50px 60px; }
+.h-title { font-family: 'Tinos', serif; font-size: 30px; font-weight: 900; letter-spacing: -0.5px; }
+.h-sub { font-family: 'Inter', sans-serif; font-size: 13px; color: #4A5568; margin-top: 4px; }
+.h-rule { width: 80px; height: 3px; background: #C8102E; margin: 14px 0 24px 0; }
+
+.issues { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.issue { border: 1px solid #CBD5E1; border-left: 4px solid #C8102E; border-radius: 6px; padding: 14px 16px; background: #F8FAFC; }
+.issue.head { grid-column: 1/3; background: #14213D; color: #fff; border-left-color: #C8102E; }
+.issue.head .lbl { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #C8102E; letter-spacing: 2px; font-weight: 700; }
+.issue.head .h { font-family: 'Tinos', serif; font-size: 18px; font-weight: 900; margin-top: 4px; }
+.issue.head .d { font-family: 'Inter', sans-serif; font-size: 11px; opacity: 0.9; margin-top: 4px; line-height: 1.5; }
+.issue .id { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #C8102E; font-weight: 700; letter-spacing: 1px; }
+.issue .t { font-family: 'Tinos', serif; font-size: 14px; font-weight: 700; color: #14213D; margin: 4px 0 6px 0; line-height: 1.2; }
+.issue .row { font-family: 'Inter', sans-serif; font-size: 10px; padding: 3px 0; line-height: 1.5; }
+.issue .row .k { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #4A5568; font-weight: 700; }
+.issue .row .v { color: #14213D; }
+.issue .row .v b { color: #C8102E; }
+.issue .sev { display: inline-block; font-family: 'JetBrains Mono', monospace; font-size: 9px; padding: 2px 6px; border-radius: 2px; color: #fff; font-weight: 700; margin-left: 6px; }
+.sev.crit { background: #C8102E; }
+.sev.maj { background: #B45309; }
+
+.roadmap { margin-top: 22px; padding: 16px 20px; background: #14213D; color: #fff; border-radius: 6px; }
+.roadmap .lbl { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #C8102E; letter-spacing: 2px; font-weight: 700; }
+.roadmap .h { font-family: 'Tinos', serif; font-size: 15px; font-weight: 700; margin-top: 4px; }
+.roadmap-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 12px; }
+.rm-cell { padding: 10px 12px; background: rgba(255,255,255,0.07); border-left: 2px solid #C8102E; border-radius: 4px; }
+.rm-cell .ph { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C8102E; font-weight: 700; letter-spacing: 1px; }
+.rm-cell .t { font-family: 'Tinos', serif; font-size: 12px; font-weight: 700; margin-top: 3px; }
+.rm-cell .d { font-family: 'Inter', sans-serif; font-size: 9.5px; opacity: 0.85; margin-top: 3px; line-height: 1.4; }
+</style></head>
+<body>
+<div class="h-title">Critical Issues — Must Fix Before PRODUCTION READY</div>
+<div class="h-sub">7 critical issues identified · all must be resolved · 4-phase remediation roadmap</div>
+<div class="h-rule"></div>
+
+<div class="issues">
+  <div class="issue head">
+    <div class="lbl">CRITICAL ISSUES SUMMARY</div>
+    <div class="h">7 critical issues · all must be fixed before PRODUCTION READY</div>
+    <div class="d">All 7 critical issues stem from the same root cause: the TITAN system exists as 16 architecture specifications, not as implemented code. The specifications are institutionally rigorous (94.6 avg for M08 Risk Engine, 94.5 for M15 Validator), but no production system can be certified READY based on specifications alone. The remediation roadmap converts specifications to running, tested, validated code over 16 weeks.</div>
+  </div>
+
+  <div class="issue">
+    <div class="id">CRIT-01 <span class="sev crit">CRITICAL</span></div>
+    <div class="t">No actual code implementation exists</div>
+    <div class="row"><div class="k">CATEGORY</div><div class="v">C1 Code Review · C6 Unit Tests · C7 Integration Tests</div></div>
+    <div class="row"><div class="k">IMPACT</div><div class="v">All 16 modules exist as PDF/DOCX specs only. <b>Zero lines of production code written.</b></div></div>
+    <div class="row"><div class="k">FIX</div><div class="v">Implement Phase 1 (M01-M03, M08, M14) in 4 months · then Phase 2-4</div></div>
+    <div class="row"><div class="k">VERIFICATION</div><div class="v">CI pipeline green · 2100-test pyramid passing · all 5 validation frameworks CERTIFIED</div></div>
+  </div>
+
+  <div class="issue">
+    <div class="id">CRIT-02 <span class="sev crit">CRITICAL</span></div>
+    <div class="t">Memory leak analysis unverified</div>
+    <div class="row"><div class="k">CATEGORY</div><div class="v">C4 Memory Leak Analysis</div></div>
+    <div class="row"><div class="k">IMPACT</div><div class="v">Spec defines RAII + bounded queues + GC tuning, but no actual leak detection has run. <b>Long-running soak test not performed.</b></div></div>
+    <div class="row"><div class="k">FIX</div><div class="v">Implement Valgrind/AddressSanitizer CI gate · 72-hour soak test · per-module memory profile</div></div>
+    <div class="row"><div class="k">VERIFICATION</div><div class="v">Zero leak reports across 72h soak · RSS growth &lt; 5% · all RAII contracts verified</div></div>
+  </div>
+
+  <div class="issue">
+    <div class="id">CRIT-03 <span class="sev crit">CRITICAL</span></div>
+    <div class="t">No real backtest data validated</div>
+    <div class="row"><div class="k">CATEGORY</div><div class="v">C9 Backtests · C10 WFA · C11 MC</div></div>
+    <div class="row"><div class="k">IMPACT</div><div class="v">Worked examples use <b>illustrative numbers</b> (Trend v3.2 scoring 96.1 etc.), not real backtest results. Actual Sharpe/MDD/WFE unknown.</div></div>
+    <div class="row"><div class="k">FIX</div><div class="v">Acquire 12-mo tick data from 6 brokers · run real backtests · produce actual metrics</div></div>
+    <div class="row"><div class="k">VERIFICATION</div><div class="v">Real backtest Sharpe ≥ 2.0 · MDD ≤ 5% · WFE ≥ 0.85 · Survival ≥ 95% (all 8 KPIs)</div></div>
+  </div>
+
+  <div class="issue">
+    <div class="id">CRIT-04 <span class="sev crit">CRITICAL</span></div>
+    <div class="t">Broker cost profiles not calibrated</div>
+    <div class="row"><div class="k">CATEGORY</div><div class="v">C13 Broker Compatibility · C9 Backtests</div></div>
+    <div class="row"><div class="k">IMPACT</div><div class="v">Cost table values (spread P50, commission RT, swap rates) are <b>publicly published estimates</b>, not calibrated against live fills.</div></div>
+    <div class="row"><div class="k">FIX</div><div class="v">Open 6 broker demo accounts · log 30 days of fills · compute actual P50/P90/P99 slippage + spread</div></div>
+    <div class="row"><div class="k">VERIFICATION</div><div class="v">Live P50 within ±15% of spec · PSI &lt; 0.25 · 6 brokers all calibrated</div></div>
+  </div>
+
+  <div class="issue">
+    <div class="id">CRIT-05 <span class="sev crit">CRITICAL</span></div>
+    <div class="t">License server HSM not provisioned</div>
+    <div class="row"><div class="k">CATEGORY</div><div class="v">C2 Security Review</div></div>
+    <div class="row"><div class="k">IMPACT</div><div class="v">Spec says RSA-4096 keys HSM-backed, but <b>no AWS KMS configuration exists</b>. License server cannot issue production JWTs.</div></div>
+    <div class="row"><div class="k">FIX</div><div class="v">Provision AWS KMS custom key store · generate RSA-4096 key · embed public key in client binary</div></div>
+    <div class="row"><div class="k">VERIFICATION</div><div class="v">HSM-backed signing verified · key rotation tested · private key never leaves HSM</div></div>
+  </div>
+
+  <div class="issue">
+    <div class="id">CRIT-06 <span class="sev crit">CRITICAL</span></div>
+    <div class="t">DR drill never executed</div>
+    <div class="row"><div class="k">CATEGORY</div><div class="v">C12 Stress Tests (broker disconnect scenario)</div></div>
+    <div class="row"><div class="k">IMPACT</div><div class="v">DR topology is specified (Zone A/B/C, RPO 60s, RTO 5m) but <b>no actual failover drill has been run</b>. Failover logic unverified.</div></div>
+    <div class="row"><div class="k">FIX</div><div class="v">Provision both VPS zones · run quarterly DR drill · measure actual RPO/RTO</div></div>
+    <div class="row"><div class="k">VERIFICATION</div><div class="v">RPO ≤ 60s · RTO ≤ 5m · zero data loss · zero split-brain</div></div>
+  </div>
+
+  <div class="issue">
+    <div class="id">CRIT-07 <span class="sev crit">CRITICAL</span></div>
+    <div class="t">SOC2 audit not completed</div>
+    <div class="row"><div class="k">CATEGORY</div><div class="v">C2 Security Review (regulatory)</div></div>
+    <div class="row"><div class="k">IMPACT</div><div class="v">Spec commits to annual SOC2 audit, but <b>no audit has been scheduled or initiated</b>. Required for institutional licensee trust.</div></div>
+    <div class="row"><div class="k">FIX</div><div class="v">Engage 3rd-party SOC2 auditor · complete Type I audit (3 months) · then Type II (12 months)</div></div>
+    <div class="row"><div class="k">VERIFICATION</div><div class="v">SOC2 Type I report issued · Type II monitoring started</div></div>
+  </div>
+</div>
+
+<div class="roadmap">
+  <div class="lbl">REMEDIATION ROADMAP — 16 WEEKS TO PRODUCTION READY</div>
+  <div class="h">4 phases · each phase delivers verifiable milestones · final phase = PRODUCTION READY gate</div>
+  <div class="roadmap-grid">
+    <div class="rm-cell"><div class="ph">PHASE 1 · WEEKS 1-4</div><div class="t">Foundation Code</div><div class="d">Implement M01-M03, M08, M14. CRIT-01 (partial), CRIT-05 resolved.</div></div>
+    <div class="rm-cell"><div class="ph">PHASE 2 · WEEKS 5-9</div><div class="t">AI + Strategy Code</div><div class="d">Implement M04-M07, M11-M12. Acquire broker data. CRIT-04 resolved.</div></div>
+    <div class="rm-cell"><div class="ph">PHASE 3 · WEEKS 10-13</div><div class="t">Validation Pipeline</div><div class="d">Implement M15-M19. Run real backtests/WFA/MC. CRIT-02, CRIT-03 resolved.</div></div>
+    <div class="rm-cell"><div class="ph">PHASE 4 · WEEKS 14-16</div><div class="t">Hardening + Sign-off</div><div class="d">DR drill, SOC2 audit, production readiness re-review. CRIT-06, CRIT-07 resolved.</div></div>
+  </div>
+</div>
+</body></html>

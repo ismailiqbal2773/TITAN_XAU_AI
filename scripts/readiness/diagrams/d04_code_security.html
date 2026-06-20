@@ -1,0 +1,86 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>d04</title>
+<link href="https://fonts.googleapis.com/css2?family=Tinos:wght@400;700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { width: 1600px; height: 1200px; background: #ffffff; font-family: 'Inter', sans-serif; color: #14213D; padding: 50px 60px; }
+.h-title { font-family: 'Tinos', serif; font-size: 30px; font-weight: 900; letter-spacing: -0.5px; }
+.h-sub { font-family: 'Inter', sans-serif; font-size: 13px; color: #4A5568; margin-top: 4px; }
+.h-rule { width: 80px; height: 3px; background: #C8102E; margin: 14px 0 24px 0; }
+
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+.card { border: 1px solid #CBD5E1; border-radius: 6px; overflow: hidden; }
+.card-head { background: #14213D; color: #fff; padding: 12px 18px; }
+.card-head .lbl { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C8102E; letter-spacing: 2px; font-weight: 700; }
+.card-head .t { font-family: 'Tinos', serif; font-size: 14px; font-weight: 700; margin-top: 2px; }
+.card-head .score { font-family: 'Tinos', serif; font-size: 18px; font-weight: 900; float: right; }
+.card-head .score.pass { color: #4ADE80; }
+.card-head .score.cond { color: #FCD34D; }
+.card-body { padding: 12px 16px; }
+.finding { padding: 8px 0; border-bottom: 1px dashed #CBD5E1; }
+.finding:last-child { border-bottom: none; }
+.finding .head { display: flex; justify-content: space-between; align-items: center; }
+.finding .id { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C8102E; font-weight: 700; }
+.finding .sev { font-family: 'JetBrains Mono', monospace; font-size: 9px; padding: 2px 6px; border-radius: 2px; color: #fff; font-weight: 700; }
+.sev.crit { background: #C8102E; }
+.sev.maj { background: #B45309; }
+.sev.min { background: #94A3B8; }
+.sev.ok { background: #15803D; }
+.finding .t { font-family: 'Tinos', serif; font-size: 12px; font-weight: 700; color: #14213D; margin: 3px 0 4px 0; line-height: 1.2; }
+.finding .d { font-family: 'Inter', sans-serif; font-size: 9.5px; color: #4A5568; line-height: 1.5; }
+.finding .d b { color: #C8102E; }
+
+.summary-card { margin-top: 22px; padding: 16px 20px; background: #F1F5F9; border-left: 4px solid #C8102E; border-radius: 4px; }
+.summary-card .lbl { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C8102E; letter-spacing: 2px; font-weight: 700; }
+.summary-card .h { font-family: 'Tinos', serif; font-size: 14px; font-weight: 700; color: #14213D; margin-top: 3px; }
+.summary-card .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 12px; }
+.sc-cell { padding: 10px 12px; background: #fff; border: 1px solid #CBD5E1; border-radius: 4px; text-align: center; }
+.sc-cell .v { font-family: 'Tinos', serif; font-size: 20px; font-weight: 900; }
+.sc-cell .v.crit { color: #C8102E; }
+.sc-cell .v.maj { color: #B45309; }
+.sc-cell .v.min { color: #94A3B8; }
+.sc-cell .v.ok { color: #15803D; }
+.sc-cell .d { font-family: 'Inter', sans-serif; font-size: 9.5px; color: #4A5568; margin-top: 3px; line-height: 1.4; }
+</style></head>
+<body>
+<div class="h-title">Code &amp; Security Review Findings</div>
+<div class="h-sub">C1 Code Review (88/100) · C2 Security Review (94/100) · detailed findings with severity</div>
+<div class="h-rule"></div>
+
+<div class="cols">
+  <div class="card">
+    <div class="card-head"><div><div class="lbl">C1 · CODE REVIEW</div><div class="t">Architecture spec quality &amp; consistency</div></div><div class="score cond">88/100</div></div>
+    <div class="card-body">
+      <div class="finding"><div class="head"><div class="id">C1-F01</div><div class="sev crit">CRITICAL</div></div><div class="t">No implementation code exists</div><div class="d">16 specs, zero LOC. Cannot pass code review on specs alone. <b>Phase 1-3 implementation required.</b></div></div>
+      <div class="finding"><div class="head"><div class="id">C1-F02</div><div class="sev maj">MAJOR</div></div><div class="t">Cross-module ID consistency</div><div class="d">Module numbering: M01-M20 in spec, but only 16 documents delivered. <b>M02 Market Data, M07 Volatility (separate from M05), M12 RL Trade Mgmt, M19 Stress (vs M16 Stress) numbering gaps.</b></div></div>
+      <div class="finding"><div class="head"><div class="id">C1-F03</div><div class="sev maj">MAJOR</div></div><div class="t">PyO3 bridge spec underspecified</div><div class="d">Module 1 mentions PyO3 but no dedicated spec for the C++/Python boundary. <b>Data structures, ownership semantics, error propagation need explicit spec.</b></div></div>
+      <div class="finding"><div class="head"><div class="id">C1-F04</div><div class="sev min">MINOR</div></div><div class="t">Worked examples use illustrative data</div><div class="d">Trend v3.2 metrics are plausible but not real. Acceptable for spec; must replace with real metrics in implementation.</div></div>
+      <div class="finding"><div class="head"><div class="id">C1-F05</div><div class="sev ok">PASS</div></div><div class="t">Design patterns well-chosen</div><div class="d">Strategy/Adapter/Observer/Decorator/Factory patterns appropriately applied. UML class diagrams (Module 1 v2.0) show mature design.</div></div>
+      <div class="finding"><div class="head"><div class="id">C1-F06</div><div class="sev ok">PASS</div></div><div class="t">Layered architecture is sound</div><div class="d">L1-L4 layering with strict dependency direction. No circular deps. Init order explicit.</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><div><div class="lbl">C2 · SECURITY REVIEW</div><div class="t">Defense in depth · crypto · auth</div></div><div class="score pass">94/100</div></div>
+    <div class="card-body">
+      <div class="finding"><div class="head"><div class="id">C2-F01</div><div class="sev crit">CRITICAL</div></div><div class="t">HSM not provisioned</div><div class="d">Spec requires AWS KMS HSM-backed RSA-4096 for license signing. <b>Not provisioned.</b> Cannot issue production JWTs. CRIT-05.</div></div>
+      <div class="finding"><div class="head"><div class="id">C2-F02</div><div class="sev crit">CRITICAL</div></div><div class="t">SOC2 audit not initiated</div><div class="d">Spec commits to annual SOC2 audit. <b>No auditor engaged.</b> Required for institutional licensee trust. CRIT-07.</div></div>
+      <div class="finding"><div class="head"><div class="id">C2-F03</div><div class="sev maj">MAJOR</div></div><div class="t">mTLS cert rotation unverified</div><div class="d">Spec says 90-day cert rotation. <b>Rotation automation not implemented.</b> Manual rotation risk.</div></div>
+      <div class="finding"><div class="head"><div class="id">C2-F04</div><div class="sev min">MINOR</div></div><div class="t">Pen test not scheduled</div><div class="d">Spec recommends annual pen test. Not yet scheduled. Plan for Q3.</div></div>
+      <div class="finding"><div class="head"><div class="id">C2-F05</div><div class="sev ok">PASS</div></div><div class="t">Crypto stack is sound</div><div class="d">RSA-4096 (signing) + AES-256-GCM (storage) + TLS 1.3 (transport) + SHA-256 (fingerprint). Industry standard.</div></div>
+      <div class="finding"><div class="head"><div class="id">C2-F06</div><div class="sev ok">PASS</div></div><div class="t">Anti-tamper design is robust</div><div class="d">5-layer defense (obfuscation, tamper, anti-debug, anti-VM, behavioral). Server-side heartbeat is ultimate backstop.</div></div>
+      <div class="finding"><div class="head"><div class="id">C2-F07</div><div class="sev ok">PASS</div></div><div class="t">Hardware lock is institutionally sound</div><div class="d">3-factor fingerprint (CPUID + MB ID + Windows SID). RSA-4096 JWT. Cannot be spoofed without hardware replacement.</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="summary-card">
+  <div class="lbl">C1 + C2 FINDINGS SUMMARY</div>
+  <div class="h">3 critical · 3 major · 3 minor · 4 pass = 13 total findings</div>
+  <div class="grid">
+    <div class="sc-cell"><div class="v crit">3</div><div class="d">CRITICAL findings (block release)</div></div>
+    <div class="sc-cell"><div class="v maj">3</div><div class="d">MAJOR findings (must fix in 30 days)</div></div>
+    <div class="sc-cell"><div class="v min">3</div><div class="d">MINOR findings (advisory)</div></div>
+    <div class="sc-cell"><div class="v ok">4</div><div class="d">PASS items (no action)</div></div>
+  </div>
+</div>
+</body></html>

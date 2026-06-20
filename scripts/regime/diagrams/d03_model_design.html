@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Regime Detection — Ensemble Model Design</title>
+<style>
+  @page { size: 1600px 1100px; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #ffffff; font-family: 'Tinos','FreeSerif',serif; color: #14213D; }
+  .canvas { width: 1600px; height: 1100px; padding: 50px 60px; box-sizing: border-box; }
+  .title-bar { display: flex; align-items: baseline; gap: 18px; border-bottom: 2px solid #14213D; padding-bottom: 12px; margin-bottom: 24px; }
+  .title-bar .num { font-size: 48px; font-weight: 900; color: #C8102E; line-height: 1; }
+  .title-bar h1 { font-size: 26px; font-weight: 700; margin: 0; }
+  .title-bar .sub { font-size: 13px; color: #4A5568; margin-left: auto; font-family: 'JetBrains Mono',monospace; }
+  svg { display: block; margin: 0 auto; background: #FAFBFC; border: 1px solid #E2E8F0; }
+  .table { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-top: 14px; }
+  .table th { background: #14213D; color: #ffffff; padding: 6px 8px; text-align: left; font-weight: 700; }
+  .table td { padding: 5px 8px; border-bottom: 1px solid #E2E8F0; }
+  .table tr:nth-child(even) td { background: #F8FAFC; }
+  .table .mod { color: #14213D; font-family: 'JetBrains Mono',monospace; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="title-bar">
+    <span class="num">03</span>
+    <h1>Ensemble Model Design — HMM + Gradient Boost + Rules</h1>
+    <span class="sub">3-model ensemble · weighted vote · rules veto</span>
+  </div>
+
+  <svg width="1480" height="640" viewBox="0 0 1480 640">
+    <defs>
+      <marker id="arM" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
+        <path d="M0,0 L0,6 L7,3 z" fill="#14213D"/>
+      </marker>
+    </defs>
+
+    <!-- Input -->
+    <rect x="540" y="20" width="400" height="60" fill="#14213D"/>
+    <text x="740" y="45" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="Tinos">Feature Vector (8-dim, normalized)</text>
+    <text x="740" y="65" text-anchor="middle" fill="#C8102E" font-size="10" font-family="JetBrains Mono">[ADX, ATR, EMA_slope, Hurst, BBW, RealVol, VolAnalysis, NewsSentiment]</text>
+
+    <line x1="640" y1="80" x2="240" y2="160" stroke="#14213D" stroke-width="2" marker-end="url(#arM)"/>
+    <line x1="740" y1="80" x2="740" y2="160" stroke="#14213D" stroke-width="2" marker-end="url(#arM)"/>
+    <line x1="840" y1="80" x2="1240" y2="160" stroke="#14213D" stroke-width="2" marker-end="url(#arM)"/>
+
+    <!-- Model 1: HMM -->
+    <rect x="80" y="160" width="320" height="220" fill="#F0FDF4" stroke="#14213D" stroke-width="2"/>
+    <rect x="80" y="160" width="320" height="32" fill="#14213D"/>
+    <text x="240" y="180" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="JetBrains Mono">Model 1: HMM (Gaussian)</text>
+
+    <text x="100" y="215" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">3-State Gaussian HMM</text>
+    <text x="100" y="234" font-size="10" fill="#4A5568" font-family="JetBrains Mono">States: TREND, RANGE, VOLATILE</text>
+    <text x="100" y="249" font-size="10" fill="#4A5568" font-family="JetBrains Mono">(NEWS handled by Rules veto)</text>
+
+    <text x="100" y="275" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">Training</text>
+    <text x="100" y="293" font-size="10" fill="#4A5568" font-family="JetBrains Mono">EM algorithm · 100 iterations</text>
+    <text x="100" y="307" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Per-session retrain (Asian/EU/US)</text>
+    <text x="100" y="321" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Features: F1-F7 (excl. F8 News)</text>
+
+    <text x="100" y="346" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">Inference</text>
+    <text x="100" y="364" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Viterbi decode → state path</text>
+    <text x="100" y="378" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Forward algorithm → posteriors</text>
+
+    <!-- Model 2: LightGBM -->
+    <rect x="580" y="160" width="320" height="220" fill="#F0FDF4" stroke="#14213D" stroke-width="2"/>
+    <rect x="580" y="160" width="320" height="32" fill="#14213D"/>
+    <text x="740" y="180" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="JetBrains Mono">Model 2: LightGBM (4-class)</text>
+
+    <text x="600" y="215" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">Gradient Boosted Trees</text>
+    <text x="600" y="234" font-size="10" fill="#4A5568" font-family="JetBrains Mono">4-class softmax: TREND/RANGE/VOL/NEWS</text>
+    <text x="600" y="249" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Output: probability distribution</text>
+
+    <text x="600" y="275" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">Training</text>
+    <text x="600" y="293" font-size="10" fill="#4A5568" font-family="JetBrains Mono">500 trees · max_depth=6</text>
+    <text x="600" y="307" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Learning rate 0.05 · early stop</text>
+    <text x="600" y="321" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Features: all 8 (incl. F8 News)</text>
+
+    <text x="600" y="346" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">Inference</text>
+    <text x="600" y="364" font-size="10" fill="#4A5568" font-family="JetBrains Mono">softmax → P(class | features)</text>
+    <text x="600" y="378" font-size="10" fill="#4A5568" font-family="JetBrains Mono">SHAP values → explainability</text>
+
+    <!-- Model 3: Rules -->
+    <rect x="1080" y="160" width="320" height="220" fill="#F0FDF4" stroke="#14213D" stroke-width="2"/>
+    <rect x="1080" y="160" width="320" height="32" fill="#14213D"/>
+    <text x="1240" y="180" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700" font-family="JetBrains Mono">Model 3: Rules Engine</text>
+
+    <text x="1100" y="215" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">Deterministic Override</text>
+    <text x="1100" y="234" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Hand-crafted rules · human-interpretable</text>
+    <text x="1100" y="249" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Can VETO ensemble output</text>
+
+    <text x="1100" y="275" font-size="11" font-weight="700" fill="#C8102E" font-family="Tinos">Rule Examples</text>
+    <text x="1100" y="293" font-size="10" fill="#4A5568" font-family="JetBrains Mono">R1: news_event &amp;&amp; |surprise|&gt;σ → NEWS</text>
+    <text x="1100" y="307" font-size="10" fill="#4A5568" font-family="JetBrains Mono">R2: gap &gt; 3σ overnight → VOLATILE</text>
+    <text x="1100" y="321" font-size="10" fill="#4A5568" font-family="JetBrains Mono">R3: ADX&gt;30 ∧ slope&gt;0.3 → TREND</text>
+    <text x="1100" y="335" font-size="10" fill="#4A5568" font-family="JetBrains Mono">R4: ADX&lt;15 ∧ BBW_pct&lt;20% → RANGE</text>
+
+    <text x="1100" y="360" font-size="10" fill="#4A5568" font-family="JetBrains Mono">→ RegimeLabel (or NO_VETO)</text>
+    <text x="1100" y="374" font-size="10" fill="#4A5568" font-family="JetBrains Mono">Veto power = explicit override</text>
+
+    <!-- Outputs flow to EnsembleVoter -->
+    <line x1="240" y1="380" x2="640" y2="460" stroke="#14213D" stroke-width="2" marker-end="url(#arM)"/>
+    <line x1="740" y1="380" x2="740" y2="460" stroke="#14213D" stroke-width="2" marker-end="url(#arM)"/>
+    <line x1="1240" y1="380" x2="840" y2="460" stroke="#14213D" stroke-width="2" marker-end="url(#arM)"/>
+
+    <!-- EnsembleVoter -->
+    <rect x="500" y="460" width="480" height="80" fill="#14213D"/>
+    <text x="740" y="485" text-anchor="middle" fill="#ffffff" font-size="14" font-weight="700" font-family="Tinos">EnsembleVoter</text>
+    <text x="740" y="505" text-anchor="middle" fill="#C8102E" font-size="10" font-family="JetBrains Mono">weights: HMM 0.30 · LGB 0.50 · Rules 0.20</text>
+    <text x="740" y="520" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="9" font-family="JetBrains Mono">weighted vote → final RegimeLabel</text>
+    <text x="740" y="533" text-anchor="middle" fill="#ffffff" opacity="0.8" font-size="9" font-family="JetBrains Mono">Rules veto: if Rules emits NEWS, override ensemble</text>
+
+    <line x1="740" y1="540" x2="740" y2="570" stroke="#14213D" stroke-width="2" marker-end="url(#arM)"/>
+
+    <!-- Output 4 scores -->
+    <rect x="500" y="570" width="480" height="60" fill="#F0FDF4" stroke="#C8102E" stroke-width="2"/>
+    <text x="740" y="592" text-anchor="middle" font-size="12" font-weight="700" fill="#C8102E" font-family="Tinos">RegimeOutput</text>
+    <text x="740" y="610" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">label ∈ {TREND, RANGE, VOLATILE, NEWS}</text>
+    <text x="740" y="624" text-anchor="middle" font-size="10" fill="#4A5568" font-family="JetBrains Mono">+ confidence · probability[4] · explainability</text>
+
+    <!-- Weights explanation -->
+    <rect x="1080" y="460" width="320" height="170" fill="#F8FAFC" stroke="#14213D"/>
+    <text x="1240" y="485" text-anchor="middle" font-size="12" font-weight="700" fill="#14213D" font-family="Tinos">WHY THESE WEIGHTS?</text>
+    <g font-family="JetBrains Mono" font-size="10" fill="#4A5568">
+      <text x="1100" y="510">LGB 0.50: highest accuracy on</text>
+      <text x="1100" y="525">  backtest (76% F1 macro)</text>
+
+      <text x="1100" y="550">HMM 0.30: temporal smoothing</text>
+      <text x="1100" y="565">  prevents regime flapping</text>
+
+      <text x="1100" y="590">Rules 0.20: human guardrail</text>
+      <text x="1100" y="605">  catches ML blind spots</text>
+
+      <text x="1100" y="625" fill="#C8102E" font-weight="700">Weights tuned on 24mo OOS</text>
+    </g>
+  </svg>
+
+  <table class="table">
+    <tr><th>Model</th><th>Algorithm</th><th>Strengths</th><th>Weaknesses</th><th>Role in Ensemble</th><th>Weight</th></tr>
+    <tr><td class="mod">HMM (Gaussian)</td><td>3-state Gaussian HMM · Viterbi decode</td><td>Temporal smoothing · captures regime persistence · interpretable states</td><td>Slow to adapt to sudden regime shifts · assumes Gaussian emissions</td><td>Provides persistence prior · prevents regime flapping</td><td>0.30</td></tr>
+    <tr><td class="mod">LightGBM</td><td>4-class softmax · 500 trees · max_depth 6</td><td>Highest accuracy · handles non-linear feature interactions · SHAP explainability</td><td>Can overfit noisy features · retraining cost</td><td>Primary predictor · produces probability distribution</td><td>0.50</td></tr>
+    <tr><td class="mod">Rules Engine</td><td>Deterministic hand-crafted rules</td><td>Human-interpretable · catches ML blind spots · fast inference</td><td>Manual maintenance · brittle to novel scenarios</td><td>Veto override · catches NEWS events LGB may miss</td><td>0.20 (with veto)</td></tr>
+  </table>
+</div>
+</body>
+</html>

@@ -1,0 +1,107 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>d02</title>
+<link href="https://fonts.googleapis.com/css2?family=Tinos:wght@400;700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { width: 1600px; height: 1000px; background: #ffffff; font-family: 'Inter', sans-serif; color: #14213D; padding: 50px 60px; }
+.h-title { font-family: 'Tinos', serif; font-size: 30px; font-weight: 900; letter-spacing: -0.5px; }
+.h-sub { font-family: 'Inter', sans-serif; font-size: 13px; color: #4A5568; margin-top: 4px; }
+.h-rule { width: 80px; height: 3px; background: #C8102E; margin: 14px 0 26px 0; }
+
+.cols { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.card { border: 1px solid #CBD5E1; border-radius: 6px; overflow: hidden; }
+.card-head { padding: 12px 16px; color: #fff; font-family: 'Tinos', serif; font-size: 14px; font-weight: 700; display: flex; justify-content: space-between; align-items: center; }
+.card-head .num { font-family: 'JetBrains Mono', monospace; font-size: 10px; padding: 3px 8px; background: rgba(255,255,255,0.18); border-radius: 3px; letter-spacing: 1px; }
+.card.train .card-head { background: #14213D; }
+.card.val .card-head { background: #B45309; }
+.card.test .card-head { background: #C8102E; }
+.card.roll .card-head { background: #15803D; }
+.card-body { padding: 12px 14px; }
+.row { padding: 7px 0; border-bottom: 1px dashed #E2E8F0; }
+.row:last-child { border-bottom: none; }
+.row .k { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #4A5568; letter-spacing: 1px; font-weight: 700; }
+.row .v { font-family: 'Inter', sans-serif; font-size: 11px; color: #14213D; margin-top: 2px; line-height: 1.5; }
+.row .v b { color: #C8102E; }
+
+.flow-arrow { display: grid; grid-template-columns: 1fr 30px 1fr 30px 1fr 30px 1fr; gap: 0; align-items: center; margin-top: 22px; }
+.fa { font-family: 'JetBrains Mono', monospace; color: #C8102E; font-size: 24px; text-align: center; font-weight: 700; }
+
+.evolution { margin-top: 22px; background: #F1F5F9; border-left: 4px solid #14213D; border-radius: 4px; padding: 14px 18px; }
+.evolution .lbl { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #14213D; letter-spacing: 2px; font-weight: 700; }
+.evolution .h { font-family: 'Tinos', serif; font-size: 14px; font-weight: 700; margin-top: 4px; }
+.evolution-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-top: 12px; }
+.ev-cell { background: #fff; border: 1px solid #CBD5E1; padding: 10px 12px; border-radius: 4px; }
+.ev-cell .fold { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C8102E; font-weight: 700; }
+.ev-cell .win { font-family: 'Tinos', serif; font-size: 11px; font-weight: 700; color: #14213D; margin: 3px 0; }
+.ev-cell .res { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #14213D; }
+.ev-cell .res .ok { color: #15803D; font-weight: 700; }
+.ev-cell .res .bad { color: #C8102E; font-weight: 700; }
+</style></head>
+<body>
+<div class="h-title">Train / Validate / Test / Roll-Forward — Four Phases</div>
+<div class="h-sub">Strict data separation · No parameter leak · Each phase has explicit inputs, outputs, and prohibited actions</div>
+<div class="h-rule"></div>
+
+<div class="cols">
+  <div class="card train">
+    <div class="card-head"><span>1 · TRAIN</span><span class="num">IS</span></div>
+    <div class="card-body">
+      <div class="row"><div class="k">INPUT</div><div class="v">6 months of <b>in-sample</b> tick data (broker tick stream)</div></div>
+      <div class="row"><div class="k">PURPOSE</div><div class="v">Parameter optimization via grid / Bayesian search</div></div>
+      <div class="row"><div class="k">METHOD</div><div class="v">Walk-forward grid search · 1000-5000 param combos</div></div>
+      <div class="row"><div class="k">OBJECTIVE</div><div class="v">Maximize IS Sharpe with MDD &lt; 10% constraint</div></div>
+      <div class="row"><div class="k">OUTPUT</div><div class="v">Top-10 parameter sets ranked by IS Sharpe</div></div>
+      <div class="row"><div class="k">PROHIBITED</div><div class="v">Any access to validate / test data</div></div>
+    </div>
+  </div>
+  <div class="card val">
+    <div class="card-head"><span>2 · VALIDATE</span><span class="num">OOS-1</span></div>
+    <div class="card-body">
+      <div class="row"><div class="k">INPUT</div><div class="v">Next 1 month of <b>out-of-sample</b> tick data</div></div>
+      <div class="row"><div class="k">PURPOSE</div><div class="v">Parameter selection from top-10 IS candidates</div></div>
+      <div class="row"><div class="k">METHOD</div><div class="v">Run each top-10 candidate on validate month</div></div>
+      <div class="row"><div class="k">OBJECTIVE</div><div class="v">Select the candidate with best validate Sharpe</div></div>
+      <div class="row"><div class="k">OUTPUT</div><div class="v">Single locked parameter set per fold</div></div>
+      <div class="row"><div class="k">PROHIBITED</div><div class="v">Re-optimization on validate data</div></div>
+    </div>
+  </div>
+  <div class="card test">
+    <div class="card-head"><span>3 · TEST</span><span class="num">OOS-2</span></div>
+    <div class="card-body">
+      <div class="row"><div class="k">INPUT</div><div class="v">Next 1 month of <b>out-of-sample</b> tick data (final)</div></div>
+      <div class="row"><div class="k">PURPOSE</div><div class="v">Official OOS performance — never used for any decision</div></div>
+      <div class="row"><div class="k">METHOD</div><div class="v">Run locked parameters from validate phase</div></div>
+      <div class="row"><div class="k">OBJECTIVE</div><div class="v">Record test P&amp;L, Sharpe, MDD for this fold</div></div>
+      <div class="row"><div class="k">OUTPUT</div><div class="v">Fold test result (added to OOS ledger)</div></div>
+      <div class="row"><div class="k">PROHIBITED</div><div class="v">Any parameter adjustment based on test result</div></div>
+    </div>
+  </div>
+  <div class="card roll">
+    <div class="card-head"><span>4 · ROLL FORWARD</span><span class="num">→</span></div>
+    <div class="card-body">
+      <div class="row"><div class="k">INPUT</div><div class="v">End-of-fold state + 1 month of new data</div></div>
+      <div class="row"><div class="k">PURPOSE</div><div class="v">Advance all three windows by 1 month</div></div>
+      <div class="row"><div class="k">METHOD</div><div class="v"><b>Anchored:</b> expand train. <b>Rolling:</b> slide train (drop oldest)</div></div>
+      <div class="row"><div class="k">OBJECTIVE</div><div class="v">Move to next fold · preserve previous test results</div></div>
+      <div class="row"><div class="k">OUTPUT</div><div class="v">Next fold ready for training · previous OOS locked</div></div>
+      <div class="row"><div class="k">PROHIBITED</div><div class="v">Modifying prior fold test results</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="flow-arrow">
+  <div></div><div class="fa">→</div><div></div><div class="fa">→</div><div></div><div class="fa">→</div><div></div>
+</div>
+
+<div class="evolution">
+  <div class="lbl">FOLD EVOLUTION · ANCHORED WFA EXAMPLE</div>
+  <div class="h">5 folds over 12 months · Each fold produces one OOS test result</div>
+  <div class="evolution-grid">
+    <div class="ev-cell"><div class="fold">FOLD 1</div><div class="win">Train M1-M6 · Val M7 · Test M8</div><div class="res">OOS Sharpe: <span class="ok">2.31</span></div></div>
+    <div class="ev-cell"><div class="fold">FOLD 2</div><div class="win">Train M1-M7 · Val M8 · Test M9</div><div class="res">OOS Sharpe: <span class="ok">2.04</span></div></div>
+    <div class="ev-cell"><div class="fold">FOLD 3</div><div class="win">Train M1-M8 · Val M9 · Test M10</div><div class="res">OOS Sharpe: <span class="ok">1.87</span></div></div>
+    <div class="ev-cell"><div class="fold">FOLD 4</div><div class="win">Train M1-M9 · Val M10 · Test M11</div><div class="res">OOS Sharpe: <span class="ok">2.18</span></div></div>
+    <div class="ev-cell"><div class="fold">FOLD 5</div><div class="win">Train M1-M10 · Val M11 · Test M12</div><div class="res">OOS Sharpe: <span class="ok">1.95</span></div></div>
+  </div>
+  <p style="font-family:'Inter',sans-serif;font-size:10px;color:#4A5568;margin-top:10px;font-style:italic;">OOS Sharpe median: 2.04 · min: 1.87 · max: 2.31 · WFE (OOS/IS): 71% (PASS) · No fold below 1.5 threshold</p>
+</div>
+</body></html>

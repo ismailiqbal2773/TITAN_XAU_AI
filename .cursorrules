@@ -1,0 +1,72 @@
+# TITAN XAU AI — Cursor IDE Rules
+# Yeh file Cursor IDE ko batati hai ki project ke rules kya hain.
+
+## Project Overview
+TITAN XAU AI is an institutional-grade AI trading system for XAUUSD (Gold/USD).
+3 AI models (XGBoost + LSTM + Transformer) in an ensemble, supervised by CEO module.
+Goal: Competition Validation Status with REAL data only (no synthetic).
+
+## STRICT PROHIBITIONS
+- NO synthetic data (zero tolerance)
+- NO random walk expansion or calibration of small datasets
+- NO new architecture — use existing codebase only
+- NO new modules — extend existing files only
+- NO assumptions — measure everything
+- NO synthetic success metrics — only real measured results
+
+## MANDATORY RULES
+- CPU-only, fully offline (no paid APIs, no cloud)
+- All files under /home/z/my-project/
+- Scripts saved to scripts/ before execution (no inline scripts >10 lines)
+- Deliverables to download/ (PDF/DOCX/JSON)
+- Single worklog at worklog.md (append-only)
+- Match user's language (English for English, Hindi for Hindi)
+- Update project_memory.md after major tasks
+
+## ARCHITECTURE RULES
+- RL NOT in CEO layer (Bayesian + MAB + statistical detectors only)
+- RL only in M12 Trade Manager (position scaling, exit policy)
+- Champion/Challenger governance (no live auto-deploy)
+- No fixed weights (4 competing algorithms + Meta-Bandit)
+- Graceful degradation for Redis, MT5, broker
+
+## DATA RULES
+- Real Data >= 95%
+- Synthetic Data = 0%
+- Coverage >= 95%
+- Quality Score >= 90/100
+- Each source stored separately: titan/data/sources/{source}/
+
+## CODE RULES
+- Python 3.12, type hints (PEP 604 style: str | None)
+- Test every new feature (364+ tests, 0 regressions)
+- Run: PYTHONPATH=/home/z/my-project python -m pytest titan/tests/ -q --tb=no
+- Skip test_database.py + test_infrastructure.py (need structlog)
+
+## REPORT STYLE (Goldman Sachs White Paper)
+- Navy: #14213D | Crimson: #C8102E | Gold: #B8860B
+- Green: #1E7D3A (PASS) | Red: #C8102E (FAIL)
+- Fonts: Liberation Serif (body), Liberation Sans (headings), Liberation Mono (code)
+- Page breaks: only between cover/TOC/body
+
+## DUKASCOPY DOWNLOAD
+- .bi5 = LZMA compressed, BIG-ENDIAN binary
+- Tick = 20 bytes: int32 ts_ms, int32 ASK, int32 BID, float32 ask_vol, float32 bid_vol
+- URL month = 0-indexed (Jan=00)
+- Price scale = 1000
+- Rate limit: ~4 sec/day, use timeout 300, 2-week batches
+- Resume: skip already-downloaded days
+
+## KEY FILES
+- PROJECT_CONTEXT.md — Master map (READ FIRST)
+- project_memory.md — Detailed memory
+- worklog.md — Session log (append-only)
+- titan/ — Main codebase (12,169 lines, 22 modules)
+- titan/data/sources/dukascopy/daily/ — REAL M1 data (783,085 bars)
+- scripts/real_data/fast_download.py — Dukascopy downloader
+- download/ — Deliverables (26 PDF, 22 DOCX, 3 JSON, 3 ZIP)
+
+## CURRENT PHASE
+Real Data Acquisition Audit — downloading REAL Dukascopy XAUUSD M1 data.
+783,085 bars downloaded (31 months). Missing: 2020 (most), 2021 (all), 2022 H2.
+Next: finish downloads, generate audit reports, output REAL DATA VERIFIED or DATA REJECTED.

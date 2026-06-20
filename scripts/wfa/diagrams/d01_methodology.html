@@ -1,0 +1,96 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>d01</title>
+<link href="https://fonts.googleapis.com/css2?family=Tinos:wght@400;700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { width: 1600px; height: 1100px; background: #ffffff; font-family: 'Inter', sans-serif; color: #14213D; padding: 50px 60px; }
+.h-title { font-family: 'Tinos', serif; font-size: 30px; font-weight: 900; letter-spacing: -0.5px; }
+.h-sub { font-family: 'Inter', sans-serif; font-size: 13px; color: #4A5568; margin-top: 4px; }
+.h-rule { width: 80px; height: 3px; background: #C8102E; margin: 14px 0 28px 0; }
+
+.window-bar { margin-top: 20px; background: #F1F5F9; border-radius: 6px; padding: 18px 20px; border: 1px solid #CBD5E1; }
+.window-bar .lbl { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #C8102E; letter-spacing: 2px; font-weight: 700; }
+.window-bar .h { font-family: 'Tinos', serif; font-size: 16px; font-weight: 700; color: #14213D; margin-top: 4px; }
+
+.timeline { margin-top: 18px; position: relative; height: 130px; background: #fff; border: 1px solid #CBD5E1; border-radius: 4px; padding: 12px; }
+.timeline-axis { position: absolute; top: 70px; left: 12px; right: 12px; height: 2px; background: #14213D; }
+.tl-mark { position: absolute; top: 60px; width: 2px; height: 22px; background: #14213D; }
+.tl-mark .lbl { position: absolute; top: -16px; left: 50%; transform: translateX(-50%); font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #4A5568; white-space: nowrap; }
+.tl-mark.bottom .lbl { top: 26px; }
+
+.window-blocks { margin-top: 12px; display: flex; gap: 4px; }
+.wb { flex: 1; height: 36px; border-radius: 3px; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; color: #fff; }
+.wb.train { background: #14213D; }
+.wb.validate { background: #B45309; }
+.wb.test { background: #C8102E; }
+
+.cols { margin-top: 22px; display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+.col { border: 1px solid #CBD5E1; border-radius: 6px; overflow: hidden; }
+.col-head { background: #14213D; color: #fff; padding: 12px 18px; }
+.col-head .lbl { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C8102E; letter-spacing: 2px; font-weight: 700; }
+.col-head .t { font-family: 'Tinos', serif; font-size: 15px; font-weight: 700; margin-top: 2px; }
+.col-body { padding: 14px 18px; }
+.phase { padding: 10px 0; border-bottom: 1px dashed #CBD5E1; }
+.phase:last-child { border-bottom: none; }
+.phase .n { font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 700; letter-spacing: 1.5px; }
+.phase .n.train { color: #14213D; }
+.phase .n.val { color: #B45309; }
+.phase .n.test { color: #C8102E; }
+.phase .n.roll { color: #15803D; }
+.phase .t { font-family: 'Tinos', serif; font-size: 13px; font-weight: 700; color: #14213D; margin: 3px 0 4px 0; }
+.phase .d { font-family: 'Inter', sans-serif; font-size: 10.5px; color: #4A5568; line-height: 1.5; }
+
+.bottom { margin-top: 22px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.bb { padding: 14px 16px; border-radius: 6px; }
+.bb.a { background: #14213D; color: #fff; }
+.bb.b { background: #C8102E; color: #fff; }
+.bb.c { background: #F1F5F9; border: 1px solid #CBD5E1; }
+.bb.d { background: #F1F5F9; border: 1px solid #CBD5E1; }
+.bb .lbl { font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 2px; opacity: 0.75; font-weight: 700; }
+.bb.c .lbl, .bb.d .lbl { color: #C8102E; opacity: 1; }
+.bb .v { font-family: 'Tinos', serif; font-size: 22px; font-weight: 900; margin-top: 4px; line-height: 1; }
+.bb .d { font-family: 'Inter', sans-serif; font-size: 10px; opacity: 0.9; margin-top: 6px; line-height: 1.4; }
+.bb.c .d, .bb.d .d { color: #14213D; opacity: 1; }
+</style></head>
+<body>
+<div class="h-title">Walk-Forward Methodology — Anchored &amp; Rolling</div>
+<div class="h-sub">Train / Validate / Test / Roll-Forward · Out-of-sample testing · Overfitting detection via WFE (Walk-Forward Efficiency)</div>
+<div class="h-rule"></div>
+
+<div class="window-bar">
+  <div class="lbl">ANCHORED WALK-FORWARD · 12-MONTH STRATEGY EVALUATION</div>
+  <div class="h">12 windows · 6-month train / 1-month validate / 1-month test · rolling forward monthly</div>
+  <div style="margin-top:14px;display:grid;grid-template-columns:repeat(12,1fr);gap:3px">
+    <div class="wb train" style="grid-column:1/7">T1</div><div class="wb validate" style="grid-column:7/8">V1</div><div class="wb test" style="grid-column:8/9">×1</div>
+    <div class="wb train" style="grid-column:9/15;background:#1E3A5F">T2</div>
+  </div>
+  <div style="margin-top:8px;font-family:'JetBrains Mono',monospace;font-size:9px;color:#4A5568;text-align:center">12 months total · 6+1+1 = 8 months per window · 5 overlap-free windows (anchored) or 7 (rolling)</div>
+</div>
+
+<div class="cols">
+  <div class="col">
+    <div class="col-head"><div class="lbl">ANCHORED WFA</div><div class="t">Train window expands with each fold</div></div>
+    <div class="col-body">
+      <div class="phase"><div class="n train">PHASE 1 · TRAIN</div><div class="t">Initial 6-month train window</div><div class="d">Strategy parameters optimized on the first 6 months of data. Train window GROWS by 1 month each fold (anchored at start of dataset).</div></div>
+      <div class="phase"><div class="n val">PHASE 2 · VALIDATE</div><div class="t">1-month out-of-sample validation</div><div class="d">Optimized parameters tested on the next 1 month (not seen during training). Used for parameter selection / early stopping.</div></div>
+      <div class="phase"><div class="n test">PHASE 3 · TEST</div><div class="t">1-month final out-of-sample test</div><div class="d">Locked parameters tested on the subsequent 1 month. The test result is the official out-of-sample P&amp;L — never used for optimization.</div></div>
+      <div class="phase"><div class="n roll">PHASE 4 · ROLL FORWARD</div><div class="t">Expand train window, advance all windows by 1 month</div><div class="d">Train window now spans months 1-7, validate month 8, test month 9. Repeat until end of dataset. Produces 5-7 folds for a 12-month dataset.</div></div>
+    </div>
+  </div>
+  <div class="col">
+    <div class="col-head"><div class="lbl">ROLLING WFA</div><div class="t">Train window slides forward (fixed length)</div></div>
+    <div class="col-body">
+      <div class="phase"><div class="n train">PHASE 1 · TRAIN</div><div class="t">Fixed 6-month rolling train window</div><div class="d">Train window SLIDES forward 1 month each fold (drops oldest month, adds newest). Better for non-stationary markets — old data is discarded.</div></div>
+      <div class="phase"><div class="n val">PHASE 2 · VALIDATE</div><div class="t">1-month out-of-sample validation</div><div class="d">Identical to anchored — used for parameter selection and early stopping. Same window length (1 month) for consistency.</div></div>
+      <div class="phase"><div class="n test">PHASE 3 · TEST</div><div class="t">1-month final out-of-sample test</div><div class="d">Identical to anchored — locked parameters tested on subsequent month. The OOS test result.</div></div>
+      <div class="phase"><div class="n roll">PHASE 4 · ROLL FORWARD</div><div class="t">Slide train window forward by 1 month</div><div class="d">Train window drops month 1, adds month 7. Validate becomes month 8, test month 9. Produces 7 folds for a 12-month dataset (more folds than anchored).</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="bottom">
+  <div class="bb a"><div class="lbl">FOLD COUNT</div><div class="v">5–7</div><div class="d">Per 12-month dataset (anchored = 5, rolling = 7)</div></div>
+  <div class="bb b"><div class="lbl">OOS COVERAGE</div><div class="v">≥ 33%</div><div class="d">Out-of-sample test months / total months. Floor for valid WFA.</div></div>
+  <div class="bb c"><div class="lbl">WFE TARGET</div><div class="v">≥ 50%</div><div class="d">Walk-Forward Efficiency = OOS Sharpe / IS Sharpe</div></div>
+  <div class="bb d"><div class="lbl">RUNTIME</div><div class="v">~45 min</div><div class="d">Per strategy · 5-7 folds × ~6 min per fold</div></div>
+</div>
+</body></html>
