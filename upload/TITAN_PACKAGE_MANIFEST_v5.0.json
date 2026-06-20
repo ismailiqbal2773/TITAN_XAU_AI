@@ -1,0 +1,85 @@
+{
+  "package_version": "v5.0",
+  "build_time": "2026-06-20T23:20:09.557061",
+  "project_root": "/home/z/my-project",
+  "total_zips": 4,
+  "total_files": 5665,
+  "total_size_bytes": 373080943,
+  "total_size_mb": 355.8,
+  "zips": [
+    {
+      "zip_name": "TITAN_SPLIT_1.zip",
+      "description": "Master context + worklog + manifest + recovery guide + memory + packager",
+      "file_count": 10,
+      "size_bytes": 122517,
+      "size_mb": 0.1168,
+      "sha256": "524e687ea9303f9074e8f1b91ca42f0a2b2206f92a970ad235dfbe9e76bfe673",
+      "build_time": "2026-06-20T23:21:04.977670",
+      "elapsed_s": 0.06,
+      "paths_included": [
+        "TITAN_MASTER_CONTEXT.md",
+        "MASTER_PROJECT_MANIFEST.md",
+        "PROJECT_CONTEXT.md",
+        "PROJECT_RECOVERY_GUIDE.md",
+        "FILE_CHECKSUM_REPORT.md",
+        "project_memory.md",
+        "worklog.md",
+        ".cursorrules",
+        ".gitignore",
+        "scripts/package_project.py"
+      ]
+    },
+    {
+      "zip_name": "TITAN_SPLIT_2.zip",
+      "description": "Production codebase (39 modules + recovery subpackage + tests + config) \u2014 EXCLUDES titan/data/",
+      "file_count": 93,
+      "size_bytes": 360612,
+      "size_mb": 0.34,
+      "sha256": "78f26acde3253b90bac88875d30b9226520ba6b7af524ce68bd57d58994cedf7",
+      "build_time": "2026-06-20T23:19:44.014172",
+      "elapsed_s": 0.09,
+      "paths_included": [
+        "titan/ (excluding titan/data/)"
+      ]
+    },
+    {
+      "zip_name": "TITAN_SPLIT_3.zip",
+      "description": "Real XAUUSD historical data \u2014 Dukascopy + Exness + ICMarkets + Pepperstone + Yahoo GLD",
+      "file_count": 5209,
+      "size_bytes": 276615498,
+      "size_mb": 263.8,
+      "sha256": "b6225301f82570da28ad4ccddff20286e4f2fa6bd0159e68abbc6c44d832dd99",
+      "build_time": "2026-06-20T23:20:04.752819",
+      "elapsed_s": 20.72,
+      "paths_included": [
+        "titan/data/"
+      ]
+    },
+    {
+      "zip_name": "TITAN_SPLIT_4.zip",
+      "description": "Generation scripts + audit reports (PDFs + JSONs + diagrams)",
+      "file_count": 353,
+      "size_bytes": 95982316,
+      "size_mb": 91.54,
+      "sha256": "ffe58f644f800fb6a00808049330f668b2d2cd545c4c66c66facafcd1b3e2f3e",
+      "build_time": "2026-06-20T23:20:09.556964",
+      "elapsed_s": 4.77,
+      "paths_included": [
+        "scripts/",
+        "download/"
+      ]
+    }
+  ],
+  "notes": [
+    "Each ZIP is self-contained and can be extracted independently.",
+    "Extract all 4 ZIPs into the same target directory to reconstruct the project.",
+    "Excludes: .git/, __pycache__/, *.pyc, *.log, *.out, .partial/",
+    "Real data ZIP (TITAN_SPLIT_3.zip) contains 5 sources: Dukascopy, Exness MT5, ICMarkets MT5, Pepperstone, Yahoo GLD.",
+    "Production code ZIP (TITAN_SPLIT_2.zip) excludes titan/data/ to avoid duplication with TITAN_SPLIT_3.zip."
+  ],
+  "audit_history_summary": {
+    "real_data_audit_v3.0": "REAL_DATA_VERIFIED (100.15% coverage)",
+    "real_data_evidence_v1.0": "DATA_CLAIM_REJECTED (strict real 25.03% < 95%)",
+    "production_recovery_v1.0": "RECOVERY_VERIFIED (18/18 requirements)"
+  }
+}

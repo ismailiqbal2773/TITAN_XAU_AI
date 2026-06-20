@@ -431,7 +431,8 @@ PYTHONPATH=/home/z/my-project python titan/main.py titan/config/titan.yaml
 | Manifest | `/home/z/my-project/MASTER_PROJECT_MANIFEST.md` |
 | Checksums | `/home/z/my-project/FILE_CHECKSUM_REPORT.md` |
 | Recovery guide | `/home/z/my-project/PROJECT_RECOVERY_GUIDE.md` |
-| Download ZIPs | `/home/z/my-project/download/TITAN_SPLIT_{1,2,3,4}.zip` |
+| Download ZIPs (v5.0) | `/home/z/my-project/upload/TITAN_SPLIT_{1,2,3,4}.zip` |
+| Package manifest | `/home/z/my-project/upload/TITAN_PACKAGE_MANIFEST_v5.0.json` |
 
 ---
 

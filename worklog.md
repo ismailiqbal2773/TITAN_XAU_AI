@@ -938,3 +938,31 @@ Stage Summary:
 - Reason: 74.97% of bars are DERIVED (Exness/ICMarkets/Pepperstone) from Dukascopy via deterministic spread multipliers — NOT independently acquired from broker terminals
 - All evidence saved to download/TITAN_Real_Data_Evidence_Verification_v1.0.json
 - Recommendation: either acquire independent broker MT5 tick history (requires Windows + MT5 terminal) OR restrict training/validation to Dukascopy only (1.72M bars, 100% strict real, 100% coverage)
+
+---
+Task ID: 6
+Agent: Super Z (main, project packaging session 2026-06-20)
+Task: Create downloadable ZIPs of complete project + update context files.
+
+Work Log:
+- Created scripts/package_project.py — ZIP packager with SHA-256 checksums
+- Built 4 ZIPs in /home/z/my-project/upload/:
+  * TITAN_SPLIT_1.zip (0.11 MB, 9 files) — Context docs (TITAN_MASTER_CONTEXT.md, worklog.md, manifest, recovery guide, memory, .cursorrules, .gitignore)
+  * TITAN_SPLIT_2.zip (0.34 MB, 93 files) — Production codebase (titan/ EXCLUDING data/, includes new titan/recovery/ subpackage with 8 files)
+  * TITAN_SPLIT_3.zip (263.80 MB, 5209 files) — Real XAUUSD data (Dukascopy + Exness + ICMarkets + Pepperstone + Yahoo GLD + TrueFX/Kaggle NOT_AVAILABLE markers)
+  * TITAN_SPLIT_4.zip (91.54 MB, 353 files) — Generation scripts (295) + audit reports (58) including all JSON audits and PDFs
+- Total: 5,664 files, 355.79 MB
+- Each ZIP has SHA-256 checksum recorded in manifest
+- Manifest: TITAN_PACKAGE_MANIFEST_v5.0.json
+- Verified ZIP 2 contains titan/recovery/ subpackage (8 files): __init__.py, manager.py, journal.py, checkpoint.py, reconcile.py, watchdog.py, reconnect.py, tests/test_recovery.py
+- Verified ZIP 4 contains all 4 audit JSONs: TITAN_Real_Data_Audit_v3.0.json, TITAN_Real_Data_Evidence_Verification_v1.0.json, TITAN_Production_Recovery_Audit_v1.0.json, TITAN_Real_Data_Forensic_Audit_v2.0.json
+- Updated TITAN_MASTER_CONTEXT.md with v1.0 evidence verification audit entry
+
+Stage Summary:
+- 4 downloadable ZIPs ready in /home/z/my-project/upload/
+- TITAN_SPLIT_1.zip: 0.11 MB — context files
+- TITAN_SPLIT_2.zip: 0.34 MB — production code (no data duplication)
+- TITAN_SPLIT_3.zip: 263.80 MB — real data (all 5 sources)
+- TITAN_SPLIT_4.zip: 91.54 MB — scripts + audit reports
+- Manifest: TITAN_PACKAGE_MANIFEST_v5.0.json with SHA-256 checksums
+- To reconstruct: extract all 4 ZIPs into same target directory
