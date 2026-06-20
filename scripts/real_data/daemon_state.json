@@ -1,0 +1,21 @@
+{
+  "last_updated": "2026-06-20 20:45",
+  "session_strategy": "2-3 day batches, parallel where possible, --no-merge",
+  "total_bars_this_session": 13876,
+  "total_days_this_session": 11,
+  "ranges_completed": [
+    "2020-01-01 to 2020-01-02",
+    "2020-01-03 (only)",
+    "2020-01-06 (only)",
+    "2020-01-07 to 2020-01-08",
+    "2020-01-09 to 2020-01-10",
+    "2020-01-13 to 2020-01-14",
+    "2020-01-15 to 2020-01-16",
+    "2020-01-17 to 2020-01-21",
+    "2020-01-22 to 2020-01-23",
+    "2020-01-24"
+  ],
+  "next_range": "2020-01-27 onwards",
+  "missing_remaining_estimate": 680,
+  "notes": "Dukascopy ~60s/day. Tool timeout 300s. 2-3 day batches work reliably."
+}

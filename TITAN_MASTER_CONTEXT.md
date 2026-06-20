@@ -43,7 +43,8 @@ using 100% REAL historical data, then deploy for 30-day forward demo testing.
 | B1-B5 Blocker Fixes | ✅ COMPLETE | 100% |
 | Test Suite (364 tests) | ✅ COMPLETE | 100% |
 | Commercial Layer (Licensing + Compliance) | ✅ COMPLETE | 100% |
-| Real Data Acquisition | 🔄 IN PROGRESS | 52% (31/60 months) |
+| Real Data Acquisition | 🔄 IN PROGRESS | 51.88% coverage (680 days, 907,589 bars) |
+| Broker Cross-Validation (Exness/ICM/Pepper) | ⏳ BLOCKED | 0% (all 5 sources empty) |
 | Model Training (on REAL data) | ⏳ BLOCKED | 0% (waiting for data) |
 | Competition Validation | ⏳ BLOCKED | 0% (waiting for training) |
 | Forward Test Readiness | ⏳ BLOCKED | 0% (waiting for validation) |
@@ -439,8 +440,17 @@ PYTHONPATH=/home/z/my-project python titan/main.py titan/config/titan.yaml
 | Pre-Training Audit | 67.5/100 | NOT READY | June 2026 |
 | Post B1-B5 Remediation | 94.6/100 | READY | June 2026 |
 | Competition Validation (synthetic) | 58.9/100 | FAIL | June 2026 |
-| Real Data Forensic Audit | 51.7% coverage | DATA REJECTED | June 2026 |
+| Real Data Forensic Audit v1.0 | 51.7% coverage | DATA REJECTED | June 2026 |
 | ZIP Forensic Verification | 4/4 PASS | ZIPS VERIFIED | June 2026 |
+| **Real Data Forensic Audit v2.0** | **51.88% coverage / 100% real** | **DATA REJECTED (cov<95%)** | **June 2026** |
+
+### v2.0 Audit Detail (2026-06-20)
+- Dukascopy: 680 daily files, 907,589 M1 bars, 0% duplicates, 100% real
+- Exness/ICMarkets/Pepperstone/TrueFX/Kaggle: ALL EMPTY (0 files)
+- Year-by-year: 2020=38%, 2021=0.8%, 2022=30%, 2023=92%, 2024=98%, 2025=0%, 2026=0%
+- Missing: 630 trading days across 39 months
+- Pass criteria met: Real>=95% ✓, Synthetic=0% ✓, Calibrated=0% ✓
+- Fail criteria: Coverage<95% ✗ (51.88%)
 
 ---
 

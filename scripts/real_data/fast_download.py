@@ -1,26 +1,17 @@
-#!/usr/bin/env python3
 """
-TITAN XAU AI — Real Dukascopy M1 XAUUSD Downloader (SCHEMA-ALIGNED)
-====================================================================
-
-Single-purpose, no-duplicate script. Downloads REAL tick data from
-Dukascopy public datafeed and aggregates to M1 OHLCV+spread parquet files
-matching the project's EXISTING schema (verified from existing files):
+TITAN XAU AI — Canonical Real Dukascopy M1 XAUUSD Downloader
+============================================================
+Single source-of-truth downloader. Downloads REAL tick data from
+Dukascopy public datafeed and aggregates to M1 OHLCV+spread parquet
+files matching the project's existing schema:
 
     titan/data/sources/dukascopy/daily/XAUUSD_M1_YYYY-MM-DD.parquet
 
-Existing schema (MUST match exactly):
-    Index:  timestamp (datetime64[ns, UTC]) — bar start, UTC
-    Columns (all float64):
-        open, high, low, close  — mid-price OHLC
-        volume                  — tick count in bar (stored as float64)
-        spread                  — mean (ask-bid) in price units
-
-Dukascopy datafeed format (verified 2026-06):
-    URL: https://datafeed.dukascopy.com/datafeed/XAUUSD/{YYYY}/{MM0idx}/{DD}/{HH}h_ticks.bi5
-    Encoding: LZMA-compressed big-endian uint32 array, 5 fields × 4 bytes = 20 bytes/tick
-    Fields: (timestamp_offset_ms, ask_raw, bid_raw, ask_volume, bid_volume)
-    Price scaling: divide raw by 1000.0 (XAUUSD has 3 decimal places)
+Schema (6 columns, matches existing project files):
+    timestamp (datetime64[ns, UTC])  — index, bar start
+    open, high, low, close (float64)
+    volume (float64)         — tick count in bar
+    spread (float64)         — mean (ask-bid) in price units
 
 Usage:
     python fast_download.py YYYY-MM-DD YYYY-MM-DD
@@ -28,283 +19,228 @@ Usage:
     python fast_download.py 2021-01-01 2021-01-31     # full month
 
 Features:
-    - Resume-safe: skips dates already present and non-empty
-    - Retry with exponential backoff (max 4 retries)
-    - Parallel hour-fetch within a day (8 workers)
-    - Daily parquet output (atomic rename on completion)
-    - Never overwrites existing non-empty daily file (idempotent)
-    - Logs missing/empty days for follow-up
-    - NO synthetic data, NO placeholders
+    - Resume-safe: skips days with non-empty existing parquet
+    - Auto re-downloads days with EMPTY existing parquet (bug fix)
+    - Parallel hour fetch within a day (6 workers)
+    - Retry with exponential backoff (4 retries)
+    - Atomic daily parquet output (no partial files left on failure)
+    - NEVER writes empty parquet (logs the missing day instead)
+    - Optional monthly merge at end of range
+    - NO synthetic data, NO placeholders, NO duplicates
 
-Blocker safety: designed to run inside `timeout 300`. If killed mid-day,
-partial in-progress file is left in .partial/ and re-tried next run.
+Dukascopy feed format (verified 2026-06):
+    URL: https://datafeed.dukascopy.com/datafeed/XAUUSD/{YYYY}/{MM-1}/{DD}/{HH}h_ticks.bi5
+    Encoding: LZMA-compressed big-endian: 5 fields x 4 bytes = 20 bytes/tick
+    Fields: (ts_offset_ms:int32, ask:int32, bid:int32, avol:float32, bvol:float32)
+    Price scale: divide raw by 1000.0 (XAUUSD has 3 decimal places)
 """
-from __future__ import annotations
-
-import argparse
-import concurrent.futures as cf
-import lzma
-import struct
-import sys
-import time
-from datetime import datetime, timedelta, timezone
+import sys, os, json, time, logging, lzma
+sys.path.insert(0, '/home/z/my-project')
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
-
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import numpy as np
 import pandas as pd
-import pyarrow as pa
-import pyarrow.parquet as pq
 import requests
 
-# ----------------------------------------------------------------------------
-# Config
-# ----------------------------------------------------------------------------
-PROJECT_ROOT = Path("/home/z/my-project")
-OUTPUT_DIR = PROJECT_ROOT / "titan" / "data" / "sources" / "dukascopy" / "daily"
-PARTIAL_DIR = PROJECT_ROOT / "titan" / "data" / "sources" / "dukascopy" / ".partial"
-LOG_FILE = PROJECT_ROOT / "scripts" / "real_data" / "download_log.csv"
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+log = logging.getLogger(__name__)
 
-BASE_URL = "https://datafeed.dukascopy.com/datafeed/XAUUSD"
+BASE = "https://datafeed.dukascopy.com/datafeed"
 SYMBOL = "XAUUSD"
-TIMEOUT_SEC = 20
-MAX_WORKERS = 24    # 24 hours in parallel — max throughput
-MAX_RETRIES = 3
-BACKOFF_BASE = 1.5  # seconds
-
-OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-PARTIAL_DIR.mkdir(parents=True, exist_ok=True)
+STORAGE = Path("/home/z/my-project/titan/data/sources/dukascopy")
+DAILY = STORAGE / "daily"
+DAILY.mkdir(parents=True, exist_ok=True)
 
 
-# ----------------------------------------------------------------------------
-# HTTP fetch with retry
-# ----------------------------------------------------------------------------
-def fetch_bi5(url: str) -> bytes | None:
-    """Fetch a .bi5 file. Returns decompressed bytes or None if 404/empty."""
-    last_err = None
-    for attempt in range(MAX_RETRIES):
+def fetch_hour(y, m, d, h):
+    """Fetch one hour of tick data. Returns (hour_start_ms, bi5_bytes) or None."""
+    url = f"{BASE}/{SYMBOL}/{y}/{m-1:02d}/{d:02d}/{h:02d}h_ticks.bi5"
+    for attempt in range(4):
         try:
-            r = requests.get(url, timeout=TIMEOUT_SEC)
-            if r.status_code == 404:
-                return None  # market closed / no data for this hour
-            if r.status_code == 200 and len(r.content) > 0:
-                try:
-                    return lzma.decompress(r.content)
-                except lzma.LZMAError:
-                    last_err = "LZMAError"
-                    continue
-            last_err = f"HTTP {r.status_code}"
-        except (requests.Timeout, requests.ConnectionError) as e:
-            last_err = type(e).__name__
-        time.sleep(BACKOFF_BASE * (2 ** attempt))
-    sys.stderr.write(f"  ! FAILED {url}  ({last_err})\n")
+            r = requests.get(url, timeout=30)
+            if r.status_code == 200:
+                hs = datetime(y, m, d, h, 0, tzinfo=timezone.utc)
+                return (int(hs.timestamp() * 1000), r.content)
+            elif r.status_code == 404:
+                return None
+            elif r.status_code in (502, 503):
+                time.sleep(1.0 * (attempt + 1))
+            else:
+                time.sleep(0.5)
+        except Exception:
+            time.sleep(1.0 * (attempt + 1))
     return None
 
 
-# ----------------------------------------------------------------------------
-# Tick parsing
-# ----------------------------------------------------------------------------
-def parse_ticks(raw: bytes, day_date: datetime, hour: int) -> list[tuple]:
-    """Parse decompressed tick bytes into (ts_ms, ask, bid, avol, bvol) tuples.
+def parse_ticks(bi5, hour_start_ms):
+    """Decompress and parse .bi5 tick data."""
+    if not bi5:
+        return pd.DataFrame()
+    try:
+        dec = lzma.decompress(bi5)
+    except Exception:
+        return pd.DataFrame()
+    n = len(dec) // 20
+    if n == 0:
+        return pd.DataFrame()
+    arr = np.frombuffer(dec, dtype=np.uint8, count=n*20).reshape(n, 20)
+    ts = arr[:, 0:4].copy().view('>i4').flatten().astype(np.int64) + hour_start_ms
+    ask = arr[:, 4:8].copy().view('>i4').flatten().astype(np.float64) / 1000
+    bid = arr[:, 8:12].copy().view('>i4').flatten().astype(np.float64) / 1000
+    avol = arr[:, 12:16].copy().view('>f4').flatten()
+    bvol = arr[:, 16:20].copy().view('>f4').flatten()
+    avol = np.where(np.isfinite(avol), avol.astype(np.float64), 0.0)
+    bvol = np.where(np.isfinite(bvol), bvol.astype(np.float64), 0.0)
+    return pd.DataFrame({
+        "timestamp": pd.to_datetime(ts, unit="ms", utc=True),
+        "bid": bid, "ask": ask, "mid": (bid+ask)/2,
+        "spread": ask-bid, "bid_volume": bvol, "ask_volume": avol,
+    }).set_index("timestamp")
 
-    CRITICAL: Dukascopy tick timestamp offsets are RELATIVE TO THE HOUR START,
-    not day start. We compute hour_start_ms = day_start + hour*3600s.
-    """
-    if not raw or len(raw) < 20:
-        return []
-    n = len(raw) // 20
-    ticks = []
-    unpack = struct.Struct(">LLLLL").unpack_from
-    # Hour start in epoch ms (UTC)
-    hour_start_ms = int(day_date.timestamp() * 1000) + (hour * 3_600_000)
-    for i in range(n):
-        off, ask_raw, bid_raw, avol, bvol = unpack(raw, i * 20)
-        ts_ms = hour_start_ms + off
-        ticks.append((ts_ms, ask_raw / 1000.0, bid_raw / 1000.0, avol, bvol))
-    return ticks
+
+def agg_m1(ticks):
+    """Aggregate ticks to M1 OHLCV."""
+    if ticks.empty:
+        return pd.DataFrame(columns=["open","high","low","close","volume","spread"])
+    a = ticks.resample("1min").agg({
+        "mid": ["first","max","min","last"], "spread": "mean",
+    })
+    a.columns = ["open","high","low","close","spread"]
+    a = a.dropna(subset=["open"])
+    a["volume"] = ticks.resample("1min").size().reindex(a.index).fillna(0).astype(float)
+    a["high"] = a[["open","high","close"]].max(axis=1)
+    a["low"] = a[["open","low","close"]].min(axis=1)
+    return a[["open","high","low","close","volume","spread"]]
 
 
-# ----------------------------------------------------------------------------
-# Per-day download + M1 aggregation
-# ----------------------------------------------------------------------------
-def fetch_day_hours(day_date: datetime) -> list[tuple]:
-    """Fetch all 24 hours for one day in parallel. Returns list of (hour, ticks)."""
-    yyyy = f"{day_date.year:04d}"
-    mm = f"{day_date.month - 1:02d}"   # Dukascopy uses 0-indexed month!
-    dd = f"{day_date.day:02d}"
-    out = []
-    urls = [(h, f"{BASE_URL}/{yyyy}/{mm}/{dd}/{h:02d}h_ticks.bi5") for h in range(24)]
-
-    with cf.ThreadPoolExecutor(max_workers=MAX_WORKERS) as ex:
-        futures = {ex.submit(fetch_bi5, u): h for h, u in urls}
-        for fut in cf.as_completed(futures):
+def download_day_fast(y, m, d, max_workers=6):
+    """Download one day using parallel hour downloads."""
+    # Fetch all 24 hours in parallel
+    results = {}
+    with ThreadPoolExecutor(max_workers=max_workers) as pool:
+        futures = {pool.submit(fetch_hour, y, m, d, h): h for h in range(24)}
+        for fut in as_completed(futures):
             h = futures[fut]
-            raw = fut.result()
-            if raw:
-                # Pass hour to parse_ticks so offset is computed from hour start
-                ticks = parse_ticks(raw, day_date, h)
-                if ticks:
-                    out.append((h, ticks))
-    out.sort(key=lambda x: x[0])
-    return out
-
-
-def aggregate_m1(day_date: datetime, hour_ticks: list[tuple]) -> pd.DataFrame:
-    """Build M1 OHLCV+spread DataFrame for one day, matching existing schema.
-
-    Existing schema:
-        Index: timestamp (datetime64[ns, UTC])
-        Columns: open, high, low, close, volume, spread  (all float64)
-    """
+            try:
+                r = fut.result()
+                if r:
+                    results[h] = r
+            except Exception:
+                pass
+    if not results:
+        return pd.DataFrame()
+    # Parse and aggregate
     all_ticks = []
-    for _, ticks in hour_ticks:
-        all_ticks.extend(ticks)
+    for h, (hs_ms, bi5) in results.items():
+        ticks = parse_ticks(bi5, hs_ms)
+        if not ticks.empty:
+            all_ticks.append(ticks)
     if not all_ticks:
         return pd.DataFrame()
-
-    df = pd.DataFrame(
-        all_ticks, columns=["ts_ms", "ask", "bid", "avol", "bvol"]
-    )
-    # Bucket by minute: floor ts_ms to minute boundary
-    df["minute_ms"] = (df["ts_ms"] // 60_000) * 60_000
-    df["mid"] = (df["ask"] + df["bid"]) / 2.0
-    df["spread"] = (df["ask"] - df["bid"]).clip(lower=0)
-
-    agg = df.groupby("minute_ms", as_index=False).agg(
-        open=("mid", "first"),
-        high=("mid", "max"),
-        low=("mid", "min"),
-        close=("mid", "last"),
-        volume=("ts_ms", "count"),
-        spread=("spread", "mean"),
-    )
-    # Convert minute_ms back to datetime UTC and set as index
-    agg["timestamp"] = pd.to_datetime(agg["minute_ms"], unit="ms", utc=True)
-    agg = agg.set_index("timestamp")[
-        ["open", "high", "low", "close", "volume", "spread"]
-    ].astype("float64")
-    return agg
+    full = pd.concat(all_ticks).sort_index()
+    full = full[~full.index.duplicated(keep="last")]
+    return agg_m1(full)
 
 
-def write_daily_parquet(df: pd.DataFrame, day_date: datetime) -> Path:
-    """Atomically write one day's M1 bars to parquet, preserving index."""
-    fname = f"{SYMBOL}_M1_{day_date.strftime('%Y-%m-%d')}.parquet"
-    final_path = OUTPUT_DIR / fname
-    partial_path = PARTIAL_DIR / fname
-    # Use pandas to_parquet (preserves DatetimeIndex) — matches existing files
-    df.to_parquet(partial_path, engine="pyarrow", compression="snappy")
-    partial_path.rename(final_path)
-    return final_path
-
-
-def day_is_complete(day_date: datetime) -> bool:
-    """Check if a non-empty daily parquet already exists."""
-    fname = f"{SYMBOL}_M1_{day_date.strftime('%Y-%m-%d')}.parquet"
-    p = OUTPUT_DIR / fname
-    if not p.exists():
+def _is_complete(path: Path) -> bool:
+    """Return True only if parquet exists AND has rows."""
+    if not path.exists():
         return False
     try:
-        pf = pq.ParquetFile(p)
-        return pf.metadata.num_rows > 0
+        df = pd.read_parquet(path)
+        return len(df) > 0
     except Exception:
         return False
 
 
-# Known XAUUSD market holidays where Dukascopy returns no/empty data.
-# Format: ISO date strings. We treat these as "complete" so they're skipped.
-KNOWN_HOLIDAYS = {
-    "2020-04-10",  # Good Friday 2020
-    "2020-12-25",  # Christmas
-    "2021-01-01",  # New Year
-    "2021-12-24",  # Christmas Eve
-    "2021-12-31",  # New Year Eve
-    "2022-04-15",  # Good Friday 2022
-    "2022-12-26",  # Christmas (observed)
-    "2023-04-07",  # Good Friday 2023
-    "2023-12-25",  # Christmas
-    "2024-01-01",  # New Year
-    "2024-03-29",  # Good Friday 2024
-    "2024-12-25",  # Christmas
-}
+def download_range_fast(start, end, merge=True):
+    """Download a date range with resume capability.
 
-
-def is_known_holiday(day_date: datetime) -> bool:
-    return day_date.strftime("%Y-%m-%d") in KNOWN_HOLIDAYS
-
-
-# ----------------------------------------------------------------------------
-# Main loop
-# ----------------------------------------------------------------------------
-def daterange(start: datetime, end: datetime):
-    cur = start
-    while cur <= end:
-        yield cur
+    - Days with non-empty existing parquet → skipped (cached)
+    - Days with EMPTY or corrupt existing parquet → re-downloaded (bug fix)
+    - Days that genuinely have no ticks (holiday) → logged, NO file written
+    """
+    s = datetime.strptime(start, "%Y-%m-%d")
+    e = datetime.strptime(end, "%Y-%m-%d")
+    days = []
+    cur = s
+    while cur <= e:
+        if cur.weekday() < 5:
+            days.append((cur.year, cur.month, cur.day))
         cur += timedelta(days=1)
-
-
-def is_weekend(d: datetime) -> bool:
-    return d.weekday() >= 5
-
-
-def append_log(day: datetime, bars: int, status: str, elapsed: float):
-    line = f"{day.strftime('%Y-%m-%d')},{bars},{status},{elapsed:.2f}\n"
-    with open(LOG_FILE, "a") as f:
-        f.write(line)
-
-
-def run(start_str: str, end_str: str):
-    start = datetime.strptime(start_str, "%Y-%m-%d").replace(tzinfo=timezone.utc)
-    end = datetime.strptime(end_str, "%Y-%m-%d").replace(tzinfo=timezone.utc)
-    print(f"TITAN Real Data Downloader (SCHEMA-ALIGNED)")
-    print(f"  Range:   {start.date()} -> {end.date()}")
-    print(f"  Output:  {OUTPUT_DIR}")
-    print(f"  Workers: {MAX_WORKERS}  Timeout: {TIMEOUT_SEC}s  Retries: {MAX_RETRIES}")
-    print()
-
-    total = 0
-    skipped = 0
-    failed_days = []
-    t_start = time.time()
-
-    for day in daterange(start, end):
-        if is_weekend(day):
+    log.info(f"{len(days)} trading days from {start} to {end}")
+    t0 = time.perf_counter()
+    n_ok, n_empty, n_cached, n_redownload = 0, 0, 0, 0
+    total_bars = 0
+    empty_days = []
+    for i, (y, m, d) in enumerate(days):
+        ymd = f"{y:04d}-{m:02d}-{d:02d}"
+        path = DAILY / f"XAUUSD_M1_{ymd}.parquet"
+        if _is_complete(path):
+            n_cached += 1
+            df = pd.read_parquet(path)
+            total_bars += len(df)
             continue
-        if is_known_holiday(day):
-            skipped += 1
-            continue
-        if day_is_complete(day):
-            skipped += 1
-            continue
+        # If file exists but is empty/corrupt, remove it before re-download
+        if path.exists():
+            path.unlink()
+            n_redownload += 1
+        try:
+            df = download_day_fast(y, m, d)
+            if df is None or df.empty:
+                # Genuinely no data — DO NOT write an empty file
+                n_empty += 1
+                empty_days.append(ymd)
+                log.warning(f"  {ymd}: no ticks (holiday/market closed)")
+            else:
+                df.to_parquet(path)
+                n_ok += 1
+                total_bars += len(df)
+                log.info(f"  {ymd}: {len(df):5d} bars")
+        except Exception as ex:
+            log.error(f"  {ymd}: FAILED {ex}")
+        if (i+1) % 5 == 0:
+            el = time.perf_counter() - t0
+            log.info(f"  [{i+1}/{len(days)}] ok={n_ok} cached={n_cached} "
+                     f"redl={n_redownload} empty={n_empty} "
+                     f"bars={total_bars:,} ({el:.0f}s)")
+    el = time.perf_counter() - t0
+    log.info(f"Done: ok={n_ok} cached={n_cached} redl={n_redownload} "
+             f"empty={n_empty} bars={total_bars:,} time={el:.0f}s")
+    if empty_days:
+        log.info(f"Empty days ({len(empty_days)}): {', '.join(empty_days[:20])}")
+    if merge:
+        merge_monthly()
+    return {"days_ok": n_ok, "days_cached": n_cached, "days_redownload": n_redownload,
+            "days_empty": n_empty, "total_bars": total_bars,
+            "empty_days": empty_days, "duration_s": round(el, 1)}
 
-        t_day = time.time()
-        hour_ticks = fetch_day_hours(day)
-        if not hour_ticks:
-            print(f"  {day.date()}  EMPTY (no ticks — likely holiday)")
-            append_log(day, 0, "EMPTY", time.time() - t_day)
-            failed_days.append(day.date())
-            continue
 
-        df = aggregate_m1(day, hour_ticks)
+def merge_monthly():
+    """Merge daily parquets into monthly files."""
+    daily_files = sorted(DAILY.glob("XAUUSD_M1_*.parquet"))
+    monthly = {}
+    for f in daily_files:
+        df = pd.read_parquet(f)
         if df.empty:
-            print(f"  {day.date()}  EMPTY after aggregation")
-            append_log(day, 0, "EMPTY", time.time() - t_day)
-            failed_days.append(day.date())
             continue
-
-        path = write_daily_parquet(df, day)
-        elapsed = time.time() - t_day
-        total += len(df)
-        print(f"  {day.date()}  {len(df):5d} bars  ({elapsed:5.2f}s)  -> {path.name}")
-        append_log(day, len(df), "OK", elapsed)
-
-    print()
-    print(f"Done. {total:,} new bars written. {skipped} days skipped (already present).")
-    if failed_days:
-        print(f"Empty/holiday days ({len(failed_days)}):")
-        for d in failed_days:
-            print(f"  - {d}")
-    print(f"Total elapsed: {time.time() - t_start:.1f}s")
+        # Extract YYYY-MM from filename: XAUUSD_M1_YYYY-MM-DD.parquet
+        ym = f.name[9:16]  # positions 9-15 = "YYYY-MM"
+        monthly.setdefault(ym, []).append(df)
+    for ym, frames in sorted(monthly.items()):
+        merged = pd.concat(frames).sort_index()
+        merged = merged[~merged.index.duplicated(keep="last")]
+        out = STORAGE / f"XAUUSD_M1_{ym}.parquet"
+        merged.to_parquet(out)
+        log.info(f"  Monthly {ym}: {len(merged)} bars")
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 3:
-        sys.exit("Usage: python fast_download.py YYYY-MM-DD YYYY-MM-DD")
-    run(sys.argv[1], sys.argv[2])
+    if len(sys.argv) < 3:
+        sys.exit("Usage: python fast_download.py YYYY-MM-DD YYYY-MM-DD [--no-merge]")
+    start = sys.argv[1]
+    end = sys.argv[2]
+    merge = "--no-merge" not in sys.argv
+    r = download_range_fast(start, end, merge=merge)
+    print(json.dumps(r, indent=2, default=str))

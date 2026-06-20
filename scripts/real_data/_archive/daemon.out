@@ -1,0 +1,4 @@
+[daemon] Start at 2026-06-20 20:30:27
+[daemon] 615 days present, 692 missing
+[daemon] Batch 1: 2020-01-01 → 2020-01-20 (14 days)
+[daemon] $ /home/z/.venv/bin/python /home/z/my-project/scripts/real_data/fast_download.py 2020-01-01 2020-01-20 --no-merge

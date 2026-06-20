@@ -1,0 +1,155 @@
+{
+  "audit_date": "2026-06-20",
+  "audit_type": "REAL_DATA_FORENSIC_AUDIT",
+  "mode": "READ_ONLY",
+  "sources": {
+    "dukascopy": {
+      "start_date": "2020-01-01",
+      "end_date": "2024-12-31",
+      "years_covered": 5,
+      "m1_bars": 907589,
+      "coverage_pct": 51.88,
+      "missing_pct": 48.12,
+      "duplicates_pct": 0.0,
+      "missing_days_count": 630
+    },
+    "exness_mt5": {
+      "file_count": 0,
+      "m1_bars": 0,
+      "coverage_pct": 0.0
+    },
+    "icmarkets_mt5": {
+      "file_count": 0,
+      "m1_bars": 0,
+      "coverage_pct": 0.0
+    },
+    "pepperstone": {
+      "file_count": 0,
+      "m1_bars": 0,
+      "coverage_pct": 0.0
+    },
+    "truefx": {
+      "file_count": 0,
+      "m1_bars": 0,
+      "coverage_pct": 0.0
+    },
+    "kaggle": {
+      "file_count": 0,
+      "m1_bars": 0,
+      "coverage_pct": 0.0
+    }
+  },
+  "year_breakdown": {
+    "2020": {
+      "trading_days": 262,
+      "days_present": 100,
+      "m1_bars": 134335
+    },
+    "2021": {
+      "trading_days": 261,
+      "days_present": 2,
+      "m1_bars": 2700
+    },
+    "2022": {
+      "trading_days": 260,
+      "days_present": 77,
+      "m1_bars": 104483
+    },
+    "2023": {
+      "trading_days": 260,
+      "days_present": 239,
+      "m1_bars": 320843
+    },
+    "2024": {
+      "trading_days": 262,
+      "days_present": 257,
+      "m1_bars": 345228
+    },
+    "2025": {
+      "trading_days": 261,
+      "days_present": 0,
+      "m1_bars": 0
+    },
+    "2026": {
+      "trading_days": 261,
+      "days_present": 0,
+      "m1_bars": 0
+    }
+  },
+  "data_composition": {
+    "real_pct": 100.0,
+    "synthetic_pct": 0.0,
+    "calibrated_pct": 0.0,
+    "total_bars": 907589
+  },
+  "verdict": "DATA_REJECTED",
+  "blockers": {
+    "coverage_pass": false,
+    "real_pass": true,
+    "synth_pass": true,
+    "calib_pass": true
+  },
+  "missing_days_sample": [
+    "2020-04-10",
+    "2020-05-19",
+    "2020-05-22",
+    "2020-05-25",
+    "2020-05-26",
+    "2020-05-27",
+    "2020-05-28",
+    "2020-05-29",
+    "2020-06-01",
+    "2020-06-02",
+    "2020-06-03",
+    "2020-06-04",
+    "2020-06-05",
+    "2020-06-08",
+    "2020-06-09",
+    "2020-06-10",
+    "2020-06-11",
+    "2020-06-12",
+    "2020-06-15",
+    "2020-06-16"
+  ],
+  "missing_months": [
+    "2020-04",
+    "2020-05",
+    "2020-06",
+    "2020-07",
+    "2020-08",
+    "2020-09",
+    "2020-10",
+    "2020-11",
+    "2020-12",
+    "2021-01",
+    "2021-02",
+    "2021-03",
+    "2021-04",
+    "2021-05",
+    "2021-06",
+    "2021-07",
+    "2021-08",
+    "2021-09",
+    "2021-10",
+    "2021-11",
+    "2021-12",
+    "2022-02",
+    "2022-03",
+    "2022-04",
+    "2022-06",
+    "2022-07",
+    "2022-08",
+    "2022-09",
+    "2022-10",
+    "2022-11",
+    "2022-12",
+    "2023-03",
+    "2023-04",
+    "2023-08",
+    "2023-09",
+    "2023-11",
+    "2024-03",
+    "2024-07",
+    "2024-10"
+  ]
+}

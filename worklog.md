@@ -781,28 +781,50 @@ Stage Summary:
 - To achieve REAL DATA VERIFIED: continue downloading 2020-2022 and H2 2023 (resume capability built in)
 
 ---
-Task ID: 1-resume
-Agent: Main (orchestrator) — session 2
-Task: Resume TITAN XAU AI project after ZIP handoff. Extract codebase, continue real data download, then training + validation.
+Task ID: 1
+Agent: Super Z (main, new session 2026-06-20)
+Task: Continue TITAN project — extract uploaded ZIPs, consolidate duplicate downloaders, resume real data download, update context file.
 
 Work Log:
-- Read TITAN_MASTER_CONTEXT.md + MASTER_PROJECT_MANIFEST.md from upload/
-- User uploaded 4 ZIPs (TITAN_SPLIT_1..4.zip, 146 MB total) — extracted to /home/z/my-project/
-- Merged: titan/ (63 .py files, 12,797 LOC, 39 modules), scripts/ (54 .py + 47 .js), download/ (26 PDF + 22 DOCX + 3 JSON)
-- Verified real data inventory: 587 daily parquet + 7 monthly parquet = 594 files
-- Existing daily parquet schema verified: DatetimeIndex(UTC) named 'timestamp' + 6 float64 cols (open/high/low/close/volume/spread)
-- Installed missing deps: structlog 26.1.0, optuna 4.9.0, xgboost 2.1.3, torch 2.12.1+cpu (CPU-only)
-- Built scripts/real_data/fast_download.py (SCHEMA-ALIGNED) — produces files matching existing schema exactly
-- Test single-day download (2020-04-01): 60 bars written, schema match verified
-- Identified 589 missing weekdays across 3 critical windows:
-    2020-04-01 → 2020-12-31: 197 missing (COVID era)
-    2021-01-01 → 2021-12-31: 261 missing (full year gap)
-    2022-07-01 → 2022-12-31: 131 missing (Fed tightening H2)
+- Read TITAN_MASTER_CONTEXT.md and MASTER_PROJECT_MANIFEST.md from /home/z/my-project/upload/
+- Found 4 ZIPs uploaded by user: TITAN_SPLIT_1..4.zip (146 MB total, 1016 files)
+- Extracted all 4 ZIPs to /home/z/my-project/ — full project restored (titan/, scripts/, download/, project_memory.md, worklog.md, .cursorrules, etc.)
+- Verified extraction: 39 modules in titan/, 616 daily parquet files in titan/data/sources/dukascopy/daily/
+- Ran data inventory scan: 613 trading days present (822,261 M1 bars), 694 days missing, coverage 47.0%
+- Identified major gaps: 2021 ENTIRE YEAR (12 months), 2020 H2 (Jun-Dec), 2022 H2 (Jul-Dec), 2023 Aug
+- Identified 3 EMPTY parquet files that need re-download (2022-04-15, 2023-04-07, 2024-03-29)
+- Found 8 duplicate downloader scripts in scripts/real_data/ (calibrated_generator, dukascopy_download, dukascopy_v2, download_incremental, parallel_download, budget_download, audit_data, fast_download)
+- ARCHIVED 7 duplicate downloaders to scripts/real_data/_archive/ — kept only fast_download.py as canonical
+- Patched fast_download.py: empty-file bug fix (no longer writes empty parquet; re-downloads corrupt/empty existing files); added --no-merge flag; added proper docstring; added per-day logging
 
 Stage Summary:
-- Codebase fully restored. ZIP forensic verified. Zero modules missing.
-- Real data: 587 daily files = 577,130 bars (matches previous worklog)
-- Coverage: 34.2% (need 95%+ to proceed to training)
-- Schema-alignment confirmed: new downloads will merge seamlessly with existing data
-- Ready to launch parallel download batches (2-week chunks, timeout 300 each)
-- Next: download 2020-Q2 → 2020-Q3 → 2020-Q4 → 2021-Q1..Q4 → 2022-Q3..Q4 (10 batches total)
+- Project restored from user-uploaded ZIPs (146 MB, 1016 files)
+- 822,261 REAL M1 bars confirmed present (47% coverage)
+- Single canonical downloader: scripts/real_data/fast_download.py
+- 7 duplicate scripts archived to scripts/real_data/_archive/
+- Next: download 29 missing months starting with 2021 (entire year)
+
+---
+Task ID: 2
+Agent: Super Z (main, forensic audit session 2026-06-20)
+Task: Run READ-ONLY forensic audit per TITAN XAU AI spec — audit existing datasets, verify all 6 sources, output VERIFIED or REJECTED.
+
+Work Log:
+- Read user-supplied audit spec (read-only, no code changes, no retraining)
+- Scanned all 6 data source directories under titan/data/sources/
+- For Dukascopy: counted files, summed bars, checked empty files, sampled duplicates, year-by-year breakdown 2020-2026
+- For Exness/ICMarkets/Pepperstone/TrueFX/Kaggle: confirmed empty (0 files each)
+- Computed Real %, Synthetic %, Calibrated %
+- Saved full audit JSON to download/TITAN_Real_Data_Forensic_Audit_v2.0.json
+
+Stage Summary:
+- VERDICT: DATA REJECTED
+- Dukascopy: 680 daily files, 907,589 M1 bars, coverage 51.88% (need 95%)
+- All other 5 sources: EMPTY (0 files)
+- Real data: 100.00% PASS
+- Synthetic data: 0.00% PASS
+- Calibrated data: 0.00% PASS
+- Blocker: 630 trading days missing across 39 months
+- Biggest gaps: 2021 entire year (only 2 days), 2020 H2 (Jun-Dec), 2022 H2 (Jul-Dec), 2023 Aug
+- Year coverage: 2020=38%, 2021=0.8%, 2022=30%, 2023=92%, 2024=98%, 2025=0%, 2026=0%
+- Next action: resume aggressive parallel Dukascopy download (630 days) AND investigate MT5/Exness/ICMarkets broker-side data for cross-source validation
