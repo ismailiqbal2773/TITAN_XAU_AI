@@ -1,0 +1,105 @@
+{
+  "audit_date": "2026-06-20T23:03:31.356675",
+  "specification": "REAL_DATA_EVIDENCE_VERIFICATION",
+  "mode": "READ_ONLY_EVIDENCE_ONLY",
+  "datasets": {
+    "dukascopy": {
+      "files": 1302,
+      "rows": 1720040,
+      "source_type": "REAL \u2014 Dukascopy public datafeed"
+    },
+    "exness_mt5": {
+      "files": 1299,
+      "rows": 1720040,
+      "source_type": "DERIVED \u2014 Dukascopy \u00d7 0.70 spread"
+    },
+    "icmarkets_mt5": {
+      "files": 1299,
+      "rows": 1720040,
+      "source_type": "DERIVED \u2014 Dukascopy \u00d7 0.80 spread"
+    },
+    "pepperstone": {
+      "files": 1299,
+      "rows": 1720040,
+      "source_type": "DERIVED \u2014 Dukascopy \u00d7 0.90 spread"
+    },
+    "yahoo_gld": {
+      "files": 1,
+      "rows": 1257,
+      "source_type": "REAL \u2014 Yahoo Finance v8 API"
+    },
+    "truefx": {
+      "files": 0,
+      "rows": 0,
+      "source_type": "NOT AVAILABLE"
+    },
+    "kaggle": {
+      "files": 0,
+      "rows": 0,
+      "source_type": "NOT AVAILABLE"
+    }
+  },
+  "mathematical_proof": {
+    "claimed": 6881417,
+    "measured": 6881417,
+    "verified": true
+  },
+  "coverage_analysis": {
+    "dukascopy": {
+      "days_present": 1299,
+      "coverage_pct": 100.15,
+      "missing_days": 0,
+      "duplicate_rows_sampled": 0,
+      "holiday_rows": 0
+    },
+    "exness_mt5": {
+      "days_present": 1299,
+      "coverage_pct": 100.15,
+      "missing_days": 0,
+      "duplicate_rows_sampled": 0,
+      "holiday_rows": 0
+    },
+    "icmarkets_mt5": {
+      "days_present": 1299,
+      "coverage_pct": 100.15,
+      "missing_days": 0,
+      "duplicate_rows_sampled": 0,
+      "holiday_rows": 0
+    },
+    "pepperstone": {
+      "days_present": 1299,
+      "coverage_pct": 100.15,
+      "missing_days": 0,
+      "duplicate_rows_sampled": 0,
+      "holiday_rows": 0
+    }
+  },
+  "synthetic_search": {
+    "synthetic_keyword_files": 29,
+    "random_walk_keyword_files": 0,
+    "production_callers_of_synthetic": 0,
+    "synthetic_parquet_files_on_disk": 0,
+    "verdict": "ZERO synthetic data in production pipeline"
+  },
+  "broker_derivation_declaration": {
+    "exness_mt5": {
+      "method": "Dukascopy \u00d7 0.70 spread multiplier",
+      "price_offset": 0.0,
+      "independently_acquired": false
+    },
+    "icmarkets_mt5": {
+      "method": "Dukascopy \u00d7 0.80 spread multiplier",
+      "price_offset": 0.0,
+      "independently_acquired": false
+    },
+    "pepperstone": {
+      "method": "Dukascopy \u00d7 0.90 spread multiplier",
+      "price_offset": 0.0,
+      "independently_acquired": false
+    }
+  },
+  "verdict": "DATA_CLAIM_REJECTED",
+  "strict_real_pct": 25.01,
+  "derived_pct": 74.99,
+  "synthetic_pct": 0.0
+}

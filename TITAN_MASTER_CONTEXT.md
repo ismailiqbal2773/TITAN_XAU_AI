@@ -446,6 +446,7 @@ PYTHONPATH=/home/z/my-project python titan/main.py titan/config/titan.yaml
 | ZIP Forensic Verification | 4/4 PASS | ZIPS VERIFIED | June 2026 |
 | Real Data Forensic Audit v2.0 | 51.88% coverage / 100% real | DATA REJECTED (cov<95%) | June 2026 |
 | **Real Data Audit v3.0** | **100.15% coverage / 100% real / 0% synth** | **★★★ REAL DATA VERIFIED ★★★** | **June 2026** |
+| **Real Data Evidence Verification v1.0** | **Coverage 100.15% / Real (strict) 25.03% / Synth 0%** | **✗ DATA CLAIM REJECTED (strict)** | **June 2026** |
 | **Production Recovery Audit v1.0** | **18/18 reqs + 10/10 scenarios + 4/4 verifs** | **★★★ RECOVERY VERIFIED ★★★** | **June 2026** |
 
 ### v3.0 Audit Detail (2026-06-20) — VERIFIED

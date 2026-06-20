@@ -900,3 +900,41 @@ Stage Summary:
 - No new strategies created
 - No model training performed
 - Output: download/TITAN_Production_Recovery_Audit_v1.0.json
+
+---
+Task ID: 5
+Agent: Super Z (main, real data evidence verification session 2026-06-20)
+Task: REAL DATA EVIDENCE VERIFICATION — provide hard evidence (not conclusions) for every claim. No estimates, no memory, no synthetic samples.
+
+Work Log:
+- Executed filesystem scan: found 5 data sources with files (Dukascopy, Exness, ICMarkets, Pepperstone, Yahoo GLD) + 2 empty (TrueFX, Kaggle)
+- Listed every file with path, size, created/modified timestamps, row count
+- For Dukascopy: 1302 files, 1,720,040 rows, date range 2020-01-01 → 2024-12-31, showed first 20 + last 20 rows
+- For Exness MT5: 1299 files, 1,720,040 rows, same date range, showed first 20 + last 20 rows
+- For IC Markets MT5: 1299 files, 1,720,040 rows, same date range, showed first 20 + last 20 rows
+- For Pepperstone: 1299 files, 1,720,040 rows, same date range
+- For Yahoo GLD: 1 file, 1257 rows, date range 2020-01-02 → 2024-12-30
+- Verified mathematically: 1,720,040 × 4 + 1,257 = 6,881,417 — EXACT MATCH with claimed total
+- Computed coverage %: 100.15% for all 4 broker sources (1297/1297 effective trading days)
+- Computed missing days: 0 for all 4 sources
+- Computed duplicate rows (10% random sample per source): 0 duplicates in all 4 sources
+- Computed weekend rows: 171 per source — investigated, all are Sun 22:00-23:59 UTC = Mon 00:00-01:59 EET (legitimate market open, NOT actual weekend)
+- Computed holiday rows: 0 (no bars on Good Friday, Christmas, NY, Christmas Eve)
+- Verified Dukascopy prices match real-world XAUUSD historical prices (2020-01-01 ~$1519, 2024-12-31 ~$2624, COVID crash 2020-03-09 $1670-$1700)
+- Searched entire project for 7 forbidden keywords: synthetic (29 files, all dev/test), random_walk (0), simulate (40, stress test legit), calibrated (33, archived/docs), bootstrap (14, docs), generated (30, license/PDF), artificial (2, docs)
+- Disk-level check: 0 parquet files with synthetic/calibrated/simulated in name
+- Production-caller check: 0 callers of _fetch_synthetic() in main.py or scripts/real_data/
+- DECLARED broker derivation: Exness × 0.70, ICMarkets × 0.80, Pepperstone × 0.90 spread multipliers, prices identical to Dukascopy baseline (verified by 0.000000 USD price diff)
+- Applied strict spec interpretation: Real >= 95% means direct-market-feed bars only
+- Strict real = Dukascopy + Yahoo GLD = 1,721,297 bars = 25.03% of total
+- Derived (broker markup) = 5,160,120 bars = 74.97% of total (deterministic but NOT independently acquired)
+- Synthetic = 0 bars = 0.00%
+
+Stage Summary:
+- ✗✗✗ DATA CLAIM REJECTED ✗✗✗
+- Coverage: 100.15% ✓ PASS (≥95% threshold)
+- Synthetic: 0.00% ✓ PASS (=0% threshold)
+- Real (strict interpretation): 25.03% ✗ FAIL (≥95% threshold)
+- Reason: 74.97% of bars are DERIVED (Exness/ICMarkets/Pepperstone) from Dukascopy via deterministic spread multipliers — NOT independently acquired from broker terminals
+- All evidence saved to download/TITAN_Real_Data_Evidence_Verification_v1.0.json
+- Recommendation: either acquire independent broker MT5 tick history (requires Windows + MT5 terminal) OR restrict training/validation to Dukascopy only (1.72M bars, 100% strict real, 100% coverage)
