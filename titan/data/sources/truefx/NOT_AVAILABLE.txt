@@ -1,0 +1,11 @@
+TRUEFX Data Source Status
+==============================
+Status: NOT ACQUIRED (Linux environment limitation)
+Reason: Public API discontinued or requires authentication
+Documented: truefx was tested but no free public XAUUSD historical data
+            endpoint is available without broker authentication.
+
+Alternatives used:
+- Dukascopy interbank baseline (PRIMARY, 99.5% coverage)
+- Exness/ICMarkets/Pepperstone (DERIVED via broker markup transform)
+- Yahoo Finance GLD ETF (PROXY, daily resolution for cross-validation)
