@@ -46,7 +46,7 @@ from titan.training.feature_engine import (
 logger = logging.getLogger(__name__)
 
 
-PROJECT_ROOT = Path("/tmp/titan_audit")
+PROJECT_ROOT = Path("/tmp/titan_next")
 DEFAULT_CANONICAL_DIR = PROJECT_ROOT / "titan" / "data" / "canonical"
 DEFAULT_FEATURES_DIR = PROJECT_ROOT / "titan" / "data" / "features"
 
@@ -246,13 +246,24 @@ class FeaturePipeline:
         logger.info("\nSTEP 2: Generate features (architect's engine)")
         X, y, feature_groups = self._generate_features(df)
 
+        # Drop non-numeric columns (regime tag, etc.) — scaler cannot handle strings.
+        # These are metadata columns leaked through by the feature engine, not real
+        # model features. We drop them at the adapter layer (engine is read-only).
+        non_numeric_cols = [c for c in X.columns if X[c].dtype == 'object']
+        if non_numeric_cols:
+            logger.info(f"  Dropping non-numeric columns: {non_numeric_cols}")
+            X = X.drop(columns=non_numeric_cols)
+            # Also drop from feature_groups dict (keep counts accurate)
+            for grp, cols in list(feature_groups.items()):
+                feature_groups[grp] = [c for c in cols if c not in non_numeric_cols]
+
         # Drop rows with NaN (first 200 bars have NaN due to MA periods)
         # Drop rows with NaN (first 200 bars have NaN due to MA periods)
         # Use separate masks to avoid pandas alignment issues
         X_valid = X.notna().all(axis=1)
         y_series = y["target_ret_1"] if hasattr(y, "columns") else y
         y_valid = y_series.notna()
-        valid_mask = X_valid & y_valid
+        valid_mask = X_valid & y_valid.values
         n_dropped = int(len(X) - valid_mask.sum())
         X = X[valid_mask].copy()
         y = y_series[valid_mask].copy()
