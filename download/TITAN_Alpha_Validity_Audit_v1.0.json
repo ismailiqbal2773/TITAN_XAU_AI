@@ -1,0 +1,139 @@
+{
+  "audit_date": "2026-06-21T15:25:04.900397",
+  "specification": "ALPHA_VALIDITY_AUDIT",
+  "sections": {
+    "A_class_distribution": {
+      "target_ret_1": {
+        "up_pct": 50.984085492427155,
+        "down_pct": 48.83139847774275,
+        "flat_pct": 0.1845160298300915,
+        "majority_acc": 0.5098408549242716,
+        "baseline_acc": 0.7141,
+        "margin": 0.2042591450757284,
+        "risk": "LOW"
+      },
+      "target_ret_5": {
+        "up_pct": 50.97255324056278,
+        "down_pct": 48.96209733220574,
+        "flat_pct": 0.06534942723149074,
+        "majority_acc": 0.5097255324056278,
+        "baseline_acc": 0.699,
+        "margin": 0.18927446759437216,
+        "risk": "LOW"
+      },
+      "target_ret_15": {
+        "up_pct": 52.16806335050358,
+        "down_pct": 47.801183977858074,
+        "flat_pct": 0.03075267163834858,
+        "majority_acc": 0.5216806335050358,
+        "baseline_acc": 0.5893,
+        "margin": 0.06761936649496425,
+        "risk": "LOW"
+      }
+    },
+    "B_confusion_matrix": {
+      "tp": 2006,
+      "tn": 1925,
+      "fp": 736,
+      "fn": 838,
+      "precision": 0.7315827862873815,
+      "recall": 0.7053445850914205,
+      "specificity": 0.7234122510334461,
+      "balanced_accuracy": 0.7143784180624333,
+      "f1": 0.7182241317579664,
+      "auc": 0.7774853578622505,
+      "risk_score": 0
+    },
+    "C_permutation_test": {
+      "original_acc": 0.7099000908265214,
+      "perm_mean_acc": 0.5113412049651831,
+      "perm_std": 0.013330819761847029,
+      "perm_max": 0.5415077202543143,
+      "p_value": 0.0,
+      "n_trials": 15,
+      "verdict": "GENUINE"
+    },
+    "D_random_label_test": {
+      "accuracy": 0.4955495004541326,
+      "auc": 0.49728183753221,
+      "ic": -0.0047079389483780845,
+      "expected_acc": 0.5,
+      "expected_auc": 0.5,
+      "expected_ic": 0.0,
+      "verdict": "PASS"
+    },
+    "E_stability_test": {
+      "scenario1": {
+        "acc": 0.7078231292517007,
+        "auc": 0.7731025268661051,
+        "ic": 0.5606456469477316
+      },
+      "scenario2": {
+        "acc": 0.7144806413099096,
+        "auc": 0.7790369988752834,
+        "ic": 0.5632395666901918
+      },
+      "drift": {
+        "acc": 0.00665751205820897,
+        "auc": 0.005934472009178293,
+        "ic": 0.00259391974246026
+      },
+      "verdict": "STABLE"
+    },
+    "F_feature_perturbation": {
+      "original_acc": 0.7097184377838329,
+      "original_auc": 0.7750544273670156,
+      "noise_results": [
+        {
+          "noise": 0.01,
+          "acc": 0.7146230699364214,
+          "auc": 0.7763384058212308,
+          "acc_delta": 0.004904632152588517,
+          "auc_delta": 0.00128397845421524,
+          "verdict": "ROBUST"
+        },
+        {
+          "noise": 0.05,
+          "acc": 0.7120799273387829,
+          "auc": 0.7749041872206287,
+          "acc_delta": 0.0023614895549499693,
+          "auc_delta": -0.00015024014638687078,
+          "verdict": "ROBUST"
+        },
+        {
+          "noise": 0.1,
+          "acc": 0.7124432334241598,
+          "auc": 0.7729329625031252,
+          "acc_delta": 0.0027247956403269047,
+          "auc_delta": -0.002121464863890421,
+          "verdict": "ROBUST"
+        },
+        {
+          "noise": 0.2,
+          "acc": 0.7129881925522252,
+          "auc": 0.7719013663528669,
+          "acc_delta": 0.003269754768392308,
+          "auc_delta": -0.0031530610141486948,
+          "verdict": "ROBUST"
+        },
+        {
+          "noise": 0.5,
+          "acc": 0.7019073569482289,
+          "auc": 0.7586082186249155,
+          "acc_delta": -0.007811080835604001,
+          "auc_delta": -0.01644620874210012,
+          "verdict": "ROBUST"
+        }
+      ],
+      "robust_at_20pct_noise": true
+    }
+  },
+  "scores": {
+    "class_imbalance_risk": 8.73,
+    "overfitting_risk": 2.52,
+    "leakage_risk": 2.23,
+    "randomness_risk": 0.72,
+    "alpha_confidence": 97.18
+  },
+  "verdict": "GENUINE_ALPHA"
+}
