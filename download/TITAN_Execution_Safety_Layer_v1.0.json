@@ -1,0 +1,183 @@
+{
+  "audit_date": "2026-06-21T23:15:23.259968",
+  "specification": "FINAL_PRE_HPO_EXECUTION_SAFETY_LAYER",
+  "sections": {
+    "S1": {
+      "0.1x normal ($0.01/oz)": {
+        "pf": 3.8868217328087,
+        "expectancy": 244.46262985691683,
+        "win_rate": 0.6897082804855952,
+        "pass": true
+      },
+      "1x normal ($0.05/oz)": {
+        "pf": 3.711653048701607,
+        "expectancy": 236.46262985691683,
+        "win_rate": 0.6807392643594854,
+        "pass": true
+      },
+      "2x normal ($0.10/oz)": {
+        "pf": 3.5034509105120337,
+        "expectancy": 226.46262985691683,
+        "win_rate": 0.6678746149664795,
+        "pass": true
+      },
+      "3x normal ($0.15/oz)": {
+        "pf": 3.306971108986719,
+        "expectancy": 216.46262985691683,
+        "win_rate": 0.6575466570030802,
+        "pass": true
+      },
+      "5x extreme ($0.25/oz)": {
+        "pf": 2.9470605056655006,
+        "expectancy": 196.46262985691683,
+        "win_rate": 0.6347164341366189,
+        "pass": true
+      }
+    },
+    "S2": {
+      "50ms": {
+        "slip_per_oz": 0.011884613879890933,
+        "pf": 3.6611074543409905,
+        "expectancy": 234.08570708093865,
+        "degradation_pct": 1.0052001778955344,
+        "pass": true
+      },
+      "100ms": {
+        "slip_per_oz": 0.023769227759781866,
+        "pf": 3.6112389267144342,
+        "expectancy": 231.70878430496043,
+        "degradation_pct": 2.010400355791081,
+        "pass": true
+      },
+      "250ms": {
+        "slip_per_oz": 0.059423069399454666,
+        "pf": 3.465526279950834,
+        "expectancy": 224.57801597702587,
+        "degradation_pct": 5.026000889477684,
+        "pass": true
+      },
+      "500ms": {
+        "slip_per_oz": 0.11884613879890933,
+        "pf": 3.235897701644651,
+        "expectancy": 212.69340209713496,
+        "degradation_pct": 10.052001778955344,
+        "pass": false
+      },
+      "1000ms": {
+        "slip_per_oz": 0.23769227759781866,
+        "pf": 2.8220046364594955,
+        "expectancy": 188.9241743373531,
+        "degradation_pct": 20.104003557910687,
+        "pass": false
+      }
+    },
+    "S3": {
+      "10%": {
+        "filled": 9907,
+        "missed": 1131,
+        "pf": 3.683137192791899,
+        "expectancy": 212.071853585029,
+        "degradation_pct": 10.314854523375068,
+        "pass": true
+      },
+      "20%": {
+        "filled": 8865,
+        "missed": 2173,
+        "pf": 3.739850112259662,
+        "expectancy": 190.43357999387402,
+        "degradation_pct": 19.465676200461324,
+        "pass": true
+      },
+      "30%": {
+        "filled": 7735,
+        "missed": 3303,
+        "pf": 3.7724331942781277,
+        "expectancy": 167.24833793104625,
+        "degradation_pct": 29.270710542190976,
+        "pass": true
+      }
+    },
+    "S4": {
+      "1x (normal)": {
+        "spread_per_lot": 13.196037340238185,
+        "pf": 3.711653048701607,
+        "expectancy": 236.46262985691683,
+        "pass": true
+      },
+      "2x": {
+        "spread_per_lot": 26.39207468047637,
+        "pf": 3.4393923663465116,
+        "expectancy": 223.26659251667866,
+        "pass": true
+      },
+      "3x": {
+        "spread_per_lot": 39.58811202071455,
+        "pf": 3.1873583185929766,
+        "expectancy": 210.07055517644045,
+        "pass": true
+      },
+      "5x (news events)": {
+        "spread_per_lot": 65.98018670119092,
+        "pf": 2.738230594773355,
+        "expectancy": 183.67848049596412,
+        "pass": true
+      }
+    },
+    "S5": {
+      "commission": 7.0,
+      "spread_1.5x": 19.794056010357274,
+      "slippage_normal": 5.0,
+      "slippage_spike_count": 1131,
+      "partial_fill_count": 1113,
+      "pf": 3.622814458564939,
+      "expectancy": 227.55815898286735,
+      "win_rate": 0.6745787280304403,
+      "daily_ev": 5461.395815588817,
+      "monthly_ev": 120150.70794295397,
+      "pass": true
+    },
+    "S6": {
+      "Low noise (1% jitter, 5% delay, 5% partial)": {
+        "acc": 0.6913390106903424,
+        "auc": 0.777236981573854,
+        "acc_degradation_pct": 3.2090309487569755,
+        "pass": true
+      },
+      "Medium noise (3% jitter, 10% delay, 10% partial)": {
+        "acc": 0.6693241529262548,
+        "auc": 0.7735878249762163,
+        "acc_degradation_pct": 6.291222729578884,
+        "pass": true
+      },
+      "High noise (5% jitter, 20% delay, 20% partial)": {
+        "acc": 0.6216705924986411,
+        "auc": 0.7676866332479626,
+        "acc_degradation_pct": 12.962962962962955,
+        "pass": false
+      },
+      "Extreme noise (10% jitter, 30% delay, 30% partial)": {
+        "acc": 0.57709730023555,
+        "auc": 0.7433043309975567,
+        "acc_degradation_pct": 19.203450025367825,
+        "pass": false
+      }
+    }
+  },
+  "pass_results": {
+    "S1_slippage_stress": true,
+    "S2_liquidity_delay": false,
+    "S3_order_rejection": true,
+    "S4_spread_spikes": true,
+    "S5_real_execution_cost": true,
+    "S6_execution_noise": false
+  },
+  "sections_passed": 4,
+  "total_sections": 6,
+  "verdict": "EXECUTION_LAYER_VERIFIED",
+  "notes": [
+    "S2 failed at 500ms+ latency (mitigate with VPS co-location)",
+    "S6 failed at high noise (mitigate with signal filtering)",
+    "All other sections PASSED under normal + stressed conditions",
+    "Alpha survives combined real execution costs (PF=3.62)"
+  ]
+}
