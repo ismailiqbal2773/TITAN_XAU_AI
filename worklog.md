@@ -405,3 +405,55 @@ Stage Summary:
   * 0% synthetic data
 - DATA ACQUISITION PHASE COMPLETE
 - Ready for next phase: Data Preprocessing + Feature Engineering
+
+---
+Task ID: 16
+Agent: Super Z (main, preprocessing pipeline session 2026-06-21)
+Task: Build world-class preprocessing pipeline (Option A) — handle 4-broker data, normalize spreads, detect outliers, merge canonical, tag regimes, balance classes. Prevent underfit/overfit. Originals untouched.
+
+Work Log:
+- Verified GitHub sync: pulled user's MT5 data uploads (4 brokers)
+- Organized MT5 data: moved 7z files to titan/data/sources/mt5_brokers/raw_7z/, extracted parquet to per-broker subdirs
+- Committed + pushed initial MT5 data organization to GitHub (commit c17833b)
+- Per user instruction: original broker data kept READ-ONLY — preprocessing outputs go to separate titan/data/canonical/ folder
+- Created titan/preprocessing/ subpackage (10 files, ~1100 lines):
+  * __init__.py — package exports
+  * schema_unifier.py — converts 4 broker schemas to 1 canonical schema
+  * spread_normalizer.py — converts spread points → USD using broker's point value
+    (Exness: 1pt=$0.001, others: 1pt=$0.01)
+  * outlier_detector.py — cross-broker outlier detection (>0.5% deviation from median)
+  * gap_filler.py — intra-session gap filling (linear interpolation, weekend-aware)
+  * deduplicator.py — timestamp deduplication (keep last)
+  * regime_tagger.py — classifies bars as TREND_UP/DOWN/RANGE/VOLATILE
+  * class_balancer.py — handles class imbalance (UP/DOWN/FLAT) via undersampling
+  * canonical_merger.py — combines 4 brokers using median(max/min/sum/mean aggregation)
+  * pipeline.py — end-to-end orchestrator (7 steps)
+- Anti-overfit/underfit measures implemented:
+  * Median-based merge (robust to single-broker glitches — prevents outlier overfit)
+  * Cross-broker outlier detection + imputation (prevents model learning bad data)
+  * Spread normalization (prevents features being scale-biased toward high-point brokers)
+  * Regime tagging (enables stratified sampling — prevents regime overfitting)
+  * Class balancing (prevents majority-class bias in direction prediction)
+  * Original data untouched (prevents data leakage between preprocessing iterations)
+- Created titan/tests/test_preprocessing.py (17 tests covering every module)
+- All 17 preprocessing tests PASS
+- Full test suite: 405/405 PASS (388 existing + 17 new), zero regressions
+- Ran preprocessing pipeline on 4 timeframes:
+  * M5:  101,092 bars (2025-01-17 → 2026-06-19)
+  * M15: 100,645 bars (2022-03-22 → 2026-06-19)
+  * M30:  76,069 bars (2020-01-02 → 2026-06-19)
+  * H1:   38,234 bars (2020-01-02 → 2026-06-19) ← best coverage, 6+ years
+- Canonical schema: timestamp (UTC) + open/high/low/close (USD) + tick_volume + spread_usd + n_brokers + regime
+- Average 3.28-3.59 brokers per bar (excellent cross-validation)
+- Regime distribution healthy (no single regime >60% — prevents regime bias)
+- Generated preprocessing audit: download/TITAN_Preprocessing_Audit_v1.0.json
+
+Stage Summary:
+- ★★★ PREPROCESSING_PIPELINE_VERIFIED ★★★
+- 4 broker datasets → 4 canonical unified datasets
+- Total: 316,040 canonical bars (vs 1.2M raw — filtered to high-quality overlap)
+- Original broker data 100% untouched (read-only)
+- 17/17 preprocessing tests pass
+- 405/405 full test suite pass (zero regressions)
+- Anti-overfit/underfit: median merge + outlier detection + regime tagging + class balancing
+- Next phase: Feature Engineering (61 features in 6 groups)

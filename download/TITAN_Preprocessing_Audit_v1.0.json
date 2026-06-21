@@ -1,0 +1,173 @@
+{
+  "audit_date": "2026-06-21T11:53:14.557236",
+  "phase": "DATA_PREPROCESSING",
+  "input": "4 broker MT5 datasets (Exness, FundedNext, FBS, IC Markets) \u2014 UNTOUCHED",
+  "output": "Canonical unified datasets in titan/data/canonical/",
+  "originals_preserved": true,
+  "preprocessing_modules": [
+    "titan/preprocessing/__init__.py",
+    "titan/preprocessing/schema_unifier.py",
+    "titan/preprocessing/spread_normalizer.py",
+    "titan/preprocessing/outlier_detector.py",
+    "titan/preprocessing/gap_filler.py",
+    "titan/preprocessing/deduplicator.py",
+    "titan/preprocessing/regime_tagger.py",
+    "titan/preprocessing/class_balancer.py",
+    "titan/preprocessing/canonical_merger.py",
+    "titan/preprocessing/pipeline.py",
+    "titan/tests/test_preprocessing.py (17 tests, all pass)"
+  ],
+  "anti_overfit_underfit_measures": [
+    "Median-based broker merge (robust to single-broker outliers)",
+    "Cross-broker outlier detection (0.5% threshold, imputed with median)",
+    "Spread normalization (broker-specific point values)",
+    "Regime tagging (TREND_UP/DOWN/RANGE/VOLATILE) for stratified sampling",
+    "Class balancing for direction labels (undersampling to minority count)",
+    "Deduplication (keep last write)",
+    "Original data untouched (read-only input)"
+  ],
+  "canonical_datasets": {
+    "XAUUSD_H1_canonical": {
+      "file": "XAUUSD_H1_canonical.parquet",
+      "size_bytes": 1473941,
+      "bars": 38234,
+      "first_timestamp": "2020-01-02 01:00:00+00:00",
+      "last_timestamp": "2026-06-19 20:00:00+00:00",
+      "columns": [
+        "open",
+        "high",
+        "low",
+        "close",
+        "tick_volume",
+        "spread_usd",
+        "n_brokers",
+        "regime"
+      ],
+      "regime_distribution": {
+        "TREND_UP": 19081,
+        "TREND_DOWN": 12961,
+        "VOLATILE": 3672,
+        "RANGE": 2520
+      },
+      "spread_usd_stats": {
+        "mean": 0.13196037340238184,
+        "median": 0.114,
+        "min": 0.01,
+        "max": 1.036
+      },
+      "n_brokers_distribution": {
+        "3": 21791,
+        "4": 13565,
+        "2": 2878
+      }
+    },
+    "XAUUSD_M15_canonical": {
+      "file": "XAUUSD_M15_canonical.parquet",
+      "size_bytes": 3585682,
+      "bars": 100645,
+      "first_timestamp": "2022-03-22 00:00:00+00:00",
+      "last_timestamp": "2026-06-19 20:00:00+00:00",
+      "columns": [
+        "open",
+        "high",
+        "low",
+        "close",
+        "tick_volume",
+        "spread_usd",
+        "n_brokers",
+        "regime"
+      ],
+      "regime_distribution": {
+        "TREND_UP": 48050,
+        "TREND_DOWN": 38456,
+        "RANGE": 12747,
+        "VOLATILE": 1392
+      },
+      "spread_usd_stats": {
+        "mean": 0.12760692698759668,
+        "median": 0.11733333333333333,
+        "min": 0.01,
+        "max": 1.345
+      },
+      "n_brokers_distribution": {
+        "4": 54165,
+        "3": 42881,
+        "2": 3599
+      }
+    },
+    "XAUUSD_M30_canonical": {
+      "file": "XAUUSD_M30_canonical.parquet",
+      "size_bytes": 2766639,
+      "bars": 76069,
+      "first_timestamp": "2020-01-02 01:00:00+00:00",
+      "last_timestamp": "2026-06-19 20:00:00+00:00",
+      "columns": [
+        "open",
+        "high",
+        "low",
+        "close",
+        "tick_volume",
+        "spread_usd",
+        "n_brokers",
+        "regime"
+      ],
+      "regime_distribution": {
+        "TREND_UP": 37449,
+        "TREND_DOWN": 29223,
+        "RANGE": 7127,
+        "VOLATILE": 2270
+      },
+      "spread_usd_stats": {
+        "mean": 0.12294821039670123,
+        "median": 0.11175,
+        "min": 0.01,
+        "max": 1.576
+      },
+      "n_brokers_distribution": {
+        "3": 38054,
+        "4": 27101,
+        "2": 10914
+      }
+    },
+    "XAUUSD_M5_canonical": {
+      "file": "XAUUSD_M5_canonical.parquet",
+      "size_bytes": 3651556,
+      "bars": 101092,
+      "first_timestamp": "2025-01-17 01:05:00+00:00",
+      "last_timestamp": "2026-06-19 19:55:00+00:00",
+      "columns": [
+        "open",
+        "high",
+        "low",
+        "close",
+        "tick_volume",
+        "spread_usd",
+        "n_brokers",
+        "regime"
+      ],
+      "regime_distribution": {
+        "TREND_UP": 46511,
+        "TREND_DOWN": 34703,
+        "RANGE": 18945,
+        "VOLATILE": 933
+      },
+      "spread_usd_stats": {
+        "mean": 0.17980613121381187,
+        "median": 0.14925,
+        "min": 0.06233333333333333,
+        "max": 1.48
+      },
+      "n_brokers_distribution": {
+        "4": 62292,
+        "3": 35660,
+        "2": 3140
+      }
+    }
+  },
+  "test_results": {
+    "preprocessing_tests": "17/17 PASSED",
+    "full_suite": "405/405 PASSED (388 existing + 17 new)",
+    "regressions": 0
+  },
+  "verdict": "PREPROCESSING_PIPELINE_VERIFIED"
+}
