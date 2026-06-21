@@ -1,0 +1,154 @@
+{
+  "target_ret_1": {
+    "TREND_UP": {
+      "n_samples": 12866,
+      "train_samples": 9006,
+      "test_samples": 3860,
+      "directional_accuracy": 0.694818652849741,
+      "roc_auc": 0.7504857801587674,
+      "information_coefficient": -0.4809709266953782,
+      "mutual_information": 0.11944776118035971
+    },
+    "TREND_DOWN": {
+      "n_samples": 10364,
+      "train_samples": 7254,
+      "test_samples": 3110,
+      "directional_accuracy": 0.6964630225080386,
+      "roc_auc": 0.7458038364096996,
+      "information_coefficient": -0.4727256956213897,
+      "mutual_information": 0.1205269058501548
+    },
+    "RANGE": {
+      "n_samples": 1816,
+      "train_samples": 1271,
+      "test_samples": 545,
+      "directional_accuracy": 0.6642201834862386,
+      "roc_auc": 0.7198965572975593,
+      "information_coefficient": -0.4532049558951429,
+      "mutual_information": 0.12173036587643882
+    },
+    "VOLATILE": {
+      "n_samples": 968,
+      "train_samples": 677,
+      "test_samples": 291,
+      "directional_accuracy": 0.6735395189003437,
+      "roc_auc": 0.7488647114474929,
+      "information_coefficient": -0.41348396741948257,
+      "mutual_information": 0.08754292599251867
+    }
+  },
+  "target_ret_5": {
+    "TREND_UP": {
+      "n_samples": 12866,
+      "train_samples": 9006,
+      "test_samples": 3860,
+      "directional_accuracy": 0.6751295336787565,
+      "roc_auc": 0.7509617445378187,
+      "information_coefficient": -0.4546367041355926,
+      "mutual_information": 0.15575381597138183
+    },
+    "TREND_DOWN": {
+      "n_samples": 10364,
+      "train_samples": 7254,
+      "test_samples": 3110,
+      "directional_accuracy": 0.6604501607717042,
+      "roc_auc": 0.7294425243456442,
+      "information_coefficient": -0.45725461680436463,
+      "mutual_information": 0.16019435806297233
+    },
+    "RANGE": {
+      "n_samples": 1816,
+      "train_samples": 1271,
+      "test_samples": 545,
+      "directional_accuracy": 0.6623853211009174,
+      "roc_auc": 0.7418380011871998,
+      "information_coefficient": -0.4600186556984908,
+      "mutual_information": 0.13497011703112083
+    },
+    "VOLATILE": {
+      "n_samples": 968,
+      "train_samples": 677,
+      "test_samples": 291,
+      "directional_accuracy": 0.6941580756013745,
+      "roc_auc": 0.7568985068985068,
+      "information_coefficient": -0.3569612660474088,
+      "mutual_information": 0.0871828159644994
+    }
+  },
+  "target_ret_15": {
+    "TREND_UP": {
+      "n_samples": 12866,
+      "train_samples": 9006,
+      "test_samples": 3860,
+      "directional_accuracy": 0.5880829015544041,
+      "roc_auc": 0.6343077153110048,
+      "information_coefficient": -0.2601645827548297,
+      "mutual_information": 0.06252221235189337
+    },
+    "TREND_DOWN": {
+      "n_samples": 10364,
+      "train_samples": 7254,
+      "test_samples": 3110,
+      "directional_accuracy": 0.5720257234726688,
+      "roc_auc": 0.6007375956219063,
+      "information_coefficient": -0.24881746670099678,
+      "mutual_information": 0.0
+    },
+    "RANGE": {
+      "n_samples": 1816,
+      "train_samples": 1271,
+      "test_samples": 545,
+      "directional_accuracy": 0.5064220183486239,
+      "roc_auc": 0.6191421548766982,
+      "information_coefficient": -0.27749134855156854,
+      "mutual_information": 0.05454130980381322
+    },
+    "VOLATILE": {
+      "n_samples": 968,
+      "train_samples": 677,
+      "test_samples": 291,
+      "directional_accuracy": 0.5738831615120275,
+      "roc_auc": 0.6280481927710845,
+      "information_coefficient": -0.20932808629559646,
+      "mutual_information": 0.04630787776927514
+    }
+  },
+  "target_ret_60": {
+    "TREND_UP": {
+      "n_samples": 12866,
+      "train_samples": 9006,
+      "test_samples": 3860,
+      "directional_accuracy": 0.5046632124352332,
+      "roc_auc": 0.6039006304436086,
+      "information_coefficient": -0.11952760659733348,
+      "mutual_information": 0.00470740759179078
+    },
+    "TREND_DOWN": {
+      "n_samples": 10364,
+      "train_samples": 7254,
+      "test_samples": 3110,
+      "directional_accuracy": 0.47459807073954985,
+      "roc_auc": 0.47754645493305914,
+      "information_coefficient": -0.11995911323640718,
+      "mutual_information": 0.0180974540771075
+    },
+    "RANGE": {
+      "n_samples": 1816,
+      "train_samples": 1271,
+      "test_samples": 545,
+      "directional_accuracy": 0.5082568807339449,
+      "roc_auc": 0.5760646900269542,
+      "information_coefficient": -0.1636762354499569,
+      "mutual_information": 0.007192703033933157
+    },
+    "VOLATILE": {
+      "n_samples": 968,
+      "train_samples": 677,
+      "test_samples": 291,
+      "directional_accuracy": 0.48109965635738833,
+      "roc_auc": 0.3235098393383401,
+      "information_coefficient": -0.08583249802127421,
+      "mutual_information": 0.004149257921953087
+    }
+  }
+}

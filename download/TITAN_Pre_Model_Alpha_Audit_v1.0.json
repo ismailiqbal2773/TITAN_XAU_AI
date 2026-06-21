@@ -1,0 +1,48 @@
+{
+  "audit_date": "2026-06-21T14:44:59.533154",
+  "specification": "CRITICAL_PRE_MODEL_AUDIT",
+  "target_audit": "PASSED - all 4 targets have signal",
+  "feature_predictability": "PASSED - 20+ features with meaningful IC",
+  "baseline_models": {
+    "best_model": "LightGBM",
+    "best_target": "target_ret_1",
+    "best_accuracy": 0.711,
+    "best_auc": 0.7819
+  },
+  "alpha_discovery": {
+    "best_target": "target_ret_1",
+    "best_regime": "TREND_UP",
+    "best_dir_acc": 0.6948,
+    "best_auc": 0.7505,
+    "best_ic": -0.481,
+    "alpha_combos": "12/16 target\u00d7regime combinations show ALPHA",
+    "no_alpha_combos": "4/16 (target_ret_60 all regimes + target_ret_15 RANGE)"
+  },
+  "pass_conditions": {
+    "dir_acc_gt_52": {
+      "actual": 0.7141,
+      "pass": true
+    },
+    "roc_auc_gt_52": {
+      "actual": 0.7819,
+      "pass": true
+    },
+    "ic_gt_003": {
+      "actual": 0.481,
+      "pass": true
+    },
+    "mi_gt_random": {
+      "actual": 0.16,
+      "random": 0.005,
+      "pass": true
+    }
+  },
+  "final_scores": {
+    "signal_strength": 55.38,
+    "feature_predictability": 79.86,
+    "dataset_alpha": 82.14,
+    "training_justification": 40.0,
+    "alpha_strength": 65.11
+  },
+  "verdict": "ALPHA_PRESENT_PROCEED_TO_HPO"
+}
