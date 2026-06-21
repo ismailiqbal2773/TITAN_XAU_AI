@@ -1,0 +1,109 @@
+{
+  "audit_type": "REAL_MT5_DATA_ACQUISITION",
+  "audit_date": "2026-06-21T08:03:20.866299",
+  "specification": "REAL_MT5_DATA_ACQUISITION",
+  "environment": {
+    "os": "Linux (5.10.134-013.8.3.kangaroo.al8.x86_64)",
+    "architecture": "x86_64",
+    "python_version": "3.12.13",
+    "is_windows": false,
+    "wine_available": false,
+    "mt5_terminal_binary_found": false
+  },
+  "mt5_python_package": {
+    "pypi_name": "MetaTrader5",
+    "pypi_version": "5.0.5735",
+    "pypi_platform": "Windows",
+    "linux_installable": false,
+    "pip_install_error": "No matching distribution found for MetaTrader5",
+    "import_error": "ModuleNotFoundError: No module named 'MetaTrader5'"
+  },
+  "project_mt5_setup": {
+    "real_mt5_module": "NOT INSTALLED (cannot install on Linux)",
+    "stub_module": "titan/mt5_stub.py (Linux development fallback)",
+    "stub_has_copy_rates_range": false,
+    "stub_has_copy_ticks_range": false,
+    "stub_only_supports": [
+      "initialize() \u2014 returns True (mock)",
+      "account_info() \u2014 returns hardcoded _AccountInfo",
+      "terminal_info() \u2014 returns hardcoded _TerminalInfo",
+      "symbol_info() \u2014 returns hardcoded _SymbolInfo",
+      "order_send() \u2014 returns hardcoded _OrderResult",
+      "positions_get() \u2014 returns empty list"
+    ],
+    "stub_cannot_download": [
+      "Historical bars (copy_rates_range)",
+      "Historical ticks (copy_ticks_range)",
+      "Real account data",
+      "Real symbol info",
+      "Real-time tick stream"
+    ]
+  },
+  "exness_api_check": {
+    "https://api.exness.com": "HTTP 404",
+    "https://exness.com/api": "HTTP 403",
+    "https://trade.exness.com/api": "ConnectionError",
+    "https://trading.exness.com": "ConnectionError",
+    "conclusion": "Exness provides NO public REST API for historical data. Data only accessible via Windows MT5 terminal client."
+  },
+  "existing_exness_data_on_disk": {
+    "path": "titan/data/sources/exness_mt5/daily/",
+    "file_count": 1299,
+    "source": "DERIVED from Dukascopy via scripts/real_data/broker_derivation.py",
+    "method": "Dukascopy interbank spread \u00d7 0.70 multiplier (price unchanged)",
+    "is_independently_acquired_from_mt5": false,
+    "violates_spec_requirement": true
+  },
+  "timeframe_availability": {
+    "M1": {
+      "available_via_mt5": false,
+      "available_via_stub": false,
+      "available_on_disk_derived": true,
+      "available_on_disk_real_mt5": false
+    },
+    "M5": {
+      "available_via_mt5": false,
+      "available_via_stub": false,
+      "available_on_disk": false
+    },
+    "M15": {
+      "available_via_mt5": false,
+      "available_via_stub": false,
+      "available_on_disk": false
+    },
+    "M30": {
+      "available_via_mt5": false,
+      "available_via_stub": false,
+      "available_on_disk": false
+    },
+    "H1": {
+      "available_via_mt5": false,
+      "available_via_stub": false,
+      "available_on_disk": false
+    }
+  },
+  "historical_events_verification": {
+    "COVID_2020": "CANNOT VERIFY \u2014 no MT5 data acquired",
+    "Ukraine_War_2022": "CANNOT VERIFY \u2014 no MT5 data acquired",
+    "SVB_Banking_2023": "CANNOT VERIFY \u2014 no MT5 data acquired",
+    "Gold_Rally_2024": "CANNOT VERIFY \u2014 no MT5 data acquired"
+  },
+  "spec_compliance": {
+    "do_not_use_synthetic_data": "PASS (no synthetic data created)",
+    "do_not_derive_from_dukascopy": "PASS (refused to use existing derived data)",
+    "do_not_estimate": "PASS (no estimates provided)",
+    "do_not_create_reports_without_evidence": "PASS (evidence shown for all claims)",
+    "do_not_train_models": "PASS",
+    "do_not_run_backtests": "PASS",
+    "do_not_run_validation": "PASS",
+    "only_prove_real_data_exists": "PASS"
+  },
+  "verdict": "DATA NOT AVAILABLE",
+  "rejection_reason": "MT5 terminal cannot run on Linux. No real MT5 data can be acquired in this environment. Exness broker has no public API. The 1,299 existing exness_mt5/*.parquet files are DERIVED from Dukascopy (violates spec requirement 'Do not derive data from Dukascopy'). Real MT5 data acquisition requires: Windows OS + MT5 terminal installed + Exness account login + Python MetaTrader5 package. None of these are available in current environment.",
+  "remediation_options": [
+    "OPTION A: Run this audit on a Windows machine with MT5 terminal installed and Exness account logged in",
+    "OPTION B: Provide Windows VPS with MT5 + Exness credentials, then re-run this audit",
+    "OPTION C: Provide an alternative Linux-accessible source for REAL Exness MT5 data (none currently known)",
+    "OPTION D: Accept that real MT5 data acquisition is not possible in this environment and proceed with Dukascopy-only baseline"
+  ]
+}

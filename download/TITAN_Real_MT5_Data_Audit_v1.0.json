@@ -1,0 +1,223 @@
+{
+  "audit_date": "2026-06-21T09:32:43.790105",
+  "specification": "REAL_MT5_DATA_ACQUISITION",
+  "source": "Exness MT5 (direct broker download)",
+  "verification": {
+    "initialize": true,
+    "account_info": {
+      "login": 44974666,
+      "server": "Exness-MT5Real3",
+      "company": "Exness Technologies Ltd",
+      "currency": "USD",
+      "leverage": 2000,
+      "balance": 0.65,
+      "equity": 0.65,
+      "trade_allowed": true
+    },
+    "terminal_info": {
+      "name": "MetaTrader 5",
+      "company": "MetaQuotes Ltd.",
+      "path": "C:\\Program Files\\MetaTrader 5",
+      "connected": true,
+      "trade_allowed": false
+    },
+    "symbol_select": true,
+    "symbol_info": {
+      "name": "XAUUSD",
+      "description": "Gold vs US Dollar",
+      "digits": 3,
+      "point": 0.001,
+      "spread": 0,
+      "trade_contract_size": 100.0
+    },
+    "broker_server": "Exness-MT5Real3",
+    "account_type": "real",
+    "trade_mode": 4,
+    "history_depth": {
+      "bars": 0,
+      "error": "no_history"
+    }
+  },
+  "data_files": {
+    "M1": {
+      "file_name": "XAUUSD_M1.parquet",
+      "file_size_bytes": 808215,
+      "file_size_mb": 0.771,
+      "sha256": "4ec954ea2c25484af8909652530c7ba86552817bcf4dbc0501143d0bed30860e",
+      "total_bars": 21924,
+      "first_timestamp": "2026-05-28 19:00:00+00:00",
+      "last_timestamp": "2026-06-19 16:59:00+00:00",
+      "unique_trading_days": 20,
+      "duplicate_rows": 0,
+      "weekend_rows": 356,
+      "spread_min": 90,
+      "spread_max": 260,
+      "spread_mean": 96.45,
+      "spread_median": 100.0,
+      "tick_volume_min": 15,
+      "tick_volume_max": 4310,
+      "tick_volume_mean": 244.5
+    },
+    "M5": {
+      "file_name": "XAUUSD_M5.parquet",
+      "file_size_bytes": 3782829,
+      "file_size_mb": 3.608,
+      "sha256": "ecd441041bc82cdc6e6563536ea0fdf971414e97220cd06d8a435b0bf89f2a3b",
+      "total_bars": 100000,
+      "first_timestamp": "2025-01-21 18:10:00+00:00",
+      "last_timestamp": "2026-06-19 16:55:00+00:00",
+      "unique_trading_days": 440,
+      "duplicate_rows": 0,
+      "weekend_rows": 1414,
+      "spread_min": 36,
+      "spread_max": 1633,
+      "spread_mean": 52.89,
+      "spread_median": 37.0,
+      "tick_volume_min": 7,
+      "tick_volume_max": 31809,
+      "tick_volume_mean": 1253.0
+    },
+    "M15": {
+      "file_name": "XAUUSD_M15.parquet",
+      "file_size_bytes": 3775790,
+      "file_size_mb": 3.601,
+      "sha256": "bf5b1f97101c89c85428cee34cf85f95ab844dbb0bf21ac2dd7f746785f11a48",
+      "total_bars": 100341,
+      "first_timestamp": "2022-03-22 00:00:00+00:00",
+      "last_timestamp": "2026-06-19 16:45:00+00:00",
+      "unique_trading_days": 1321,
+      "duplicate_rows": 0,
+      "weekend_rows": 1463,
+      "spread_min": 0,
+      "spread_max": 1633,
+      "spread_mean": 57.26,
+      "spread_median": 62.0,
+      "tick_volume_min": 4,
+      "tick_volume_max": 81924,
+      "tick_volume_mean": 2143.7
+    },
+    "M30": {
+      "file_name": "XAUUSD_M30.parquet",
+      "file_size_bytes": 2893172,
+      "file_size_mb": 2.759,
+      "sha256": "873037e039a6019e3d17652932f55ead91a596249839f46064b464ff220bb2e4",
+      "total_bars": 76389,
+      "first_timestamp": "2020-01-02 01:00:00+00:00",
+      "last_timestamp": "2026-06-19 16:30:00+00:00",
+      "unique_trading_days": 2010,
+      "duplicate_rows": 0,
+      "weekend_rows": 1103,
+      "spread_min": 0,
+      "spread_max": 1633,
+      "spread_mean": 73.89,
+      "spread_median": 62.0,
+      "tick_volume_min": 3,
+      "tick_volume_max": 144378,
+      "tick_volume_mean": 3521.6
+    },
+    "H1": {
+      "file_name": "XAUUSD_H1.parquet",
+      "file_size_bytes": 1500654,
+      "file_size_mb": 1.431,
+      "sha256": "4aa1e7ec3fbddce6e2fdab04268d19d59712e811e9b9b6cc2bce588f34c4ebc1",
+      "total_bars": 38215,
+      "first_timestamp": "2020-01-02 01:00:00+00:00",
+      "last_timestamp": "2026-06-19 16:00:00+00:00",
+      "unique_trading_days": 2010,
+      "duplicate_rows": 0,
+      "weekend_rows": 552,
+      "spread_min": 0,
+      "spread_max": 1162,
+      "spread_mean": 73.33,
+      "spread_median": 62.0,
+      "tick_volume_min": 3,
+      "tick_volume_max": 236713,
+      "tick_volume_mean": 7039.5
+    }
+  },
+  "real_data_verification": {
+    "method": "Cross-verified against independent Dukascopy data",
+    "samples_compared": 212,
+    "mean_absolute_difference_usd": 0.0581,
+    "mean_relative_difference_pct": 0.0029,
+    "verdict": "REAL_DATA_CONFIRMED \u2014 typical broker-to-broker variation"
+  },
+  "per_timeframe_coverage": {
+    "M1": {
+      "expected_trading_days": 1688,
+      "present_trading_days": 20,
+      "coverage_pct": 1.18,
+      "pass_95_pct": false,
+      "limitation_reason": "Exness MT5 M1 history limit (~21 days)"
+    },
+    "M5": {
+      "expected_trading_days": 1688,
+      "present_trading_days": 440,
+      "coverage_pct": 26.07,
+      "pass_95_pct": false,
+      "limitation_reason": "Exness MT5 M5 history limit (~17 months)"
+    },
+    "M15": {
+      "expected_trading_days": 1688,
+      "present_trading_days": 1321,
+      "coverage_pct": 78.26,
+      "pass_95_pct": false,
+      "limitation_reason": "Exness MT5 M15 history limit (~4 years)"
+    },
+    "M30": {
+      "expected_trading_days": 1688,
+      "present_trading_days": 2010,
+      "coverage_pct": 119.08,
+      "pass_95_pct": true,
+      "limitation_reason": "None \u2014 full coverage achieved"
+    },
+    "H1": {
+      "expected_trading_days": 1688,
+      "present_trading_days": 2010,
+      "coverage_pct": 119.08,
+      "pass_95_pct": true,
+      "limitation_reason": "None \u2014 full coverage achieved"
+    }
+  },
+  "historical_events_verification": {
+    "COVID_Crash_2020": {
+      "bars": 991,
+      "first_close": 1585.076,
+      "last_close": 1687.89,
+      "min_low": 1451.365,
+      "max_high": 1746.791,
+      "verified": true
+    },
+    "Ukraine_War_2022": {
+      "bars": 599,
+      "first_close": 1913.654,
+      "last_close": 1936.771,
+      "min_low": 1877.931,
+      "max_high": 2070.41,
+      "verified": true
+    },
+    "SVB_Banking_Crisis_2023": {
+      "bars": 413,
+      "first_close": 1813.365,
+      "last_close": 1969.445,
+      "min_low": 1809.44,
+      "max_high": 2009.786,
+      "verified": true
+    },
+    "Gold_Rally_2024": {
+      "bars": 4945,
+      "first_close": 2043.777,
+      "last_close": 2624.443,
+      "min_low": 2039.108,
+      "max_high": 2790.153,
+      "verified": true
+    }
+  },
+  "pass_conditions": {
+    "coverage_95_H1": true,
+    "coverage_95_M30": true,
+    "real_data_95": true,
+    "synthetic_0": true
+  },
+  "verdict": "REAL_MT5_DATA_VERIFIED"
+}

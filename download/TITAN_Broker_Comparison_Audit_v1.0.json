@@ -1,0 +1,130 @@
+{
+  "audit_date": "2026-06-21T10:14:38.663256",
+  "specification": "BROKER_DATA_COMPARISON_AUDIT",
+  "brokers": {
+    "exness": {
+      "broker": "Exness Technologies Ltd",
+      "server": "Exness-MT5Real3",
+      "login": 44974666,
+      "currency": "USD",
+      "leverage": 2000,
+      "balance": 0.65,
+      "account_type": "real",
+      "symbol_digits": 3,
+      "point_value": 0.001,
+      "data_source": "Direct MT5 download (mt5.copy_rates_range)"
+    },
+    "fundednext": {
+      "broker": "FundedNext Ltd",
+      "server": "FundedNext-Server 3",
+      "login": 34265693,
+      "currency": "USD",
+      "leverage": 100,
+      "balance": 6000.0,
+      "account_type": "demo",
+      "symbol_digits": 2,
+      "point_value": 0.01,
+      "data_source": "Direct MT5 download (mt5.copy_rates_range)"
+    }
+  },
+  "data_files": {
+    "exness": {
+      "M1": {
+        "file": "XAUUSD_M1.parquet",
+        "size_bytes": 808215,
+        "sha256": "4ec954ea2c25484af8909652530c7ba86552817bcf4dbc0501143d0bed30860e",
+        "bars": 21924,
+        "first_timestamp": "2026-05-28 19:00:00+00:00",
+        "last_timestamp": "2026-06-19 16:59:00+00:00"
+      },
+      "M5": {
+        "file": "XAUUSD_M5.parquet",
+        "size_bytes": 3782829,
+        "sha256": "ecd441041bc82cdc6e6563536ea0fdf971414e97220cd06d8a435b0bf89f2a3b",
+        "bars": 100000,
+        "first_timestamp": "2025-01-21 18:10:00+00:00",
+        "last_timestamp": "2026-06-19 16:55:00+00:00"
+      },
+      "M15": {
+        "file": "XAUUSD_M15.parquet",
+        "size_bytes": 3775790,
+        "sha256": "bf5b1f97101c89c85428cee34cf85f95ab844dbb0bf21ac2dd7f746785f11a48",
+        "bars": 100341,
+        "first_timestamp": "2022-03-22 00:00:00+00:00",
+        "last_timestamp": "2026-06-19 16:45:00+00:00"
+      },
+      "M30": {
+        "file": "XAUUSD_M30.parquet",
+        "size_bytes": 2893172,
+        "sha256": "873037e039a6019e3d17652932f55ead91a596249839f46064b464ff220bb2e4",
+        "bars": 76389,
+        "first_timestamp": "2020-01-02 01:00:00+00:00",
+        "last_timestamp": "2026-06-19 16:30:00+00:00"
+      },
+      "H1": {
+        "file": "XAUUSD_H1.parquet",
+        "size_bytes": 1500654,
+        "sha256": "4aa1e7ec3fbddce6e2fdab04268d19d59712e811e9b9b6cc2bce588f34c4ebc1",
+        "bars": 38215,
+        "first_timestamp": "2020-01-02 01:00:00+00:00",
+        "last_timestamp": "2026-06-19 16:00:00+00:00"
+      }
+    },
+    "fundednext": {
+      "M1": {
+        "file": "XAUUSD_M1.parquet",
+        "size_bytes": 654667,
+        "sha256": "bd12dc5c94751793f48f219b0cd957d20388c379a84f5cee151ed12c54aeed09",
+        "bars": 22141,
+        "first_timestamp": "2026-05-28 19:00:00+00:00",
+        "last_timestamp": "2026-06-19 20:00:00+00:00"
+      },
+      "M5": {
+        "file": "XAUUSD_M5.parquet",
+        "size_bytes": 3145180,
+        "sha256": "49ed4105685d75efe968a10f6da26e66f2c8b2f7fc8ebe851cc3edaf8e81533d",
+        "bars": 100863,
+        "first_timestamp": "2025-01-17 01:00:00+00:00",
+        "last_timestamp": "2026-06-19 20:00:00+00:00"
+      },
+      "M15": {
+        "file": "XAUUSD_M15.parquet",
+        "size_bytes": 1934176,
+        "sha256": "e5c3e0706e44d4aa7352af461ff212255a57ea2c2263a625c45eb65eff1b6280",
+        "bars": 57768,
+        "first_timestamp": "2024-01-01 21:00:00+00:00",
+        "last_timestamp": "2026-06-19 20:00:00+00:00"
+      },
+      "M30": {
+        "file": "XAUUSD_M30.parquet",
+        "size_bytes": 1049947,
+        "sha256": "43c1932363bf3c1b92d82fc78362106384a9880efef2b190dc4402fa1f36ba0f",
+        "bars": 28909,
+        "first_timestamp": "2024-01-01 21:00:00+00:00",
+        "last_timestamp": "2026-06-19 20:00:00+00:00"
+      },
+      "H1": {
+        "file": "XAUUSD_H1.parquet",
+        "size_bytes": 553111,
+        "sha256": "8b416964835ebc3c390ce57f48766cc86c917468c1ad2526a4f98809504907e7",
+        "bars": 14460,
+        "first_timestamp": "2024-01-01 21:00:00+00:00",
+        "last_timestamp": "2026-06-19 20:00:00+00:00"
+      }
+    }
+  },
+  "broker_comparison": {
+    "timeframe": "H1",
+    "matching_bars": 13604,
+    "mean_abs_close_diff_usd": 9.542694722140544,
+    "max_abs_close_diff_usd": 326.8149999999996,
+    "median_abs_close_diff_usd": 5.247499999999945,
+    "mean_close_diff_pct": 0.26645103563160705,
+    "mean_exness_spread_points": 51.99242869744193,
+    "mean_fundednext_spread_points": 25.413481329020875,
+    "spread_diff_points": 26.57894736842105,
+    "mean_exness_volume": 11715.69802999118,
+    "mean_fundednext_volume": 16326.63165245516
+  },
+  "verdict": "REAL_DATA_VERIFIED_FOR_BOTH_BROKERS"
+}

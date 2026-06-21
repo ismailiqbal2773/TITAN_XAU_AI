@@ -1,0 +1,36 @@
+{
+  "initialize": true,
+  "account_info": {
+    "login": 34265693,
+    "server": "FundedNext-Server 3",
+    "company": "FundedNext Ltd",
+    "currency": "USD",
+    "leverage": 100,
+    "balance": 6000.0,
+    "equity": 6000.0,
+    "trade_allowed": true
+  },
+  "terminal_info": {
+    "name": "MetaTrader 5",
+    "company": "MetaQuotes Ltd.",
+    "path": "C:\\Program Files\\MetaTrader 5",
+    "connected": true,
+    "trade_allowed": true
+  },
+  "symbol_select": true,
+  "symbol_info": {
+    "name": "XAUUSD",
+    "description": "Gold vs US-Dollar",
+    "digits": 2,
+    "point": 0.01,
+    "spread": 45,
+    "trade_contract_size": 100.0
+  },
+  "broker_server": "FundedNext-Server 3",
+  "account_type": "unknown",
+  "trade_mode": 4,
+  "history_depth": {
+    "bars": 0,
+    "error": "no_history"
+  }
+}

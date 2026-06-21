@@ -1,0 +1,36 @@
+{
+  "initialize": true,
+  "account_info": {
+    "login": 44974666,
+    "server": "Exness-MT5Real3",
+    "company": "Exness Technologies Ltd",
+    "currency": "USD",
+    "leverage": 2000,
+    "balance": 0.65,
+    "equity": 0.65,
+    "trade_allowed": true
+  },
+  "terminal_info": {
+    "name": "MetaTrader 5",
+    "company": "MetaQuotes Ltd.",
+    "path": "C:\\Program Files\\MetaTrader 5",
+    "connected": true,
+    "trade_allowed": false
+  },
+  "symbol_select": true,
+  "symbol_info": {
+    "name": "XAUUSD",
+    "description": "Gold vs US Dollar",
+    "digits": 3,
+    "point": 0.001,
+    "spread": 0,
+    "trade_contract_size": 100.0
+  },
+  "broker_server": "Exness-MT5Real3",
+  "account_type": "real",
+  "trade_mode": 4,
+  "history_depth": {
+    "bars": 0,
+    "error": "no_history"
+  }
+}

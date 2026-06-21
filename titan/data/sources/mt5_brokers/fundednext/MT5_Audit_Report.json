@@ -1,0 +1,425 @@
+{
+  "audit_date": "2026-06-21T15:08:01.002899",
+  "specification": "REAL_MT5_DATA_ACQUISITION",
+  "environment": {
+    "os": "nt",
+    "python_version": "3.13.5 (tags/v3.13.5:6cb20a2, Jun 11 2025, 16:15:46) [MSC v.1943 64 bit (AMD64)]",
+    "mt5_version": "5.0.5735"
+  },
+  "verification": {
+    "initialize": true,
+    "account_info": {
+      "login": 34265693,
+      "server": "FundedNext-Server 3",
+      "company": "FundedNext Ltd",
+      "currency": "USD",
+      "leverage": 100,
+      "balance": 6000.0,
+      "equity": 6000.0,
+      "trade_allowed": true
+    },
+    "terminal_info": {
+      "name": "MetaTrader 5",
+      "company": "MetaQuotes Ltd.",
+      "path": "C:\\Program Files\\MetaTrader 5",
+      "connected": true,
+      "trade_allowed": true
+    },
+    "symbol_select": true,
+    "symbol_info": {
+      "name": "XAUUSD",
+      "description": "Gold vs US-Dollar",
+      "digits": 2,
+      "point": 0.01,
+      "spread": 45,
+      "trade_contract_size": 100.0
+    },
+    "broker_server": "FundedNext-Server 3",
+    "account_type": "unknown",
+    "trade_mode": 4,
+    "history_depth": {
+      "bars": 0,
+      "error": "no_history"
+    }
+  },
+  "download_results": {
+    "M1": {
+      "timeframe": "M1",
+      "file": "titan_mt5_data_fundednext\\XAUUSD_M1.parquet",
+      "bars": 22141,
+      "first_timestamp": "2026-05-28 19:00:00+00:00",
+      "last_timestamp": "2026-06-19 20:00:00+00:00",
+      "duplicates": 0,
+      "file_size_bytes": 654667,
+      "file_size_mb": 0.62,
+      "sha256": "bd12dc5c94751793f48f219b0cd957d20388c379a84f5cee151ed12c54aeed09",
+      "elapsed_s": 0.34
+    },
+    "M5": {
+      "timeframe": "M5",
+      "file": "titan_mt5_data_fundednext\\XAUUSD_M5.parquet",
+      "bars": 100863,
+      "first_timestamp": "2025-01-17 01:00:00+00:00",
+      "last_timestamp": "2026-06-19 20:00:00+00:00",
+      "duplicates": 24,
+      "file_size_bytes": 3145180,
+      "file_size_mb": 3.0,
+      "sha256": "49ed4105685d75efe968a10f6da26e66f2c8b2f7fc8ebe851cc3edaf8e81533d",
+      "elapsed_s": 55.02
+    },
+    "M15": {
+      "timeframe": "M15",
+      "file": "titan_mt5_data_fundednext\\XAUUSD_M15.parquet",
+      "bars": 57768,
+      "first_timestamp": "2024-01-01 21:00:00+00:00",
+      "last_timestamp": "2026-06-19 20:00:00+00:00",
+      "duplicates": 23,
+      "file_size_bytes": 1934176,
+      "file_size_mb": 1.84,
+      "sha256": "e5c3e0706e44d4aa7352af461ff212255a57ea2c2263a625c45eb65eff1b6280",
+      "elapsed_s": 37.24
+    },
+    "M30": {
+      "timeframe": "M30",
+      "file": "titan_mt5_data_fundednext\\XAUUSD_M30.parquet",
+      "bars": 28909,
+      "first_timestamp": "2024-01-01 21:00:00+00:00",
+      "last_timestamp": "2026-06-19 20:00:00+00:00",
+      "duplicates": 23,
+      "file_size_bytes": 1049947,
+      "file_size_mb": 1.0,
+      "sha256": "43c1932363bf3c1b92d82fc78362106384a9880efef2b190dc4402fa1f36ba0f",
+      "elapsed_s": 0.37
+    },
+    "H1": {
+      "timeframe": "H1",
+      "file": "titan_mt5_data_fundednext\\XAUUSD_H1.parquet",
+      "bars": 14460,
+      "first_timestamp": "2024-01-01 21:00:00+00:00",
+      "last_timestamp": "2026-06-19 20:00:00+00:00",
+      "duplicates": 23,
+      "file_size_bytes": 553111,
+      "file_size_mb": 0.53,
+      "sha256": "8b416964835ebc3c390ce57f48766cc86c917468c1ad2526a4f98809504907e7",
+      "elapsed_s": 0.13
+    }
+  },
+  "audit_results": {
+    "M1": {
+      "timeframe": "M1",
+      "total_bars": 22141,
+      "first_timestamp": "2026-05-28 19:00:00+00:00",
+      "last_timestamp": "2026-06-19 20:00:00+00:00",
+      "coverage_pct": 1.01,
+      "expected_trading_days": 1688,
+      "present_trading_days": 17,
+      "missing_days_count": 1671,
+      "missing_days_sample": [
+        "2020-01-01",
+        "2020-01-02",
+        "2020-01-03",
+        "2020-01-06",
+        "2020-01-07",
+        "2020-01-08",
+        "2020-01-09",
+        "2020-01-10",
+        "2020-01-13",
+        "2020-01-14",
+        "2020-01-15",
+        "2020-01-16",
+        "2020-01-17",
+        "2020-01-20",
+        "2020-01-21",
+        "2020-01-22",
+        "2020-01-23",
+        "2020-01-24",
+        "2020-01-27",
+        "2020-01-28"
+      ],
+      "weekend_rows": 0,
+      "duplicate_rows": 0,
+      "spread_statistics": {
+        "min": 45.0,
+        "max": 195.0,
+        "mean": 54.97484305135269,
+        "median": 50.0,
+        "std": 16.46043268155851
+      },
+      "historical_events": {
+        "COVID_2020": {
+          "bars": 0,
+          "error": "no_data_in_range"
+        },
+        "Ukraine_War_2022": {
+          "bars": 0,
+          "error": "no_data_in_range"
+        },
+        "SVB_Banking_2023": {
+          "bars": 0,
+          "error": "no_data_in_range"
+        },
+        "Gold_Rally_2024": {
+          "bars": 0,
+          "error": "no_data_in_range"
+        }
+      }
+    },
+    "M5": {
+      "timeframe": "M5",
+      "total_bars": 100863,
+      "first_timestamp": "2025-01-17 01:00:00+00:00",
+      "last_timestamp": "2026-06-19 20:00:00+00:00",
+      "coverage_pct": 21.74,
+      "expected_trading_days": 1688,
+      "present_trading_days": 367,
+      "missing_days_count": 1321,
+      "missing_days_sample": [
+        "2020-01-01",
+        "2020-01-02",
+        "2020-01-03",
+        "2020-01-06",
+        "2020-01-07",
+        "2020-01-08",
+        "2020-01-09",
+        "2020-01-10",
+        "2020-01-13",
+        "2020-01-14",
+        "2020-01-15",
+        "2020-01-16",
+        "2020-01-17",
+        "2020-01-20",
+        "2020-01-21",
+        "2020-01-22",
+        "2020-01-23",
+        "2020-01-24",
+        "2020-01-27",
+        "2020-01-28"
+      ],
+      "weekend_rows": 0,
+      "duplicate_rows": 0,
+      "spread_statistics": {
+        "min": 0.0,
+        "max": 286.0,
+        "mean": 36.2957080396181,
+        "median": 28.0,
+        "std": 19.881987645353046
+      },
+      "historical_events": {
+        "COVID_2020": {
+          "bars": 0,
+          "error": "no_data_in_range"
+        },
+        "Ukraine_War_2022": {
+          "bars": 0,
+          "error": "no_data_in_range"
+        },
+        "SVB_Banking_2023": {
+          "bars": 0,
+          "error": "no_data_in_range"
+        },
+        "Gold_Rally_2024": {
+          "bars": 0,
+          "error": "no_data_in_range"
+        }
+      }
+    },
+    "M15": {
+      "timeframe": "M15",
+      "total_bars": 57768,
+      "first_timestamp": "2024-01-01 21:00:00+00:00",
+      "last_timestamp": "2026-06-19 20:00:00+00:00",
+      "coverage_pct": 37.8,
+      "expected_trading_days": 1688,
+      "present_trading_days": 638,
+      "missing_days_count": 1050,
+      "missing_days_sample": [
+        "2020-01-01",
+        "2020-01-02",
+        "2020-01-03",
+        "2020-01-06",
+        "2020-01-07",
+        "2020-01-08",
+        "2020-01-09",
+        "2020-01-10",
+        "2020-01-13",
+        "2020-01-14",
+        "2020-01-15",
+        "2020-01-16",
+        "2020-01-17",
+        "2020-01-20",
+        "2020-01-21",
+        "2020-01-22",
+        "2020-01-23",
+        "2020-01-24",
+        "2020-01-27",
+        "2020-01-28"
+      ],
+      "weekend_rows": 0,
+      "duplicate_rows": 0,
+      "spread_statistics": {
+        "min": 0.0,
+        "max": 259.0,
+        "mean": 26.647642293311176,
+        "median": 22.0,
+        "std": 18.663933753724155
+      },
+      "historical_events": {
+        "COVID_2020": {
+          "bars": 0,
+          "error": "no_data_in_range"
+        },
+        "Ukraine_War_2022": {
+          "bars": 0,
+          "error": "no_data_in_range"
+        },
+        "SVB_Banking_2023": {
+          "bars": 0,
+          "error": "no_data_in_range"
+        },
+        "Gold_Rally_2024": {
+          "bars": 19368,
+          "first_close": 2043.78,
+          "last_close": 2624.19,
+          "min_low": 2038.98,
+          "max_high": 2790.08,
+          "first_ts": "2024-03-01 01:00:00+00:00",
+          "last_ts": "2024-12-31 23:45:00+00:00"
+        }
+      }
+    },
+    "M30": {
+      "timeframe": "M30",
+      "total_bars": 28909,
+      "first_timestamp": "2024-01-01 21:00:00+00:00",
+      "last_timestamp": "2026-06-19 20:00:00+00:00",
+      "coverage_pct": 37.8,
+      "expected_trading_days": 1688,
+      "present_trading_days": 638,
+      "missing_days_count": 1050,
+      "missing_days_sample": [
+        "2020-01-01",
+        "2020-01-02",
+        "2020-01-03",
+        "2020-01-06",
+        "2020-01-07",
+        "2020-01-08",
+        "2020-01-09",
+        "2020-01-10",
+        "2020-01-13",
+        "2020-01-14",
+        "2020-01-15",
+        "2020-01-16",
+        "2020-01-17",
+        "2020-01-20",
+        "2020-01-21",
+        "2020-01-22",
+        "2020-01-23",
+        "2020-01-24",
+        "2020-01-27",
+        "2020-01-28"
+      ],
+      "weekend_rows": 0,
+      "duplicate_rows": 0,
+      "spread_statistics": {
+        "min": 0.0,
+        "max": 137.0,
+        "mean": 26.107440589435814,
+        "median": 21.0,
+        "std": 18.427345177241616
+      },
+      "historical_events": {
+        "COVID_2020": {
+          "bars": 0,
+          "error": "no_data_in_range"
+        },
+        "Ukraine_War_2022": {
+          "bars": 0,
+          "error": "no_data_in_range"
+        },
+        "SVB_Banking_2023": {
+          "bars": 0,
+          "error": "no_data_in_range"
+        },
+        "Gold_Rally_2024": {
+          "bars": 9696,
+          "first_close": 2043.4,
+          "last_close": 2624.19,
+          "min_low": 2038.98,
+          "max_high": 2790.08,
+          "first_ts": "2024-03-01 01:00:00+00:00",
+          "last_ts": "2024-12-31 23:30:00+00:00"
+        }
+      }
+    },
+    "H1": {
+      "timeframe": "H1",
+      "total_bars": 14460,
+      "first_timestamp": "2024-01-01 21:00:00+00:00",
+      "last_timestamp": "2026-06-19 20:00:00+00:00",
+      "coverage_pct": 37.8,
+      "expected_trading_days": 1688,
+      "present_trading_days": 638,
+      "missing_days_count": 1050,
+      "missing_days_sample": [
+        "2020-01-01",
+        "2020-01-02",
+        "2020-01-03",
+        "2020-01-06",
+        "2020-01-07",
+        "2020-01-08",
+        "2020-01-09",
+        "2020-01-10",
+        "2020-01-13",
+        "2020-01-14",
+        "2020-01-15",
+        "2020-01-16",
+        "2020-01-17",
+        "2020-01-20",
+        "2020-01-21",
+        "2020-01-22",
+        "2020-01-23",
+        "2020-01-24",
+        "2020-01-27",
+        "2020-01-28"
+      ],
+      "weekend_rows": 0,
+      "duplicate_rows": 0,
+      "spread_statistics": {
+        "min": 0.0,
+        "max": 137.0,
+        "mean": 25.53374827109267,
+        "median": 21.0,
+        "std": 18.2029360134731
+      },
+      "historical_events": {
+        "COVID_2020": {
+          "bars": 0,
+          "error": "no_data_in_range"
+        },
+        "Ukraine_War_2022": {
+          "bars": 0,
+          "error": "no_data_in_range"
+        },
+        "SVB_Banking_2023": {
+          "bars": 0,
+          "error": "no_data_in_range"
+        },
+        "Gold_Rally_2024": {
+          "bars": 4850,
+          "first_close": 2043.67,
+          "last_close": 2624.19,
+          "min_low": 2038.98,
+          "max_high": 2790.08,
+          "first_ts": "2024-03-01 01:00:00+00:00",
+          "last_ts": "2024-12-31 23:00:00+00:00"
+        }
+      }
+    }
+  },
+  "pass_conditions": {
+    "coverage_95": false,
+    "real_data_95": true,
+    "synthetic_0": true
+  },
+  "verdict": "DATA_REJECTED"
+}
