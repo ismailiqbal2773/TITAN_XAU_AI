@@ -252,7 +252,7 @@ class FeaturePipeline:
         X_valid = X.notna().all(axis=1)
         y_series = y["target_ret_1"] if hasattr(y, "columns") else y
         y_valid = y_series.notna()
-        valid_mask = X_valid valid_mask = X_valid & y_valid.values y_valid
+        valid_mask = X_valid & y_valid
         n_dropped = int(len(X) - valid_mask.sum())
         X = X[valid_mask].copy()
         y = y_series[valid_mask].copy()
