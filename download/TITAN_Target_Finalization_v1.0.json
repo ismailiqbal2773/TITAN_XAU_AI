@@ -1,0 +1,53 @@
+{
+  "audit_date": "2026-06-21T15:15:18.841821",
+  "specification": "PRE_HPO_TARGET_FINALIZATION",
+  "excluded_target": "target_ret_60 (NO ALPHA in any regime \u2014 removed from training universe)",
+  "removal_method": "NON_INVASIVE (kept in storage, excluded from training)",
+  "training_universe": [
+    "target_ret_1",
+    "target_ret_5",
+    "target_ret_15"
+  ],
+  "primary_target": {
+    "name": "target_ret_1",
+    "horizon": "1 bar (1h on H1)",
+    "auc": 0.7819,
+    "accuracy": 0.7141,
+    "ic": -0.481,
+    "regimes_with_alpha": "4/4",
+    "rank_score": 64.19,
+    "tradability": 63.54
+  },
+  "secondary_target": {
+    "name": "target_ret_5",
+    "horizon": "5 bars (5h on H1)",
+    "auc": 0.7756,
+    "accuracy": 0.699,
+    "ic": -0.4573,
+    "regimes_with_alpha": "4/4",
+    "rank_score": 62.2,
+    "tradability": 62.07
+  },
+  "tertiary_target": {
+    "name": "target_ret_15",
+    "horizon": "15 bars (15h on H1)",
+    "auc": 0.646,
+    "accuracy": 0.5893,
+    "ic": -0.2602,
+    "regimes_with_alpha": "3/4 (RANGE has no alpha)",
+    "rank_score": 36.92,
+    "tradability": 36.875
+  },
+  "transaction_cost_analysis": {
+    "avg_spread_usd": 0.132,
+    "avg_price_usd": 2376.92,
+    "spread_pct_of_price": 0.0056,
+    "tc_sensitivity": "LOW (negligible for all targets)",
+    "note": "4-broker median spread is extremely tight (IC Markets raw spread dominates)"
+  },
+  "scores": {
+    "average_target_ranking_score": 54.44,
+    "average_tradability_score": 54.16
+  },
+  "verdict": "TARGETS_FINALIZED"
+}

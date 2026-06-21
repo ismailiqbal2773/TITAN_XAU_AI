@@ -1,0 +1,33 @@
+{
+  "audit_date": "2026-06-21T15:13:53.936609",
+  "specification": "PRE_HPO_TARGET_FINALIZATION",
+  "target_ret_60_references": [
+    "titan/tests/test_training.py:256:        assert \"target_ret_60\" in fs.target_names",
+    "scripts/pretraining_audit/build_pdf.py:586:            [\"target_ret_60\", \"0.0998\", \"dow_cos\",       \"PASS\"],",
+    "scripts/pretraining_audit/build_pdf.py:680:            [\"target_ret_60\", \"60 bars\",\"Continuous return\",  \"Ensemble vote\",  \"PASS\"],"
+  ],
+  "reference_count": 3,
+  "categorized_references": {
+    "tests": 1,
+    "scripts_docs": 2,
+    "production_code": 0,
+    "configs": 0
+  },
+  "impact_analysis": {
+    "architect_feature_engine": "TargetConfig.horizons=[1,5,15,60] \u2014 keep as-is (non-invasive)",
+    "feature_parquets": "12 files have target_ret_60 column \u2014 keep (no regeneration)",
+    "models": "No code changes \u2014 caller selects target",
+    "ensemble_voter_hpo": "purge=60 stays conservative (max horizon now 15)",
+    "tests": "1 assertion \u2014 keep (target still generated)",
+    "scripts": "2 report references \u2014 cosmetic only"
+  },
+  "decision": "NON_INVASIVE_REMOVAL \u2014 exclude from training, keep in storage",
+  "training_universe": [
+    "target_ret_1",
+    "target_ret_5",
+    "target_ret_15"
+  ],
+  "excluded": [
+    "target_ret_60"
+  ]
+}
