@@ -1,0 +1,193 @@
+{
+  "report_date": "2026-06-21T23:49:30.522730",
+  "phase": "PHASE 1 \u2014 HPO + Base Model Training",
+  "stages": {
+    "stage1_xgboost": {
+      "target": "target_ret_1",
+      "n_trials": 50,
+      "best_params": {
+        "max_depth": 7,
+        "learning_rate": 0.01754437325582038,
+        "n_estimators": 397,
+        "min_child_weight": 8,
+        "subsample": 0.701658452801246,
+        "colsample_bytree": 0.9499344093981201,
+        "gamma": 1.9823473339113495,
+        "reg_alpha": 3.9714805450621133,
+        "reg_lambda": 3.654054581623276
+      },
+      "train_auc": 0.8622380772479622,
+      "val_auc": 0.7941000536925208,
+      "test_auc": 0.7884637238097202,
+      "train_acc": 0.7758514645959868,
+      "val_acc": 0.7275204359673024,
+      "test_acc": 0.7138964577656676,
+      "overfit_ratio": 0.07902460509853625,
+      "feature_importance_top10": [
+        [
+          "close_pos_in_range",
+          0.20268304646015167
+        ],
+        [
+          "lower_wick_ratio",
+          0.07450680434703827
+        ],
+        [
+          "upper_wick_ratio",
+          0.05716681107878685
+        ],
+        [
+          "n_brokers",
+          0.03491463139653206
+        ],
+        [
+          "ret_1",
+          0.018767695873975754
+        ],
+        [
+          "month_cos",
+          0.01840299181640148
+        ],
+        [
+          "us_session",
+          0.016313692554831505
+        ],
+        [
+          "hl_range",
+          0.015741199254989624
+        ],
+        [
+          "body_dir",
+          0.01457854826003313
+        ],
+        [
+          "hour_cos",
+          0.014190321788191795
+        ]
+      ],
+      "calibration": {
+        "brier_score": 0.1883903542358108,
+        "calibration_error": 0.029582825724678234,
+        "mean_confidence": 45.63916778564453
+      },
+      "pass": true
+    },
+    "stage2_lightgbm": {
+      "target": "target_ret_5",
+      "n_trials": 50,
+      "best_params": {
+        "max_depth": 5,
+        "learning_rate": 0.020319885111511612,
+        "n_estimators": 219,
+        "num_leaves": 119,
+        "min_child_samples": 35,
+        "subsample": 0.9256267718903197,
+        "colsample_bytree": 0.6878432609386003,
+        "reg_alpha": 7.836202671569548,
+        "reg_lambda": 0.750212036858442
+      },
+      "train_auc": 0.7961997726558326,
+      "val_auc": 0.7751455537726886,
+      "test_auc": 0.7811106714048985,
+      "train_acc": 0.714730529714769,
+      "val_acc": 0.6975476839237057,
+      "test_acc": 0.7024523160762943,
+      "overfit_ratio": 0.026443387207854708,
+      "calibration": {
+        "brier_score": 0.19123655595729014,
+        "calibration_error": 0.041091441562066136,
+        "mean_confidence": 41.1221433461622
+      },
+      "pass": true
+    },
+    "stage3_lstm": {
+      "target": "target_ret_15",
+      "n_trials": 30,
+      "best_params": {
+        "hidden_size": 85,
+        "num_layers": 3,
+        "dropout": 0.138715857669238,
+        "lr": 0.0005853128620194915,
+        "batch_size": 128
+      },
+      "train_auc": 0.6645466750384554,
+      "val_auc": 0.6630773888137136,
+      "test_auc": 0.6320913277934275,
+      "train_acc": 0.6151687552856154,
+      "val_acc": 0.6306993642143506,
+      "test_acc": 0.5900090826521345,
+      "overfit_ratio": 0.002210960162665515,
+      "pytorch_version": "2.2.2+cpu",
+      "calibration": {
+        "brier_score": 0.23530266040823858,
+        "mean_confidence": 24.766109466552734
+      },
+      "pass": true
+    },
+    "stage4_transformer": {
+      "target": "regime_next (4 classes)",
+      "n_trials": 30,
+      "best_params": {
+        "d_model": 64,
+        "nhead": 4,
+        "num_layers": 4,
+        "lr": 0.0007159229054314485,
+        "batch_size": 64,
+        "dropout": 0.2972550251146772
+      },
+      "train_auc": 0.9977973531898154,
+      "val_auc": 0.9929547658690756,
+      "test_auc": 0.9791426056778417,
+      "train_acc": 0.9729124864948294,
+      "val_acc": 0.9474835886214442,
+      "test_acc": 0.900072939460248,
+      "calibration": {
+        "brier_score": 0.0408938185538716,
+        "mean_confidence": 95.68479919433594
+      },
+      "pass": true
+    },
+    "stage5_calibration": {
+      "xgboost": {
+        "brier": 0.1883903542358108,
+        "cal_error": 0.029582825724678234
+      },
+      "lightgbm": {
+        "brier": 0.19123655595729014,
+        "cal_error": 0.041091441562066136
+      },
+      "lstm": {
+        "brier": 0.23530266040823858
+      },
+      "transformer": {
+        "brier": 0.0408938185538716
+      }
+    }
+  },
+  "summary": {
+    "xgboost": {
+      "target": "target_ret_1",
+      "val_auc": 0.7941000536925208,
+      "test_auc": 0.7884637238097202,
+      "pass": true
+    },
+    "lightgbm": {
+      "target": "target_ret_5",
+      "val_auc": 0.7751455537726886,
+      "test_auc": 0.7811106714048985,
+      "pass": true
+    },
+    "lstm": {
+      "target": "target_ret_15",
+      "val_auc": 0.6630773888137136,
+      "test_auc": 0.6320913277934275,
+      "pass": true
+    },
+    "transformer": {
+      "target": "regime_next",
+      "val_auc": 0.9929547658690756,
+      "test_auc": 0.9791426056778417,
+      "pass": true
+    }
+  }
+}
