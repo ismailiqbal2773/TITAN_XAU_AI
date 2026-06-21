@@ -1,0 +1,217 @@
+{
+  "audit_date": "2026-06-21T18:35:55.158446",
+  "specification": "PRE_HPO_OBJECTIVE_AUDIT",
+  "objectives_evaluated": [
+    "accuracy",
+    "f1",
+    "auc",
+    "ic",
+    "sharpe",
+    "profit_factor",
+    "calmar"
+  ],
+  "split_results": {
+    "accuracy": {
+      "in_sample": 0.7082111436950147,
+      "validation": 0.7177242888402626,
+      "out_of_sample": 0.7109773887673231
+    },
+    "f1": {
+      "in_sample": 0.7177094221293117,
+      "validation": 0.7348406988694759,
+      "out_of_sample": 0.7179213383164265
+    },
+    "auc": {
+      "in_sample": 0.7765178556475609,
+      "validation": 0.7797071019010238,
+      "out_of_sample": 0.7761113662427901
+    },
+    "ic": {
+      "in_sample": 0.5576293790174095,
+      "validation": 0.5639484233762759,
+      "out_of_sample": 0.5480447097194364
+    },
+    "sharpe": {
+      "in_sample": 34.51483469206878,
+      "validation": 37.27872676286988,
+      "out_of_sample": 32.64442386410362
+    },
+    "profit_factor": {
+      "in_sample": 4.461312524120503,
+      "validation": 4.6788842968574915,
+      "out_of_sample": 4.251430665898827
+    },
+    "calmar": {
+      "in_sample": 179.24003876855414,
+      "validation": 222.6220341170715,
+      "out_of_sample": 273.02797746441826
+    }
+  },
+  "yearly_results": {
+    "accuracy": {
+      "2020": 0.70184150631078,
+      "2021": 0.7069460875443637,
+      "2022": 0.7115124915597569,
+      "2023": 0.6955932203389831,
+      "2024": 0.7268707482993197,
+      "2025": 0.7158451304792768,
+      "2026": 0.7092722571111932
+    },
+    "f1": {
+      "2020": 0.7178382612101037,
+      "2021": 0.7108072048032021,
+      "2022": 0.7145481877401035,
+      "2023": 0.7060556464811784,
+      "2024": 0.7454833597464342,
+      "2025": 0.7303334412431207,
+      "2026": 0.7084105224157096
+    },
+    "auc": {
+      "2020": 0.7671572000709767,
+      "2021": 0.7759602168535666,
+      "2022": 0.7819026418552485,
+      "2023": 0.7667449029133186,
+      "2024": 0.7889641591635201,
+      "2025": 0.7799062253617962,
+      "2026": 0.7759279034927956
+    },
+    "ic": {
+      "2020": 0.532707906175623,
+      "2021": 0.561956920913574,
+      "2022": 0.5695866566895043,
+      "2023": 0.551483928510851,
+      "2024": 0.5792198967115078,
+      "2025": 0.5618101997610788,
+      "2026": 0.541801740934516
+    },
+    "sharpe": {
+      "2020": 33.40482155749635,
+      "2021": 34.83031968219598,
+      "2022": 36.208360809859016,
+      "2023": 34.046874938243256,
+      "2024": 38.20110608778867,
+      "2025": 37.579201069595115,
+      "2026": 31.787958751992917
+    },
+    "profit_factor": {
+      "2020": 4.01223356325861,
+      "2021": 4.512825105234706,
+      "2022": 4.6469821330769925,
+      "2023": 4.478624432472291,
+      "2024": 4.973860689427002,
+      "2025": 4.584262187464924,
+      "2026": 4.046894611315398
+    },
+    "calmar": {
+      "2020": 218.17057508735934,
+      "2021": 497.4037818336107,
+      "2022": 435.26315767687373,
+      "2023": 282.1469884283716,
+      "2024": 314.6498028780899,
+      "2025": 251.32088493311653,
+      "2026": 329.89697946631867
+    }
+  },
+  "ranking": [
+    {
+      "objective": "auc",
+      "in_sample": 0.7765178556475609,
+      "validation": 0.7797071019010238,
+      "out_of_sample": 0.7761113662427901,
+      "oos_is_ratio": 0.9994765227846154,
+      "yearly_std": 0.007358699068210996,
+      "direction_stable": true,
+      "overfit": true,
+      "stable": "True",
+      "verdict": "PASS",
+      "robustness_score": 69.1779064205011
+    },
+    {
+      "objective": "accuracy",
+      "in_sample": 0.7082111436950147,
+      "validation": 0.7177242888402626,
+      "out_of_sample": 0.7109773887673231,
+      "oos_is_ratio": 1.0039059609509613,
+      "yearly_std": 0.009292135349534993,
+      "direction_stable": true,
+      "overfit": true,
+      "stable": "True",
+      "verdict": "PASS",
+      "robustness_score": 64.63453711073775
+    },
+    {
+      "objective": "sharpe",
+      "in_sample": 34.51483469206878,
+      "validation": 37.27872676286988,
+      "out_of_sample": 32.64442386410362,
+      "oos_is_ratio": 0.9458084952556657,
+      "yearly_std": 2.1380375743348834,
+      "direction_stable": true,
+      "overfit": true,
+      "stable": "True",
+      "verdict": "PASS",
+      "robustness_score": 64.6095487537936
+    },
+    {
+      "objective": "profit_factor",
+      "in_sample": 4.461312524120503,
+      "validation": 4.6788842968574915,
+      "out_of_sample": 4.251430665898827,
+      "oos_is_ratio": 0.9529551321305265,
+      "yearly_std": 0.313633664581717,
+      "direction_stable": true,
+      "overfit": true,
+      "stable": "True",
+      "verdict": "PASS",
+      "robustness_score": 62.04567984283663
+    },
+    {
+      "objective": "f1",
+      "in_sample": 0.7177094221293117,
+      "validation": 0.7348406988694759,
+      "out_of_sample": 0.7179213383164265,
+      "oos_is_ratio": 1.000295267388975,
+      "yearly_std": 0.013080881725841336,
+      "direction_stable": true,
+      "overfit": true,
+      "stable": "True",
+      "verdict": "PASS",
+      "robustness_score": 57.77918307052235
+    },
+    {
+      "objective": "ic",
+      "in_sample": 0.5576293790174095,
+      "validation": 0.5639484233762759,
+      "out_of_sample": 0.5480447097194364,
+      "oos_is_ratio": 0.982811756950715,
+      "yearly_std": 0.014886955054586766,
+      "direction_stable": true,
+      "overfit": true,
+      "stable": "True",
+      "verdict": "PASS",
+      "robustness_score": 50.788441280969465
+    },
+    {
+      "objective": "calmar",
+      "in_sample": 179.24003876855414,
+      "validation": 222.6220341170715,
+      "out_of_sample": 273.02797746441826,
+      "oos_is_ratio": 1.5232532828056844,
+      "yearly_std": 92.7942114845194,
+      "direction_stable": true,
+      "overfit": false,
+      "stable": "False",
+      "verdict": "FAIL",
+      "robustness_score": 25.441157703096124
+    }
+  ],
+  "recommended_objective": "auc",
+  "reason": [
+    "Lowest yearly std (0.0074)",
+    "Perfect OOS/IS ratio (0.9995)",
+    "Threshold-independent (doesn't depend on 0.5 cutoff)",
+    "Standard metric in quantitative finance HPO",
+    "Captures ranking quality for long/short signals"
+  ],
+  "pass_condition_met": true
+}
