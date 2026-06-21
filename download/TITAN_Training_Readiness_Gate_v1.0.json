@@ -1,0 +1,104 @@
+{
+  "audit_date": "2026-06-21T13:02:45.995378",
+  "specification": "FINAL_DATA_TRAINING_READINESS_GATE",
+  "mode": "READ_ONLY",
+  "step_1_canonical_verification": {
+    "all_4_brokers_merged": true,
+    "duplicate_timestamps": 0,
+    "trading_days_present": 1669,
+    "trading_days_expected": 1688,
+    "missing_days": 19,
+    "coverage_pct": 98.87,
+    "missing_days_are_market_holidays": true,
+    "regime_distribution": {
+      "TREND_UP": 19081,
+      "TREND_DOWN": 12961,
+      "VOLATILE": 3672,
+      "RANGE": 2520
+    },
+    "regime_max_pct": 49.9,
+    "regime_stable": true,
+    "spread_normalization": "Correct (Exness 0.001, others 0.01 -> USD)",
+    "spread_mean_usd": 0.132,
+    "cross_broker_validation": {
+      "bars_with_2plus_brokers": "100.00%",
+      "bars_with_3plus_brokers": "92.47%",
+      "bars_with_4_brokers": "35.48%"
+    },
+    "data_leakage_from_preprocessing": false,
+    "verdict": "PASS"
+  },
+  "step_2_feature_audit": {
+    "total_features": 63,
+    "feature_groups": {
+      "price": 8,
+      "technical": 18,
+      "volatility": 10,
+      "microstructure": 8,
+      "time": 10,
+      "lag": 7
+    },
+    "targets": [
+      "target_ret_1",
+      "target_ret_5",
+      "target_ret_15",
+      "target_ret_60"
+    ],
+    "nan_features": 0,
+    "constant_features": 1,
+    "constant_feature_names": [
+      "is_weekend"
+    ],
+    "high_corr_pairs_gt_0_98": 5,
+    "high_corr_pairs_sample": [
+      "logret_1 <-> ret_1 (1.0000) - expected (log vs linear return)",
+      "logret_5 <-> ret_5 (1.0000) - expected",
+      "bb_lower <-> bb_upper (0.9993) - Bollinger band symmetry",
+      "obv <-> bb_upper (0.9811) - volume-price coupling",
+      "obv <-> bb_lower (0.9824) - volume-price coupling"
+    ],
+    "future_leakage_in_features": 0,
+    "verdict": "PASS (with minor cleanup needed: drop 1 constant + 5 high-corr)"
+  },
+  "step_3_leakage_test": {
+    "purge_bars": 60,
+    "embargo_bars": 10,
+    "actual_gap_train_to_val": 74,
+    "purge_adequate": true,
+    "time_series_split_chronological": true,
+    "target_shift_correct": true,
+    "scaler_train_only_fit": true,
+    "cross_broker_leakage": 0,
+    "verdict": "PASS - zero leakage detected"
+  },
+  "step_4_readiness_scores": {
+    "data_quality_score": 99.44,
+    "feature_quality_score": 98.65,
+    "leakage_risk_pct": 0.0,
+    "trainability_score": 88.63
+  },
+  "pass_conditions": {
+    "data_quality_95": {
+      "actual": 99.44,
+      "pass": true
+    },
+    "feature_quality_90": {
+      "actual": 98.65,
+      "pass": true
+    },
+    "leakage_risk_2": {
+      "actual": 0.0,
+      "pass": true
+    },
+    "trainability_85": {
+      "actual": 88.63,
+      "pass": true
+    }
+  },
+  "minor_issues_noted": [
+    "1 constant feature (is_weekend) - will be auto-dropped by FeatureSelector",
+    "5 high-corr pairs (>0.98) - will be auto-dropped by FeatureSelector (|r|>0.95 threshold)",
+    "Feature density score lower (24.2/100) - 63 features for 26K bars is sparse but acceptable"
+  ],
+  "verdict": "TRAINING_READY"
+}
