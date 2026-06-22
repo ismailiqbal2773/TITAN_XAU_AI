@@ -1,0 +1,154 @@
+{
+  "report_date": "2026-06-22T01:14:11.228486",
+  "specification": "PHASE_2.1_CLEAN_FEATURE_REBUILD",
+  "feature_filter": {
+    "kept": {
+      "microstructure": [
+        "n_brokers",
+        "spread_pct",
+        "spread_zscore_60",
+        "volume_zscore_60",
+        "volume_ratio_5_20",
+        "body_ratio",
+        "upper_wick_ratio",
+        "lower_wick_ratio",
+        "body_dir"
+      ],
+      "price": [
+        "ret_1",
+        "ret_5",
+        "ret_15",
+        "price_zscore_60",
+        "hl_range",
+        "close_pos_in_range",
+        "ret_lag_1",
+        "ret_lag_2",
+        "ret_lag_3",
+        "ret_lag_5",
+        "ret_lag_10",
+        "ret_lag_20",
+        "ret_lag_60"
+      ]
+    },
+    "removed": [
+      "technical",
+      "volatility",
+      "time"
+    ],
+    "total_kept": 22,
+    "total_removed": 33
+  },
+  "model_results": {
+    "model1_xgb_micro": {
+      "features": "microstructure_only",
+      "n_features": 9,
+      "test_auc": 0.7753635626550301,
+      "test_acc": 0.714078110808356,
+      "ic": 0.5454825979674996
+    },
+    "model2_logreg_price": {
+      "features": "price_only",
+      "n_features": 13,
+      "test_auc": 0.7702337932241033,
+      "test_acc": 0.7095367847411445,
+      "ic": 0.5311860484546549
+    },
+    "model3_lstm_clean": {
+      "features": "micro+price",
+      "n_features": 22,
+      "test_auc": 0.780776700594248,
+      "test_acc": 0.7095367847411445,
+      "ic": 0.5581847455461041
+    },
+    "model4_transformer": {
+      "features": "all",
+      "unchanged": true,
+      "val_auc": 0.993,
+      "test_auc": 0.979
+    }
+  },
+  "old_vs_new": {
+    "old_xgb_full_auc": 0.7884637238097202,
+    "new_xgb_micro_auc": 0.7753635626550301,
+    "improved": false
+  },
+  "prediction_correlation": {
+    "XGB(micro)": {
+      "XGB(micro)": 1.0,
+      "LR(price)": 0.9092422398931799,
+      "LSTM(clean)": 0.9562216323846854,
+      "TF(conf)": -0.005615603289935109
+    },
+    "LR(price)": {
+      "XGB(micro)": 0.9092422398931799,
+      "LR(price)": 1.0,
+      "LSTM(clean)": 0.9570077631593158,
+      "TF(conf)": 4.4304871545254906e-05
+    },
+    "LSTM(clean)": {
+      "XGB(micro)": 0.9562216323846854,
+      "LR(price)": 0.9570077631593158,
+      "LSTM(clean)": 1.0,
+      "TF(conf)": -0.004091399175370625
+    },
+    "TF(conf)": {
+      "XGB(micro)": -0.005615603289935109,
+      "LR(price)": 4.4304871545254906e-05,
+      "LSTM(clean)": -0.004091399175370625,
+      "TF(conf)": 1.0
+    }
+  },
+  "max_pred_corr": 0.9570077631593158,
+  "error_correlation": {
+    "XGB": {
+      "XGB": 1.0,
+      "LR": 0.9717964915877197,
+      "LSTM": 0.9745716249428358,
+      "TF": 0.8489830353570067
+    },
+    "LR": {
+      "XGB": 0.9717964915877197,
+      "LR": 1.0,
+      "LSTM": 0.9687275570046019,
+      "TF": 0.8737486316147446
+    },
+    "LSTM": {
+      "XGB": 0.9745716249428358,
+      "LR": 0.9687275570046019,
+      "LSTM": 1.0,
+      "TF": 0.7797738343625193
+    },
+    "TF": {
+      "XGB": 0.8489830353570067,
+      "LR": 0.8737486316147446,
+      "LSTM": 0.7797738343625193,
+      "TF": 1.0
+    }
+  },
+  "max_err_corr": 0.9745716249428358,
+  "ensemble": {
+    "equal": 0.7809714049528244,
+    "confidence": 0.7810262419455689,
+    "regime_aware": 0.7802922851354487,
+    "best_standalone": {
+      "model": "LSTM(clean)",
+      "auc": 0.780776700594248
+    },
+    "best_ensemble": {
+      "method": "Confidence",
+      "auc": 0.7810262419455689
+    },
+    "improvement": 0.0002495413513209366
+  },
+  "unique_models": [
+    "TF(conf)"
+  ],
+  "pass_conditions": {
+    "alpha_improved": false,
+    "corr_lt_80": false,
+    "err_corr_lt_80": false,
+    "ensemble_beats_best": true,
+    "at_least_2_unique": false
+  },
+  "verdict": "FURTHER_REFINEMENT_REQUIRED"
+}
