@@ -1,0 +1,28 @@
+tier,tier_name,scenario,recovery_time_min,trade_safety,open_position_recovery,state_recovery,operational_complexity,user_friendliness,severity,notes
+T1_RETAIL,Tier 1 — Retail Mode,windows_restart,3,95,95,85,2,4,degraded,Auto-login + Task Scheduler → TITAN.bat → MT5 → broker sync
+T1_RETAIL,Tier 1 — Retail Mode,mt5_restart,1,100,100,95,1,5,nominal,TITAN watchdog auto-relaunches MT5; broker SL/TP unaffected
+T1_RETAIL,Tier 1 — Retail Mode,power_outage,10,90,90,80,3,3,degraded,Broker SL/TP protects positions; recovery on power return
+T1_RETAIL,Tier 1 — Retail Mode,internet_disconnect,15,85,85,100,3,2,degraded,Broker SL/TP protects; user must restore internet
+T1_RETAIL,Tier 1 — Retail Mode,process_crash,1,100,100,90,2,4,nominal,Watchdog process auto-restarts TITAN; broker SL/TP active
+T1_RETAIL,Tier 1 — Retail Mode,broker_disconnect,10,80,80,100,2,3,degraded,Broker SL/TP still active on broker server; wait for recovery
+T1_RETAIL,Tier 1 — Retail Mode,vps_failure,60,85,85,50,5,1,severe,PC hardware failure; broker SL/TP protects; user must restore PC
+T1_RETAIL,Tier 1 — Retail Mode,database_corruption,15,100,95,70,3,3,degraded,"TITAN auto-detects corrupt SQLite, deletes, rebuilds from broker"
+T1_RETAIL,Tier 1 — Retail Mode,model_file_corruption,10,100,100,95,2,4,degraded,Auto-download fresh model from trusted mirror; hash verify
+T2_PRO,Tier 2 — Professional Mode,windows_restart,2,98,98,95,1,5,nominal,"systemd auto-restart, no user interaction"
+T2_PRO,Tier 2 — Professional Mode,mt5_restart,1,100,100,98,1,5,nominal,"Same as T1, plus Slack alert on MT5 disconnect"
+T2_PRO,Tier 2 — Professional Mode,power_outage,2,98,98,95,2,5,nominal,VPS provider UPS+generator; systemd auto-restart
+T2_PRO,Tier 2 — Professional Mode,internet_disconnect,3,95,95,100,2,5,nominal,VPS provider redundant uplinks; usually <5min
+T2_PRO,Tier 2 — Professional Mode,process_crash,1,100,100,95,1,5,nominal,systemd Restart=always; Slack alert on crash
+T2_PRO,Tier 2 — Professional Mode,broker_disconnect,10,85,85,100,2,4,degraded,Same as T1 + Slack alert + failover to backup broker (if configured)
+T2_PRO,Tier 2 — Professional Mode,vps_failure,30,90,90,70,4,2,severe,VPS provider restoration; broker SL/TP active; state from broker
+T2_PRO,Tier 2 — Professional Mode,database_corruption,10,100,98,85,2,4,degraded,Same as T1 + automated backup restore option
+T2_PRO,Tier 2 — Professional Mode,model_file_corruption,5,100,100,98,1,5,nominal,Same as T1 + Slack alert + faster download from VPS
+T3_INST,Tier 3 — Institutional Mode,windows_restart,1,100,100,98,4,3,nominal,Failover to secondary <10s; primary reboots in background
+T3_INST,Tier 3 — Institutional Mode,mt5_restart,1,100,100,98,3,4,nominal,"Same as T2, plus PagerDuty alert and dual-MT5-instance option"
+T3_INST,Tier 3 — Institutional Mode,power_outage,1,100,100,98,4,3,nominal,Failover to secondary VPS in different AZ
+T3_INST,Tier 3 — Institutional Mode,internet_disconnect,1,100,100,100,4,4,nominal,Failover to secondary VPS on different ISP
+T3_INST,Tier 3 — Institutional Mode,process_crash,1,100,100,98,3,4,nominal,systemd + heartbeat; PagerDuty alert; secondary on standby
+T3_INST,Tier 3 — Institutional Mode,broker_disconnect,5,90,85,100,5,3,degraded,New orders via backup broker; existing positions wait on primary
+T3_INST,Tier 3 — Institutional Mode,vps_failure,1,100,100,98,5,3,nominal,Failover to secondary VPS; primary recovery in background
+T3_INST,Tier 3 — Institutional Mode,database_corruption,1,100,100,98,4,4,nominal,Failover to secondary with healthy DB replica
+T3_INST,Tier 3 — Institutional Mode,model_file_corruption,1,100,100,100,3,4,nominal,Failover to secondary with healthy model files
