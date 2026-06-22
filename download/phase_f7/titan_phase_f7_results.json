@@ -1,0 +1,221 @@
+{
+  "section_1_yearly_baseline": {
+    "2023": {
+      "auc": 0.78,
+      "win_rate": 0.728,
+      "profit_factor": 4.12,
+      "sharpe": 2.18,
+      "cagr": 1.85,
+      "max_dd_pct": 3.18,
+      "trades": 2840
+    },
+    "2024": {
+      "auc": 0.77,
+      "win_rate": 0.715,
+      "profit_factor": 3.87,
+      "sharpe": 1.96,
+      "cagr": 1.42,
+      "max_dd_pct": 3.62,
+      "trades": 2980
+    },
+    "2025": {
+      "auc": 0.75,
+      "win_rate": 0.692,
+      "profit_factor": 3.32,
+      "sharpe": 1.68,
+      "cagr": 0.95,
+      "max_dd_pct": 4.45,
+      "trades": 2710
+    },
+    "2026": {
+      "auc": 0.73,
+      "win_rate": 0.671,
+      "profit_factor": 2.84,
+      "sharpe": 1.34,
+      "cagr": 0.58,
+      "max_dd_pct": 5.28,
+      "trades": 2520
+    }
+  },
+  "section_1_aggregate_baseline": {
+    "auc": 0.75,
+    "win_rate": 0.6926666666666667,
+    "profit_factor": 3.3433333333333333,
+    "sharpe": 1.6600000000000001,
+    "cagr": 0.9833333333333333,
+    "max_dd_pct": 4.45,
+    "trades": 2736
+  },
+  "section_2_haircut_assumptions": {
+    "model_decay_pct": 0.1,
+    "execution_decay_pct": 0.05,
+    "spread_increase_pct": 0.25,
+    "slippage_increase_pct": 0.5,
+    "missed_trades_pct": 0.1
+  },
+  "section_2_live_metrics": {
+    "auc": 0.712,
+    "win_rate": 0.667,
+    "profit_factor": 2.65,
+    "sharpe": 1.46,
+    "cagr": 0.873,
+    "max_dd_pct": 5.01,
+    "trades": 2462
+  },
+  "section_3_bootstrap": {
+    "n_bootstrap": 10000,
+    "n_trades_per_sample": 2462,
+    "sharpe_methodology": "Sampled from N(live_sharpe, yearly_sharpe_std), truncated [0.3, 4.0]",
+    "pf": {
+      "p5": 2.47,
+      "p50": 2.65,
+      "p95": 2.84,
+      "mean": 2.65,
+      "std": 0.11
+    },
+    "sharpe": {
+      "p5": 0.85,
+      "p50": 1.45,
+      "p95": 2.08,
+      "mean": 1.46,
+      "std": 0.37
+    },
+    "win_rate": {
+      "p5": 0.6515,
+      "p50": 0.6673,
+      "p95": 0.6824,
+      "mean": 0.6671,
+      "std": 0.0094
+    },
+    "raw_pf_samples_count": 10000
+  },
+  "section_4_production_expectation": {
+    "conservative": {
+      "profit_factor": 2.47,
+      "sharpe": 0.85,
+      "win_rate": 0.6515,
+      "max_dd_pct": 7.01,
+      "cagr": 0.262
+    },
+    "expected": {
+      "profit_factor": 2.65,
+      "sharpe": 1.45,
+      "win_rate": 0.6673,
+      "max_dd_pct": 5.01,
+      "cagr": 0.873
+    },
+    "optimistic": {
+      "profit_factor": 2.84,
+      "sharpe": 2.08,
+      "win_rate": 0.6824,
+      "max_dd_pct": 3.76,
+      "cagr": 1.746
+    }
+  },
+  "section_5_deployment_gate": {
+    "demo_ready": {
+      "pass": true,
+      "criteria": "Expected PF\u22651.8, Sharpe\u22651.2, DD\u22648%",
+      "actual": "PF=2.65, Sharpe=1.45, DD=5.01%"
+    },
+    "shadow_live_ready": {
+      "pass": false,
+      "criteria": "Expected PF\u22652.5, Sharpe\u22651.8, DD\u22646%, Conservative PF\u22651.5",
+      "actual": "PF=2.65, Sharpe=1.45, DD=5.01%, Cons PF=2.47"
+    },
+    "real_capital_ready": {
+      "pass": false,
+      "criteria": "Expected PF\u22653.0, Sharpe\u22652.0, DD\u22645%, Conservative PF\u22652.0",
+      "actual": "PF=2.65, Sharpe=1.45, DD=5.01%, Cons PF=2.47"
+    }
+  },
+  "section_6_kill_criteria": [
+    {
+      "criterion": "Profit Factor < 1.5",
+      "window": "rolling 100 trades",
+      "severity": "IMMEDIATE SHUTDOWN",
+      "rationale": "Below 1.5, edge is too thin to survive costs"
+    },
+    {
+      "criterion": "Sharpe (daily) < 1.0",
+      "window": "trailing 30 days",
+      "severity": "IMMEDIATE SHUTDOWN",
+      "rationale": "Below 1.0, risk-adjusted return is unacceptable"
+    },
+    {
+      "criterion": "Max Drawdown > 10%",
+      "window": "trailing 90 days",
+      "severity": "IMMEDIATE SHUTDOWN",
+      "rationale": "Exceeds institutional risk limit; capital preservation mode"
+    },
+    {
+      "criterion": "Calibration drift (ECE) > 15%",
+      "window": "rolling 200 trades",
+      "severity": "IMMEDIATE SHUTDOWN",
+      "rationale": "Model probabilities cannot be trusted for sizing"
+    },
+    {
+      "criterion": "Meta-Label AUC < 0.60",
+      "window": "rolling 200 trades",
+      "severity": "IMMEDIATE SHUTDOWN",
+      "rationale": "Meta-label filter has lost discrimination"
+    },
+    {
+      "criterion": "Win Rate < 55%",
+      "window": "rolling 100 trades",
+      "severity": "IMMEDIATE SHUTDOWN",
+      "rationale": "Below 55%, signal edge has collapsed"
+    },
+    {
+      "criterion": "Feature drift (PSI) > 0.25",
+      "window": "any single feature",
+      "severity": "IMMEDIATE SHUTDOWN",
+      "rationale": "Input distribution has shifted beyond training domain"
+    },
+    {
+      "criterion": "Execution latency p99 > 1000ms",
+      "window": "real-time",
+      "severity": "IMMEDIATE SHUTDOWN",
+      "rationale": "Cannot reliably manage orders in fast markets"
+    },
+    {
+      "criterion": "3+ WARN alerts in 24h",
+      "window": "rolling 24h",
+      "severity": "THROTTLE (50% size reduction)",
+      "rationale": "Accumulating instability; reduce risk pending review"
+    },
+    {
+      "criterion": "2nd kill-switch trigger in 7 days",
+      "window": "rolling 7 days",
+      "severity": "PERMANENT SHUTDOWN (requires re-validation)",
+      "rationale": "Repeated failures indicate structural problem"
+    },
+    {
+      "criterion": "Broker reconciliation mismatch > 30s",
+      "window": "real-time",
+      "severity": "IMMEDIATE SHUTDOWN",
+      "rationale": "Position state inconsistency = unbounded risk"
+    },
+    {
+      "criterion": "Daily drawdown > 5%",
+      "window": "intraday",
+      "severity": "HALT NEW TRADES (rest of day)",
+      "rationale": "Single-day loss limit; prevent cascade into weekly DD"
+    }
+  ],
+  "section_7_scores": {
+    "research_quality_score": 82.0,
+    "trading_quality_score": 61.4,
+    "production_quality_score": 72.0,
+    "final_reality_score": 72.3,
+    "final_verdict": "DEMO READY"
+  },
+  "frozen_model_rejected": {
+    "frozen_auc": 0.79,
+    "frozen_pf": 5.29,
+    "frozen_wr": 0.747,
+    "frozen_sharpe": 2.33,
+    "frozen_dd": 3.16,
+    "note": "FROZEN-MODEL METRICS ARE EXPLICITLY REJECTED AS UNATTAINABLE"
+  }
+}
