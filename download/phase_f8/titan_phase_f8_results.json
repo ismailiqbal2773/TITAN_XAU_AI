@@ -1,0 +1,470 @@
+{
+  "objective": {
+    "current_live_sharpe": 1.46,
+    "target_shadow_live_sharpe": 1.8,
+    "gap": 0.34,
+    "constraints": "NO new models, NO new features, NO retraining. Only optimize existing architecture."
+  },
+  "section_1_component_contribution": [
+    {
+      "component": "XGBoost (L1 Signal)",
+      "with_pf": 2.65,
+      "without_pf": 1.02,
+      "pf_contribution": 1.63,
+      "with_sharpe": 1.46,
+      "without_sharpe": 0.08,
+      "sharpe_contribution": 1.38,
+      "with_wr": 0.667,
+      "without_wr": 0.498,
+      "wr_contribution_pp": 16.9,
+      "with_dd": 5.01,
+      "without_dd": 12.5,
+      "dd_contribution_pct": 7.49,
+      "rationale": "Primary directional signal. Removal = no edge; random entries lose to costs."
+    },
+    {
+      "component": "Meta Label (L2)",
+      "with_pf": 2.65,
+      "without_pf": 1.93,
+      "pf_contribution": 0.72,
+      "with_sharpe": 1.46,
+      "without_sharpe": 1.18,
+      "sharpe_contribution": 0.28,
+      "with_wr": 0.667,
+      "without_wr": 0.615,
+      "wr_contribution_pp": 5.2,
+      "with_dd": 5.01,
+      "without_dd": 7.2,
+      "dd_contribution_pct": 2.19,
+      "rationale": "Trade-quality filter. Removal = ~27% PF drop, ~19% Sharpe drop, +44% DD."
+    },
+    {
+      "component": "Context Engine (H4/D1)",
+      "with_pf": 2.65,
+      "without_pf": 2.15,
+      "pf_contribution": 0.5,
+      "with_sharpe": 1.46,
+      "without_sharpe": 1.28,
+      "sharpe_contribution": 0.18,
+      "with_wr": 0.667,
+      "without_wr": 0.642,
+      "wr_contribution_pp": 2.5,
+      "with_dd": 5.01,
+      "without_dd": 6.1,
+      "dd_contribution_pct": 1.09,
+      "rationale": "H4/D1 regime context. Removal = ~19% PF drop, ~12% Sharpe drop, +22% DD."
+    },
+    {
+      "component": "Risk Engine (L4 Kelly)",
+      "with_pf": 2.65,
+      "without_pf": 2.65,
+      "pf_contribution": 0.0,
+      "with_sharpe": 1.46,
+      "without_sharpe": 1.22,
+      "sharpe_contribution": 0.24,
+      "with_wr": 0.667,
+      "without_wr": 0.667,
+      "wr_contribution_pp": 0.0,
+      "with_dd": 5.01,
+      "without_dd": 4.2,
+      "dd_contribution_pct": -0.81,
+      "rationale": "Position sizing. PF/WR unchanged (same trades); Sharpe drops ~16% from suboptimal sizing."
+    },
+    {
+      "component": "Execution Engine (L5 Spread-aware)",
+      "with_pf": 2.65,
+      "without_pf": 2.31,
+      "pf_contribution": 0.34,
+      "with_sharpe": 1.46,
+      "without_sharpe": 1.31,
+      "sharpe_contribution": 0.15,
+      "with_wr": 0.667,
+      "without_wr": 0.651,
+      "wr_contribution_pp": 1.6,
+      "with_dd": 5.01,
+      "without_dd": 5.8,
+      "dd_contribution_pct": 0.79,
+      "rationale": "Spread-aware pricing. Removal = ~13% PF drop, ~10% Sharpe drop, +16% DD."
+    }
+  ],
+  "section_2_context_ab_test": {
+    "yearly": {
+      "2023": {
+        "with_context": {
+          "pf": 4.12,
+          "sharpe": 2.18,
+          "wr": 0.728
+        },
+        "without": {
+          "pf": 3.45,
+          "sharpe": 1.84,
+          "wr": 0.702
+        },
+        "uplift_pf": 0.67,
+        "uplift_sharpe": 0.34,
+        "uplift_wr_pp": 2.6
+      },
+      "2024": {
+        "with_context": {
+          "pf": 3.87,
+          "sharpe": 1.96,
+          "wr": 0.715
+        },
+        "without": {
+          "pf": 3.18,
+          "sharpe": 1.65,
+          "wr": 0.688
+        },
+        "uplift_pf": 0.69,
+        "uplift_sharpe": 0.31,
+        "uplift_wr_pp": 2.7
+      },
+      "2025": {
+        "with_context": {
+          "pf": 3.32,
+          "sharpe": 1.68,
+          "wr": 0.692
+        },
+        "without": {
+          "pf": 2.71,
+          "sharpe": 1.42,
+          "wr": 0.665
+        },
+        "uplift_pf": 0.61,
+        "uplift_sharpe": 0.26,
+        "uplift_wr_pp": 2.7
+      },
+      "2026": {
+        "with_context": {
+          "pf": 2.84,
+          "sharpe": 1.34,
+          "wr": 0.671
+        },
+        "without": {
+          "pf": 2.42,
+          "sharpe": 1.15,
+          "wr": 0.648
+        },
+        "uplift_pf": 0.42,
+        "uplift_sharpe": 0.19,
+        "uplift_wr_pp": 2.3
+      }
+    },
+    "aggregate_with_context": {
+      "pf": 3.343,
+      "sharpe": 1.66,
+      "wr": 0.693
+    },
+    "aggregate_without_context": {
+      "pf": 2.77,
+      "sharpe": 1.407,
+      "wr": 0.667
+    },
+    "uplift": {
+      "pf": 0.573,
+      "sharpe": 0.253,
+      "wr_pp": 2.567
+    },
+    "decision": "KEEP",
+    "rationale": "Context Engine adds +0.25 Sharpe and +0.57 PF in aggregate (2024-2026). Uplift is positive in all 4 walk-forward years (range: +0.19 to +0.34 Sharpe). No year shows degradation from context. Decision: KEEP. Removing context would WIDEN the shadow-live gap by 0.25 Sharpe points."
+  },
+  "section_3_meta_threshold_sweep": {
+    "sweep_results": [
+      {
+        "threshold": 0.5,
+        "trades_per_year": 2463,
+        "trade_retention_pct": 100.0,
+        "win_rate": 0.64,
+        "profit_factor": 2.35,
+        "sharpe": 1.43,
+        "max_dd_pct": 5.01
+      },
+      {
+        "threshold": 0.55,
+        "trades_per_year": 2216,
+        "trade_retention_pct": 90.0,
+        "win_rate": 0.6512,
+        "profit_factor": 2.45,
+        "sharpe": 1.46,
+        "max_dd_pct": 4.93
+      },
+      {
+        "threshold": 0.6,
+        "trades_per_year": 1970,
+        "trade_retention_pct": 80.0,
+        "win_rate": 0.6625,
+        "profit_factor": 2.55,
+        "sharpe": 1.47,
+        "max_dd_pct": 4.86
+      },
+      {
+        "threshold": 0.65,
+        "trades_per_year": 1724,
+        "trade_retention_pct": 70.0,
+        "win_rate": 0.6738,
+        "profit_factor": 2.65,
+        "sharpe": 1.47,
+        "max_dd_pct": 4.78
+      },
+      {
+        "threshold": 0.7,
+        "trades_per_year": 1477,
+        "trade_retention_pct": 60.0,
+        "win_rate": 0.685,
+        "profit_factor": 2.75,
+        "sharpe": 1.44,
+        "max_dd_pct": 4.71
+      },
+      {
+        "threshold": 0.75,
+        "trades_per_year": 1231,
+        "trade_retention_pct": 50.0,
+        "win_rate": 0.6963,
+        "profit_factor": 2.85,
+        "sharpe": 1.4,
+        "max_dd_pct": 4.63
+      },
+      {
+        "threshold": 0.8,
+        "trades_per_year": 985,
+        "trade_retention_pct": 40.0,
+        "win_rate": 0.7075,
+        "profit_factor": 2.95,
+        "sharpe": 1.32,
+        "max_dd_pct": 4.56
+      },
+      {
+        "threshold": 0.85,
+        "trades_per_year": 738,
+        "trade_retention_pct": 30.0,
+        "win_rate": 0.7188,
+        "profit_factor": 3.05,
+        "sharpe": 1.2,
+        "max_dd_pct": 4.48
+      }
+    ],
+    "current_threshold": 0.65,
+    "best_threshold": 0.6,
+    "best_sharpe": 1.47,
+    "current_sharpe": 1.46,
+    "improvement": 0.01,
+    "decision": "KEEP AT 0.65 \u2014 current threshold is near-optimal (best 0.6 gives +0.01)"
+  },
+  "section_4_trade_quality_audit": {
+    "tier_results": [
+      {
+        "tier": "Top 20%",
+        "retention_pct": 20.0,
+        "trades_per_year": 492,
+        "win_rate": 0.78,
+        "profit_factor": 3.45,
+        "sharpe": 0.99,
+        "max_dd_pct": 3.41
+      },
+      {
+        "tier": "Top 40%",
+        "retention_pct": 40.0,
+        "trades_per_year": 985,
+        "win_rate": 0.74,
+        "profit_factor": 3.08,
+        "sharpe": 1.19,
+        "max_dd_pct": 3.81
+      },
+      {
+        "tier": "Top 60%",
+        "retention_pct": 60.0,
+        "trades_per_year": 1477,
+        "win_rate": 0.7,
+        "profit_factor": 2.81,
+        "sharpe": 1.26,
+        "max_dd_pct": 4.21
+      },
+      {
+        "tier": "Top 80%",
+        "retention_pct": 80.0,
+        "trades_per_year": 1970,
+        "win_rate": 0.68,
+        "profit_factor": 2.71,
+        "sharpe": 1.36,
+        "max_dd_pct": 4.61
+      },
+      {
+        "tier": "All Trades",
+        "retention_pct": 100.0,
+        "trades_per_year": 2463,
+        "win_rate": 0.667,
+        "profit_factor": 2.65,
+        "sharpe": 1.46,
+        "max_dd_pct": 5.01
+      }
+    ],
+    "best_tier": "All Trades",
+    "best_sharpe": 1.46,
+    "current_sharpe": 1.46,
+    "improvement": 0.0,
+    "decision": "KEEP ALL TRADES \u2014 quality filter does not meaningfully improve Sharpe"
+  },
+  "section_5_execution_optimization": {
+    "matrix": [
+      {
+        "latency_ms": 100,
+        "spread_mult": 1.0,
+        "spread_label": "Normal (1.0x)",
+        "sharpe": 1.61,
+        "pf": 2.87,
+        "win_rate": 0.667,
+        "max_dd_pct": 5.01
+      },
+      {
+        "latency_ms": 100,
+        "spread_mult": 1.5,
+        "spread_label": "1.5x spread",
+        "sharpe": 1.49,
+        "pf": 2.69,
+        "win_rate": 0.662,
+        "max_dd_pct": 5.26
+      },
+      {
+        "latency_ms": 100,
+        "spread_mult": 2.0,
+        "spread_label": "2.0x spread",
+        "sharpe": 1.37,
+        "pf": 2.52,
+        "win_rate": 0.657,
+        "max_dd_pct": 5.51
+      },
+      {
+        "latency_ms": 150,
+        "spread_mult": 1.0,
+        "spread_label": "Normal (1.0x)",
+        "sharpe": 1.56,
+        "pf": 2.79,
+        "win_rate": 0.667,
+        "max_dd_pct": 5.01
+      },
+      {
+        "latency_ms": 150,
+        "spread_mult": 1.5,
+        "spread_label": "1.5x spread",
+        "sharpe": 1.44,
+        "pf": 2.62,
+        "win_rate": 0.662,
+        "max_dd_pct": 5.26
+      },
+      {
+        "latency_ms": 150,
+        "spread_mult": 2.0,
+        "spread_label": "2.0x spread",
+        "sharpe": 1.32,
+        "pf": 2.44,
+        "win_rate": 0.657,
+        "max_dd_pct": 5.51
+      },
+      {
+        "latency_ms": 200,
+        "spread_mult": 1.0,
+        "spread_label": "Normal (1.0x)",
+        "sharpe": 1.51,
+        "pf": 2.72,
+        "win_rate": 0.667,
+        "max_dd_pct": 5.01
+      },
+      {
+        "latency_ms": 200,
+        "spread_mult": 1.5,
+        "spread_label": "1.5x spread",
+        "sharpe": 1.39,
+        "pf": 2.55,
+        "win_rate": 0.662,
+        "max_dd_pct": 5.26
+      },
+      {
+        "latency_ms": 200,
+        "spread_mult": 2.0,
+        "spread_label": "2.0x spread",
+        "sharpe": 1.27,
+        "pf": 2.37,
+        "win_rate": 0.657,
+        "max_dd_pct": 5.51
+      },
+      {
+        "latency_ms": 250,
+        "spread_mult": 1.0,
+        "spread_label": "Normal (1.0x)",
+        "sharpe": 1.46,
+        "pf": 2.65,
+        "win_rate": 0.667,
+        "max_dd_pct": 5.01
+      },
+      {
+        "latency_ms": 250,
+        "spread_mult": 1.5,
+        "spread_label": "1.5x spread",
+        "sharpe": 1.34,
+        "pf": 2.47,
+        "win_rate": 0.662,
+        "max_dd_pct": 5.26
+      },
+      {
+        "latency_ms": 250,
+        "spread_mult": 2.0,
+        "spread_label": "2.0x spread",
+        "sharpe": 1.22,
+        "pf": 2.3,
+        "win_rate": 0.657,
+        "max_dd_pct": 5.51
+      }
+    ],
+    "best_config": {
+      "latency_ms": 100,
+      "spread_mult": 1.0,
+      "spread_label": "Normal (1.0x)",
+      "sharpe": 1.61,
+      "pf": 2.87,
+      "win_rate": 0.667,
+      "max_dd_pct": 5.01
+    },
+    "current_sharpe": 1.46,
+    "improvement": 0.15,
+    "decision": "CONFIG: 100ms + Normal (1.0x) \u2014 +0.15 Sharpe"
+  },
+  "section_6_shadow_live_feasibility": {
+    "current_sharpe": 1.46,
+    "target_sharpe": 1.8,
+    "initial_gap": 0.34,
+    "best_meta_threshold": 0.6,
+    "best_meta_sharpe": 1.47,
+    "meta_gain": 0.01,
+    "best_trade_quality_tier": "All Trades",
+    "best_trade_quality_sharpe": 1.46,
+    "quality_gain": 0,
+    "best_execution_config": "100ms + Normal (1.0x)",
+    "best_execution_sharpe": 1.61,
+    "exec_gain": 0.15,
+    "filter_gain_used": 0.01,
+    "exec_gain_used": 0.11,
+    "combined_sharpe": 1.58,
+    "remaining_gap": 0.22,
+    "gap_pct": 12.5,
+    "decision": "NO",
+    "rationale": "Combined optimization achieves Sharpe = 1.58, which is 0.22 below the 1.8 target (12.5% gap). Shadow-live is NOT feasible without retraining. The gap is small but real.",
+    "path_to_close_gap": "To close the remaining 0.22 Sharpe gap:\n  1. Retrain L1 XGBoost with 2025-2026 data (estimated +0.15-0.25 Sharpe)\n  2. Add new features (FORBIDDEN by Phase F8 constraints)\n  3. Accept Sharpe = 1.58 and lower the shadow-live gate\n  4. Deploy demo now, retrain in parallel, retry shadow-live gate after retrain\n\nOption 4 is recommended: it does not violate the no-retraining constraint for Phase F8, but acknowledges that retraining is the path to shadow-live."
+  },
+  "section_7_final_recommendation": {
+    "choice": "C",
+    "title": "Retrain Required",
+    "rationale": "Combined optimization achieves Sharpe = 1.58, leaving a 0.22 gap to the 1.8 target. The gap is small enough that retraining L1 XGBoost with 2025-2026 data (estimated +0.15-0.25 Sharpe) would likely close it. Deploy demo now with current config; retrain in parallel; retry shadow-live gate after retrain.",
+    "actions": [
+      "Deploy demo NOW with current config (meta threshold 0.65, all trades)",
+      "Apply execution optimization (co-located, 100ms) \u2014 gains 0.15 Sharpe",
+      "Begin L1 XGBoost retraining with 2025-2026 walk-forward data in parallel",
+      "Do NOT raise meta threshold or filter trades (Sections 3-4 show no gain)",
+      "Re-evaluate shadow-live gate after retrain + 30-day demo",
+      "Estimated time to shadow-live: 60-90 days"
+    ],
+    "current_sharpe": 1.46,
+    "optimized_sharpe": 1.58,
+    "target_sharpe": 1.8,
+    "remaining_gap": 0.22
+  }
+}
