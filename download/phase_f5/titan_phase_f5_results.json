@@ -1,0 +1,460 @@
+{
+  "baseline": {
+    "auc": 0.76,
+    "profit_factor": 3.87,
+    "win_rate": 0.712,
+    "daily_sharpe": 1.96,
+    "max_dd_pct": 3.62,
+    "trades_per_day": 12,
+    "avg_spread_pips": 0.18,
+    "avg_slippage_pips": 0.18,
+    "latency_p95_ms": 187,
+    "latency_p99_ms": 312,
+    "payoff_ratio": 1.67
+  },
+  "kill_thresholds": {
+    "pf_floor": 1.5,
+    "win_rate_floor": 0.6,
+    "ece_limit": 0.1,
+    "psi_kill": 0.25,
+    "latency_p99_kill_ms": 1000
+  },
+  "scenarios": [
+    {
+      "category": "1. Latency Stress",
+      "scenario": "+50ms added latency",
+      "severity": "nominal",
+      "profit_factor": 2.7,
+      "win_rate": 0.7049,
+      "daily_sharpe": 1.85,
+      "max_dd_pct": 3.71,
+      "trade_loss_pct": 0.02,
+      "recovery_time_min": 5,
+      "kill_switch_activated": false,
+      "kill_switch_reasons": [],
+      "notes": "Drift=0.05pips, signal decay=1.0%, p99 latency=362ms"
+    },
+    {
+      "category": "1. Latency Stress",
+      "scenario": "+100ms added latency",
+      "severity": "stressed",
+      "profit_factor": 2.07,
+      "win_rate": 0.6978,
+      "daily_sharpe": 1.75,
+      "max_dd_pct": 3.8,
+      "trade_loss_pct": 0.05,
+      "recovery_time_min": 5,
+      "kill_switch_activated": false,
+      "kill_switch_reasons": [],
+      "notes": "Drift=0.10pips, signal decay=2.0%, p99 latency=412ms"
+    },
+    {
+      "category": "1. Latency Stress",
+      "scenario": "+250ms added latency",
+      "severity": "killed",
+      "profit_factor": 1.22,
+      "win_rate": 0.6764,
+      "daily_sharpe": 1.49,
+      "max_dd_pct": 4.07,
+      "trade_loss_pct": 0.1,
+      "recovery_time_min": 1440,
+      "kill_switch_activated": true,
+      "kill_switch_reasons": [
+        "PF<1.5 (got 1.22)"
+      ],
+      "notes": "Drift=0.25pips, signal decay=5.0%, p99 latency=562ms"
+    },
+    {
+      "category": "1. Latency Stress",
+      "scenario": "+500ms added latency",
+      "severity": "killed",
+      "profit_factor": 0.73,
+      "win_rate": 0.6408,
+      "daily_sharpe": 1.18,
+      "max_dd_pct": 4.53,
+      "trade_loss_pct": 0.3,
+      "recovery_time_min": 1440,
+      "kill_switch_activated": true,
+      "kill_switch_reasons": [
+        "PF<1.5 (got 0.73)"
+      ],
+      "notes": "Drift=0.50pips, signal decay=10.0%, p99 latency=812ms"
+    },
+    {
+      "category": "1. Latency Stress",
+      "scenario": "+1000ms added latency",
+      "severity": "killed",
+      "profit_factor": 0.4,
+      "win_rate": 0.5696,
+      "daily_sharpe": 0.78,
+      "max_dd_pct": 5.43,
+      "trade_loss_pct": 0.85,
+      "recovery_time_min": 1440,
+      "kill_switch_activated": true,
+      "kill_switch_reasons": [
+        "PF<1.5 (got 0.40)",
+        "WR<60% (got 57.0%)",
+        "Latency p99>1000ms (got 1312ms)"
+      ],
+      "notes": "Drift=1.00pips, signal decay=20.0%, p99 latency=1312ms"
+    },
+    {
+      "category": "1. Latency Stress",
+      "scenario": "+1500ms added latency",
+      "severity": "killed",
+      "profit_factor": 0.28,
+      "win_rate": 0.4984,
+      "daily_sharpe": 0.55,
+      "max_dd_pct": 6.33,
+      "trade_loss_pct": 1.0,
+      "recovery_time_min": 1440,
+      "kill_switch_activated": true,
+      "kill_switch_reasons": [
+        "PF<1.5 (got 0.28)",
+        "WR<60% (got 49.8%)",
+        "Latency p99>1000ms (got 1812ms)"
+      ],
+      "notes": "Drift=1.50pips, signal decay=30.0%, p99 latency=1812ms"
+    },
+    {
+      "category": "2. Broker Failure Stress",
+      "scenario": "1% order rejection",
+      "severity": "nominal",
+      "profit_factor": 3.85,
+      "win_rate": 0.7125,
+      "daily_sharpe": 1.85,
+      "max_dd_pct": 3.63,
+      "trade_loss_pct": 0.01,
+      "recovery_time_min": 5,
+      "kill_switch_activated": false,
+      "kill_switch_reasons": [],
+      "notes": "trade count drops to 99% of baseline"
+    },
+    {
+      "category": "2. Broker Failure Stress",
+      "scenario": "5% order rejection",
+      "severity": "stressed",
+      "profit_factor": 3.79,
+      "win_rate": 0.7145,
+      "daily_sharpe": 1.81,
+      "max_dd_pct": 3.67,
+      "trade_loss_pct": 0.05,
+      "recovery_time_min": 5,
+      "kill_switch_activated": false,
+      "kill_switch_reasons": [],
+      "notes": "trade count drops to 95% of baseline"
+    },
+    {
+      "category": "2. Broker Failure Stress",
+      "scenario": "10% order rejection",
+      "severity": "degraded",
+      "profit_factor": 3.72,
+      "win_rate": 0.717,
+      "daily_sharpe": 1.77,
+      "max_dd_pct": 3.73,
+      "trade_loss_pct": 0.1,
+      "recovery_time_min": 15,
+      "kill_switch_activated": false,
+      "kill_switch_reasons": [],
+      "notes": "trade count drops to 90% of baseline"
+    },
+    {
+      "category": "2. Broker Failure Stress",
+      "scenario": "20% order rejection",
+      "severity": "degraded",
+      "profit_factor": 3.56,
+      "win_rate": 0.722,
+      "daily_sharpe": 1.67,
+      "max_dd_pct": 3.84,
+      "trade_loss_pct": 0.2,
+      "recovery_time_min": 15,
+      "kill_switch_activated": false,
+      "kill_switch_reasons": [],
+      "notes": "trade count drops to 80% of baseline"
+    },
+    {
+      "category": "3. Data Integrity Stress",
+      "scenario": "Missing Candles",
+      "severity": "degraded",
+      "profit_factor": 3.41,
+      "win_rate": 0.6764,
+      "daily_sharpe": 1.61,
+      "max_dd_pct": 4.89,
+      "trade_loss_pct": 0.08,
+      "recovery_time_min": 30,
+      "kill_switch_activated": false,
+      "kill_switch_reasons": [],
+      "notes": "1.5% missing candles; PSI rises to 0.18"
+    },
+    {
+      "category": "3. Data Integrity Stress",
+      "scenario": "Delayed Candles",
+      "severity": "killed",
+      "profit_factor": 0.73,
+      "win_rate": 0.6408,
+      "daily_sharpe": 1.18,
+      "max_dd_pct": 4.53,
+      "trade_loss_pct": 0.3,
+      "recovery_time_min": 1440,
+      "kill_switch_activated": true,
+      "kill_switch_reasons": [
+        "PF<1.5 (got 0.73)"
+      ],
+      "notes": "Candles arrive 500ms late; equivalent to +500ms latency"
+    },
+    {
+      "category": "3. Data Integrity Stress",
+      "scenario": "Duplicate Candles",
+      "severity": "killed",
+      "profit_factor": 2.79,
+      "win_rate": 0.6266,
+      "daily_sharpe": 1.27,
+      "max_dd_pct": 5.79,
+      "trade_loss_pct": 0.05,
+      "recovery_time_min": 60,
+      "kill_switch_activated": true,
+      "kill_switch_reasons": [
+        "ECE>0.10 (got 0.120)",
+        "PSI>0.25 (got 0.32)"
+      ],
+      "notes": "Duplicate bars corrupt feature store; PSI=0.32, ECE=0.12 \u2192 KILL"
+    },
+    {
+      "category": "3. Data Integrity Stress",
+      "scenario": "Out Of Order",
+      "severity": "killed",
+      "profit_factor": 2.13,
+      "win_rate": 0.5554,
+      "daily_sharpe": 0.88,
+      "max_dd_pct": 7.24,
+      "trade_loss_pct": 0.15,
+      "recovery_time_min": 120,
+      "kill_switch_activated": true,
+      "kill_switch_reasons": [
+        "WR<60% (got 55.5%)",
+        "ECE>0.10 (got 0.180)",
+        "PSI>0.25 (got 0.45)"
+      ],
+      "notes": "Out-of-order timestamps corrupt merge_asof joins; KILL on PSI+ECE"
+    },
+    {
+      "category": "4. Market Event Stress",
+      "scenario": "NFP",
+      "severity": "killed",
+      "profit_factor": 1.61,
+      "win_rate": 0.3086,
+      "daily_sharpe": 0.24,
+      "max_dd_pct": 9.05,
+      "trade_loss_pct": 0.95,
+      "recovery_time_min": 1440,
+      "kill_switch_activated": true,
+      "kill_switch_reasons": [
+        "WR<60% (got 30.9%)"
+      ],
+      "notes": "Spread x6, slippage x4, 12min event window"
+    },
+    {
+      "category": "4. Market Event Stress",
+      "scenario": "CPI",
+      "severity": "killed",
+      "profit_factor": 1.94,
+      "win_rate": 0.3086,
+      "daily_sharpe": 0.29,
+      "max_dd_pct": 8.14,
+      "trade_loss_pct": 0.95,
+      "recovery_time_min": 1440,
+      "kill_switch_activated": true,
+      "kill_switch_reasons": [
+        "WR<60% (got 30.9%)"
+      ],
+      "notes": "Spread x5, slippage x4, 8min event window"
+    },
+    {
+      "category": "4. Market Event Stress",
+      "scenario": "FOMC",
+      "severity": "killed",
+      "profit_factor": 0.81,
+      "win_rate": 0.3086,
+      "daily_sharpe": 0.17,
+      "max_dd_pct": 12.67,
+      "trade_loss_pct": 0.95,
+      "recovery_time_min": 1440,
+      "kill_switch_activated": true,
+      "kill_switch_reasons": [
+        "PF<1.5 (got 0.81)",
+        "WR<60% (got 30.9%)",
+        "Latency p99>1000ms (got 1272ms)"
+      ],
+      "notes": "Spread x12, slippage x6, 25min event window"
+    },
+    {
+      "category": "4. Market Event Stress",
+      "scenario": "FLASH_CRASH",
+      "severity": "killed",
+      "profit_factor": 0.6,
+      "win_rate": 0.3086,
+      "daily_sharpe": 0.12,
+      "max_dd_pct": 19.91,
+      "trade_loss_pct": 0.95,
+      "recovery_time_min": 1440,
+      "kill_switch_activated": true,
+      "kill_switch_reasons": [
+        "PF<1.5 (got 0.60)",
+        "WR<60% (got 30.9%)",
+        "Latency p99>1000ms (got 1752ms)"
+      ],
+      "notes": "Spread x18, slippage x10, 4min event window"
+    },
+    {
+      "category": "5. Infrastructure Stress",
+      "scenario": "Vps Restart",
+      "severity": "degraded",
+      "profit_factor": 2.71,
+      "win_rate": 0.655,
+      "daily_sharpe": 1.27,
+      "max_dd_pct": 6.15,
+      "trade_loss_pct": 0.1,
+      "recovery_time_min": 15,
+      "kill_switch_activated": false,
+      "kill_switch_reasons": [],
+      "notes": "Open positions unmonitored 2-5min; gap-stop risk on resume"
+    },
+    {
+      "category": "5. Infrastructure Stress",
+      "scenario": "Internet Disconnect",
+      "severity": "killed",
+      "profit_factor": 2.13,
+      "win_rate": 0.6052,
+      "daily_sharpe": 0.78,
+      "max_dd_pct": 9.05,
+      "trade_loss_pct": 0.2,
+      "recovery_time_min": 1440,
+      "kill_switch_activated": true,
+      "kill_switch_reasons": [
+        "Latency p99>1000ms (got 2312ms)"
+      ],
+      "notes": "Cannot close positions; latency p99>2000ms \u2192 KILL"
+    },
+    {
+      "category": "5. Infrastructure Stress",
+      "scenario": "Process Crash",
+      "severity": "killed",
+      "profit_factor": 1.55,
+      "win_rate": 0.5696,
+      "daily_sharpe": 0.59,
+      "max_dd_pct": 10.14,
+      "trade_loss_pct": 0.3,
+      "recovery_time_min": 1440,
+      "kill_switch_activated": true,
+      "kill_switch_reasons": [
+        "WR<60% (got 57.0%)"
+      ],
+      "notes": "Process crash; orphaned positions need manual close"
+    },
+    {
+      "category": "5. Infrastructure Stress",
+      "scenario": "Database Lock",
+      "severity": "degraded",
+      "profit_factor": 3.87,
+      "win_rate": 0.712,
+      "daily_sharpe": 0.98,
+      "max_dd_pct": 3.62,
+      "trade_loss_pct": 1.0,
+      "recovery_time_min": 10,
+      "kill_switch_activated": false,
+      "kill_switch_reasons": [],
+      "notes": "Feature store locked; all new entries SKIP, existing positions OK"
+    },
+    {
+      "category": "5. Infrastructure Stress",
+      "scenario": "Model file corruption",
+      "severity": "killed",
+      "profit_factor": 0.0,
+      "win_rate": 0.0,
+      "daily_sharpe": 0.0,
+      "max_dd_pct": 0.0,
+      "trade_loss_pct": 1.0,
+      "recovery_time_min": 1440,
+      "kill_switch_activated": false,
+      "kill_switch_reasons": [
+        "Hash check fails at startup \u2014 process never starts"
+      ],
+      "notes": "Model hash mismatch; deployment refused. Requires re-deploy."
+    },
+    {
+      "category": "6. Trade Execution Stress",
+      "scenario": "Partial Fills",
+      "severity": "stressed",
+      "profit_factor": 3.56,
+      "win_rate": 0.6978,
+      "daily_sharpe": 1.76,
+      "max_dd_pct": 3.98,
+      "trade_loss_pct": 0.02,
+      "recovery_time_min": 5,
+      "kill_switch_activated": false,
+      "kill_switch_reasons": [],
+      "notes": "5% trades partial fill (60% size); minor impact"
+    },
+    {
+      "category": "6. Trade Execution Stress",
+      "scenario": "Slippage Spikes",
+      "severity": "killed",
+      "profit_factor": 0.94,
+      "win_rate": 0.6835,
+      "daily_sharpe": 1.53,
+      "max_dd_pct": 5.07,
+      "trade_loss_pct": 0.05,
+      "recovery_time_min": 60,
+      "kill_switch_activated": true,
+      "kill_switch_reasons": [
+        "PF<1.5 (got 0.94)"
+      ],
+      "notes": "Slippage x3.0 for 1h; extra cost 0.120"
+    },
+    {
+      "category": "6. Trade Execution Stress",
+      "scenario": "Spread Explosions",
+      "severity": "killed",
+      "profit_factor": 0.53,
+      "win_rate": 0.6622,
+      "daily_sharpe": 1.41,
+      "max_dd_pct": 5.43,
+      "trade_loss_pct": 0.08,
+      "recovery_time_min": 30,
+      "kill_switch_activated": true,
+      "kill_switch_reasons": [
+        "PF<1.5 (got 0.53)"
+      ],
+      "notes": "Spread x5.0 for 30min"
+    },
+    {
+      "category": "6. Trade Execution Stress",
+      "scenario": "Position sync failures",
+      "severity": "killed",
+      "profit_factor": 2.52,
+      "win_rate": 0.6408,
+      "daily_sharpe": 1.08,
+      "max_dd_pct": 6.52,
+      "trade_loss_pct": 0.15,
+      "recovery_time_min": 1440,
+      "kill_switch_activated": true,
+      "kill_switch_reasons": [
+        "Reconciliation failure \u2014 operational kill (audit requirement)"
+      ],
+      "notes": "Reconciliation fails; orphaned/duplicate positions; manual intervention"
+    }
+  ],
+  "summary": {
+    "total_scenarios": 27,
+    "killed_count": 16,
+    "survival_rate": 0.4074,
+    "production_readiness_score": 54.0,
+    "production_verdict": "Demo Ready",
+    "real_capital_readiness_score": 24.0,
+    "capital_verdict": "Not Ready",
+    "worst_case_dd_pct": 6.15,
+    "worst_case_sharpe": 0.0,
+    "worst_case_recovery_min": 1440,
+    "market_event_survival_pct": 0.0
+  }
+}

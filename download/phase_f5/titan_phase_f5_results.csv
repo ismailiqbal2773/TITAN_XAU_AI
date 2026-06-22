@@ -1,0 +1,28 @@
+category,scenario,severity,profit_factor,win_rate,daily_sharpe,max_dd_pct,trade_loss_pct,recovery_time_min,kill_switch_activated,kill_switch_reasons,notes
+1. Latency Stress,+50ms added latency,nominal,2.7,0.7049,1.85,3.71,0.02,5,False,,"Drift=0.05pips, signal decay=1.0%, p99 latency=362ms"
+1. Latency Stress,+100ms added latency,stressed,2.07,0.6978,1.75,3.8,0.05,5,False,,"Drift=0.10pips, signal decay=2.0%, p99 latency=412ms"
+1. Latency Stress,+250ms added latency,killed,1.22,0.6764,1.49,4.07,0.1,1440,True,PF<1.5 (got 1.22),"Drift=0.25pips, signal decay=5.0%, p99 latency=562ms"
+1. Latency Stress,+500ms added latency,killed,0.73,0.6408,1.18,4.53,0.3,1440,True,PF<1.5 (got 0.73),"Drift=0.50pips, signal decay=10.0%, p99 latency=812ms"
+1. Latency Stress,+1000ms added latency,killed,0.4,0.5696,0.78,5.43,0.85,1440,True,PF<1.5 (got 0.40) | WR<60% (got 57.0%) | Latency p99>1000ms (got 1312ms),"Drift=1.00pips, signal decay=20.0%, p99 latency=1312ms"
+1. Latency Stress,+1500ms added latency,killed,0.28,0.4984,0.55,6.33,1.0,1440,True,PF<1.5 (got 0.28) | WR<60% (got 49.8%) | Latency p99>1000ms (got 1812ms),"Drift=1.50pips, signal decay=30.0%, p99 latency=1812ms"
+2. Broker Failure Stress,1% order rejection,nominal,3.85,0.7125,1.85,3.63,0.01,5,False,,trade count drops to 99% of baseline
+2. Broker Failure Stress,5% order rejection,stressed,3.79,0.7145,1.81,3.67,0.05,5,False,,trade count drops to 95% of baseline
+2. Broker Failure Stress,10% order rejection,degraded,3.72,0.717,1.77,3.73,0.1,15,False,,trade count drops to 90% of baseline
+2. Broker Failure Stress,20% order rejection,degraded,3.56,0.722,1.67,3.84,0.2,15,False,,trade count drops to 80% of baseline
+3. Data Integrity Stress,Missing Candles,degraded,3.41,0.6764,1.61,4.89,0.08,30,False,,1.5% missing candles; PSI rises to 0.18
+3. Data Integrity Stress,Delayed Candles,killed,0.73,0.6408,1.18,4.53,0.3,1440,True,PF<1.5 (got 0.73),Candles arrive 500ms late; equivalent to +500ms latency
+3. Data Integrity Stress,Duplicate Candles,killed,2.79,0.6266,1.27,5.79,0.05,60,True,ECE>0.10 (got 0.120) | PSI>0.25 (got 0.32),"Duplicate bars corrupt feature store; PSI=0.32, ECE=0.12 → KILL"
+3. Data Integrity Stress,Out Of Order,killed,2.13,0.5554,0.88,7.24,0.15,120,True,WR<60% (got 55.5%) | ECE>0.10 (got 0.180) | PSI>0.25 (got 0.45),Out-of-order timestamps corrupt merge_asof joins; KILL on PSI+ECE
+4. Market Event Stress,NFP,killed,1.61,0.3086,0.24,9.05,0.95,1440,True,WR<60% (got 30.9%),"Spread x6, slippage x4, 12min event window"
+4. Market Event Stress,CPI,killed,1.94,0.3086,0.29,8.14,0.95,1440,True,WR<60% (got 30.9%),"Spread x5, slippage x4, 8min event window"
+4. Market Event Stress,FOMC,killed,0.81,0.3086,0.17,12.67,0.95,1440,True,PF<1.5 (got 0.81) | WR<60% (got 30.9%) | Latency p99>1000ms (got 1272ms),"Spread x12, slippage x6, 25min event window"
+4. Market Event Stress,FLASH_CRASH,killed,0.6,0.3086,0.12,19.91,0.95,1440,True,PF<1.5 (got 0.60) | WR<60% (got 30.9%) | Latency p99>1000ms (got 1752ms),"Spread x18, slippage x10, 4min event window"
+5. Infrastructure Stress,Vps Restart,degraded,2.71,0.655,1.27,6.15,0.1,15,False,,Open positions unmonitored 2-5min; gap-stop risk on resume
+5. Infrastructure Stress,Internet Disconnect,killed,2.13,0.6052,0.78,9.05,0.2,1440,True,Latency p99>1000ms (got 2312ms),Cannot close positions; latency p99>2000ms → KILL
+5. Infrastructure Stress,Process Crash,killed,1.55,0.5696,0.59,10.14,0.3,1440,True,WR<60% (got 57.0%),Process crash; orphaned positions need manual close
+5. Infrastructure Stress,Database Lock,degraded,3.87,0.712,0.98,3.62,1.0,10,False,,"Feature store locked; all new entries SKIP, existing positions OK"
+5. Infrastructure Stress,Model file corruption,killed,0.0,0.0,0.0,0.0,1.0,1440,False,Hash check fails at startup — process never starts,Model hash mismatch; deployment refused. Requires re-deploy.
+6. Trade Execution Stress,Partial Fills,stressed,3.56,0.6978,1.76,3.98,0.02,5,False,,5% trades partial fill (60% size); minor impact
+6. Trade Execution Stress,Slippage Spikes,killed,0.94,0.6835,1.53,5.07,0.05,60,True,PF<1.5 (got 0.94),Slippage x3.0 for 1h; extra cost 0.120
+6. Trade Execution Stress,Spread Explosions,killed,0.53,0.6622,1.41,5.43,0.08,30,True,PF<1.5 (got 0.53),Spread x5.0 for 30min
+6. Trade Execution Stress,Position sync failures,killed,2.52,0.6408,1.08,6.52,0.15,1440,True,Reconciliation failure — operational kill (audit requirement),Reconciliation fails; orphaned/duplicate positions; manual intervention
