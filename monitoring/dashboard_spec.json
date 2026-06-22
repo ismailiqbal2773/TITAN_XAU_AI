@@ -1,0 +1,226 @@
+{
+  "dashboard": {
+    "title": "TITAN XAU AI — Production Monitoring",
+    "version": "1.0",
+    "sprint": "Sprint 5",
+    "refresh_interval_seconds": 10,
+    "description": "Grafana dashboard specification for TITAN XAU AI production monitoring. All metrics sourced from TradeJournal (JSONL) + Prometheus metrics endpoint."
+  },
+  "datasources": [
+    {
+      "name": "TITAN Journal",
+      "type": "json",
+      "path": "data/runtime/titan_journal.jsonl",
+      "description": "Append-only JSONL trade journal"
+    },
+    {
+      "name": "TITAN Prometheus",
+      "type": "prometheus",
+      "url": "http://localhost:8000/metrics",
+      "description": "FastAPI /metrics endpoint (Prometheus format)"
+    }
+  ],
+  "panels": [
+    {
+      "id": "signal_count",
+      "title": "Signal Count (Total)",
+      "type": "stat",
+      "query": "count(record_type='SIGNAL')",
+      "source": "journal",
+      "unit": "short",
+      "thresholds": {"warn": 0, "crit": 0}
+    },
+    {
+      "id": "accepted_signals",
+      "title": "Accepted Signals",
+      "type": "stat",
+      "query": "count(record_type='DECISION' AND data.accepted=true)",
+      "source": "journal",
+      "unit": "short"
+    },
+    {
+      "id": "rejected_signals",
+      "title": "Rejected Signals",
+      "type": "stat",
+      "query": "count(record_type='DECISION' AND data.accepted=false)",
+      "source": "journal",
+      "unit": "short"
+    },
+    {
+      "id": "rejection_rate",
+      "title": "Rejection Rate (%)",
+      "type": "gauge",
+      "query": "rejected_signals / signal_count * 100",
+      "source": "computed",
+      "unit": "percent",
+      "thresholds": {"warn": 70, "crit": 90}
+    },
+    {
+      "id": "pnl_cumulative",
+      "title": "Cumulative PnL (USD)",
+      "type": "timeseries",
+      "query": "sum(record_type='EXIT' AND data.pnl_usd)",
+      "source": "journal",
+      "unit": "currencyUSD"
+    },
+    {
+      "id": "drawdown_pct",
+      "title": "Current Drawdown (%)",
+      "type": "gauge",
+      "query": "titan_drawdown_pct",
+      "source": "prometheus",
+      "unit": "percent",
+      "thresholds": {"warn": 3.0, "crit": 5.0}
+    },
+    {
+      "id": "slippage_mean",
+      "title": "Mean Slippage (pips)",
+      "type": "timeseries",
+      "query": "titan_slippage_mean_pips",
+      "source": "prometheus",
+      "unit": "pips",
+      "thresholds": {"warn": 2.0, "crit": 5.0}
+    },
+    {
+      "id": "slippage_p95",
+      "title": "P95 Slippage (pips)",
+      "type": "timeseries",
+      "query": "titan_slippage_p95_pips",
+      "source": "prometheus",
+      "unit": "pips",
+      "thresholds": {"warn": 5.0, "crit": 10.0}
+    },
+    {
+      "id": "drift_psi",
+      "title": "PSI (Feature Drift)",
+      "type": "timeseries",
+      "query": "titan_drift_psi",
+      "source": "prometheus",
+      "unit": "short",
+      "thresholds": {"warn": 0.10, "crit": 0.25}
+    },
+    {
+      "id": "drift_ece",
+      "title": "ECE (Calibration Error)",
+      "type": "timeseries",
+      "query": "titan_drift_ece",
+      "source": "prometheus",
+      "unit": "short",
+      "thresholds": {"warn": 0.08, "crit": 0.12}
+    },
+    {
+      "id": "drift_brier",
+      "title": "Brier Score",
+      "type": "timeseries",
+      "query": "titan_drift_brier",
+      "source": "prometheus",
+      "unit": "short",
+      "thresholds": {"warn": 0.22, "crit": 0.28}
+    },
+    {
+      "id": "kill_switch_state",
+      "title": "Kill-Switch State",
+      "type": "stat",
+      "query": "titan_kill_switch_state",
+      "source": "prometheus",
+      "mappings": {
+        "0": {"text": "NORMAL", "color": "green"},
+        "1": {"text": "CAUTION", "color": "yellow"},
+        "2": {"text": "HALT_NEW_TRADES", "color": "orange"},
+        "3": {"text": "FLATTEN_ONLY", "color": "red"},
+        "4": {"text": "EMERGENCY_STOP", "color": "darkred"}
+      }
+    },
+    {
+      "id": "watchdog_restarts",
+      "title": "Watchdog Restarts (24h)",
+      "type": "stat",
+      "query": "count(record_type='HEARTBEAT' AND data.event='watchdog_restart_attempted') WHERE timestamp > now-24h",
+      "source": "journal",
+      "unit": "short",
+      "thresholds": {"warn": 3, "crit": 10}
+    },
+    {
+      "id": "news_blocks",
+      "title": "News Blocks (24h)",
+      "type": "stat",
+      "query": "count(record_type='HEARTBEAT' AND data.event='trade_blocked_by_kill_switch' AND data.reason='kill_switch_halt_new_trades') WHERE timestamp > now-24h",
+      "source": "journal",
+      "unit": "short"
+    },
+    {
+      "id": "open_positions",
+      "title": "Open Positions",
+      "type": "stat",
+      "query": "titan_open_positions",
+      "source": "prometheus",
+      "unit": "short",
+      "thresholds": {"warn": 1, "crit": 2}
+    },
+    {
+      "id": "inference_latency",
+      "title": "Inference Latency (ms)",
+      "type": "timeseries",
+      "query": "titan_inference_latency_ms",
+      "source": "prometheus",
+      "unit": "ms",
+      "thresholds": {"warn": 100, "crit": 500}
+    },
+    {
+      "id": "journal_records_total",
+      "title": "Journal Records (Total)",
+      "type": "stat",
+      "query": "count(*)",
+      "source": "journal",
+      "unit": "short"
+    }
+  ],
+  "alerts": [
+    {
+      "name": "KillSwitchEmergency",
+      "condition": "kill_switch_state == 4",
+      "severity": "critical",
+      "message": "Kill-switch in EMERGENCY_STOP — all trading halted"
+    },
+    {
+      "name": "KillSwitchHalt",
+      "condition": "kill_switch_state >= 2",
+      "severity": "warning",
+      "message": "Kill-switch blocking new trades"
+    },
+    {
+      "name": "HighDrawdown",
+      "condition": "drawdown_pct > 5.0",
+      "severity": "critical",
+      "message": "Drawdown exceeded 5% — review positions"
+    },
+    {
+      "name": "HighSlippage",
+      "condition": "slippage_p95 > 10.0",
+      "severity": "warning",
+      "message": "P95 slippage above 10 pips — check broker"
+    },
+    {
+      "name": "DriftBreach",
+      "condition": "drift_psi > 0.25 OR drift_ece > 0.12 OR drift_brier > 0.28",
+      "severity": "critical",
+      "message": "Model drift breached emergency threshold"
+    },
+    {
+      "name": "WatchdogRestartStorm",
+      "condition": "watchdog_restarts > 5",
+      "severity": "warning",
+      "message": "Watchdog restarting components frequently — investigate"
+    }
+  ],
+  "layout": {
+    "rows": [
+      {"title": "Trading Activity", "panels": ["signal_count", "accepted_signals", "rejected_signals", "rejection_rate"]},
+      {"title": "Performance", "panels": ["pnl_cumulative", "drawdown_pct", "open_positions"]},
+      {"title": "Execution Quality", "panels": ["slippage_mean", "slippage_p95", "inference_latency"]},
+      {"title": "Model Health", "panels": ["drift_psi", "drift_ece", "drift_brier"]},
+      {"title": "Safety", "panels": ["kill_switch_state", "watchdog_restarts", "news_blocks"]},
+      {"title": "System", "panels": ["journal_records_total"]}
+    ]
+  }
+}

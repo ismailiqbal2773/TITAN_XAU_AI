@@ -94,9 +94,11 @@ class TradeLoop:
     """
 
     def __init__(self, config: Optional[TradeLoopConfig] = None,
-                 journal=None):
+                 journal=None,
+                 kill_switch=None):
         self.config = config or TradeLoopConfig()
         self.journal = journal  # Optional TradeJournal for logging
+        self.kill_switch = kill_switch  # Optional KillSwitchFSM
         self._open_position_count = 0
         # Verify safety: if dry_run=False, require explicit env var
         if not self.config.dry_run and self.config.require_live_config_flag:
@@ -134,6 +136,36 @@ class TradeLoop:
             account_state: Optional dict with balance/margin/margin_level/etc.
         """
         t0 = time.perf_counter()
+
+        # ── PRE-CHECK 0: Kill-switch FSM state ──
+        if self.kill_switch is not None:
+            ks_state = self.kill_switch.state
+            if not self.kill_switch.allows_new_trades:
+                # HALT_NEW_TRADES / FLATTEN_ONLY / EMERGENCY_STOP → block
+                reason = f"kill_switch_{ks_state.value.lower()}"
+                if self.kill_switch.is_emergency:
+                    reason = "kill_switch_emergency_stop"
+                elif self.kill_switch.requires_flatten:
+                    reason = "kill_switch_flatten_only"
+                elif ks_state.value == "HALT_NEW_TRADES":
+                    reason = "kill_switch_halt_new_trades"
+                # Journal the block
+                if self.journal is not None:
+                    self.journal.log_heartbeat({
+                        "event": "trade_blocked_by_kill_switch",
+                        "kill_switch_state": ks_state.value,
+                        "signal_direction": signal.direction.name,
+                        "reason": reason,
+                    })
+                return self._reject(signal, reason, t0)
+            # If CAUTION → reduce size (configurable; for now, half the volume)
+            if ks_state.value == "CAUTION":
+                # Reduce proposed volume by 50% in caution state
+                original_max = self.config.max_lot
+                self.config.max_lot = max(original_max / 2, 0.01)
+                logger.warning(
+                    f"Kill-switch CAUTION — reducing max_lot to {self.config.max_lot}"
+                )
 
         # ── PRE-CHECK 1: Tradeable signal ──
         if not signal.is_tradeable:

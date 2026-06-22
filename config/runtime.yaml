@@ -1,0 +1,148 @@
+# TITAN XAU AI — Runtime Configuration (Sprint 5)
+#
+# SAFE DEFAULTS:
+#   - dry_run: true          (NO real orders)
+#   - live_trading: false    (must be explicitly enabled)
+#
+# To enable live trading, set BOTH:
+#   1. dry_run: false
+#   2. Environment variable TITAN_LIVE_TRADING=1
+#
+# Otherwise the system will fail-closed.
+
+runtime:
+  dry_run: true                    # MANDATORY: true = no real orders
+  live_trading: false              # MANDATORY: must be false unless operator explicitly enables
+  log_level: INFO
+  journal_path: data/runtime/titan_journal.jsonl
+  session_id: auto                 # "auto" = generated UUID, or explicit string
+
+# ─── Symbol & Timeframe ──────────────────────────────────────────────────────
+symbol:
+  name: XAUUSD
+  timeframe: H1                    # H1 | M30 | M15 | M5
+  alternate_names:
+    - XAUUSD
+    - XAUUSD.c
+    - XAUUSD.m
+    - GOLD
+    - XAU/USD
+
+# ─── Model Paths ─────────────────────────────────────────────────────────────
+models:
+  xgb_path: titan/data/models/xgboost_v1.pkl
+  meta_path: titan/data/models/meta_label_v2_context.pkl
+  lstm_path: titan/data/models/lstm_v1.pt           # not used in dry_run (challenger only)
+  transformer_path: titan/data/models/transformer_v1.pt  # not used in dry_run
+  # HPO params (for reference)
+  hpo_params_dir: titan/data/hpo
+
+# ─── Feature Stream ──────────────────────────────────────────────────────────
+features:
+  window: 300                      # bars to keep in rolling buffer (min 220)
+  source: canonical                # canonical | mt5
+  canonical_path: titan/data/canonical/XAUUSD_H1_canonical.parquet
+
+# ─── Inference ───────────────────────────────────────────────────────────────
+inference:
+  xgb_threshold: 0.55              # P ≥ 0.55 → directional signal
+  meta_threshold: 0.65             # P(win) ≥ 0.65 → trade approved
+
+# ─── Risk Limits ─────────────────────────────────────────────────────────────
+risk:
+  max_lot: 0.01                    # HARD CAP — cannot exceed
+  max_open_positions: 1            # HARD CAP — one position at a time
+  sl_pips: 50                      # 50 pips = $0.50 (2-digit broker)
+  tp_pips: 100                     # 100 pips = $1.00 (1:2 RR)
+  max_spread_usd: 1.0              # Reject if spread > $1.00
+  deviation_points: 20             # Max slippage in points
+  magic_number: 202619             # TITAN identifier
+
+# ─── Kill-Switch FSM ─────────────────────────────────────────────────────────
+kill_switch:
+  max_daily_loss_pct: 3.0          # → HALT_NEW_TRADES
+  max_drawdown_pct: 5.0            # → FLATTEN_ONLY
+  max_consecutive_losses: 5        # → HALT_NEW_TRADES
+  emergency_daily_loss_pct: 5.0    # → EMERGENCY_STOP
+  emergency_drawdown_pct: 8.0      # → EMERGENCY_STOP
+  max_latency_ms: 500.0            # → CAUTION
+  emergency_latency_ms: 1000.0     # → EMERGENCY_STOP
+  max_spread_usd: 1.0              # → CAUTION
+  emergency_spread_usd: 2.0        # → HALT_NEW_TRADES
+  max_brier: 0.22                  # → CAUTION
+  emergency_brier: 0.28            # → HALT_NEW_TRADES
+  max_ece: 0.08                    # → CAUTION
+  emergency_ece: 0.12              # → HALT_NEW_TRADES
+
+# ─── News Filter ─────────────────────────────────────────────────────────────
+news_filter:
+  enabled: true
+  csv_path: data/economic_calendar.csv   # offline CSV (no paid API)
+  block_window_minutes: 30               # block ±30 min around high-impact events
+  event_types:                           # NFP, CPI, FOMC, ECB, BOE
+    - NFP
+    - CPI
+    - FOMC
+    - ECB
+    - BOE
+
+# ─── Slippage Monitor ────────────────────────────────────────────────────────
+slippage:
+  window_size: 100                 # rolling window of fills
+  caution_mean_pips: 2.0           # → CAUTION
+  caution_p95_pips: 5.0            # → CAUTION
+  halt_mean_pips: 5.0              # → HALT
+  halt_p95_pips: 10.0              # → HALT
+  halt_max_pips: 20.0              # single fill → HALT
+
+# ─── Drift Monitor ───────────────────────────────────────────────────────────
+drift:
+  window_size: 200                 # rolling window of predictions
+  psi_caution: 0.10                # → CAUTION
+  psi_emergency: 0.25              # → EMERGENCY_STOP
+  ece_caution: 0.08                # → CAUTION
+  ece_emergency: 0.12              # → EMERGENCY_STOP
+  brier_caution: 0.22              # → CAUTION
+  brier_emergency: 0.28            # → EMERGENCY_STOP
+  winrate_drift_caution: 0.10      # → CAUTION
+  winrate_drift_emergency: 0.20    # → EMERGENCY_STOP
+  confidence_drift_caution: 0.10   # → CAUTION
+  n_bins: 10                       # bins for PSI + ECE
+
+# ─── Watchdog ────────────────────────────────────────────────────────────────
+watchdog:
+  enabled: true
+  dry_run: true                    # MANDATORY: true = log only, no auto-restart
+  check_interval_s: 10.0
+  max_restarts_per_minute: 3
+  components:
+    - name: inference_loop
+      expected_interval_s: 60.0
+      threshold_misses: 3
+    - name: position_sync_loop
+      expected_interval_s: 10.0
+      threshold_misses: 3
+
+# ─── Exit Manager ────────────────────────────────────────────────────────────
+exit_manager:
+  max_holding_hours: 24.0
+  stale_threshold_seconds: 300.0
+  trailing_activation_r_multiple: 1.0    # activate trailing after +1R
+  trailing_distance_r: 0.5               # trail 0.5R behind current price
+  enable_trailing: true
+  enable_max_holding: true
+  enable_stale: true
+
+# ─── Position Sync ───────────────────────────────────────────────────────────
+position_sync:
+  interval_seconds: 10.0
+  broker_source: stub              # stub | mt5 (use "mt5" on Windows only)
+  magic_filter: 202619             # only sync TITAN positions
+
+# ─── MT5 Connection (Windows only — placeholders for dry_run) ────────────────
+mt5:
+  terminal_path: ""                # Set on Windows: C:\Program Files\MetaTrader 5\terminal64.exe
+  login: 0                         # Set your MT5 demo login
+  password: ""                     # Set your MT5 demo password (use env var in prod)
+  server: ""                       # Set your broker server (e.g., FundedNext-Server 3)
+  timeout: 60000
