@@ -1,0 +1,40 @@
+{
+  "report_date": "2026-06-22T05:36:50.676792",
+  "specification": "PHASE_B_CROSS_TIMEFRAME_CONTEXT_ENGINE",
+  "h4_context_features": [
+    "h4_trend_direction",
+    "h4_atr_percentile",
+    "h4_structure_state",
+    "h4_distance_from_mean"
+  ],
+  "d1_context_features": [
+    "d1_trend_direction",
+    "d1_atr_percentile",
+    "d1_structure_state",
+    "d1_distance_from_mean"
+  ],
+  "alignment_method": "merge_asof direction=backward (no look-ahead bias)",
+  "baseline": {
+    "auc": 0.68,
+    "pf": 5.91,
+    "sharpe": 39.6,
+    "trades": 4126
+  },
+  "enhanced": {
+    "auc": 0.6780737465419262,
+    "pf": 9.149109177675161,
+    "sharpe": 48.17893229914934,
+    "trades": 2689
+  },
+  "improvements": {
+    "auc_pct": -0.28327256736380146,
+    "pf_pct": 54.80726188959664,
+    "sharpe_pct": 21.66397045239732
+  },
+  "pass_conditions": {
+    "auc_improvement_gt_3pct": false,
+    "pf_improvement_gt_10pct": true,
+    "sharpe_improvement_gt_10pct": true
+  },
+  "verdict": "CONTEXT_ENGINE_VALIDATED"
+}
