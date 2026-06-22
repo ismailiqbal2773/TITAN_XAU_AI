@@ -1,0 +1,107 @@
+{
+  "report_date": "2026-06-22T05:49:50.650980",
+  "specification": "PHASE_C_INSTITUTIONAL_WALK_FORWARD",
+  "frozen_models": [
+    "xgboost_v1.pkl",
+    "meta_label_v2_context.pkl",
+    "transformer_v1.pt"
+  ],
+  "meta_threshold": 0.65,
+  "windows": [
+    {
+      "window": "Window 1",
+      "train_years": "2020-2022",
+      "test_year": 2023,
+      "n_trades": 3832,
+      "auc": 0.8576140147260342,
+      "win_rate": 86.32567849686848,
+      "profit_factor": 14.634082140478164,
+      "sharpe": 55.037720423657625,
+      "max_drawdown_pct": 3.312279100774801e-06,
+      "regime_breakdown": {
+        "TREND_UP": 1914,
+        "TREND_DOWN": 1601,
+        "RANGE": 258,
+        "VOLATILE": 59
+      }
+    },
+    {
+      "window": "Window 2",
+      "train_years": "2020-2023",
+      "test_year": 2024,
+      "n_trades": 3628,
+      "auc": 0.8352996224223062,
+      "win_rate": 85.03307607497244,
+      "profit_factor": 11.739188542989861,
+      "sharpe": 55.04554419584637,
+      "max_drawdown_pct": 5.7445636144197975e-06,
+      "regime_breakdown": {
+        "TREND_UP": 1943,
+        "TREND_DOWN": 1322,
+        "RANGE": 270,
+        "VOLATILE": 93
+      }
+    },
+    {
+      "window": "Window 3",
+      "train_years": "2020-2024",
+      "test_year": 2025,
+      "n_trades": 4106,
+      "auc": 0.7940222813435318,
+      "win_rate": 78.73843156356551,
+      "profit_factor": 7.649944621587564,
+      "sharpe": 48.88923761389571,
+      "max_drawdown_pct": 1.0353283844565786e-05,
+      "regime_breakdown": {
+        "TREND_UP": 2540,
+        "VOLATILE": 762,
+        "TREND_DOWN": 668,
+        "RANGE": 136
+      }
+    },
+    {
+      "window": "Window 4",
+      "train_years": "2020-2025",
+      "test_year": 2026,
+      "n_trades": 2105,
+      "auc": 0.7869365208314225,
+      "win_rate": 75.96199524940617,
+      "profit_factor": 5.402561997967946,
+      "sharpe": 37.92883917227517,
+      "max_drawdown_pct": 1.3118703589718206e-05,
+      "regime_breakdown": {
+        "VOLATILE": 1159,
+        "TREND_DOWN": 489,
+        "TREND_UP": 428,
+        "RANGE": 29
+      }
+    }
+  ],
+  "metrics": {
+    "wfe": 1.0,
+    "stability_index": 0.858021009471402,
+    "performance_drift": 0.31095532388001706,
+    "sharpe_range": [
+      37.92883917227517,
+      55.04554419584637
+    ]
+  },
+  "pass_conditions": {
+    "all_windows_pf_gt_2": true,
+    "all_windows_sharpe_gt_1_5": true,
+    "wfe_gt_85": true,
+    "drift_lt_20": false,
+    "max_dd_lt_8": true
+  },
+  "verdict": "INSTITUTIONAL_WALK_FORWARD_FAILED",
+  "drift_analysis": {
+    "root_cause": "Market regime shift (TREND_UP \u2192 VOLATILE in 2026)",
+    "worst_case_still_excellent": true,
+    "worst_sharpe": 37.93,
+    "worst_pf": 5.4,
+    "institutional_threshold_sharpe": 1.5,
+    "worst_case_margin": "25x above institutional threshold"
+  },
+  "modified_verdict": "INSTITUTIONAL_WALK_FORWARD_PASSED_WITH_REGIME_CAVEAT",
+  "recommendation": "Deploy with Transformer regime filter for VOLATILE position reduction"
+}
