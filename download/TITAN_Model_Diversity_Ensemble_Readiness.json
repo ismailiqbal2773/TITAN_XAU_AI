@@ -1,0 +1,123 @@
+{
+  "prediction_correlation": {
+    "XGBoost": {
+      "XGBoost": 1.0,
+      "LightGBM": 0.9527874949036071,
+      "LSTM": 0.8109341541609927,
+      "Transformer": -0.012273375334214173
+    },
+    "LightGBM": {
+      "XGBoost": 0.9527874949036071,
+      "LightGBM": 1.0,
+      "LSTM": 0.8577012301443415,
+      "Transformer": -0.0034058084130000606
+    },
+    "LSTM": {
+      "XGBoost": 0.8109341541609927,
+      "LightGBM": 0.8577012301443415,
+      "LSTM": 1.0,
+      "Transformer": -0.002342059705269618
+    },
+    "Transformer": {
+      "XGBoost": -0.012273375334214173,
+      "LightGBM": -0.0034058084130000606,
+      "LSTM": -0.002342059705269618,
+      "Transformer": 1.0
+    }
+  },
+  "max_pred_corr": 0.9527874949036071,
+  "error_correlation": {
+    "XGBoost": {
+      "XGBoost": 1.0,
+      "LightGBM": 0.9842377817707036,
+      "LSTM": 0.9379084817505651,
+      "Transformer": 0.8443337039971134
+    },
+    "LightGBM": {
+      "XGBoost": 0.9842377817707036,
+      "LightGBM": 1.0,
+      "LSTM": 0.9562334002787696,
+      "Transformer": 0.8630582010550372
+    },
+    "LSTM": {
+      "XGBoost": 0.9379084817505651,
+      "LightGBM": 0.9562334002787696,
+      "LSTM": 1.0,
+      "Transformer": 0.9378913812411134
+    },
+    "Transformer": {
+      "XGBoost": 0.8443337039971134,
+      "LightGBM": 0.8630582010550372,
+      "LSTM": 0.9378913812411134,
+      "Transformer": 1.0
+    }
+  },
+  "max_err_corr": 0.9842377817707036,
+  "regime_performance": {
+    "TREND_UP": {
+      "n": 2370,
+      "XGB": 0.7879157152660357,
+      "LGBM": 0.7746642041758826,
+      "LSTM": 0.7467737053497636
+    },
+    "TREND_DOWN": {
+      "n": 1095,
+      "XGB": 0.7884515259124769,
+      "LGBM": 0.7809754892798975,
+      "LSTM": 0.7531973406669693
+    },
+    "RANGE": {
+      "n": 144,
+      "XGB": 0.7285216718266253,
+      "LGBM": 0.7080108359133127,
+      "LSTM": 0.6762770897832817
+    },
+    "VOLATILE": {
+      "n": 1896,
+      "XGB": 0.7945871131604235,
+      "LGBM": 0.7910707187229631,
+      "LSTM": 0.7372981664196578
+    }
+  },
+  "feature_overlap": {
+    "jaccard": 0.5384615384615384,
+    "overlap": 7
+  },
+  "brier_scores": {
+    "xgb": 0.1883903542358108,
+    "lgbm": 0.1914547792025744,
+    "lstm": 0.21134970860017185
+  },
+  "ensemble": {
+    "equal": {
+      "auc": 0.7828850177936132
+    },
+    "confidence": {
+      "auc": 0.7849018298906272
+    },
+    "regime_aware": {
+      "auc": 0.7840385767012285
+    }
+  },
+  "best_standalone": {
+    "model": "XGBoost",
+    "auc": 0.7884637238097202
+  },
+  "best_ensemble": {
+    "method": "Confidence",
+    "auc": 0.7849018298906272
+  },
+  "improvement": -0.0035618939190930066,
+  "unique_models": [
+    "LSTM",
+    "Transformer"
+  ],
+  "pass_conditions": {
+    "ensemble_beats_best": false,
+    "at_least_2_unique": true,
+    "pred_corr_lt_90": false,
+    "err_corr_lt_80": false
+  },
+  "verdict": "ENSEMBLE_NEEDS_REDESIGN",
+  "recommended_architecture": null
+}
