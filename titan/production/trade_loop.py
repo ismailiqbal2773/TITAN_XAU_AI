@@ -93,8 +93,10 @@ class TradeLoop:
                                               execution_engine=exec_engine)
     """
 
-    def __init__(self, config: Optional[TradeLoopConfig] = None):
+    def __init__(self, config: Optional[TradeLoopConfig] = None,
+                 journal=None):
         self.config = config or TradeLoopConfig()
+        self.journal = journal  # Optional TradeJournal for logging
         self._open_position_count = 0
         # Verify safety: if dry_run=False, require explicit env var
         if not self.config.dry_run and self.config.require_live_config_flag:
@@ -243,7 +245,7 @@ class TradeLoop:
                 f"XAUUSD @ {entry_price:.2f} SL={sl:.2f} TP={tp:.2f} "
                 f"(risk={risk_decision_str})"
             )
-            return TradeDecision(
+            decision = TradeDecision(
                 accepted=True,
                 signal=signal,
                 risk_decision=risk_decision_str,
@@ -253,6 +255,11 @@ class TradeLoop:
                 evaluation_ms=elapsed,
                 dry_run=True,
             )
+            # Journal the decision + order
+            if self.journal is not None:
+                self.journal.log_decision(decision)
+                self.journal.log_order(decision)
+            return decision
 
         # ── LIVE: submit to ExecutionEngine ──
         if execution_engine is None:
@@ -344,7 +351,7 @@ class TradeLoop:
                 adjusted_volume: float = 0.0) -> TradeDecision:
         elapsed = (time.perf_counter() - t0) * 1000.0
         logger.info(f"Signal rejected: {reason}")
-        return TradeDecision(
+        decision = TradeDecision(
             accepted=False,
             reject_reason=reason,
             signal=signal,
@@ -353,6 +360,10 @@ class TradeLoop:
             evaluation_ms=elapsed,
             dry_run=self.config.dry_run,
         )
+        # Journal the rejection
+        if self.journal is not None:
+            self.journal.log_decision(decision)
+        return decision
 
 
 if __name__ == "__main__":
