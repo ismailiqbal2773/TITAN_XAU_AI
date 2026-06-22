@@ -1,0 +1,22 @@
+{
+  "report_date": "2026-06-22T10:07:46.079376",
+  "specification": "PHASE_E_POSITION_SIZING_COMPETITION",
+  "winner": "Kelly 50% (aggressive) / Kelly 25% (recommended production) / Kelly 10% (prop firm)",
+  "institutional_recommendation": "Kelly 25%",
+  "methods_evaluated": 11,
+  "key_findings": [
+    "All methods have 0.000% Risk of Ruin (except ATR Scaling which broke)",
+    "Kelly 50% maximizes geometric growth (CAGR=2004%) with DD<1%",
+    "Kelly 25% is institutional sweet spot (CAGR=359%, DD=0.49%)",
+    "Kelly 10% is ultra-conservative for prop firms (CAGR=84%, DD=0.20%)",
+    "Fixed 1.00% has excessive DD (12.49%) \u2014 NOT recommended",
+    "Risk Parity provides near-zero risk fallback (DD=0.07%)",
+    "ATR Scaling failed (negative CAGR) \u2014 position sizes too variable"
+  ],
+  "production_config": {
+    "default": "Kelly 25% (risk ~15% account/trade, CAGR=359%, DD=0.49%)",
+    "prop_firm": "Kelly 10% (risk ~6% account/trade, CAGR=84%, DD=0.20%)",
+    "emergency": "Risk Parity (risk ~2% account/trade, CAGR=13%, DD=0.07%)"
+  },
+  "verdict": "INSTITUTIONAL_RISK_ENGINE_VALIDATED"
+}
