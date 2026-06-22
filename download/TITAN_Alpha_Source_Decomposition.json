@@ -1,0 +1,261 @@
+{
+  "report_date": "2026-06-22T00:10:22.802915",
+  "specification": "PHASE_1.6_ALPHA_SOURCE_DECOMPOSITION",
+  "feature_groups": {
+    "price": [
+      "ret_1",
+      "ret_5",
+      "ret_15",
+      "price_zscore_60",
+      "hl_range",
+      "close_pos_in_range",
+      "ret_lag_1",
+      "ret_lag_2",
+      "ret_lag_3",
+      "ret_lag_5",
+      "ret_lag_10",
+      "ret_lag_20",
+      "ret_lag_60"
+    ],
+    "technical": [
+      "rsi",
+      "macd_signal",
+      "macd_hist",
+      "bb_upper",
+      "bb_width",
+      "bb_pct_b",
+      "atr",
+      "adx",
+      "plus_di",
+      "minus_di",
+      "obv",
+      "obv_slope_20",
+      "sma_20_ratio",
+      "sma_200_ratio",
+      "atr_ratio_5_20"
+    ],
+    "volatility": [
+      "realized_vol_10",
+      "vol_of_vol_10",
+      "realized_vol_20",
+      "vol_of_vol_20",
+      "realized_vol_60",
+      "vol_of_vol_60",
+      "realized_vol_120",
+      "vol_of_vol_120",
+      "vol_ratio_10_60"
+    ],
+    "microstructure": [
+      "n_brokers",
+      "spread_pct",
+      "spread_zscore_60",
+      "volume_zscore_60",
+      "volume_ratio_5_20",
+      "body_ratio",
+      "upper_wick_ratio",
+      "lower_wick_ratio",
+      "body_dir"
+    ],
+    "time": [
+      "hour_sin",
+      "hour_cos",
+      "dow_sin",
+      "dow_cos",
+      "asia_session",
+      "eu_session",
+      "us_session",
+      "month_sin",
+      "month_cos"
+    ]
+  },
+  "single_group_benchmarks": {
+    "price": {
+      "auc": 0.7652913284611657,
+      "acc": 0.7069936421435059,
+      "ic": 0.5265595757099715,
+      "n_features": 13
+    },
+    "technical": {
+      "auc": 0.6324547257859661,
+      "acc": 0.5963669391462307,
+      "ic": 0.2858759507692863,
+      "n_features": 15
+    },
+    "volatility": {
+      "auc": 0.4915816627210459,
+      "acc": 0.5129881925522253,
+      "ic": -0.01346077297586191,
+      "n_features": 9
+    },
+    "microstructure": {
+      "auc": 0.7773775337994082,
+      "acc": 0.7122615803814714,
+      "ic": 0.5516514124543408,
+      "n_features": 9
+    },
+    "time": {
+      "auc": 0.5079495800939866,
+      "acc": 0.5042688465031789,
+      "ic": 0.004745403679074358,
+      "n_features": 9
+    }
+  },
+  "cumulative_experiments": {
+    "price": {
+      "auc": 0.7652913284611657,
+      "delta": 0.26529132846116565,
+      "verdict": "ALPHA ADD"
+    },
+    "price + technical": {
+      "auc": 0.7561716062244084,
+      "delta": -0.009119722236757277,
+      "verdict": "NOISE"
+    },
+    "price + technical + volatility": {
+      "auc": 0.7613894451870562,
+      "delta": 0.005217838962647825,
+      "verdict": "MARGINAL"
+    },
+    "price + technical + volatility + microstructure": {
+      "auc": 0.7738336105574557,
+      "delta": 0.012444165370399496,
+      "verdict": "ALPHA ADD"
+    },
+    "price + technical + volatility + microstructure + time": {
+      "auc": 0.7777709066365182,
+      "delta": 0.003937296079062458,
+      "verdict": "MARGINAL"
+    }
+  },
+  "marginal_contribution": {
+    "price": {
+      "auc_with": 0.7777709066365182,
+      "auc_without": 0.7679323573141448,
+      "marginal": 0.00983854932237338,
+      "pct_of_total": 3.5769463580549568,
+      "role": "SECONDARY"
+    },
+    "technical": {
+      "auc_with": 0.7777709066365182,
+      "auc_without": 0.7795540999307072,
+      "marginal": -0.0017831932941890782,
+      "pct_of_total": -0.6483056140047859,
+      "role": "NEUTRAL"
+    },
+    "volatility": {
+      "auc_with": 0.7777709066365182,
+      "auc_without": 0.7739998393210044,
+      "marginal": 0.0037710673155137986,
+      "pct_of_total": 1.371025855359863,
+      "role": "NEUTRAL"
+    },
+    "microstructure": {
+      "auc_with": 0.7777709066365182,
+      "auc_without": 0.7495317052956942,
+      "marginal": 0.028239201340823916,
+      "pct_of_total": 10.266768512380017,
+      "role": "PRIMARY"
+    },
+    "time": {
+      "auc_with": 0.7777709066365182,
+      "auc_without": 0.7750161075407603,
+      "marginal": 0.0027547990957578206,
+      "pct_of_total": 1.00154690187262,
+      "role": "NEUTRAL"
+    }
+  },
+  "xgb_feature_importance_by_group": {
+    "price": 0.3538625054061413,
+    "technical": 0.18366015423089266,
+    "volatility": 0.10217709094285965,
+    "microstructure": 0.24025799240916967,
+    "time": 0.12004218064248562
+  },
+  "alpha_source_classification": {
+    "primary": "microstructure",
+    "secondary": "price",
+    "noise": [],
+    "redundant": []
+  },
+  "ranking": [
+    [
+      "microstructure",
+      0.7773775337994082
+    ],
+    [
+      "price",
+      0.7652913284611657
+    ],
+    [
+      "technical",
+      0.6324547257859661
+    ],
+    [
+      "time",
+      0.5079495800939866
+    ],
+    [
+      "volatility",
+      0.4915816627210459
+    ]
+  ],
+  "top10_features": [
+    [
+      "close_pos_in_range",
+      0.20268304646015167,
+      "price"
+    ],
+    [
+      "lower_wick_ratio",
+      0.07450680434703827,
+      "microstructure"
+    ],
+    [
+      "upper_wick_ratio",
+      0.05716681107878685,
+      "microstructure"
+    ],
+    [
+      "n_brokers",
+      0.03491463139653206,
+      "microstructure"
+    ],
+    [
+      "ret_1",
+      0.018767695873975754,
+      "price"
+    ],
+    [
+      "month_cos",
+      0.01840299181640148,
+      "time"
+    ],
+    [
+      "us_session",
+      0.016313692554831505,
+      "time"
+    ],
+    [
+      "hl_range",
+      0.015741199254989624,
+      "price"
+    ],
+    [
+      "body_dir",
+      0.01457854826003313,
+      "microstructure"
+    ],
+    [
+      "hour_cos",
+      0.014190321788191795,
+      "time"
+    ]
+  ],
+  "recommended_redesign": {
+    "model1": "XGBoost (keep, primary alpha)",
+    "model2": "Replace LightGBM with model on price features or Logistic Regression",
+    "model3": "LSTM (keep, unique architecture)",
+    "model4": "Transformer (keep, regime controller)"
+  },
+  "verdict": "ALPHA_SOURCE_IDENTIFIED"
+}
