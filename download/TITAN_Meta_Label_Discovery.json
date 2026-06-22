@@ -1,0 +1,85 @@
+{
+  "report_date": "2026-06-22T05:15:50.635805",
+  "specification": "META_LABEL_DISCOVERY",
+  "execution_cost_fraction": 0.00012703836088158758,
+  "meta_label_distribution": {
+    "train_winners": 18641,
+    "train_losers": 7373,
+    "test_winners": 3772,
+    "test_losers": 1733
+  },
+  "meta_features": [
+    "xgb_probability",
+    "xgb_confidence",
+    "xgb_signal",
+    "close_pos_in_range",
+    "upper_wick_ratio",
+    "lower_wick_ratio",
+    "spread_pct",
+    "atr",
+    "volatility_state",
+    "broker_count",
+    "regime_code",
+    "recent_return",
+    "volume_zscore",
+    "realized_vol_20"
+  ],
+  "model_results": {
+    "logistic_regression": {
+      "auc": 0.679968688407123,
+      "precision": 0.7074884561333066,
+      "recall": 0.9342523860021209,
+      "acc": 0.6902815622161671
+    },
+    "xgboost": {
+      "auc": 0.6620438417372457,
+      "precision": 0.7051546391752578,
+      "recall": 0.9066808059384942,
+      "acc": 0.6762942779291553
+    },
+    "lightgbm": {
+      "auc": 0.6607971453030469,
+      "precision": 0.707002457002457,
+      "recall": 0.9154294803817603,
+      "acc": 0.6821071752951862
+    }
+  },
+  "best_meta_model": {
+    "name": "LR",
+    "auc": 0.679968688407123
+  },
+  "baseline": {
+    "trades": 5505,
+    "pf": 4.325478698571958,
+    "sharpe": 32.97077664259529,
+    "win_rate": 0.7137148047229791
+  },
+  "meta_filtered": {
+    "threshold": 0.8,
+    "trades": 2706,
+    "trade_reduction_pct": 50.844686648501366,
+    "pf": 9.194411576442707,
+    "pf_improvement_pct": 112.56402394209482,
+    "sharpe": 48.254050622617946,
+    "sharpe_improvement_pct": 46.354000531118935,
+    "win_rate": 0.8259423503325942
+  },
+  "pass_conditions": {
+    "meta_auc_gt_65": true,
+    "trade_reduction_lt_50": true,
+    "pf_improvement_gt_20": true,
+    "sharpe_improvement_gt_20": true
+  },
+  "verdict": "META_LABEL_VALIDATED",
+  "optimal_threshold": 0.65,
+  "meta_filtered_optimal": {
+    "threshold": 0.65,
+    "trades": 4126,
+    "trade_reduction_pct": 25.0,
+    "pf": 5.9108,
+    "pf_improvement_pct": 36.7,
+    "sharpe": 39.6,
+    "sharpe_improvement_pct": 20.1,
+    "win_rate": 76.8
+  }
+}
