@@ -1,0 +1,27 @@
+{
+  "monte_carlo": {
+    "survival_rate": 100.0,
+    "pass": "True"
+  },
+  "regime_destruction": {
+    "survives_60pct_trend_up_removal": true,
+    "pf_at_60pct": 5.484868743510164
+  },
+  "alpha_decay": {
+    "break_even_point": "N/A"
+  },
+  "cost_explosion": {
+    "failure_point": "NONE \u2014 survives all scenarios"
+  },
+  "meta_label_removal": {
+    "pf_with": 5.290574373317833,
+    "pf_without": 3.751391053553183,
+    "improvement_pct": 41.02966866935376
+  },
+  "context_removal": {
+    "pf_with": 5.290574373317833,
+    "pf_without": 5.44494344236376,
+    "improvement_pct": -2.835090404151419
+  },
+  "verdict": "ROBUST"
+}
