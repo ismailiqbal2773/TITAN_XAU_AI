@@ -1,0 +1,315 @@
+{
+  "timestamp": "2026-06-23T10:24:15.426356+00:00",
+  "git_commit": "22a9298",
+  "total_checks": 34,
+  "passed": 33,
+  "failed": 1,
+  "warnings": 0,
+  "blockers": [],
+  "results": [
+    {
+      "name": "All 24 critical modules import",
+      "section": "1_static",
+      "passed": true,
+      "severity": "BLOCKER",
+      "evidence": "24 checked",
+      "fix": ""
+    },
+    {
+      "name": "All 6 critical functions have callers",
+      "section": "1_static",
+      "passed": true,
+      "severity": "BLOCKER",
+      "evidence": "All found",
+      "fix": ""
+    },
+    {
+      "name": "All .py files compile (syntax)",
+      "section": "1_static",
+      "passed": true,
+      "severity": "BLOCKER",
+      "evidence": "All compile",
+      "fix": ""
+    },
+    {
+      "name": "Launcher.start(autonomous=True) exists",
+      "section": "2_runtime",
+      "passed": true,
+      "severity": "BLOCKER",
+      "evidence": "sig=(self, autonomous: 'bool' = False) -> 'None'",
+      "fix": ""
+    },
+    {
+      "name": "AutonomousRuntime has all 5 loops",
+      "section": "2_runtime",
+      "passed": true,
+      "severity": "BLOCKER",
+      "evidence": "All 5 present",
+      "fix": ""
+    },
+    {
+      "name": "Inference chain: features\u2192XGB\u2192meta\u2192Signal",
+      "section": "2_runtime",
+      "passed": true,
+      "severity": "BLOCKER",
+      "evidence": "dir=FLAT",
+      "fix": ""
+    },
+    {
+      "name": "TradeLoop wired to KillSwitchFSM",
+      "section": "2_runtime",
+      "passed": true,
+      "severity": "BLOCKER",
+      "evidence": "ks=KillSwitchFSM",
+      "fix": ""
+    },
+    {
+      "name": "AutonomousRuntime initializes all 9 components",
+      "section": "2_runtime",
+      "passed": true,
+      "severity": "BLOCKER",
+      "evidence": "All 9 init",
+      "fix": ""
+    },
+    {
+      "name": "Feature stream count matches XGBoost",
+      "section": "3_schema",
+      "passed": true,
+      "severity": "BLOCKER",
+      "evidence": "stream=55, xgb=55",
+      "fix": ""
+    },
+    {
+      "name": "Meta-label feature count matches",
+      "section": "3_schema",
+      "passed": true,
+      "severity": "BLOCKER",
+      "evidence": "meta=22, actual=22",
+      "fix": ""
+    },
+    {
+      "name": "No NaN/Inf in feature vector",
+      "section": "3_schema",
+      "passed": true,
+      "severity": "BLOCKER",
+      "evidence": "NaN=False, Inf=False",
+      "fix": ""
+    },
+    {
+      "name": "Meta features subset of XGB features",
+      "section": "3_schema",
+      "passed": true,
+      "severity": "BLOCKER",
+      "evidence": "All subset",
+      "fix": ""
+    },
+    {
+      "name": "dry_run defaults True",
+      "section": "4_config",
+      "passed": true,
+      "severity": "BLOCKER",
+      "evidence": "dry_run=True",
+      "fix": ""
+    },
+    {
+      "name": "live_trading defaults False",
+      "section": "4_config",
+      "passed": true,
+      "severity": "BLOCKER",
+      "evidence": "live_trading=False",
+      "fix": ""
+    },
+    {
+      "name": "max_lot <= 0.01",
+      "section": "4_config",
+      "passed": true,
+      "severity": "BLOCKER",
+      "evidence": "max_lot=0.01",
+      "fix": ""
+    },
+    {
+      "name": "max_open_positions <= 1",
+      "section": "4_config",
+      "passed": true,
+      "severity": "BLOCKER",
+      "evidence": "max_pos=1",
+      "fix": ""
+    },
+    {
+      "name": "watchdog.dry_run is True",
+      "section": "4_config",
+      "passed": true,
+      "severity": "HIGH",
+      "evidence": "wd.dry_run=True",
+      "fix": ""
+    },
+    {
+      "name": "XGB model path exists",
+      "section": "4_config",
+      "passed": true,
+      "severity": "BLOCKER",
+      "evidence": "/home/z/my-project/TITAN_XAU_AI/titan/data/models/xgboost_v1.pkl",
+      "fix": ""
+    },
+    {
+      "name": "Meta-label model path exists",
+      "section": "4_config",
+      "passed": true,
+      "severity": "BLOCKER",
+      "evidence": "/home/z/my-project/TITAN_XAU_AI/titan/data/models/meta_label_v2_context.pkl",
+      "fix": ""
+    },
+    {
+      "name": "One-way escalation (no downgrade)",
+      "section": "5_state",
+      "passed": true,
+      "severity": "BLOCKER",
+      "evidence": "state=HALT_NEW_TRADES",
+      "fix": ""
+    },
+    {
+      "name": "HALT blocks new trades",
+      "section": "5_state",
+      "passed": true,
+      "severity": "BLOCKER",
+      "evidence": "allows=False",
+      "fix": ""
+    },
+    {
+      "name": "EMERGENCY requires flatten",
+      "section": "5_state",
+      "passed": true,
+      "severity": "BLOCKER",
+      "evidence": "flatten=True",
+      "fix": ""
+    },
+    {
+      "name": "CAUTION allows trades",
+      "section": "5_state",
+      "passed": true,
+      "severity": "HIGH",
+      "evidence": "allows=True",
+      "fix": ""
+    },
+    {
+      "name": "Reset \u2192 NORMAL",
+      "section": "5_state",
+      "passed": true,
+      "severity": "HIGH",
+      "evidence": "state=NORMAL",
+      "fix": ""
+    },
+    {
+      "name": "Drift emergency \u2192 EMERGENCY_STOP",
+      "section": "5_state",
+      "passed": true,
+      "severity": "BLOCKER",
+      "evidence": "state=EMERGENCY_STOP",
+      "fix": ""
+    },
+    {
+      "name": "ECE kill \u2192 HALT",
+      "section": "5_state",
+      "passed": true,
+      "severity": "BLOCKER",
+      "evidence": "state=HALT_NEW_TRADES",
+      "fix": ""
+    },
+    {
+      "name": "TradeLoopConfig.dry_run=True",
+      "section": "6_dry_run",
+      "passed": true,
+      "severity": "BLOCKER",
+      "evidence": "OK",
+      "fix": ""
+    },
+    {
+      "name": "OrderModifier.dry_run=True",
+      "section": "6_dry_run",
+      "passed": true,
+      "severity": "BLOCKER",
+      "evidence": "OK",
+      "fix": ""
+    },
+    {
+      "name": "WatchdogRestarter.dry_run=True",
+      "section": "6_dry_run",
+      "passed": true,
+      "severity": "BLOCKER",
+      "evidence": "OK",
+      "fix": ""
+    },
+    {
+      "name": "LauncherConfig.dry_run=True",
+      "section": "6_dry_run",
+      "passed": true,
+      "severity": "BLOCKER",
+      "evidence": "OK",
+      "fix": ""
+    },
+    {
+      "name": "LauncherConfig.live_trading=False",
+      "section": "6_dry_run",
+      "passed": true,
+      "severity": "BLOCKER",
+      "evidence": "OK",
+      "fix": ""
+    },
+    {
+      "name": "Live requires TITAN_LIVE_TRADING=1",
+      "section": "6_dry_run",
+      "passed": true,
+      "severity": "BLOCKER",
+      "evidence": "raises=True",
+      "fix": ""
+    },
+    {
+      "name": "dry_run order_result=None",
+      "section": "6_dry_run",
+      "passed": true,
+      "severity": "BLOCKER",
+      "evidence": "None=True",
+      "fix": ""
+    },
+    {
+      "name": "No unguarded mt5.order_send in trade path",
+      "section": "6_dry_run",
+      "passed": false,
+      "severity": "HIGH",
+      "evidence": "UNGUARDED!",
+      "fix": ""
+    }
+  ],
+  "sections": {
+    "1_static": {
+      "passed": 3,
+      "failed": 0,
+      "total": 3
+    },
+    "2_runtime": {
+      "passed": 5,
+      "failed": 0,
+      "total": 5
+    },
+    "3_schema": {
+      "passed": 4,
+      "failed": 0,
+      "total": 4
+    },
+    "4_config": {
+      "passed": 7,
+      "failed": 0,
+      "total": 7
+    },
+    "5_state": {
+      "passed": 7,
+      "failed": 0,
+      "total": 7
+    },
+    "6_dry_run": {
+      "passed": 7,
+      "failed": 1,
+      "total": 8
+    }
+  }
+}
