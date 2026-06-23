@@ -40,6 +40,9 @@ from titan.production.exit_manager import ExitManager, ExitConfig, ExitReason
 from titan.production.drift_monitor import DriftMonitor, DriftConfig
 from titan.production.slippage_monitor import SlippageMonitor
 from titan.production.news_filter import NewsFilter
+from titan.production.meta_calibration_monitor import (
+    MetaCalibrationMonitor, CalibrationConfig, CalibrationState,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -106,6 +109,7 @@ class AutonomousRuntime:
         self.drift_monitor: Optional[DriftMonitor] = None
         self.slippage_monitor: Optional[SlippageMonitor] = None
         self.news_filter: Optional[NewsFilter] = None
+        self.meta_calibration: Optional[MetaCalibrationMonitor] = None
 
         # State
         self._running = False
@@ -177,6 +181,9 @@ class AutonomousRuntime:
 
         # News filter (empty by default — add events via CSV)
         self.news_filter = NewsFilter()
+
+        # Meta calibration monitor (Sprint 8.1)
+        self.meta_calibration = MetaCalibrationMonitor()
 
         logger.info("AutonomousRuntime initialized — all components ready")
 
@@ -255,6 +262,7 @@ class AutonomousRuntime:
 
                 # Journal signal
                 self.journal.log_signal(signal)
+                self._last_meta_confidence = signal.meta_confidence
                 self.journal.log_event(EventType.SIGNAL_CREATED, {
                     "bar_time": bar_time,
                     "direction": signal.direction.name,
@@ -382,6 +390,72 @@ class AutonomousRuntime:
                             pnl_usd=exit_decision.unrealized_pnl_usd,
                             holding_time_seconds=exit_decision.holding_time_seconds,
                         )
+
+                        # ── Sprint 8.1: Record calibration sample ──
+                        # actual_outcome: 1 = win (pnl > 0), 0 = loss
+                        actual_outcome = 1 if exit_decision.unrealized_pnl_usd > 0 else 0
+                        # Use meta_confidence from last signal as predicted P(win)
+                        # (stored as a simple fallback — in production, the signal's
+                        #  meta_confidence would be passed through the position)
+                        last_signal_meta = getattr(self, '_last_meta_confidence', 0.65)
+                        self.meta_calibration.record_prediction(
+                            prob_win=last_signal_meta,
+                            actual_outcome=actual_outcome,
+                        )
+                        self.journal.log_event(EventType.META_CALIBRATION_SAMPLE, {
+                            "ticket": exit_decision.ticket,
+                            "predicted_pwin": last_signal_meta,
+                            "actual_outcome": actual_outcome,
+                            "pnl_usd": exit_decision.unrealized_pnl_usd,
+                        })
+
+                        # ── Check calibration state ──
+                        cal_report = self.meta_calibration.get_report()
+                        if cal_report.state == CalibrationState.KILL_THRESHOLD_BREACHED:
+                            logger.critical(
+                                f"META CALIBRATION KILL: ECE={cal_report.ece:.4f}"
+                            )
+                            self.journal.log_event(EventType.META_CALIBRATION_KILL, {
+                                "ece": cal_report.ece,
+                                "brier": cal_report.brier,
+                                "slope": cal_report.calibration_slope,
+                                "n_samples": cal_report.n_samples,
+                            })
+                            self.kill_switch.update(KillSwitchInput(
+                                ece=cal_report.ece,
+                                brier_score=cal_report.brier,
+                            ))
+                        elif cal_report.state == CalibrationState.RECALIBRATE_REQUIRED:
+                            logger.warning(
+                                f"META RECALIBRATE REQUIRED: ECE={cal_report.ece:.4f}"
+                            )
+                            self.journal.log_event(EventType.META_RECALIBRATE_REQUIRED, {
+                                "ece": cal_report.ece,
+                                "brier": cal_report.brier,
+                                "n_samples": cal_report.n_samples,
+                            })
+                            # Attempt isotonic recalibration
+                            success = self.meta_calibration.recalibrate()
+                            if success:
+                                self.journal.log_event(EventType.META_RECALIBRATED, {
+                                    "method": "isotonic",
+                                    "n_samples": cal_report.n_samples,
+                                    "old_ece": cal_report.ece,
+                                })
+                                logger.info("Isotonic recalibration applied successfully")
+                            else:
+                                logger.error("Recalibration failed — triggering HALT")
+                                self.kill_switch.update(KillSwitchInput(
+                                    ece=cal_report.ece,
+                                ))
+                        elif cal_report.state == CalibrationState.WATCH:
+                            logger.info(f"META CALIBRATION WATCH: ECE={cal_report.ece:.4f}")
+                            self.journal.log_event(EventType.META_CALIBRATION_WATCH, {
+                                "ece": cal_report.ece,
+                                "brier": cal_report.brier,
+                                "n_samples": cal_report.n_samples,
+                            })
+
                         # In dry_run, we just log — no real close
                         self.trade_loop.notify_position_closed()
 

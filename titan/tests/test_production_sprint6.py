@@ -380,7 +380,7 @@ class TestForwardTestManager:
 
 class TestJournalAuditGrade:
     def test_event_type_enum_has_all_20_types(self):
-        """All 20 required event types must be in EventType enum."""
+        """All 20 required event types must be in EventType enum (plus Sprint 8.1 additions)."""
         required = {
             "SIGNAL_CREATED", "SIGNAL_REJECTED", "ORDER_CREATED", "ORDER_BLOCKED",
             "POSITION_OPENED", "POSITION_MODIFIED", "POSITION_CLOSED",
@@ -390,7 +390,7 @@ class TestJournalAuditGrade:
             "STARTUP", "SHUTDOWN", "DAILY_SUMMARY", "WEEKLY_SUMMARY",
         }
         actual = {e.value for e in EventType}
-        assert required == actual, f"Missing: {required - actual}"
+        assert required.issubset(actual), f"Missing: {required - actual}"
 
     def test_every_record_has_utc_timestamp(self, tmp_path):
         journal_path = str(tmp_path / "audit.jsonl")
