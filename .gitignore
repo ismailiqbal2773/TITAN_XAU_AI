@@ -10,3 +10,4 @@ __pycache__/
 *.secret
 *.key
 data/simulation/
+data/qualification/
