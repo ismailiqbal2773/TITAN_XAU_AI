@@ -126,6 +126,8 @@ class ExecutionEngine:
         self._ops_count = 0
         self._ops_start_time = time.time()
         self._halt_flag = False  # Atomic halt flag (set by CEO/Risk)
+        # ── Sprint 8.2: Internal dry_run guard (defense-in-depth) ──
+        self._dry_run = bool(exec_cfg.get("dry_run", True))  # DEFAULT TRUE
 
     def set_halt(self, halted: bool) -> None:
         """Set halt flag — blocks all new orders when True."""
@@ -140,6 +142,16 @@ class ExecutionEngine:
         return self._halt_flag
 
     @property
+    def is_dry_run(self) -> bool:
+        """Sprint 8.2: Expose dry_run state for verification."""
+        return self._dry_run
+
+    def set_dry_run(self, dry_run: bool) -> None:
+        """Sprint 8.2: Set dry_run mode (internal guard)."""
+        self._dry_run = bool(dry_run)
+        logger.info(f"ExecutionEngine dry_run = {self._dry_run}")
+
+    @property
     def throughput(self) -> float:
         """Current operations per second."""
         elapsed = time.time() - self._ops_start_time
@@ -151,8 +163,59 @@ class ExecutionEngine:
         """
         Submit order with idempotency check and retry logic.
         Returns OrderResult with state FILLED/REJECTED/etc.
+
+        DEFENSE-IN-DEPTH (Sprint 8.2):
+          - dry_run guard checked HERE, not just in TradeLoop caller
+          - If dry_run=True: NEVER calls mt5.order_send
+          - If dry_run=False: requires TITAN_LIVE_TRADING=1 + SL/TP present
         """
-        # Halt check
+        # ── INTERNAL DRY_RUN GUARD (defense-in-depth) ──
+        if self._dry_run:
+            logger.info(
+                f"[INTERNAL GUARD] dry_run=True — mt5.order_send SKIPPED "
+                f"(symbol={request.symbol}, vol={request.volume})"
+            )
+            return OrderResult(
+                retcode=0, deal_id=0, order_id=0, volume=request.volume,
+                price=request.price, bid=0, ask=0,
+                comment="DRY_RUN_INTERNAL_GUARD", request_id=0, result_id=0,
+                state=OrderState.REJECTED,
+                error_message="internal_execution_guard: dry_run=True",
+            )
+
+        # ── LIVE MODE: verify multiple safety gates ──
+        import os
+        # Gate 1: TITAN_LIVE_TRADING env var
+        if os.environ.get("TITAN_LIVE_TRADING", "0") != "1":
+            logger.error("[INTERNAL GUARD] TITAN_LIVE_TRADING != 1 — live order blocked")
+            return OrderResult(
+                retcode=0, deal_id=0, order_id=0, volume=0, price=0,
+                bid=0, ask=0, comment="LIVE_BLOCKED", request_id=0, result_id=0,
+                state=OrderState.REJECTED,
+                error_message="internal_execution_guard: TITAN_LIVE_TRADING env var not set",
+            )
+
+        # Gate 2: SL and TP must be present
+        if request.sl <= 0 or request.tp <= 0:
+            logger.error("[INTERNAL GUARD] SL or TP missing — live order blocked")
+            return OrderResult(
+                retcode=0, deal_id=0, order_id=0, volume=0, price=0,
+                bid=0, ask=0, comment="SL_TP_MISSING", request_id=0, result_id=0,
+                state=OrderState.REJECTED,
+                error_message="internal_execution_guard: SL and TP must be > 0",
+            )
+
+        # Gate 3: Volume must not exceed hard cap
+        if request.volume > 0.01:
+            logger.error(f"[INTERNAL GUARD] volume={request.volume} > 0.01 cap — blocked")
+            return OrderResult(
+                retcode=0, deal_id=0, order_id=0, volume=0, price=0,
+                bid=0, ask=0, comment="VOLUME_CAP", request_id=0, result_id=0,
+                state=OrderState.REJECTED,
+                error_message="internal_execution_guard: volume exceeds 0.01 cap",
+            )
+
+        # ── HALT CHECK ──
         if self._halt_flag:
             return OrderResult(
                 retcode=0, deal_id=0, order_id=0, volume=0, price=0,

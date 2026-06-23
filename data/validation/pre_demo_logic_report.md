@@ -1,8 +1,8 @@
 # TITAN XAU AI — Pre-Demo Logic Validation Report
 
-> Generated: 2026-06-23T10:24:15.426356+00:00
-> Git: 22a9298
-> Checks: 34 | Passed: 33 | Failed: 1 | Blockers: 0
+> Generated: 2026-06-23T10:35:31.338198+00:00
+> Git: 732b527
+> Checks: 34 | Passed: 34 | Failed: 0 | Blockers: 0
 
 ## Decision: PASS
 
@@ -12,7 +12,7 @@
 - 3_schema: 4/4
 - 4_config: 7/7
 - 5_state: 7/7
-- 6_dry_run: 7/8
+- 6_dry_run: 8/8
 
 ## Details
 - ✓ [BLOCKER] All 24 critical modules import: 24 checked
@@ -48,4 +48,4 @@
 - ✓ [BLOCKER] LauncherConfig.live_trading=False: OK
 - ✓ [BLOCKER] Live requires TITAN_LIVE_TRADING=1: raises=True
 - ✓ [BLOCKER] dry_run order_result=None: None=True
-- ✗ [HIGH] No unguarded mt5.order_send in trade path: UNGUARDED!
+- ✓ [HIGH] No unguarded mt5.order_send in trade path: All guarded (internal dry_run guard in ExecutionEngine)

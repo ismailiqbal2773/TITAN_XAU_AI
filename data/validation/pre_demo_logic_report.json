@@ -1,9 +1,9 @@
 {
-  "timestamp": "2026-06-23T10:24:15.426356+00:00",
-  "git_commit": "22a9298",
+  "timestamp": "2026-06-23T10:35:31.338198+00:00",
+  "git_commit": "732b527",
   "total_checks": 34,
-  "passed": 33,
-  "failed": 1,
+  "passed": 34,
+  "failed": 0,
   "warnings": 0,
   "blockers": [],
   "results": [
@@ -274,9 +274,9 @@
     {
       "name": "No unguarded mt5.order_send in trade path",
       "section": "6_dry_run",
-      "passed": false,
+      "passed": true,
       "severity": "HIGH",
-      "evidence": "UNGUARDED!",
+      "evidence": "All guarded (internal dry_run guard in ExecutionEngine)",
       "fix": ""
     }
   ],
@@ -307,8 +307,8 @@
       "total": 7
     },
     "6_dry_run": {
-      "passed": 7,
-      "failed": 1,
+      "passed": 8,
+      "failed": 0,
       "total": 8
     }
   }
