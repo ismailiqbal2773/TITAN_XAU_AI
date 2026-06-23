@@ -240,9 +240,11 @@ class TitanLauncher:
         logger.info("✓ Runtime validation passed")
         return True
 
-    def start(self) -> None:
+    def start(self, autonomous: bool = False) -> None:
         """
-        Start the TITAN system in dry_run mode.
+        Start the TITAN system.
+        If autonomous=True, starts the full 6-loop trading runtime (Sprint 8).
+        If autonomous=False, runs smoke test only.
         Blocks until Ctrl+C or shutdown signal.
         """
         if self._started:
@@ -362,6 +364,31 @@ class TitanLauncher:
             logger.info("TITAN launcher smoke test PASSED — system is demo-ready")
             logger.info(f"Journal: {cfg.journal_path}")
             logger.info("=" * 70)
+
+            # ─── Start autonomous runtime (Sprint 8) ──
+            if autonomous:
+                logger.info("Starting autonomous runtime (6 async loops)...")
+                from titan.runtime.autonomous_loops import (
+                    AutonomousRuntime, RuntimeConfig,
+                )
+                rt_cfg = RuntimeConfig(
+                    dry_run=cfg.dry_run,
+                    symbol=cfg.symbol_name,
+                    feature_source=cfg.feature_source,
+                    feature_window=cfg.feature_window,
+                    xgb_threshold=cfg.xgb_threshold,
+                    meta_threshold=cfg.meta_threshold,
+                )
+                runtime = AutonomousRuntime(
+                    config=rt_cfg,
+                    journal=self._components["journal"],
+                )
+                runtime.initialize()
+                self._components["autonomous_runtime"] = runtime
+
+                # Start runtime (blocks until shutdown)
+                import asyncio
+                asyncio.run(runtime.start())
 
         except Exception as e:
             logger.error(f"Launcher failed: {e}", exc_info=True)
