@@ -151,8 +151,8 @@ class TradeLoop:
                     reason = "kill_switch_halt_new_trades"
                 # Journal the block
                 if self.journal is not None:
-                    self.journal.log_heartbeat({
-                        "event": "trade_blocked_by_kill_switch",
+                    from titan.production.trade_journal import EventType
+                    self.journal.log_event(EventType.KILL_SWITCH_BLOCK, {
                         "kill_switch_state": ks_state.value,
                         "signal_direction": signal.direction.name,
                         "reason": reason,

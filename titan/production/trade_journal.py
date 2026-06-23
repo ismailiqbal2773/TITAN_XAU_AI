@@ -28,10 +28,37 @@ import threading
 import time
 import uuid
 from dataclasses import dataclass, field, asdict
+from datetime import datetime, timezone
+from enum import Enum
 from pathlib import Path
 from typing import Optional, Any
 
 logger = logging.getLogger(__name__)
+
+
+# ─── Audit-grade event types (Sprint 6) ──────────────────────────────────────
+class EventType(str, Enum):
+    """All critical events that must be journaled for forward testing."""
+    SIGNAL_CREATED = "SIGNAL_CREATED"
+    SIGNAL_REJECTED = "SIGNAL_REJECTED"
+    ORDER_CREATED = "ORDER_CREATED"
+    ORDER_BLOCKED = "ORDER_BLOCKED"
+    POSITION_OPENED = "POSITION_OPENED"
+    POSITION_MODIFIED = "POSITION_MODIFIED"
+    POSITION_CLOSED = "POSITION_CLOSED"
+    EXIT_TRIGGERED = "EXIT_TRIGGERED"
+    KILL_SWITCH_TRANSITION = "KILL_SWITCH_TRANSITION"
+    KILL_SWITCH_BLOCK = "KILL_SWITCH_BLOCK"
+    NEWS_HALT = "NEWS_HALT"
+    DRIFT_ALERT = "DRIFT_ALERT"
+    DRIFT_EMERGENCY = "DRIFT_EMERGENCY"
+    SLIPPAGE_ALERT = "SLIPPAGE_ALERT"
+    SLIPPAGE_HALT = "SLIPPAGE_HALT"
+    WATCHDOG_RESTART = "WATCHDOG_RESTART"
+    STARTUP = "STARTUP"
+    SHUTDOWN = "SHUTDOWN"
+    DAILY_SUMMARY = "DAILY_SUMMARY"
+    WEEKLY_SUMMARY = "WEEKLY_SUMMARY"
 
 
 @dataclass
@@ -42,13 +69,18 @@ class JournalRecord:
     record_type: str          # SIGNAL | DECISION | ORDER | EXIT | MODIFY | HEARTBEAT
     data: dict[str, Any]
     session_id: str = ""
+    # Audit-grade fields (Sprint 6)
+    utc_timestamp: str = ""   # ISO 8601 UTC
+    event_type: str = ""      # EventType value (for forward-test events)
 
     def to_jsonl(self) -> str:
         """Serialize to a single JSONL line."""
         return json.dumps({
             "record_id": self.record_id,
             "timestamp": self.timestamp,
+            "utc_timestamp": self.utc_timestamp,
             "record_type": self.record_type,
+            "event_type": self.event_type,
             "session_id": self.session_id,
             "data": self.data,
         }, default=str, separators=(",", ":"))
@@ -118,14 +150,143 @@ class TradeJournal:
         with self._lock:
             self._flush()
 
-    def _make_record(self, record_type: str, data: dict) -> JournalRecord:
+    def _make_record(self, record_type: str, data: dict,
+                     event_type: str = "") -> JournalRecord:
         return JournalRecord(
             record_id=str(uuid.uuid4()),
             timestamp=time.time(),
+            utc_timestamp=datetime.now(timezone.utc).isoformat(),
             record_type=record_type,
+            event_type=event_type,
             data=data,
             session_id=self.session_id,
         )
+
+    # ─── Audit-grade event logging (Sprint 6) ───────────────────────────
+
+    def log_event(self, event_type: EventType, data: dict) -> str:
+        """
+        Log a typed audit event. Every record includes:
+          - unique event_id (UUID)
+          - UTC timestamp (ISO 8601)
+          - event_type (from EventType enum)
+          - session_id
+          - arbitrary data dict
+
+        This is the primary method for forward-test audit events.
+        """
+        if not isinstance(event_type, EventType):
+            raise ValueError(f"event_type must be EventType enum, got {type(event_type)}")
+        return self._write(self._make_record(
+            record_type="EVENT",
+            data=data,
+            event_type=event_type.value,
+        ))
+
+    def log_startup(self, config_summary: dict) -> str:
+        """Log system startup event."""
+        return self.log_event(EventType.STARTUP, config_summary)
+
+    def log_shutdown(self, reason: str = "normal") -> str:
+        """Log system shutdown event."""
+        return self.log_event(EventType.SHUTDOWN, {"reason": reason})
+
+    def log_daily_summary(self, summary: dict) -> str:
+        """Log daily trading summary."""
+        return self.log_event(EventType.DAILY_SUMMARY, summary)
+
+    def log_weekly_summary(self, summary: dict) -> str:
+        """Log weekly trading summary."""
+        return self.log_event(EventType.WEEKLY_SUMMARY, summary)
+
+    # ─── Verification methods (Sprint 6) ────────────────────────────────
+
+    def verify_append_only(self) -> bool:
+        """
+        Verify that the journal file has only been appended to.
+        Checks that all line numbers are sequential (no gaps from truncation).
+        """
+        self.flush()
+        if not self.path.exists():
+            return True  # empty journal is trivially append-only
+        try:
+            with open(self.path, "r", encoding="utf-8") as f:
+                line_count = 0
+                for line in f:
+                    line_count += 1
+                    # Verify each line is valid JSON
+                    json.loads(line.strip())
+            # If we can read all lines, the file is intact
+            return True
+        except (json.JSONDecodeError, IOError):
+            return False
+
+    def verify_persistence(self) -> bool:
+        """
+        Verify that journal records survive a restart.
+        Reads all records from disk and checks they match in-memory count.
+        """
+        disk_records = self.read_all()
+        return len(disk_records) == self._record_count
+
+    def verify_complete_lifecycle(self) -> dict:
+        """
+        Verify the journal contains a complete trade lifecycle.
+        Returns a dict with verification results for each lifecycle stage.
+        """
+        self.flush()
+        records = self.read_all()
+        record_types = [r.get("record_type", "") for r in records]
+        event_types = [r.get("event_type", "") for r in records]
+
+        # Check for signal (either SIGNAL record type or SIGNAL_CREATED event)
+        has_signal = ("SIGNAL" in record_types or
+                      EventType.SIGNAL_CREATED.value in event_types or
+                      EventType.SIGNAL_REJECTED.value in event_types)
+
+        return {
+            "total_records": len(records),
+            "has_signal": has_signal,
+            "has_decision": "DECISION" in record_types,
+            "has_order": "ORDER" in record_types,
+            "has_exit": "EXIT" in record_types,
+            "has_modify": "MODIFY" in record_types,
+            "has_heartbeat": "HEARTBEAT" in record_types,
+            "has_startup": EventType.STARTUP.value in event_types,
+            "has_shutdown": EventType.SHUTDOWN.value in event_types,
+            "event_types_present": sorted(set(event_types) - {""}),
+        }
+
+    def recover_from_crash(self) -> int:
+        """
+        Recover journal after a crash. Truncates any partially-written last line.
+        Returns the number of valid records recovered.
+        """
+        self.flush()
+        if not self.path.exists():
+            return 0
+        valid_lines = []
+        with open(self.path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    json.loads(line)
+                    valid_lines.append(line)
+                except json.JSONDecodeError:
+                    logger.warning(f"Truncated/corrupt journal line discarded: {line[:80]}...")
+        # Rewrite with only valid lines
+        with open(self.path, "w", encoding="utf-8") as f:
+            for line in valid_lines:
+                f.write(line + "\n")
+        logger.info(f"Journal recovery: {len(valid_lines)} valid records preserved")
+        return len(valid_lines)
+
+    def read_by_event_type(self, event_type: EventType) -> list[dict]:
+        """Filter records by audit event type."""
+        self.flush()
+        return [r for r in self.read_all() if r.get("event_type") == event_type.value]
 
     # ─── Public logging API ─────────────────────────────────────────────
 

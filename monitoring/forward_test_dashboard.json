@@ -1,0 +1,263 @@
+{
+  "dashboard": {
+    "title": "TITAN XAU AI — Forward Test Monitoring",
+    "version": "1.0",
+    "sprint": "Sprint 6",
+    "refresh_interval_seconds": 30,
+    "description": "Forward test dashboard with daily/weekly PnL, win rate, drawdown, kill-switch events, drift, slippage, and MT5 connection status."
+  },
+  "datasources": [
+    {
+      "name": "TITAN Journal",
+      "type": "json",
+      "path": "data/runtime/titan_journal.jsonl"
+    },
+    {
+      "name": "Metrics Snapshot",
+      "type": "json",
+      "path": "data/metrics/metrics_snapshot.json"
+    },
+    {
+      "name": "Metrics Timeseries",
+      "type": "csv",
+      "path": "data/metrics/metrics_timeseries.csv"
+    },
+    {
+      "name": "Daily Reports",
+      "type": "json",
+      "path": "data/reports/daily_report_*.json"
+    }
+  ],
+  "panels": [
+    {
+      "id": "daily_pnl",
+      "title": "Daily PnL (USD)",
+      "type": "timeseries",
+      "query": "daily_pnl_usd",
+      "source": "metrics_csv",
+      "unit": "currencyUSD",
+      "thresholds": {"warn": -10, "crit": -50}
+    },
+    {
+      "id": "weekly_pnl",
+      "title": "Weekly PnL (USD)",
+      "type": "stat",
+      "query": "weekly_pnl_usd",
+      "source": "metrics_snapshot",
+      "unit": "currencyUSD",
+      "thresholds": {"warn": -50, "crit": -200}
+    },
+    {
+      "id": "win_rate",
+      "title": "Win Rate (%)",
+      "type": "gauge",
+      "query": "win_rate * 100",
+      "source": "metrics_snapshot",
+      "unit": "percent",
+      "thresholds": {"warn": 50, "crit": 40}
+    },
+    {
+      "id": "profit_factor",
+      "title": "Profit Factor",
+      "type": "stat",
+      "query": "profit_factor",
+      "source": "metrics_snapshot",
+      "unit": "short",
+      "thresholds": {"warn": 1.5, "crit": 1.0}
+    },
+    {
+      "id": "drawdown",
+      "title": "Max Drawdown (%)",
+      "type": "gauge",
+      "query": "max_drawdown_pct",
+      "source": "metrics_snapshot",
+      "unit": "percent",
+      "thresholds": {"warn": 3.0, "crit": 5.0}
+    },
+    {
+      "id": "runtime_uptime",
+      "title": "Runtime Uptime (hours)",
+      "type": "stat",
+      "query": "uptime_hours",
+      "source": "metrics_snapshot",
+      "unit": "h",
+      "thresholds": {"warn": 1, "crit": 0}
+    },
+    {
+      "id": "kill_switch_events",
+      "title": "Kill-Switch Events (total)",
+      "type": "stat",
+      "query": "kill_switch_events",
+      "source": "metrics_snapshot",
+      "unit": "short",
+      "thresholds": {"warn": 3, "crit": 10}
+    },
+    {
+      "id": "kill_switch_blocks",
+      "title": "Kill-Switch Blocks (total)",
+      "type": "stat",
+      "query": "kill_switch_blocks",
+      "source": "metrics_snapshot",
+      "unit": "short"
+    },
+    {
+      "id": "drift_events",
+      "title": "Drift Events",
+      "type": "timeseries",
+      "query": "drift_alerts + drift_emergencies",
+      "source": "metrics_csv",
+      "unit": "short",
+      "thresholds": {"warn": 1, "crit": 5}
+    },
+    {
+      "id": "slippage_events",
+      "title": "Slippage Events",
+      "type": "timeseries",
+      "query": "slippage_alerts + slippage_halts",
+      "source": "metrics_csv",
+      "unit": "short",
+      "thresholds": {"warn": 3, "crit": 10}
+    },
+    {
+      "id": "mt5_connection",
+      "title": "MT5 Connection Status",
+      "type": "stat",
+      "query": "mt5_connected",
+      "source": "metrics_snapshot",
+      "mappings": {
+        "1": {"text": "CONNECTED", "color": "green"},
+        "0": {"text": "DISCONNECTED", "color": "red"}
+      }
+    },
+    {
+      "id": "signals_generated",
+      "title": "Signals Generated (total)",
+      "type": "stat",
+      "query": "signals_generated",
+      "source": "metrics_snapshot",
+      "unit": "short"
+    },
+    {
+      "id": "signals_accepted",
+      "title": "Signals Accepted",
+      "type": "stat",
+      "query": "signals_accepted",
+      "source": "metrics_snapshot",
+      "unit": "short"
+    },
+    {
+      "id": "signals_rejected",
+      "title": "Signals Rejected",
+      "type": "stat",
+      "query": "signals_rejected",
+      "source": "metrics_snapshot",
+      "unit": "short"
+    },
+    {
+      "id": "watchdog_restarts",
+      "title": "Watchdog Restarts",
+      "type": "stat",
+      "query": "watchdog_restarts",
+      "source": "metrics_snapshot",
+      "unit": "short",
+      "thresholds": {"warn": 3, "crit": 10}
+    },
+    {
+      "id": "news_halts",
+      "title": "News Halts",
+      "type": "stat",
+      "query": "news_halts",
+      "source": "metrics_snapshot",
+      "unit": "short"
+    },
+    {
+      "id": "avg_trade_duration",
+      "title": "Avg Trade Duration (hours)",
+      "type": "stat",
+      "query": "avg_trade_duration_hours",
+      "source": "metrics_snapshot",
+      "unit": "h"
+    },
+    {
+      "id": "slippage_p95",
+      "title": "P95 Slippage (pips)",
+      "type": "timeseries",
+      "query": "slippage_p95_pips",
+      "source": "metrics_csv",
+      "unit": "pips",
+      "thresholds": {"warn": 5.0, "crit": 10.0}
+    },
+    {
+      "id": "drift_psi",
+      "title": "PSI (Feature Drift)",
+      "type": "timeseries",
+      "query": "drift_psi",
+      "source": "metrics_csv",
+      "unit": "short",
+      "thresholds": {"warn": 0.10, "crit": 0.25}
+    },
+    {
+      "id": "drift_ece",
+      "title": "ECE (Calibration)",
+      "type": "timeseries",
+      "query": "drift_ece",
+      "source": "metrics_csv",
+      "unit": "short",
+      "thresholds": {"warn": 0.08, "crit": 0.12}
+    }
+  ],
+  "alerts": [
+    {
+      "name": "DailyLossExceeded",
+      "condition": "daily_pnl < -50",
+      "severity": "critical",
+      "message": "Daily loss exceeded $50 — review positions"
+    },
+    {
+      "name": "DrawdownBreach",
+      "condition": "drawdown > 5.0",
+      "severity": "critical",
+      "message": "Max drawdown exceeded 5% — kill-switch should trigger"
+    },
+    {
+      "name": "WinRateLow",
+      "condition": "win_rate < 0.40 AND trades_closed > 10",
+      "severity": "warning",
+      "message": "Win rate below 40% — model may be degrading"
+    },
+    {
+      "name": "MT5Disconnected",
+      "condition": "mt5_connection == 0",
+      "severity": "critical",
+      "message": "MT5 connection lost — no new trades possible"
+    },
+    {
+      "name": "HighKillSwitchActivity",
+      "condition": "kill_switch_events > 5",
+      "severity": "warning",
+      "message": "Kill-switch triggering frequently — investigate cause"
+    },
+    {
+      "name": "DriftEmergency",
+      "condition": "drift_emergencies > 0",
+      "severity": "critical",
+      "message": "Drift emergency detected — model retraining may be needed"
+    },
+    {
+      "name": "WatchdogRestartStorm",
+      "condition": "watchdog_restarts > 5",
+      "severity": "warning",
+      "message": "Watchdog restarting components frequently — investigate stability"
+    }
+  ],
+  "layout": {
+    "rows": [
+      {"title": "PnL Performance", "panels": ["daily_pnl", "weekly_pnl", "profit_factor", "drawdown"]},
+      {"title": "Trading Activity", "panels": ["signals_generated", "signals_accepted", "signals_rejected", "win_rate"]},
+      {"title": "Trade Quality", "panels": ["avg_trade_duration", "slippage_p95"]},
+      {"title": "Model Health", "panels": ["drift_psi", "drift_ece", "drift_events"]},
+      {"title": "Safety", "panels": ["kill_switch_events", "kill_switch_blocks", "news_halts", "slippage_events"]},
+      {"title": "System", "panels": ["runtime_uptime", "mt5_connection", "watchdog_restarts"]}
+    ]
+  }
+}

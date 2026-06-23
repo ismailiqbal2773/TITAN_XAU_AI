@@ -119,10 +119,10 @@ class TestKillSwitchTradeLoopIntegration:
         decision = await loop.process_signal(signal, entry_price=2000.0, spread_usd=0.2)
         assert not decision.accepted
         assert "kill_switch_halt_new_trades" in decision.reject_reason
-        # Verify journal recorded the block
+        # Verify journal recorded the block (audit-grade KILL_SWITCH_BLOCK event)
         journal.flush()
-        heartbeats = journal.read_by_type("HEARTBEAT")
-        blocks = [h for h in heartbeats if h["data"].get("event") == "trade_blocked_by_kill_switch"]
+        from titan.production.trade_journal import EventType
+        blocks = journal.read_by_event_type(EventType.KILL_SWITCH_BLOCK)
         assert len(blocks) == 1
         assert blocks[0]["data"]["kill_switch_state"] == "HALT_NEW_TRADES"
 
@@ -326,12 +326,12 @@ class TestJournalKillSwitchEvents:
         signal = make_signal()
         await loop.process_signal(signal, entry_price=2000.0, spread_usd=0.2)
         journal.flush()
-        # Should have: DECISION (rejected) + HEARTBEAT (block event)
+        # Should have: DECISION (rejected) + EVENT (KILL_SWITCH_BLOCK)
         decisions = journal.read_by_type("DECISION")
-        heartbeats = journal.read_by_type("HEARTBEAT")
         assert len(decisions) == 1
         assert decisions[0]["data"]["accepted"] is False
-        blocks = [h for h in heartbeats if h["data"].get("event") == "trade_blocked_by_kill_switch"]
+        from titan.production.trade_journal import EventType
+        blocks = journal.read_by_event_type(EventType.KILL_SWITCH_BLOCK)
         assert len(blocks) == 1
 
 
