@@ -56,15 +56,35 @@ TITAN is an AI trading assistant for XAUUSD (Gold). It runs on your computer alo
 
 1. Install Python 3.12+ from https://python.org
    - **Important:** Check "Add Python to PATH" during installation
+   - Supported: Python 3.11, 3.12, 3.13
 2. Download TITAN from GitHub:
    ```
    git clone https://github.com/ismailiqbal2773/TITAN_XAU_AI.git
    cd TITAN_XAU_AI
    ```
-3. Install dependencies:
+3. Install dependencies (one of two options):
+
+   **Option A — Flexible install (recommended):**
    ```
-   pip install -r titan\requirements.txt
-   pip install pyarrow structlog aiosqlite pytest-asyncio
+   pip install -r requirements.txt
+   pip install MetaTrader5        :: Windows only (skip on Linux/Mac)
+   ```
+
+   **Option B — Locked install (exact versions, reproducible):**
+   ```
+   pip install -r requirements-lock.txt
+   pip install MetaTrader5        :: Windows only (skip on Linux/Mac)
+   ```
+
+4. Verify dependencies:
+   ```
+   python scripts\check_dependencies.py
+   ```
+   Expected: `✅ DEPENDENCY CHECK PASSED`
+
+5. (Optional) Install PyTorch for LSTM/Transformer models:
+   ```
+   pip install torch --index-url https://download.pytorch.org/whl/cpu
    ```
 
 ---

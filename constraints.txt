@@ -1,0 +1,26 @@
+# TITAN XAU AI — Version Constraints
+# Used by: pip install -c constraints.txt -r requirements.txt
+#
+# Prevents accidental upgrades to incompatible major versions.
+
+numpy<3.0
+scipy<2.0
+pandas<3.0
+pyyaml<7.0
+sqlalchemy<3.0
+aiosqlite<1.0
+redis<9.0
+fastapi<1.0
+uvicorn<1.0
+pydantic<3.0
+xgboost<3.0
+scikit-learn<2.0
+pyarrow<25.0
+prometheus-client<1.0
+structlog<27.0
+reportlab<5.0
+python-docx<2.0
+requests<3.0
+pytest<10.0
+pytest-asyncio<2.0
+pytest-cov<8.0

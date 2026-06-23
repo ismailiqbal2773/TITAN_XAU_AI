@@ -1,0 +1,37 @@
+# TITAN XAU AI — Locked Requirements
+# Exact versions verified working as of 2026-06-23
+# Python 3.12.13
+#
+# Install: pip install -r requirements-lock.txt
+#
+# This file guarantees reproducible installs.
+# Generated from a verified working environment.
+
+aiosqlite==0.22.1
+fastapi==0.128.0
+lightgbm==4.5.0
+numpy==2.1.3
+pandas==2.2.3
+prometheus-client==0.24.1
+pyarrow==24.0.0
+pydantic==2.12.5
+pytest==9.0.2
+pytest-asyncio==1.3.0
+pytest-cov==7.0.0
+python-docx==1.2.0
+PyYAML==6.0.3
+redis==7.4.0
+reportlab==4.4.9
+requests==2.32.5
+scikit-learn==1.5.2
+scipy==1.14.1
+sqlalchemy==2.0.41
+structlog==26.1.0
+uvicorn==0.44.0
+xgboost==2.1.3
+
+# Optional (install separately if needed):
+# MetaTrader5==5.0.45    (Windows only)
+# torch==2.2.2           (for LSTM/Transformer — CPU: pip install torch --index-url https://download.pytorch.org/whl/cpu)
+# onnxruntime==1.17.1    (for ONNX inference)
+# optuna==4.9.0          (for HPO — not needed at runtime)

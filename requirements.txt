@@ -1,0 +1,57 @@
+# TITAN XAU AI — Production Requirements
+# Python 3.11+ (tested on 3.12, compatible with 3.11 and 3.13)
+#
+# Install: pip install -r requirements.txt
+#
+# NOTE: MetaTrader5 is Windows-only. On Linux/Mac, it is optional
+#       (stub mode is used for testing). Install separately on Windows:
+#         pip install MetaTrader5
+#
+# NOTE: torch is optional — only needed for LSTM/Transformer inference.
+#       XGBoost is the production L1 model. Install torch separately if needed:
+#         pip install torch --index-url https://download.pytorch.org/whl/cpu
+
+# ─── Core (required) ────────────────────────────────────────────────
+numpy>=1.26,<3.0
+scipy>=1.12,<2.0
+pandas>=2.2,<3.0
+pyyaml>=6.0,<7.0
+
+# ─── Database ───────────────────────────────────────────────────────
+sqlalchemy>=2.0,<3.0
+aiosqlite>=0.20,<1.0
+redis>=5.0,<9.0
+
+# ─── API ────────────────────────────────────────────────────────────
+fastapi>=0.110,<1.0
+uvicorn>=0.29,<1.0
+pydantic>=2.6,<3.0
+
+# ─── AI / ML (required for inference) ───────────────────────────────
+xgboost>=2.0,<3.0
+scikit-learn>=1.4,<2.0
+pyarrow>=15.0,<25.0
+
+# ─── AI / ML (optional — only for LSTM/Transformer) ────────────────
+# torch>=2.0,<3.0
+# onnxruntime>=1.17,<2.0
+# lightgbm>=4.0,<5.0
+
+# ─── Testing ────────────────────────────────────────────────────────
+pytest>=8.0,<10.0
+pytest-asyncio>=0.23,<2.0
+pytest-cov>=4.0,<8.0
+
+# ─── Observability ──────────────────────────────────────────────────
+prometheus-client>=0.20,<1.0
+structlog>=24.0,<27.0
+
+# ─── Reports (optional — for PDF/DOCX generation) ──────────────────
+reportlab>=4.0,<5.0
+python-docx>=1.0,<2.0
+
+# ─── Data / Network ─────────────────────────────────────────────────
+requests>=2.32,<3.0
+
+# ─── Windows Only (install separately) ──────────────────────────────
+# MetaTrader5>=5.0.45
