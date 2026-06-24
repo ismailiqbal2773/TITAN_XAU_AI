@@ -40,7 +40,7 @@ models:
 # ─── Feature Stream ──────────────────────────────────────────────────────────
 features:
   window: 300                      # bars to keep in rolling buffer (min 220)
-  source: canonical                # canonical | mt5
+  source: mt5                      # canonical | mt5
   canonical_path: titan/data/canonical/XAUUSD_H1_canonical.parquet
 
 # ─── Inference ───────────────────────────────────────────────────────────────
