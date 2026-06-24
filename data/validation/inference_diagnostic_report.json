@@ -1,0 +1,277 @@
+{
+  "timestamp": "2026-06-24T05:39:10.241312+00:00",
+  "checks": [
+    {
+      "name": "XGB model loaded",
+      "passed": true,
+      "evidence": "type=XGBClassifier"
+    },
+    {
+      "name": "Meta model loaded",
+      "passed": true,
+      "evidence": "type=LogisticRegression"
+    },
+    {
+      "name": "XGB n_features",
+      "passed": true,
+      "evidence": "n_features=55"
+    },
+    {
+      "name": "Meta n_features",
+      "passed": true,
+      "evidence": "n_features=22"
+    },
+    {
+      "name": "Canonical bars loaded",
+      "passed": true,
+      "evidence": "bars=300"
+    },
+    {
+      "name": "Feature DataFrame has rows",
+      "passed": true,
+      "evidence": "rows=300"
+    },
+    {
+      "name": "Feature vectors differ per candle",
+      "passed": true,
+      "evidence": "10/10 unique hashes out of 10 candles"
+    },
+    {
+      "name": "XGB predictions differ per candle",
+      "passed": true,
+      "evidence": "10/10 unique prediction hashes"
+    },
+    {
+      "name": "Meta predictions differ per candle",
+      "passed": true,
+      "evidence": "10/10 unique meta hashes"
+    },
+    {
+      "name": "InferenceEngine feature hash changes",
+      "passed": true,
+      "evidence": "1/5 unique (expected 1 \u2014 canonical source is static)"
+    },
+    {
+      "name": "Features change after new bar",
+      "passed": true,
+      "evidence": "hash1=bf8ed4260efe8b49 != hash2=64e8dcf46ba013ca"
+    },
+    {
+      "name": "XGB predictions change with new bar",
+      "passed": true,
+      "evidence": "old=[0.507780, 0.492220] new=[0.440749, 0.559251]"
+    },
+    {
+      "name": "XGB is sklearn XGBClassifier",
+      "passed": true,
+      "evidence": "type=XGBClassifier"
+    },
+    {
+      "name": "Meta is LogisticRegression",
+      "passed": true,
+      "evidence": "type=LogisticRegression"
+    },
+    {
+      "name": "XGB responds to different inputs",
+      "passed": true,
+      "evidence": "Different random inputs produce different probabilities (see above)"
+    }
+  ],
+  "xgb_results": [
+    {
+      "candle": 0,
+      "timestamp": "2026-06-19 11:00:00+00:00",
+      "feature_hash": "90ad69d792646a93",
+      "proba": [
+        0.538708,
+        0.461292
+      ],
+      "pred_hash": "c798078331c5261f"
+    },
+    {
+      "candle": 1,
+      "timestamp": "2026-06-19 12:00:00+00:00",
+      "feature_hash": "70060d1c0a90d601",
+      "proba": [
+        0.513813,
+        0.486187
+      ],
+      "pred_hash": "7a121fa8c2dda968"
+    },
+    {
+      "candle": 2,
+      "timestamp": "2026-06-19 13:00:00+00:00",
+      "feature_hash": "6777201188aff340",
+      "proba": [
+        0.505689,
+        0.494311
+      ],
+      "pred_hash": "001dc7c28755e189"
+    },
+    {
+      "candle": 3,
+      "timestamp": "2026-06-19 14:00:00+00:00",
+      "feature_hash": "9adf15f6992fc34e",
+      "proba": [
+        0.566574,
+        0.433426
+      ],
+      "pred_hash": "db05978192719bf3"
+    },
+    {
+      "candle": 4,
+      "timestamp": "2026-06-19 15:00:00+00:00",
+      "feature_hash": "8f488dfc414d8cf4",
+      "proba": [
+        0.56132,
+        0.43868
+      ],
+      "pred_hash": "510e43da9774c8d6"
+    },
+    {
+      "candle": 5,
+      "timestamp": "2026-06-19 16:00:00+00:00",
+      "feature_hash": "37561b5ee7838284",
+      "proba": [
+        0.478792,
+        0.521208
+      ],
+      "pred_hash": "1fd52c3f96f805cc"
+    },
+    {
+      "candle": 6,
+      "timestamp": "2026-06-19 17:00:00+00:00",
+      "feature_hash": "d09e635ded47c8a5",
+      "proba": [
+        0.551117,
+        0.448883
+      ],
+      "pred_hash": "0a3bb6ecec0d5dd4"
+    },
+    {
+      "candle": 7,
+      "timestamp": "2026-06-19 18:00:00+00:00",
+      "feature_hash": "c30b404a8b713477",
+      "proba": [
+        0.535701,
+        0.464299
+      ],
+      "pred_hash": "103bedd16a86007a"
+    },
+    {
+      "candle": 8,
+      "timestamp": "2026-06-19 19:00:00+00:00",
+      "feature_hash": "2a5058e684463f81",
+      "proba": [
+        0.541335,
+        0.458665
+      ],
+      "pred_hash": "328dd5223eec6400"
+    },
+    {
+      "candle": 9,
+      "timestamp": "2026-06-19 20:00:00+00:00",
+      "feature_hash": "974a3f69fa4fb1bb",
+      "proba": [
+        0.50778,
+        0.49222
+      ],
+      "pred_hash": "7f276eab33c369b2"
+    }
+  ],
+  "meta_results": [
+    {
+      "candle": 0,
+      "meta_proba": [
+        0.500401,
+        0.499599
+      ],
+      "meta_hash": "06af08a4fa6bb3ed"
+    },
+    {
+      "candle": 1,
+      "meta_proba": [
+        0.497675,
+        0.502325
+      ],
+      "meta_hash": "6d1f24122f820050"
+    },
+    {
+      "candle": 2,
+      "meta_proba": [
+        0.502226,
+        0.497774
+      ],
+      "meta_hash": "4d57d70ef393e542"
+    },
+    {
+      "candle": 3,
+      "meta_proba": [
+        0.501171,
+        0.498829
+      ],
+      "meta_hash": "d45026a0e795a94e"
+    },
+    {
+      "candle": 4,
+      "meta_proba": [
+        0.505219,
+        0.494781
+      ],
+      "meta_hash": "d829c83bd5b90e12"
+    },
+    {
+      "candle": 5,
+      "meta_proba": [
+        0.507446,
+        0.492554
+      ],
+      "meta_hash": "663b63de764393c9"
+    },
+    {
+      "candle": 6,
+      "meta_proba": [
+        0.503716,
+        0.496284
+      ],
+      "meta_hash": "c448bfe4d5eb717f"
+    },
+    {
+      "candle": 7,
+      "meta_proba": [
+        0.504239,
+        0.495761
+      ],
+      "meta_hash": "b81b129bd09afaf5"
+    },
+    {
+      "candle": 8,
+      "meta_proba": [
+        0.504434,
+        0.495566
+      ],
+      "meta_hash": "1149d8bca3c54073"
+    },
+    {
+      "candle": 9,
+      "meta_proba": [
+        0.503936,
+        0.496064
+      ],
+      "meta_hash": "868bb2d615feb659"
+    }
+  ],
+  "top_10_features": [
+    "obv_slope_20",
+    "obv",
+    "bb_upper",
+    "rsi",
+    "adx",
+    "spread_zscore_60",
+    "macd_signal",
+    "plus_di",
+    "minus_di",
+    "macd_hist"
+  ],
+  "diagnosis": "Constant predictions caused by static canonical source. In live MT5 mode, features and predictions will change per candle."
+}
