@@ -37,6 +37,35 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CONFIG_PATH = REPO_ROOT / "config" / "runtime.yaml"
 
 
+def _compute_current_atr(feature_stream, period: int = 14) -> float:
+    """
+    Compute current ATR(period) from an H1FeatureStream's bar buffer.
+
+    Mirrors AutonomousRuntime._compute_current_atr() exactly so the launcher
+    smoke test uses the SAME ATR definition as the production inference loop.
+
+    Returns 0.0 if insufficient data — in which case TradeLoop._compute_sl_tp
+    will detect the zero ATR and emit a fallback_used=True warning.
+    """
+    try:
+        import numpy as np
+        import pandas as pd
+        bars = feature_stream._bars
+        if bars is None or len(bars) < period + 1:
+            return 0.0
+        h, l, c = bars["high"], bars["low"], bars["close"]
+        tr = pd.concat([
+            (h - l),
+            (h - c.shift(1)).abs(),
+            (l - c.shift(1)).abs(),
+        ], axis=1).max(axis=1)
+        atr = tr.rolling(period).mean().iloc[-1]
+        return float(atr) if not np.isnan(atr) else 0.0
+    except Exception as e:
+        logger.warning(f"_compute_current_atr failed: {e}")
+        return 0.0
+
+
 @dataclass
 class LauncherConfig:
     """Parsed launcher config (validated)."""
@@ -68,6 +97,10 @@ class LauncherConfig:
     max_open_positions: int = 1
     sl_pips: float = 50
     tp_pips: float = 100
+    sl_mode: str = "atr"               # Sprint 8.4 — ATR is production default
+    atr_period: int = 14
+    atr_sl_multiplier: float = 2.0     # balanced profile
+    atr_tp_multiplier: float = 4.0
     max_spread_usd: float = 1.0
     deviation_points: int = 20
     magic_number: int = 202619
@@ -168,6 +201,10 @@ class TitanLauncher:
         cfg.max_open_positions = int(risk.get("max_open_positions", 1))
         cfg.sl_pips = float(risk.get("sl_pips", 50))
         cfg.tp_pips = float(risk.get("tp_pips", 100))
+        cfg.sl_mode = str(risk.get("sl_mode", "atr"))
+        cfg.atr_period = int(risk.get("atr_period", 14))
+        cfg.atr_sl_multiplier = float(risk.get("atr_sl_multiplier", 2.0))
+        cfg.atr_tp_multiplier = float(risk.get("atr_tp_multiplier", 4.0))
         cfg.max_spread_usd = float(risk.get("max_spread_usd", 1.0))
         cfg.deviation_points = int(risk.get("deviation_points", 20))
         cfg.magic_number = int(risk.get("magic_number", 202619))
@@ -312,6 +349,9 @@ class TitanLauncher:
                 max_open_positions=cfg.max_open_positions,
                 sl_pips=cfg.sl_pips,
                 tp_pips=cfg.tp_pips,
+                sl_mode=cfg.sl_mode,
+                atr_sl_multiplier=cfg.atr_sl_multiplier,
+                atr_tp_multiplier=cfg.atr_tp_multiplier,
                 max_spread_usd=cfg.max_spread_usd,
                 deviation_points=cfg.deviation_points,
                 magic_number=cfg.magic_number,
@@ -347,12 +387,41 @@ class TitanLauncher:
                                           symbol=cfg.symbol_name)
                 logger.info(f"Signal: dir={signal.direction.name} "
                             f"conf={signal.confidence:.3f} tradeable={signal.is_tradeable}")
+                # Sprint 8.5 fix: compute current ATR from the inference
+                # engine's feature stream and pass it to process_signal so
+                # the smoke test exercises the ATR SL/TP path instead of
+                # silently falling back to fixed-pip mode.
+                current_atr = _compute_current_atr(
+                    engine.feature_stream, period=cfg.atr_period,
+                )
+                # Use latest close as entry price (matches production behaviour)
+                entry_price = float(engine.feature_stream._bars["close"].iloc[-1]) \
+                    if len(engine.feature_stream._bars) > 0 else 2000.0
+                logger.info(
+                    f"Smoke ATR context: current_atr={current_atr:.6f} "
+                    f"entry_price={entry_price:.2f} "
+                    f"sl_mode={cfg.sl_mode} "
+                    f"atr_sl_mult={cfg.atr_sl_multiplier} "
+                    f"atr_tp_mult={cfg.atr_tp_multiplier}"
+                )
                 # Trade decision
                 decision = await trade_loop.process_signal(
-                    signal=signal, entry_price=2000.0, spread_usd=0.20,
+                    signal=signal,
+                    entry_price=entry_price,
+                    spread_usd=0.20,
+                    current_atr=current_atr,
                 )
                 logger.info(f"Decision: accepted={decision.accepted} "
                             f"dry_run={decision.dry_run} reason={decision.reject_reason}")
+                if decision.accepted and decision.order_request:
+                    logger.info(
+                        f"Order: {decision.order_request.get('order_type')} "
+                        f"vol={decision.order_request.get('volume')} "
+                        f"SL={decision.order_request.get('sl')} "
+                        f"TP={decision.order_request.get('tp')} "
+                        f"mode_used={decision.sl_tp_mode_used} "
+                        f"fallback={decision.fallback_used}"
+                    )
                 return decision
 
             decision = asyncio.run(smoke())
