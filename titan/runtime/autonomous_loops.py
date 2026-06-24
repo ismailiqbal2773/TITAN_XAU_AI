@@ -309,10 +309,15 @@ class AutonomousRuntime:
 
                 # ── Step 4: Process through trade loop ──
                 self._trades_attempted += 1
+
+                # Compute current ATR for ATR-based SL/TP (Sprint 8.4)
+                current_atr = self._compute_current_atr()
+
                 decision = await self.trade_loop.process_signal(
                     signal=signal,
                     entry_price=self.config.entry_price_default,
                     spread_usd=self.config.spread_default,
+                    current_atr=current_atr,
                 )
 
                 if decision.accepted:
@@ -545,6 +550,26 @@ class AutonomousRuntime:
 
     # ─── Helpers ────────────────────────────────────────────────────────
 
+    def _compute_current_atr(self) -> float:
+        """
+        Compute current ATR(14) from the feature stream's bar buffer.
+        Returns 0.0 if insufficient data.
+        """
+        try:
+            bars = self.feature_stream._bars
+            if len(bars) < 15:
+                return 0.0
+            h, l, c = bars["high"], bars["low"], bars["close"]
+            tr = pd.concat([
+                (h - l),
+                (h - c.shift(1)).abs(),
+                (l - c.shift(1)).abs(),
+            ], axis=1).max(axis=1)
+            atr = tr.rolling(14).mean().iloc[-1]
+            return float(atr) if not np.isnan(atr) else 0.0
+        except Exception:
+            return 0.0
+
     def _get_current_bar_time(self) -> str:
         """
         Get current H1 bar timestamp (truncated to hour).
@@ -639,10 +664,12 @@ class AutonomousRuntime:
 
         # Process trade
         self._trades_attempted += 1
+        current_atr = self._compute_current_atr()
         decision = await self.trade_loop.process_signal(
             signal=signal,
             entry_price=self.config.entry_price_default,
             spread_usd=self.config.spread_default,
+            current_atr=current_atr,
         )
 
         if decision.accepted:

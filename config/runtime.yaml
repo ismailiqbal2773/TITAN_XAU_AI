@@ -52,11 +52,29 @@ inference:
 risk:
   max_lot: 0.01                    # HARD CAP — cannot exceed
   max_open_positions: 1            # HARD CAP — one position at a time
-  sl_pips: 50                      # 50 pips = $0.50 (2-digit broker)
-  tp_pips: 100                     # 100 pips = $1.00 (1:2 RR)
+  sl_mode: atr                     # fixed | atr (default: atr)
+  sl_pips: 50                      # Used when sl_mode=fixed (50 pips = $0.50)
+  tp_pips: 100                     # Used when sl_mode=fixed (100 pips = $1.00)
+  atr_period: 14                   # ATR lookback bars
+  atr_sl_multiplier: 2.0           # SL = atr_sl_multiplier × ATR (balanced default)
+  atr_tp_multiplier: 4.0           # TP = atr_tp_multiplier × ATR (balanced default)
   max_spread_usd: 1.0              # Reject if spread > $1.00
   deviation_points: 20             # Max slippage in points
   magic_number: 202619             # TITAN identifier
+
+# ─── ATR Execution Profiles ──────────────────────────────────────────────────
+# Switch profiles by setting risk.sl_mode=atr and changing multipliers.
+# Or use profile name below (overrides risk.atr_sl_multiplier / atr_tp_multiplier).
+atr_profiles:
+  challenge:                       # Safest: lowest DD, 100% FTMO pass
+    atr_sl_multiplier: 1.5
+    atr_tp_multiplier: 3.0
+  balanced:                        # DEFAULT: good balance of profit + safety
+    atr_sl_multiplier: 2.0
+    atr_tp_multiplier: 4.0
+  production_aggressive:           # Highest Sharpe + PnL, slightly higher DD
+    atr_sl_multiplier: 3.0
+    atr_tp_multiplier: 6.0
 
 # ─── Kill-Switch FSM ─────────────────────────────────────────────────────────
 kill_switch:

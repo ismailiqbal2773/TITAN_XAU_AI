@@ -42,14 +42,18 @@ class TradeLoopConfig:
     dry_run: bool = True                    # SAFETY: must be explicitly set to False to trade live
     max_lot: float = MAX_LOT_CAP            # Hard cap 0.01
     max_open_positions: int = MAX_OPEN_POSITIONS
-    sl_pips: float = DEFAULT_SL_PIPS
-    tp_pips: float = DEFAULT_TP_PIPS
+    sl_pips: float = DEFAULT_SL_PIPS        # Used when sl_mode="fixed"
+    tp_pips: float = DEFAULT_TP_PIPS        # Used when sl_mode="fixed"
     max_spread_usd: float = DEFAULT_MAX_SPREAD_USD
     deviation_points: int = DEFAULT_DEVITATION_POINTS
     magic_number: int = 202619
     comment: str = "TITAN"
     news_halt_active: bool = False          # Toggled by news_filter (Sprint 4)
     require_live_config_flag: bool = True   # Require TITAN_LIVE_TRADING=1 env var when dry_run=False
+    # ── ATR-based SL/TP (Sprint 8.4) ──
+    sl_mode: str = "atr"                    # "fixed" | "atr" (default: atr)
+    atr_sl_multiplier: float = 2.0          # SL = atr_sl_multiplier × ATR (balanced)
+    atr_tp_multiplier: float = 4.0          # TP = atr_tp_multiplier × ATR (balanced)
 
     def __post_init__(self):
         # Hard enforce caps regardless of constructor args
@@ -122,6 +126,7 @@ class TradeLoop:
         execution_engine=None,
         current_equity: float = 10000.0,
         account_state: Optional[dict] = None,
+        current_atr: float = 0.0,
     ) -> TradeDecision:
         """
         Process a Signal through the full trade chain.
@@ -193,7 +198,7 @@ class TradeLoop:
 
         # ── Compute SL/TP ──
         direction_int = 1 if signal.direction == Direction.LONG else -1
-        sl, tp = self._compute_sl_tp(entry_price, direction_int)
+        sl, tp = self._compute_sl_tp(entry_price, direction_int, current_atr)
         if sl == 0.0 or tp == 0.0:
             return self._reject(signal, "sl_tp_computation_failed", t0)
 
@@ -361,15 +366,32 @@ class TradeLoop:
 
     # ─── Internal helpers ───────────────────────────────────────────────
 
-    def _compute_sl_tp(self, entry_price: float, direction: int) -> tuple[float, float]:
+    def _compute_sl_tp(self, entry_price: float, direction: int,
+                       current_atr: float = 0.0) -> tuple[float, float]:
         """
-        Compute SL/TP prices from pip distances.
-        XAUUSD pip = $0.01 (2-digit broker) or $0.001 (3-digit broker).
-        We use $0.01 per pip (conservative — wider SL on 3-digit brokers).
+        Compute SL/TP prices.
+
+        If sl_mode="atr" and current_atr > 0:
+            SL = entry ∓ (atr_sl_multiplier × ATR)
+            TP = entry ± (atr_tp_multiplier × ATR)
+
+        If sl_mode="fixed" or ATR unavailable:
+            SL = entry ∓ (sl_pips × $0.01)
+            TP = entry ± (tp_pips × $0.01)
         """
-        pip_value = 0.01
-        sl_distance = self.config.sl_pips * pip_value
-        tp_distance = self.config.tp_pips * pip_value
+        if self.config.sl_mode == "atr" and current_atr > 0:
+            sl_distance = self.config.atr_sl_multiplier * current_atr
+            tp_distance = self.config.atr_tp_multiplier * current_atr
+            logger.debug(
+                f"ATR SL/TP: ATR={current_atr:.4f} "
+                f"SL_dist={sl_distance:.4f} TP_dist={tp_distance:.4f}"
+            )
+        else:
+            # Fixed pip mode (fallback)
+            pip_value = 0.01
+            sl_distance = self.config.sl_pips * pip_value
+            tp_distance = self.config.tp_pips * pip_value
+
         if direction == 1:  # LONG
             sl = entry_price - sl_distance
             tp = entry_price + tp_distance
