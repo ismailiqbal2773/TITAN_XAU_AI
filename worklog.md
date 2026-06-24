@@ -1874,3 +1874,56 @@ Stage Summary:
 - **Three highest-ROI quick wins (all P0, <1 wk each, $0 cost):** (1) wire `ModelRegistry` into `main.py` replacing direct `ensemble.register_model()` (1 day — activates champion/challenger dead code), (2) add `ECEMonitor` + `PSIMonitor` to `ceo/supervisor.py:DetectionEngine` (2 days — closes most critical drift gap), (3) replace hardcoded `eqs=90.0`/`regime_conf=85.0` in `main.py:378-379` with real computations (1 day — revives D5/D7 detectors).
 - **Without MANDATORY builds (54 days), 2027 survival probability drops below 30%: ECE crosses kill threshold in 2026 (F10-B), Sharpe half-life 3.89 yrs → alpha→0 by 2027 (F9-C), 5-feature concentration means single-feature drift = catastrophic (F10-A). With MANDATORY builds delivered on a 12-week sprint, 2027 survival probability estimated 65-75%.**
 - Findings appended to worklog.md. F10-C Drift Detection + Alpha Factory audit complete. Joins F9-A/B/C/D + F10-A + F10-B as the fourth architecture-side audit. Confirms F9-D's 78% architecture-redesign-required probability from a fourth independent angle (zero drift monitors + zero alpha factory + champion/challenger dead code + features hardcoded). The 4 MANDATORY components (Drift Engine / Alpha Factory / Meta Recalibration / Feature Evolution) are the minimum viable architecture for 2027-2030 survival — without them, TITAN is running on a fixed-algo, fixed-feature, unmonitored-Calibration trajectory that mathematically decays to zero alpha within the planning horizon.
+
+---
+Task ID: 13
+Agent: Super Z (main, ATR Execution Audit session 2026-06-25)
+Task: PRODUCTION ATR EXECUTION AUDIT — Verify with hard evidence that ATR-based SL/TP is actually being used in production runtime and not silently falling back to legacy fixed-pip execution. No trading-logic modifications. Add audit fields to journal/log output. Determine conclusively: A) working, B) installed but falling back, C) partially wired. If fallback occurs, identify exact code path and condition.
+
+Work Log:
+- Inspected production runtime code:
+  * config/runtime.yaml: risk.sl_mode=atr, atr_sl_multiplier=2.0, atr_tp_multiplier=4.0 (balanced profile)
+  * titan/production/trade_loop.py: TradeLoopConfig defaults sl_mode="atr", _compute_sl_tp returns (sl, tp) tuple — NO audit fields, NO explicit fallback flag, NO journal record of which mode actually ran.
+  * titan/runtime/autonomous_loops.py: _inference_loop (line 314-321) and run_single_cycle (line 667-673) DO pass current_atr=current_atr computed by _compute_current_atr(). Verified.
+  * titan/runtime/launcher.py:351-353: smoke() does NOT pass current_atr → defaults to 0.0 → silent fallback to fixed-pip. This is a real code-path defect.
+- Traced fallback trigger in _compute_sl_tp:
+    if self.config.sl_mode == "atr" and current_atr > 0: → ATR branch
+    else:                                                       → FIXED branch (silent fallback)
+  Condition: sl_mode="atr" + current_atr <= 0.0 → fallback, no warning logged previously.
+- Loaded real canonical data: titan/data/canonical/XAUUSD_H1_canonical.parquet (300 bars after window, last close 4155.73, last bar 2026-06-19 20:00 UTC).
+- Computed real ATR(14) using EXACT production helper _compute_current_atr() logic: ATR = 26.48814285714291.
+- Added 12 audit fields to TradeDecision dataclass: current_atr, sl_tp_mode_used, sl_mode_configured, atr_sl_multiplier, atr_tp_multiplier, atr_sl_distance, atr_tp_distance, fallback_used, fallback_reason, entry_price, computed_sl, computed_tp.
+- Upgraded _compute_sl_tp signature: tuple[float, float] → tuple[float, float, dict]. Added explicit fallback detection (atr_zero, atr_nan, mode_fixed). Added logger.warning on every fallback.
+- Updated process_signal dry_run and live branches to populate audit fields on TradeDecision.
+- Updated TradeJournal.log_decision and log_order to emit all 12 audit fields on every DECISION and ORDER record.
+- Updated 2 existing tests in test_production_sprint2.py to unpack 3-tuple (sl, tp, _audit).
+- Created scripts/audit/atr_execution_audit.py — drives actual production TradeLoop + TradeJournal through 4 cases:
+    Case 1: SHORT, confidence=0.758, meta=1.0, current_atr=26.49 (operator-reported latest accepted signal)
+    Case 2: LONG,  confidence=0.758, meta=1.0, current_atr=26.49 (BUY formula verification)
+    Case 3: SHORT, current_atr=0.0 (fallback path verification)
+    Case 4: SHORT, sl_mode="fixed" (explicit fixed-pip baseline)
+- Ran audit. Results:
+    Case 1: accepted=True, sl_tp_mode_used=atr, fallback_used=False, computed_sl=4208.70629, computed_tp=4049.77743. order_request.sl/tp match computed_sl/tp.
+    Case 2: accepted=True, sl_tp_mode_used=atr, fallback_used=False, computed_sl=4102.75371, computed_tp=4261.68257. Matches.
+    Case 3: accepted=True, sl_tp_mode_used=fixed, fallback_used=True, fallback_reason=atr_zero. WARNING logged. Detected and reported.
+    Case 4: accepted=True, sl_tp_mode_used=fixed, fallback_used=False, fallback_reason=mode_fixed. (Operator explicitly chose fixed; no silent fallback.)
+- Re-verified launcher.py:351-353 smoke() path: passes NO current_atr → fallback_used=True, reason=atr_zero. CONFIRMED CODE-PATH DEFECT in launcher's smoke test (NOT in production AutonomousRuntime._inference_loop which correctly passes current_atr).
+- Ran full production test suite: 217 tests pass, 0 fail (test_production_sprint2/3/5/6/7_5/8_1).
+- Audit artifacts:
+    Report:  data/audit/atr_execution_audit_report.json
+    Journal: data/audit/atr_execution_audit_journal.jsonl (9 records, all carry 12 audit fields)
+
+Stage Summary:
+- VERDICT: **A) ATR framework is working correctly in production runtime** when invoked via AutonomousRuntime._inference_loop (the actual production trade path), which passes current_atr computed by _compute_current_atr() from the live feature stream.
+- BUY formula (verified Case 2):
+    SL = entry_price - (atr_sl_multiplier × ATR) = 4155.73 - (2.0 × 26.488) = 4102.75371
+    TP = entry_price + (atr_tp_multiplier × ATR) = 4155.73 + (4.0 × 26.488) = 4261.68257
+- SELL formula (verified Case 1, operator-reported signal):
+    SL = entry_price + (atr_sl_multiplier × ATR) = 4155.73 + (2.0 × 26.488) = 4208.70629
+    TP = entry_price - (atr_tp_multiplier × ATR) = 4155.73 - (4.0 × 26.488) = 4049.77743
+- ATR multipliers loaded from runtime.yaml: atr_sl_multiplier=2.0, atr_tp_multiplier=4.0 (balanced profile).
+- ATR distance calculated: sl_distance=52.9763, tp_distance=105.9526.
+- order_request.sl/tp == computed_sl/tp: TRUE in all 4 cases (no SL/TP mutation between compute and submit).
+- Fallback IS detectable and reported when current_atr=0 (Case 3 proved this). With Sprint 8.5 audit fields, ANY future silent fallback will be visible in journal DECISION/ORDER records via fallback_used=True and fallback_reason.
+- ONE code-path defect identified: titan/runtime/launcher.py:351-353 smoke() omits current_atr argument → triggers silent fallback in launcher smoke test only. Does NOT affect production AutonomousRuntime._inference_loop. Recommended fix: pass current_atr from feature_stream in launcher's smoke() (1-line patch — defer to operator approval since audit said "do NOT modify any trading logic yet").
+

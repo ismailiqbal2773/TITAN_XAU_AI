@@ -135,7 +135,7 @@ class TestTradeLoopSLTP:
     @pytest.mark.asyncio
     async def test_long_sl_tp(self):
         loop = TradeLoop(TradeLoopConfig(dry_run=True, sl_pips=50, tp_pips=100))
-        sl, tp = loop._compute_sl_tp(entry_price=2000.0, direction=1)
+        sl, tp, _audit = loop._compute_sl_tp(entry_price=2000.0, direction=1)
         # LONG: SL below entry, TP above entry
         assert sl < 2000.0
         assert tp > 2000.0
@@ -145,7 +145,7 @@ class TestTradeLoopSLTP:
     @pytest.mark.asyncio
     async def test_short_sl_tp(self):
         loop = TradeLoop(TradeLoopConfig(dry_run=True, sl_pips=50, tp_pips=100))
-        sl, tp = loop._compute_sl_tp(entry_price=2000.0, direction=-1)
+        sl, tp, _audit = loop._compute_sl_tp(entry_price=2000.0, direction=-1)
         # SHORT: SL above entry, TP below entry
         assert sl > 2000.0
         assert tp < 2000.0

@@ -77,6 +77,19 @@ class TradeDecision:
     order_result: Optional[dict] = None       # ExecutionEngine result (None in dry_run)
     evaluation_ms: float = 0.0
     dry_run: bool = True
+    # ── Sprint 8.5 ATR Audit Fields (hard evidence for every decision) ──
+    current_atr: float = 0.0                  # ATR(14) at signal time
+    sl_tp_mode_used: str = ""                 # "atr" | "fixed" (what actually ran)
+    sl_mode_configured: str = ""              # what was configured (for diff vs used)
+    atr_sl_multiplier: float = 0.0            # multiplier loaded at runtime
+    atr_tp_multiplier: float = 0.0
+    atr_sl_distance: float = 0.0              # sl_distance in price units
+    atr_tp_distance: float = 0.0
+    fallback_used: bool = False               # TRUE if ATR configured but fixed-pip used
+    fallback_reason: str = ""                 # "" | "atr_zero" | "atr_nan" | "mode_fixed" | "exception"
+    entry_price: float = 0.0                  # price used for SL/TP computation
+    computed_sl: float = 0.0                  # final SL passed to order_request
+    computed_tp: float = 0.0                  # final TP passed to order_request
 
     def __repr__(self) -> str:
         if self.accepted:
@@ -198,7 +211,7 @@ class TradeLoop:
 
         # ── Compute SL/TP ──
         direction_int = 1 if signal.direction == Direction.LONG else -1
-        sl, tp = self._compute_sl_tp(entry_price, direction_int, current_atr)
+        sl, tp, atr_audit = self._compute_sl_tp(entry_price, direction_int, current_atr)
         if sl == 0.0 or tp == 0.0:
             return self._reject(signal, "sl_tp_computation_failed", t0)
 
@@ -291,6 +304,19 @@ class TradeLoop:
                 order_result=None,
                 evaluation_ms=elapsed,
                 dry_run=True,
+                # ── Sprint 8.5 ATR audit fields (hard evidence) ──
+                current_atr=atr_audit["current_atr"],
+                sl_tp_mode_used=atr_audit["sl_tp_mode_used"],
+                sl_mode_configured=atr_audit["sl_mode_configured"],
+                atr_sl_multiplier=atr_audit["atr_sl_multiplier"],
+                atr_tp_multiplier=atr_audit["atr_tp_multiplier"],
+                atr_sl_distance=atr_audit["atr_sl_distance"],
+                atr_tp_distance=atr_audit["atr_tp_distance"],
+                fallback_used=atr_audit["fallback_used"],
+                fallback_reason=atr_audit["fallback_reason"],
+                entry_price=atr_audit["entry_price"],
+                computed_sl=atr_audit["computed_sl"],
+                computed_tp=atr_audit["computed_tp"],
             )
             # Journal the decision + order
             if self.journal is not None:
@@ -344,6 +370,19 @@ class TradeLoop:
                 },
                 evaluation_ms=elapsed,
                 dry_run=False,
+                # ── Sprint 8.5 ATR audit fields (hard evidence) ──
+                current_atr=atr_audit["current_atr"],
+                sl_tp_mode_used=atr_audit["sl_tp_mode_used"],
+                sl_mode_configured=atr_audit["sl_mode_configured"],
+                atr_sl_multiplier=atr_audit["atr_sl_multiplier"],
+                atr_tp_multiplier=atr_audit["atr_tp_multiplier"],
+                atr_sl_distance=atr_audit["atr_sl_distance"],
+                atr_tp_distance=atr_audit["atr_tp_distance"],
+                fallback_used=atr_audit["fallback_used"],
+                fallback_reason=atr_audit["fallback_reason"],
+                entry_price=atr_audit["entry_price"],
+                computed_sl=atr_audit["computed_sl"],
+                computed_tp=atr_audit["computed_tp"],
             )
         except ImportError as e:
             return self._reject(signal, f"execution_engine_import_error: {e}", t0,
@@ -367,30 +406,73 @@ class TradeLoop:
     # ─── Internal helpers ───────────────────────────────────────────────
 
     def _compute_sl_tp(self, entry_price: float, direction: int,
-                       current_atr: float = 0.0) -> tuple[float, float]:
+                       current_atr: float = 0.0) -> tuple[float, float, dict]:
         """
-        Compute SL/TP prices.
+        Compute SL/TP prices with full audit metadata.
 
-        If sl_mode="atr" and current_atr > 0:
+        If sl_mode="atr" and current_atr > 0 and isfinite:
             SL = entry ∓ (atr_sl_multiplier × ATR)
             TP = entry ± (atr_tp_multiplier × ATR)
+            mode_used = "atr", fallback_used = False
 
-        If sl_mode="fixed" or ATR unavailable:
+        If sl_mode="atr" but current_atr <= 0 or NaN:
+            FALLBACK to fixed-pip mode (legacy behaviour)
             SL = entry ∓ (sl_pips × $0.01)
             TP = entry ± (tp_pips × $0.01)
+            mode_used = "fixed", fallback_used = True
+            fallback_reason = "atr_zero" | "atr_nan"
+
+        If sl_mode="fixed":
+            SL = entry ∓ (sl_pips × $0.01)
+            TP = entry ± (tp_pips × $0.01)
+            mode_used = "fixed", fallback_used = False
+            fallback_reason = "mode_fixed"
+
+        Returns: (sl, tp, audit_dict)
         """
-        if self.config.sl_mode == "atr" and current_atr > 0:
-            sl_distance = self.config.atr_sl_multiplier * current_atr
-            tp_distance = self.config.atr_tp_multiplier * current_atr
+        import math
+
+        sl_mode_configured = self.config.sl_mode
+        atr_sl_mult = float(self.config.atr_sl_multiplier)
+        atr_tp_mult = float(self.config.atr_tp_multiplier)
+
+        # Determine fallback conditions explicitly
+        atr_unavailable = False
+        fallback_reason = ""
+        if sl_mode_configured == "atr":
+            if current_atr is None or not math.isfinite(float(current_atr)):
+                atr_unavailable = True
+                fallback_reason = "atr_nan"
+            elif float(current_atr) <= 0.0:
+                atr_unavailable = True
+                fallback_reason = "atr_zero"
+
+        if sl_mode_configured == "atr" and not atr_unavailable:
+            atr_val = float(current_atr)
+            sl_distance = atr_sl_mult * atr_val
+            tp_distance = atr_tp_mult * atr_val
+            mode_used = "atr"
+            fallback_used = False
             logger.debug(
-                f"ATR SL/TP: ATR={current_atr:.4f} "
+                f"ATR SL/TP: ATR={atr_val:.4f} "
                 f"SL_dist={sl_distance:.4f} TP_dist={tp_distance:.4f}"
             )
         else:
-            # Fixed pip mode (fallback)
+            # Fixed pip mode (fallback when ATR configured but unavailable,
+            # OR when operator explicitly set sl_mode="fixed")
             pip_value = 0.01
             sl_distance = self.config.sl_pips * pip_value
             tp_distance = self.config.tp_pips * pip_value
+            mode_used = "fixed"
+            fallback_used = (sl_mode_configured == "atr")  # only true when atr was desired
+            if not fallback_used:
+                fallback_reason = "mode_fixed"
+            logger.warning(
+                f"SL/TP FALLBACK to fixed-pip: configured={sl_mode_configured} "
+                f"mode_used=fixed fallback_used={fallback_used} "
+                f"reason={fallback_reason} current_atr={current_atr} "
+                f"sl_dist={sl_distance:.4f} tp_dist={tp_distance:.4f}"
+            )
 
         if direction == 1:  # LONG
             sl = entry_price - sl_distance
@@ -398,7 +480,25 @@ class TradeLoop:
         else:                # SHORT
             sl = entry_price + sl_distance
             tp = entry_price - tp_distance
-        return round(sl, 5), round(tp, 5)
+
+        sl = round(sl, 5)
+        tp = round(tp, 5)
+
+        audit = {
+            "current_atr": float(current_atr) if (current_atr is not None and math.isfinite(float(current_atr))) else 0.0,
+            "sl_tp_mode_used": mode_used,
+            "sl_mode_configured": sl_mode_configured,
+            "atr_sl_multiplier": atr_sl_mult,
+            "atr_tp_multiplier": atr_tp_mult,
+            "atr_sl_distance": float(sl_distance),
+            "atr_tp_distance": float(tp_distance),
+            "fallback_used": bool(fallback_used),
+            "fallback_reason": fallback_reason,
+            "entry_price": float(entry_price),
+            "computed_sl": float(sl),
+            "computed_tp": float(tp),
+        }
+        return sl, tp, audit
 
     def _reject(self, signal: Signal, reason: str, t0: float,
                 risk_decision: Optional[str] = None,

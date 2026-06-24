@@ -313,7 +313,7 @@ class TradeJournal:
 
     def log_decision(self, decision) -> str:
         """Log a TradeDecision object from trade_loop.py."""
-        return self._write(self._make_record("DECISION", {
+        data = {
             "accepted": bool(decision.accepted),
             "reject_reason": decision.reject_reason,
             "risk_decision": decision.risk_decision,
@@ -321,19 +321,46 @@ class TradeJournal:
             "dry_run": bool(decision.dry_run),
             "evaluation_ms": float(decision.evaluation_ms),
             "order_request": decision.order_request,
-        }))
+        }
+        # ── Sprint 8.5: ATR execution audit fields ──
+        # These fields MUST be present on every DECISION record so we can
+        # verify at audit time whether ATR-based SL/TP was actually used
+        # or silently fell back to legacy fixed-pip sizing.
+        for attr in (
+            "current_atr", "sl_tp_mode_used", "sl_mode_configured",
+            "atr_sl_multiplier", "atr_tp_multiplier",
+            "atr_sl_distance", "atr_tp_distance",
+            "fallback_used", "fallback_reason",
+            "entry_price", "computed_sl", "computed_tp",
+        ):
+            if hasattr(decision, attr):
+                data[attr] = getattr(decision, attr)
+        return self._write(self._make_record("DECISION", data))
 
     def log_order(self, decision) -> str:
         """Log an ORDER record (for accepted decisions only)."""
         if not decision.accepted:
             return ""
-        return self._write(self._make_record("ORDER", {
+        data = {
             "dry_run": bool(decision.dry_run),
             "order_request": decision.order_request,
             "order_result": decision.order_result,
             "risk_decision": decision.risk_decision,
             "adjusted_volume": float(decision.adjusted_volume),
-        }))
+        }
+        # ── Sprint 8.5: ATR execution audit fields ──
+        # Mirrored on ORDER records so a downstream consumer reading only
+        # ORDER events still sees the ATR evidence.
+        for attr in (
+            "current_atr", "sl_tp_mode_used", "sl_mode_configured",
+            "atr_sl_multiplier", "atr_tp_multiplier",
+            "atr_sl_distance", "atr_tp_distance",
+            "fallback_used", "fallback_reason",
+            "entry_price", "computed_sl", "computed_tp",
+        ):
+            if hasattr(decision, attr):
+                data[attr] = getattr(decision, attr)
+        return self._write(self._make_record("ORDER", data))
 
     def log_exit(self, ticket: int, exit_reason: str,
                  entry_price: float, exit_price: float,
