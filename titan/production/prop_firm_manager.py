@@ -139,7 +139,9 @@ class PropFirmProfileManager:
             raise FileNotFoundError(
                 f"Prop firm profiles YAML not found: {self.profiles_path}"
             )
-        with open(self.profiles_path) as f:
+        # Sprint 9.0.1: explicit UTF-8 — Windows defaults to cp1252 which
+        # raises UnicodeDecodeError on non-ASCII chars in profile notes.
+        with open(self.profiles_path, "r", encoding="utf-8") as f:
             doc = yaml.safe_load(f) or {}
         self._profiles = doc.get("profiles", {}) or {}
         self._auto_detect_rules = doc.get("auto_detect", {}) or {}

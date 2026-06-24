@@ -194,7 +194,8 @@ class ReportGenerator:
 
         # ── Save report ──
         path = self.output_dir / f"daily_report_{date}.json"
-        with open(path, "w") as f:
+        # Sprint 9.0.1: explicit UTF-8 for Windows cp1252 compatibility.
+        with open(path, "w", encoding="utf-8") as f:
             json.dump(asdict(report), f, indent=2, default=str)
         logger.info(f"Daily report saved: {path}")
 
@@ -261,7 +262,8 @@ class ReportGenerator:
 
         # ── Save weekly report ──
         path = self.output_dir / f"weekly_report_{week_start}.json"
-        with open(path, "w") as f:
+        # Sprint 9.0.1: explicit UTF-8 for Windows cp1252 compatibility.
+        with open(path, "w", encoding="utf-8") as f:
             json.dump(asdict(report), f, indent=2, default=str)
         logger.info(f"Weekly report saved: {path}")
 

@@ -247,7 +247,8 @@ class MetricsCollector:
         if snap is None:
             raise ValueError("No snapshot to save — call collect() first")
         path = self.output_dir / "metrics_snapshot.json"
-        with open(path, "w") as f:
+        # Sprint 9.0.1: explicit UTF-8 for Windows cp1252 compatibility.
+        with open(path, "w", encoding="utf-8") as f:
             json.dump(asdict(snap), f, indent=2, default=str)
         logger.info(f"Metrics snapshot saved: {path}")
         return str(path)
@@ -259,7 +260,8 @@ class MetricsCollector:
             raise ValueError("No snapshot to save — call collect() first")
         path = self.output_dir / "metrics_timeseries.csv"
         write_header = not path.exists()
-        with open(path, "a", newline="") as f:
+        # Sprint 9.0.1: explicit UTF-8 + newline for cross-platform CSV writes.
+        with open(path, "a", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
             if write_header:
                 writer.writerow(asdict(snap).keys())

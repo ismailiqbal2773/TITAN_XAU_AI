@@ -146,7 +146,8 @@ class ForwardTestManager:
 
         # Save checkpoint
         cp_path = self.checkpoint_dir / f"checkpoint_{today}.json"
-        with open(cp_path, "w") as f:
+        # Sprint 9.0.1: explicit UTF-8 for Windows cp1252 compatibility.
+        with open(cp_path, "w", encoding="utf-8") as f:
             json.dump(asdict(checkpoint), f, indent=2, default=str)
         logger.info(f"Daily checkpoint saved: {cp_path}")
 
@@ -209,11 +210,13 @@ class ForwardTestManager:
         """Save session state to disk (for resume after restart)."""
         if self._state is None:
             return
-        with open(self._state_path, "w") as f:
+        # Sprint 9.0.1: explicit UTF-8 for Windows cp1252 compatibility.
+        with open(self._state_path, "w", encoding="utf-8") as f:
             json.dump(asdict(self._state), f, indent=2, default=str)
 
     def _load_state(self) -> SessionState:
         """Load session state from disk."""
-        with open(self._state_path, "r") as f:
+        # Sprint 9.0.1: explicit UTF-8 for Windows cp1252 compatibility.
+        with open(self._state_path, "r", encoding="utf-8") as f:
             data = json.load(f)
         return SessionState(**data)

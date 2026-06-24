@@ -238,7 +238,7 @@ def main():
     all_features = fs._compute_features()
 
     scaler_path = REPO_ROOT / "titan" / "data" / "features" / "scaler_stats.json"
-    with open(scaler_path) as f: scaler = json.load(f)
+    with open(scaler_path, "r", encoding="utf-8") as f: scaler = json.load(f)
     scaler_mean = np.array([scaler["mean"][f] for f in FEATURE_NAMES])
     scaler_std = np.array([scaler["std"][f] for f in FEATURE_NAMES])
 
@@ -380,7 +380,7 @@ def main():
     }
     report_path = REPO_ROOT / "data" / "validation" / "atr_execution_validation_report.json"
     report_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(report_path, "w") as f:
+    with open(report_path, "w", encoding="utf-8") as f:
         json.dump(report, f, indent=2, default=str)
     print(f"\n  Report saved: {report_path}")
 

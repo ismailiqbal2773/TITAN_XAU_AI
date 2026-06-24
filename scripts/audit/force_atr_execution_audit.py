@@ -63,7 +63,7 @@ def find_latest_accepted_decision_in_journals() -> dict | None:
     accepted = []
     for j in journals:
         try:
-            with open(j) as f:
+            with open(j, "r", encoding="utf-8") as f:
                 for line_num, line in enumerate(f, 1):
                     line = line.strip()
                     if not line: continue
@@ -335,7 +335,7 @@ def main():
         "verdict_text": verdict_text,
     }
     REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with open(REPORT_PATH, "w") as f:
+    with open(REPORT_PATH, "w", encoding="utf-8") as f:
         json.dump(report, f, indent=2, default=str)
     print(f"\n  Report saved: {REPORT_PATH}")
     print(f"  Journal saved: {JOURNAL_PATH}")

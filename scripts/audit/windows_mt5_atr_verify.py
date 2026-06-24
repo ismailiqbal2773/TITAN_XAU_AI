@@ -556,7 +556,7 @@ def main():
         "verdict": verdict,
         "journal_path": str(JOURNAL_PATH),
     }
-    with open(REPORT_PATH, "w") as f:
+    with open(REPORT_PATH, "w", encoding="utf-8") as f:
         json.dump(report, f, indent=2, default=str)
     print()
     print(f"  Report saved:  {REPORT_PATH}")

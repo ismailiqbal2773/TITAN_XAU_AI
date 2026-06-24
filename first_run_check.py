@@ -40,7 +40,8 @@ def run_checks(cli_mode: bool = True) -> list[CheckResult]:
         # Verify dry_run=True
         try:
             import yaml
-            with open(config_path) as f:
+            # Sprint 9.0.1: explicit UTF-8 for Windows cp1252 compatibility.
+            with open(config_path, "r", encoding="utf-8") as f:
                 cfg = yaml.safe_load(f)
             rt = cfg.get("runtime", {})
             if rt.get("dry_run", True):
@@ -82,7 +83,8 @@ def run_checks(cli_mode: bool = True) -> list[CheckResult]:
     try:
         journal_path.parent.mkdir(parents=True, exist_ok=True)
         test_file = journal_path.parent / ".write_test"
-        with open(test_file, "w") as f:
+        # Sprint 9.0.1: explicit UTF-8 (defensive — content is ASCII).
+        with open(test_file, "w", encoding="utf-8") as f:
             f.write("test")
         os.unlink(test_file)
         results.append(CheckResult("Journal directory", "PASS", str(journal_path.parent)))

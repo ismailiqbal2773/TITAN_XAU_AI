@@ -88,7 +88,7 @@ class TestScorecardGeneration:
         scorecard = q.run()
         json_path = REPO_ROOT / "data" / "qualification" / "pre_demo_scorecard.json"
         assert json_path.exists()
-        with open(json_path) as f:
+        with open(json_path, "r", encoding="utf-8") as f:
             data = json.load(f)
         assert "total_score" in data
         assert "decision" in data
@@ -97,7 +97,7 @@ class TestScorecardGeneration:
     def test_csv_scorecard_is_valid(self):
         csv_path = REPO_ROOT / "data" / "qualification" / "pre_demo_scorecard.csv"
         assert csv_path.exists()
-        with open(csv_path) as f:
+        with open(csv_path, "r", encoding="utf-8") as f:
             lines = f.readlines()
         assert len(lines) > 1  # header + at least 1 data row
 
@@ -304,7 +304,7 @@ class TestQualificationIntegration:
     def test_evidence_files_valid_json(self):
         """Evidence JSON file must be valid JSON with required fields."""
         json_path = REPO_ROOT / "data" / "qualification" / "pre_demo_scorecard.json"
-        with open(json_path) as f:
+        with open(json_path, "r", encoding="utf-8") as f:
             data = json.load(f)
         required_fields = [
             "timestamp", "git_commit", "total_score", "max_score",

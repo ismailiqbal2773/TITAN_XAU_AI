@@ -474,7 +474,7 @@ class TestTradeJournal:
             accepted=True, signal=make_signal(), evaluation_ms=1.0, dry_run=True,
         ))
         journal.flush()
-        with open(path) as f:
+        with open(path, "r", encoding="utf-8") as f:
             lines = f.readlines()
         assert len(lines) == 2
         for line in lines:

@@ -106,7 +106,7 @@ def run_production_harness():
     scaler_path = REPO_ROOT / "titan" / "data" / "features" / "scaler_stats.json"
     if scaler_path.exists():
         import json
-        with open(scaler_path) as f:
+        with open(scaler_path, "r", encoding="utf-8") as f:
             scaler = json.load(f)
         train_mean = np.array([scaler["mean"][f] for f in FEATURE_NAMES])
         train_std = np.array([scaler["std"][f] for f in FEATURE_NAMES])
@@ -389,7 +389,7 @@ def compute_metrics(trades, signals_gen, signals_acc, signals_rej,
     broker_path = REPO_ROOT / "download" / "TITAN_Real_MT5_Data_Final_Audit_v4.0_4brokers.json"
     broker_breakdown = {}
     if broker_path.exists():
-        with open(broker_path) as f:
+        with open(broker_path, "r", encoding="utf-8") as f:
             broker_data = json.load(f)
         for broker in ["exness", "fundednext", "fbs", "icmarkets"]:
             cov = broker_data.get("coverage_summary", {}).get(broker, {})
@@ -467,7 +467,7 @@ def compute_metrics(trades, signals_gen, signals_acc, signals_rej,
     # Save report
     report_path = REPO_ROOT / "data" / "validation" / "production_harness_report.json"
     report_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(report_path, "w") as f:
+    with open(report_path, "w", encoding="utf-8") as f:
         json.dump(metrics, f, indent=2, default=str)
     print(f"  Report saved: {report_path}")
 

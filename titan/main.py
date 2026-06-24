@@ -65,7 +65,8 @@ class TitanSystem:
         self._shutdown_event = asyncio.Event()
 
     def _load_config(self, path: str) -> dict:
-        with open(path, "r") as f:
+        # Sprint 9.0.1: explicit UTF-8 for Windows cp1252 compatibility.
+        with open(path, "r", encoding="utf-8") as f:
             return yaml.safe_load(f)
 
     async def _initialize_licensing(self) -> None:

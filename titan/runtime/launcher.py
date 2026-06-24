@@ -283,7 +283,8 @@ class TitanLauncher:
             try:
                 os.makedirs(journal_dir, exist_ok=True)
                 test_file = os.path.join(journal_dir, ".write_test")
-                with open(test_file, "w") as f:
+                # Sprint 9.0.1: explicit UTF-8 (defensive — content is ASCII).
+                with open(test_file, "w", encoding="utf-8") as f:
                     f.write("test")
                 os.unlink(test_file)
             except IOError as e:

@@ -101,7 +101,7 @@ class SevenDayRehearsal:
         self.result.ks_bypass = False  # no bypass attempted
 
         # Verify journal is valid JSONL
-        with open(self.journal_path) as f:
+        with open(self.journal_path, "r", encoding="utf-8") as f:
             for line in f:
                 try: json.loads(line.strip())
                 except: self.result.corruption = True; break

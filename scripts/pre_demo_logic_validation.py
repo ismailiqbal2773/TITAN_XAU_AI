@@ -67,7 +67,7 @@ class PreDemoLogicValidator:
             for p in Path("titan").rglob("*.py"):
                 if '.pytest_cache' in str(p) or 'tests/' in str(p): continue
                 try:
-                    if pat in open(p).read(): callers[pat] = 1; break
+                    if pat in open(p, "r", encoding="utf-8", errors="ignore").read(): callers[pat] = 1; break
                 except: pass
         missing = [k for k,v in callers.items() if v==0]
         self._check("1_static","All 6 critical functions have callers","BLOCKER",len(missing)==0,"All found" if not missing else f"MISSING: {missing}")
@@ -149,7 +149,7 @@ class PreDemoLogicValidator:
         cfg_path = REPO_ROOT / "config" / "runtime.yaml"
         if not cfg_path.exists():
             self._check("4_config","Config file exists","BLOCKER",False,"Not found"); return
-        with open(cfg_path) as f: cfg = yaml.safe_load(f)
+        with open(cfg_path, "r", encoding="utf-8") as f: cfg = yaml.safe_load(f)
         rt = cfg.get("runtime", {})
         self._check("4_config","dry_run defaults True","BLOCKER",rt.get("dry_run") is True,f"dry_run={rt.get('dry_run')}")
         self._check("4_config","live_trading defaults False","BLOCKER",rt.get("live_trading") is False,f"live_trading={rt.get('live_trading')}")
@@ -214,7 +214,7 @@ class PreDemoLogicValidator:
             # Skip risk/engine.py emergency_flatten — it's SUPPOSED to call mt5 directly
             if 'risk/engine.py' in str(p): continue
             try:
-                content = open(p).read()
+                content = open(p, "r", encoding="utf-8", errors="ignore").read()
                 lines = content.splitlines()
                 # Check if file has internal dry_run guard
                 has_internal_guard = 'self._dry_run' in content or 'dry_run' in content
@@ -247,7 +247,7 @@ class PreDemoLogicValidator:
             else: sections[r.section]["failed"] += 1
         report = ValidationReport(timestamp=datetime.now(timezone.utc).isoformat(), git_commit=gc, total_checks=len(self.results), passed=passed, failed=failed, warnings=warnings, blockers=self.blockers, results=[asdict(r) for r in self.results], sections=sections)
         out = REPO_ROOT / "data" / "validation"; out.mkdir(parents=True, exist_ok=True)
-        with open(out / "pre_demo_logic_report.json", "w") as f: json.dump(asdict(report), f, indent=2, default=str)
+        with open(out / "pre_demo_logic_report.json", "w", encoding="utf-8") as f: json.dump(asdict(report), f, indent=2, default=str)
         self._save_md(report, out / "pre_demo_logic_report.md")
         return report
 
@@ -259,7 +259,7 @@ class PreDemoLogicValidator:
         if report.blockers:
             lines.append("\n## BLOCKERS")
             for b in report.blockers: lines.append(f"- ❌ {b}")
-        open(path, "w").write('\n'.join(lines))
+        open(path, "w", encoding="utf-8").write('\n'.join(lines))
 
     @staticmethod
     def print_summary(report):

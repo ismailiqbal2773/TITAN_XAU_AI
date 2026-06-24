@@ -131,7 +131,8 @@ class H1FeatureStream:
                                        "scaler_stats.json")
             if os.path.exists(scaler_path):
                 import json
-                with open(scaler_path) as f:
+                # Sprint 9.0.1: explicit UTF-8 for Windows cp1252 compatibility.
+                with open(scaler_path, "r", encoding="utf-8") as f:
                     scaler = json.load(f)
                 means = [scaler["mean"][f] for f in FEATURE_NAMES]
                 stds = [scaler["std"][f] for f in FEATURE_NAMES]

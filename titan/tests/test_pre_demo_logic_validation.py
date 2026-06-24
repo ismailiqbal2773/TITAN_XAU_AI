@@ -29,19 +29,19 @@ class TestFeatureSchema:
 class TestConfigConsistency:
     def test_dry_run_true(self):
         import yaml
-        with open(REPO_ROOT / "config" / "runtime.yaml") as f: cfg = yaml.safe_load(f)
+        with open(REPO_ROOT / "config" / "runtime.yaml", "r", encoding="utf-8") as f: cfg = yaml.safe_load(f)
         assert cfg["runtime"]["dry_run"] is True
     def test_live_trading_false(self):
         import yaml
-        with open(REPO_ROOT / "config" / "runtime.yaml") as f: cfg = yaml.safe_load(f)
+        with open(REPO_ROOT / "config" / "runtime.yaml", "r", encoding="utf-8") as f: cfg = yaml.safe_load(f)
         assert cfg["runtime"]["live_trading"] is False
     def test_max_lot_cap(self):
         import yaml
-        with open(REPO_ROOT / "config" / "runtime.yaml") as f: cfg = yaml.safe_load(f)
+        with open(REPO_ROOT / "config" / "runtime.yaml", "r", encoding="utf-8") as f: cfg = yaml.safe_load(f)
         assert cfg["risk"]["max_lot"] <= 0.01
     def test_max_positions_cap(self):
         import yaml
-        with open(REPO_ROOT / "config" / "runtime.yaml") as f: cfg = yaml.safe_load(f)
+        with open(REPO_ROOT / "config" / "runtime.yaml", "r", encoding="utf-8") as f: cfg = yaml.safe_load(f)
         assert cfg["risk"]["max_open_positions"] <= 1
 
 class TestDryRunSafety:
@@ -153,7 +153,7 @@ class TestJournalIntegrity:
         from titan.production.trade_journal import TradeJournal
         jp = str(tmp_path / "j.jsonl"); j = TradeJournal(path=jp)
         j.log_startup({"t": 1}); j.log_shutdown(); j.flush()
-        with open(jp) as f:
+        with open(jp, "r", encoding="utf-8") as f:
             for line in f: json.loads(line.strip())  # no crash = valid
     def test_no_duplicate_record_ids(self, tmp_path):
         from titan.production.trade_journal import TradeJournal

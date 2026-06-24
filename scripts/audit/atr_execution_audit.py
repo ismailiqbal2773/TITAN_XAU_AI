@@ -80,12 +80,12 @@ def load_runtime_yaml() -> dict:
     """Load config/runtime.yaml. Uses yaml if available, else simple parser."""
     try:
         import yaml
-        with open(RUNTIME_YAML) as f:
+        with open(RUNTIME_YAML, "r", encoding="utf-8") as f:
             return yaml.safe_load(f)
     except ImportError:
         # Minimal fallback: parse only the lines we care about
         cfg = {"risk": {}}
-        with open(RUNTIME_YAML) as f:
+        with open(RUNTIME_YAML, "r", encoding="utf-8") as f:
             for line in f:
                 line = line.rstrip()
                 if "sl_mode:" in line and "sl_mode" in line.split(":")[0]:
@@ -388,7 +388,7 @@ async def main():
         },
         "journal_path": str(JOURNAL_PATH),
     }
-    with open(REPORT_PATH, "w") as f:
+    with open(REPORT_PATH, "w", encoding="utf-8") as f:
         json.dump(report, f, indent=2, default=str)
     print(f"\n  Report saved: {REPORT_PATH}")
     print(f"  Journal saved: {JOURNAL_PATH}")

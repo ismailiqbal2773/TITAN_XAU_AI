@@ -29,13 +29,13 @@ class TestPropFirmDisabled:
     """When prop_firm.enabled=false, no behavior change."""
 
     def test_runtime_yaml_default_disabled(self):
-        with open(REPO_ROOT / "config" / "runtime.yaml") as f:
+        with open(REPO_ROOT / "config" / "runtime.yaml", "r", encoding="utf-8") as f:
             cfg = yaml.safe_load(f)
         assert cfg["prop_firm"]["enabled"] is False
         assert cfg["prop_firm"]["profile"] == "none"
 
     def test_dry_run_flag_unchanged(self):
-        with open(REPO_ROOT / "config" / "runtime.yaml") as f:
+        with open(REPO_ROOT / "config" / "runtime.yaml", "r", encoding="utf-8") as f:
             cfg = yaml.safe_load(f)
         assert cfg["runtime"]["dry_run"] is True
         assert cfg["runtime"]["live_trading"] is False
@@ -104,7 +104,7 @@ class TestDryRunSafetyUnchanged:
     """Verify dry_run / live_trading flags are NOT changed by prop firm layer."""
 
     def test_dry_run_still_true_in_runtime_yaml(self):
-        with open(REPO_ROOT / "config" / "runtime.yaml") as f:
+        with open(REPO_ROOT / "config" / "runtime.yaml", "r", encoding="utf-8") as f:
             cfg = yaml.safe_load(f)
         assert cfg["runtime"]["dry_run"] is True
         assert cfg["runtime"]["live_trading"] is False

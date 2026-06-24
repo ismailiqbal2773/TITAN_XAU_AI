@@ -203,11 +203,11 @@ class TestSetupWizard:
         wizard.state.journal_path = "data/journal.jsonl"
         # Build + save config
         config = wizard._build_config()
-        with open(wizard.config_path, "w") as f:
-            yaml.safe_dump(config, f)
+        with open(wizard.config_path, "w", encoding="utf-8") as f:
+            yaml.safe_dump(config, f, allow_unicode=True)
         assert wizard.config_path.exists()
         # Verify config is valid YAML
-        with open(wizard.config_path) as f:
+        with open(wizard.config_path, "r", encoding="utf-8") as f:
             loaded = yaml.safe_load(f)
         assert loaded["runtime"]["dry_run"] is True
 
@@ -329,9 +329,9 @@ class TestNoLiveOrders:
         wizard.state.password = "test"
         wizard.state.server = "Demo"
         config = wizard._build_config()
-        with open(wizard.config_path, "w") as f:
-            yaml.safe_dump(config, f)
-        with open(wizard.config_path) as f:
+        with open(wizard.config_path, "w", encoding="utf-8") as f:
+            yaml.safe_dump(config, f, allow_unicode=True)
+        with open(wizard.config_path, "r", encoding="utf-8") as f:
             loaded = yaml.safe_load(f)
         assert loaded["runtime"]["dry_run"] is True
         assert loaded["runtime"]["live_trading"] is False
@@ -347,7 +347,7 @@ class TestDocumentation:
 
     def test_user_guide_has_installation_section(self):
         path = REPO_ROOT / "docs" / "USER_GUIDE.md"
-        with open(path) as f:
+        with open(path, "r", encoding="utf-8") as f:
             content = f.read()
         assert "Install" in content or "install" in content
         assert "MetaTrader" in content or "MT5" in content
@@ -355,7 +355,7 @@ class TestDocumentation:
     def test_licensing_architecture_exists(self):
         path = REPO_ROOT / "docs" / "LICENSING_ARCHITECTURE.md"
         assert path.exists()
-        with open(path) as f:
+        with open(path, "r", encoding="utf-8") as f:
             content = f.read()
         assert "DOCUMENTATION ONLY" in content
         assert "No licensing" in content or "not enforced" in content
@@ -378,20 +378,20 @@ class TestBuildSpec:
 
     def test_spec_references_launcher(self):
         """Spec should reference titan_launcher.py as entry point."""
-        with open(REPO_ROOT / "TITAN.spec") as f:
+        with open(REPO_ROOT / "TITAN.spec", "r", encoding="utf-8") as f:
             content = f.read()
         assert "titan_launcher.py" in content
 
     def test_spec_bundles_models(self):
         """Spec should bundle model files."""
-        with open(REPO_ROOT / "TITAN.spec") as f:
+        with open(REPO_ROOT / "TITAN.spec", "r", encoding="utf-8") as f:
             content = f.read()
         assert "xgboost_v1.pkl" in content
         assert "meta_label_v2_context.pkl" in content
 
     def test_spec_bundles_config(self):
         """Spec should bundle config/runtime.yaml."""
-        with open(REPO_ROOT / "TITAN.spec") as f:
+        with open(REPO_ROOT / "TITAN.spec", "r", encoding="utf-8") as f:
             content = f.read()
         assert "runtime.yaml" in content
 
@@ -413,11 +413,11 @@ class TestPackagingIntegration:
         wizard.state.deployment_mode = "local"
         wizard.state.journal_path = str(tmp_path / "journal.jsonl")
         config = wizard._build_config()
-        with open(wizard.config_path, "w") as f:
-            yaml.safe_dump(config, f)
+        with open(wizard.config_path, "w", encoding="utf-8") as f:
+            yaml.safe_dump(config, f, allow_unicode=True)
 
         # Step 2: Verify config is safe
-        with open(wizard.config_path) as f:
+        with open(wizard.config_path, "r", encoding="utf-8") as f:
             loaded = yaml.safe_load(f)
         assert loaded["runtime"]["dry_run"] is True
         assert loaded["runtime"]["live_trading"] is False

@@ -231,8 +231,10 @@ class SetupWizard:
         config_dir = self.config_path.parent
         config_dir.mkdir(parents=True, exist_ok=True)
 
-        with open(self.config_path, "w") as f:
-            yaml.safe_dump(config, f, default_flow_style=False, sort_keys=False)
+        # Sprint 9.0.1: explicit UTF-8 for Windows cp1252 compatibility.
+        with open(self.config_path, "w", encoding="utf-8") as f:
+            yaml.safe_dump(config, f, default_flow_style=False, sort_keys=False,
+                           allow_unicode=True)
 
         self.state.config_saved = True
         self.state.config_path = str(self.config_path)

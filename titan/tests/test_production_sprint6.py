@@ -169,7 +169,7 @@ class TestMetricsCollector:
         collector.collect()
         path = collector.save_json()
         assert os.path.exists(path)
-        with open(path) as f:
+        with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
         assert data["signals_generated"] == 1
         assert data["trades_closed"] == 1
@@ -181,7 +181,7 @@ class TestMetricsCollector:
         collector.collect()
         path = collector.save_csv()
         assert os.path.exists(path)
-        with open(path) as f:
+        with open(path, "r", encoding="utf-8") as f:
             lines = f.readlines()
         assert len(lines) == 2  # header + 1 data row
 
@@ -478,7 +478,7 @@ class TestJournalAuditGrade:
         journal.flush()
 
         # Simulate crash — append a corrupt partial line
-        with open(journal_path, "a") as f:
+        with open(journal_path, "a", encoding="utf-8") as f:
             f.write('{"partial": "corrupt')  # no closing brace
 
         # Recover
@@ -527,7 +527,7 @@ class TestDashboardExport:
 
     def test_dashboard_valid_json(self):
         path = "monitoring/forward_test_dashboard.json"
-        with open(path) as f:
+        with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
         assert "dashboard" in data
         assert "panels" in data
@@ -536,7 +536,7 @@ class TestDashboardExport:
 
     def test_dashboard_has_required_panels(self):
         path = "monitoring/forward_test_dashboard.json"
-        with open(path) as f:
+        with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
         panel_ids = [p["id"] for p in data["panels"]]
         required = [
@@ -629,7 +629,7 @@ class TestForwardTestIntegration:
         today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         report_path = tmp_path / "r" / f"daily_report_{today}.json"
         assert report_path.exists()
-        with open(report_path) as f:
+        with open(report_path, "r", encoding="utf-8") as f:
             report = json.load(f)
         assert report["trades_closed"] == 1
         assert report["pnl_usd"] == 10.0

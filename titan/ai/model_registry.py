@@ -60,7 +60,8 @@ class ModelRegistry:
     def _load_manifest(self) -> None:
         """Load registry manifest from disk."""
         if os.path.exists(self._manifest_path):
-            with open(self._manifest_path, "r") as f:
+            # Sprint 9.0.1: explicit UTF-8 for Windows cp1252 compatibility.
+            with open(self._manifest_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
             for model_id, entry_data in data.items():
                 entry_data["model_type"] = ModelType(entry_data["model_type"])
@@ -77,7 +78,8 @@ class ModelRegistry:
             d["model_type"] = entry.model_type.value
             d["role"] = entry.role.value
             data[model_id] = d
-        with open(self._manifest_path, "w") as f:
+        # Sprint 9.0.1: explicit UTF-8 for Windows cp1252 compatibility.
+        with open(self._manifest_path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
 
     def register(

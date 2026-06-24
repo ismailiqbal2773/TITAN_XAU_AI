@@ -101,7 +101,8 @@ def validate_config() -> tuple[bool, str]:
 
     try:
         import yaml
-        with open(config_path) as f:
+        # Sprint 9.0.1: explicit UTF-8 for Windows cp1252 compatibility.
+        with open(config_path, "r", encoding="utf-8") as f:
             cfg = yaml.safe_load(f)
         rt = cfg.get("runtime", {})
         if rt.get("dry_run", True) is not True:
