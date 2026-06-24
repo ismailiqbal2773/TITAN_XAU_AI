@@ -1,0 +1,85 @@
+{
+  "audit": "force_atr_execution_path_audit_sprint_8_5",
+  "timestamp_utc": "2026-06-24T21:25:18.899503+00:00",
+  "latest_accepted_from_journals": {
+    "file": "/home/z/my-project/TITAN_XAU_AI/data/runtime/final_atr_verify_canonical.jsonl",
+    "line": 4,
+    "ts": "2026-06-24T20:35:09.089114+00:00",
+    "data": {
+      "accepted": true,
+      "reject_reason": null,
+      "risk_decision": "ALLOW",
+      "adjusted_volume": 0.01,
+      "dry_run": true,
+      "evaluation_ms": 4.753374998472282,
+      "order_request": {
+        "symbol": "XAUUSD",
+        "order_type": "MARKET_BUY",
+        "volume": 0.01,
+        "price": 0.0,
+        "sl": 1947.02371,
+        "tp": 2105.95257,
+        "deviation": 20,
+        "magic": 202619,
+        "comment": "TITAN",
+        "idempotency_key": "d5b3a7ca-8df7-4b1c-863a-9f44598392d4"
+      },
+      "current_atr": 26.48814285714291,
+      "sl_tp_mode_used": "atr",
+      "sl_mode_configured": "atr",
+      "atr_sl_multiplier": 2.0,
+      "atr_tp_multiplier": 4.0,
+      "atr_sl_distance": 52.97628571428582,
+      "atr_tp_distance": 105.95257142857164,
+      "fallback_used": false,
+      "fallback_reason": "",
+      "entry_price": 2000.0,
+      "computed_sl": 1947.02371,
+      "computed_tp": 2105.95257
+    }
+  },
+  "fresh_audit": {
+    "source": "canonical",
+    "current_atr_pre_call": 26.48814285714291,
+    "entry_price_used": 4155.73,
+    "signal": {
+      "record_type": "SIGNAL_CREATED",
+      "direction": "LONG",
+      "confidence": 0.5988519787788391,
+      "meta_confidence": 0.9762549205679603,
+      "is_tradeable": true,
+      "reject_reason": null
+    },
+    "decision": {
+      "accepted": true,
+      "reject_reason": null,
+      "current_atr": 26.48814285714291,
+      "sl_tp_mode_used": "atr",
+      "sl_mode_configured": "atr",
+      "fallback_used": false,
+      "fallback_reason": "",
+      "atr_sl_multiplier": 2.0,
+      "atr_tp_multiplier": 4.0,
+      "atr_sl_distance": 52.97628571428582,
+      "atr_tp_distance": 105.95257142857164,
+      "entry_price": 4155.73,
+      "computed_sl": 4102.75371,
+      "computed_tp": 4261.68257,
+      "dry_run": true,
+      "order_request": {
+        "symbol": "XAUUSD",
+        "order_type": "MARKET_BUY",
+        "volume": 0.01,
+        "price": 0.0,
+        "sl": 4102.75371,
+        "tp": 4261.68257,
+        "deviation": 20,
+        "magic": 202619,
+        "comment": "TITAN",
+        "idempotency_key": "fa551720-5528-4a62-b3f8-5c9ffe5c2a12"
+      }
+    }
+  },
+  "verdict": "A",
+  "verdict_text": "ATR execution path verified and fallback_used=false"
+}
