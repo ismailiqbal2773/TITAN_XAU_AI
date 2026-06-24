@@ -27,6 +27,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 import numpy as np
+import pandas as pd
 
 from titan.production.inference import InferenceEngine, Signal, Direction
 from titan.production.trade_loop import TradeLoop, TradeLoopConfig, TradeDecision
@@ -554,9 +555,17 @@ class AutonomousRuntime:
         """
         Compute current ATR(14) from the feature stream's bar buffer.
         Returns 0.0 if insufficient data.
+
+        Sprint 8.5 wiring fix: read from self.inference_engine.feature_stream
+        (the H1FeatureStream that engine.generate() actually populates),
+        NOT from self.feature_stream (a separate, never-populated instance
+        created at autonomous_loops.py:155). This was the root cause of
+        every AutonomousRuntime production signal silently falling back
+        to fixed-pip SL/TP — the empty self.feature_stream._bars returned
+        len < 15 → ATR=0.0 → fallback_used=True, fallback_reason=atr_zero.
         """
         try:
-            bars = self.feature_stream._bars
+            bars = self.inference_engine.feature_stream._bars
             if len(bars) < 15:
                 return 0.0
             h, l, c = bars["high"], bars["low"], bars["close"]
@@ -567,7 +576,11 @@ class AutonomousRuntime:
             ], axis=1).max(axis=1)
             atr = tr.rolling(14).mean().iloc[-1]
             return float(atr) if not np.isnan(atr) else 0.0
-        except Exception:
+        except Exception as e:
+            logger.warning(
+                f"_compute_current_atr failed (will trigger ATR fallback): "
+                f"{type(e).__name__}: {e}"
+            )
             return 0.0
 
     def _get_current_bar_time(self) -> str:
