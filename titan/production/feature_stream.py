@@ -97,6 +97,11 @@ class H1FeatureStream:
         )
         self._canonical_path = canonical_path or self._default_canonical_path()
         self._canonical_loaded = False
+        # ── Training stats for standardization (Sprint 8.3 fix) ──
+        self._train_mean: Optional[np.ndarray] = None
+        self._train_std: Optional[np.ndarray] = None
+        self._scaler_loaded = False
+        self._load_training_scaler()
 
     @staticmethod
     def _default_canonical_path() -> str:
@@ -105,6 +110,69 @@ class H1FeatureStream:
         )
         return os.path.join(repo_root, "titan", "data", "canonical",
                             "XAUUSD_H1_canonical.parquet")
+
+    # ─── Training scaler (Sprint 8.3: runtime standardization) ─────────
+
+    def _load_training_scaler(self) -> None:
+        """
+        Load training mean/std for standardization.
+        Models were trained on standardized features (mean=0, std=1).
+        
+        Tries scaler_stats.json first (original pre-standardization params).
+        Falls back to X_train.parquet mean/std (already standardized → no-op).
+        """
+        try:
+            repo_root = os.path.abspath(
+                os.path.join(os.path.dirname(__file__), "..", "..")
+            )
+            
+            # Option 1: Load original scaler stats (pre-standardization mean/std)
+            scaler_path = os.path.join(repo_root, "titan", "data", "features",
+                                       "scaler_stats.json")
+            if os.path.exists(scaler_path):
+                import json
+                with open(scaler_path) as f:
+                    scaler = json.load(f)
+                means = [scaler["mean"][f] for f in FEATURE_NAMES]
+                stds = [scaler["std"][f] for f in FEATURE_NAMES]
+                self._train_mean = np.array(means, dtype=np.float64)
+                self._train_std = np.array(stds, dtype=np.float64)
+                self._scaler_loaded = True
+                logger.info(
+                    f"Scaler loaded from scaler_stats.json: {len(self._train_mean)} features "
+                    f"(original pre-standardization params)"
+                )
+                return
+            
+            # Option 2: Fall back to X_train.parquet (already standardized → no-op)
+            train_path = os.path.join(repo_root, "titan", "data", "features",
+                                      "XAUUSD_H1_X_train.parquet")
+            if os.path.exists(train_path):
+                train_df = pd.read_parquet(train_path)
+                train_df = train_df[FEATURE_NAMES]
+                self._train_mean = train_df.mean().values.astype(np.float64)
+                self._train_std = train_df.std().replace(0, 1).values.astype(np.float64)
+                self._scaler_loaded = True
+                logger.warning(
+                    f"Using X_train.parquet stats (already standardized → standardization is no-op). "
+                    f"Run scripts/compute_scaler_stats.py to generate proper scaler_stats.json."
+                )
+            else:
+                logger.warning(
+                    f"Training data not found — features will NOT be standardized."
+                )
+        except Exception as e:
+            logger.error(f"Failed to load training scaler: {e}")
+
+    def _standardize(self, vec: np.ndarray) -> np.ndarray:
+        """
+        Standardize feature vector using training mean/std.
+        If scaler not loaded, returns raw vector (with warning).
+        """
+        if not self._scaler_loaded or self._train_mean is None:
+            return vec
+        vec_std = (vec - self._train_mean) / self._train_std
+        return np.nan_to_num(vec_std, nan=0.0, posinf=0.0, neginf=0.0)
 
     # ─── Bar ingestion ──────────────────────────────────────────────────
 
@@ -343,6 +411,11 @@ class H1FeatureStream:
             # Replace any remaining NaN/inf with 0
             vec = np.nan_to_num(last_row.values.astype(np.float64), nan=0.0,
                                 posinf=0.0, neginf=0.0)
+            # ── STANDARDIZE features using training mean/std ──
+            # Models were trained on standardized features (mean=0, std=1).
+            # Without standardization, predictions cluster near 0.50 and
+            # thresholds are never reached.
+            vec = self._standardize(vec)
             ts = feats.index[-1]
             return FeatureVector(
                 timestamp=ts,

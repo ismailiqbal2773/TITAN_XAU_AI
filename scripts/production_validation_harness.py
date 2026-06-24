@@ -102,12 +102,21 @@ def run_production_harness():
     print(f"  Features computed: {len(all_features)} bars")
     print()
 
-    # ─── Load training stats for standardization ──
-    X_train_path = REPO_ROOT / "titan" / "data" / "features" / "XAUUSD_H1_X_train.parquet"
-    X_train_df = pd.read_parquet(X_train_path)
-    train_mean = X_train_df.mean()
-    train_std = X_train_df.std().replace(0, 1)
-    print(f"  Training stats loaded: {len(train_mean)} features (mean=0, std=1)")
+    # ─── Load proper scaler stats (pre-standardization mean/std) ──
+    scaler_path = REPO_ROOT / "titan" / "data" / "features" / "scaler_stats.json"
+    if scaler_path.exists():
+        import json
+        with open(scaler_path) as f:
+            scaler = json.load(f)
+        train_mean = np.array([scaler["mean"][f] for f in FEATURE_NAMES])
+        train_std = np.array([scaler["std"][f] for f in FEATURE_NAMES])
+        print(f"  Scaler loaded: scaler_stats.json ({len(train_mean)} features)")
+    else:
+        X_train_path = REPO_ROOT / "titan" / "data" / "features" / "XAUUSD_H1_X_train.parquet"
+        X_train_df = pd.read_parquet(X_train_path)
+        train_mean = X_train_df.mean()
+        train_std = X_train_df.std().replace(0, 1)
+        print(f"  WARNING: scaler_stats.json not found — using X_train (no-op)")
     print()
 
     # ─── Run inference on each bar ──
@@ -138,7 +147,7 @@ def run_production_harness():
         vec = np.nan_to_num(vec, nan=0.0, posinf=0.0, neginf=0.0)
 
         # ── STANDARDIZE features using training mean/std ──
-        vec_std = (vec - train_mean.values) / train_std.values
+        vec_std = (vec - train_mean) / train_std
         vec_std = np.nan_to_num(vec_std, nan=0.0, posinf=0.0, neginf=0.0)
 
         # Check daily reset
