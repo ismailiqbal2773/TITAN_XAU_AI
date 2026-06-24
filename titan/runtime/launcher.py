@@ -131,6 +131,9 @@ class LauncherConfig:
     prop_firm_initial_balance: float = 100000.0
     prop_firm_custom_overrides: dict = field(default_factory=dict)
 
+    # Adaptive Capital Protection Layer (Sprint 9.2)
+    capital_protection_enabled: bool = False    # DEFAULT: false — no behavior change
+
     # Raw config (for debugging)
     raw: dict = field(default_factory=dict)
 
@@ -248,6 +251,10 @@ class TitanLauncher:
         cfg.prop_firm_lock_after_load = bool(pf.get("lock_after_load", True))
         cfg.prop_firm_initial_balance = float(pf.get("initial_balance", 100000.0))
         cfg.prop_firm_custom_overrides = dict(pf.get("custom_overrides", {}) or {})
+
+        # Adaptive Capital Protection Layer (Sprint 9.2)
+        cp = raw.get("capital_protection", {}) or {}
+        cfg.capital_protection_enabled = bool(cp.get("enabled", False))
 
         # ─── SAFETY VALIDATION ──
         self._validate_safety(cfg)
@@ -492,6 +499,91 @@ class TitanLauncher:
                                 f"locked={prop_firm_mgr.is_locked}")
             else:
                 logger.info("Prop firm layer DISABLED (prop_firm.enabled=false) — "
+                            "existing runtime behavior unchanged")
+
+            # ─── Sprint 9.2: Adaptive Capital Protection Layer ────────────
+            # When capital_protection.enabled=true, initialize AccountHealthEngine,
+            # DynamicRiskEngine, RecoveryMode, CapitalPreservation, ProfitLock,
+            # EquityProtection. Engines are stored in _components for the
+            # AutonomousRuntime to query during heartbeat. They DO NOT modify
+            # any existing risk logic — they only provide dynamic limits that
+            # downstream consumers may optionally apply.
+            # When capital_protection.enabled=false (default), no behavior change.
+            if cfg.capital_protection_enabled:
+                from titan.production.account_health_engine import (
+                    AccountHealthEngine, HealthWeights,
+                )
+                from titan.production.dynamic_risk_engine import DynamicRiskEngine
+                from titan.production.capital_protection import (
+                    RecoveryMode, RecoveryConfig,
+                    CapitalPreservation, CapitalPreservationConfig,
+                    ProfitLock, ProfitLockConfig,
+                    EquityProtection,
+                )
+                cp_cfg = (raw or {}).get("capital_protection", {}) or {}
+                weights_cfg = cp_cfg.get("weights", {}) or {}
+                weights = HealthWeights(
+                    daily_dd=float(weights_cfg.get("daily_dd", 0.20)),
+                    total_dd=float(weights_cfg.get("total_dd", 0.20)),
+                    consecutive_losses=float(weights_cfg.get("consecutive_losses", 0.15)),
+                    winning_streak=float(weights_cfg.get("winning_streak", 0.10)),
+                    equity_slope=float(weights_cfg.get("equity_slope", 0.10)),
+                    volatility_regime=float(weights_cfg.get("volatility_regime", 0.05)),
+                    kill_switch_state=float(weights_cfg.get("kill_switch_state", 0.15)),
+                    recovery_status=float(weights_cfg.get("recovery_status", 0.05)),
+                )
+                health_engine = AccountHealthEngine(journal=journal, weights=weights)
+                dynamic_risk = DynamicRiskEngine(journal=journal)
+
+                rec_cfg = cp_cfg.get("recovery", {}) or {}
+                recovery = RecoveryMode(
+                    config=RecoveryConfig(
+                        losing_streak_threshold=int(rec_cfg.get("losing_streak_threshold", 3)),
+                        min_confidence_threshold=float(rec_cfg.get("min_confidence_threshold", 0.75)),
+                        recovery_target_trades=int(rec_cfg.get("recovery_target_trades", 2)),
+                        risk_multiplier=float(rec_cfg.get("risk_multiplier", 0.5)),
+                    ),
+                    journal=journal,
+                )
+
+                cap_cfg = cp_cfg.get("capital_preservation", {}) or {}
+                capital_pres = CapitalPreservation(
+                    config=CapitalPreservationConfig(
+                        trigger_dd_pct=float(cap_cfg.get("trigger_dd_pct", 8.0)),
+                        halt_new_entries_dd_pct=float(cap_cfg.get("halt_new_entries_dd_pct", 9.0)),
+                        risk_multiplier=float(cap_cfg.get("risk_multiplier", 0.25)),
+                    ),
+                    journal=journal,
+                )
+
+                pl_cfg = cp_cfg.get("profit_lock", {}) or {}
+                profit_lock = ProfitLock(
+                    config=ProfitLockConfig(
+                        enabled=bool(pl_cfg.get("enabled", False)),
+                        lock_distance_pct=float(pl_cfg.get("lock_distance_pct", 2.0)),
+                        trail_distance_pct=float(pl_cfg.get("trail_distance_pct", 1.0)),
+                    ),
+                    initial_balance=cfg.prop_firm_initial_balance,
+                    journal=journal,
+                )
+
+                equity_prot = EquityProtection(
+                    initial_balance=cfg.prop_firm_initial_balance,
+                    journal=journal,
+                )
+
+                self._components["health_engine"] = health_engine
+                self._components["dynamic_risk_engine"] = dynamic_risk
+                self._components["recovery_mode"] = recovery
+                self._components["capital_preservation"] = capital_pres
+                self._components["profit_lock"] = profit_lock
+                self._components["equity_protection"] = equity_prot
+                logger.info("✓ Capital protection layer ACTIVE "
+                            "(health_engine + dynamic_risk + recovery + "
+                            "capital_preservation + profit_lock + equity_protection)")
+            else:
+                logger.info("Capital protection layer DISABLED "
+                            "(capital_protection.enabled=false) — "
                             "existing runtime behavior unchanged")
 
             logger.info("✓ All components initialized")

@@ -108,6 +108,75 @@ prop_firm:
   initial_balance: 100000.0         # challenge starting balance (for % calc)
   custom_overrides: {}              # only used when profile=custom
 
+# ─── Adaptive Capital Protection Layer (Sprint 9.2) ──────────────────────────
+# When enabled=true, TITAN computes an account health score (0-100) every
+# heartbeat and dynamically adjusts risk multiplier, max exposure, and trading
+# permission based on 5 health profiles. When enabled=false (default), existing
+# runtime behavior is unchanged — no risk to current dry-run / live-trading flow.
+#
+# Safety invariants:
+#   - Capital protection can only DECREASE risk, never increase
+#   - Hard caps (max_lot=0.01, max_open_positions=1) always enforced
+#   - dry_run / live_trading flags never changed
+#   - Models, thresholds, ATR formulas, inference logic — all untouched
+#   - All transitions journaled via EventType.HEALTH_TRANSITION + RISK_PROFILE_CHANGED
+capital_protection:
+  enabled: false                    # DEFAULT: false — no behavior change
+  health_check_interval_s: 30.0     # compute health score every N seconds
+  # Health score weights (must sum to ~1.0)
+  weights:
+    daily_dd: 0.20                  # 20% weight on daily drawdown
+    total_dd: 0.20                  # 20% weight on total drawdown
+    consecutive_losses: 0.15        # 15% weight on consecutive losses
+    winning_streak: 0.10            # 10% weight on winning streak (positive)
+    equity_slope: 0.10              # 10% weight on equity slope (positive = healthy)
+    volatility_regime: 0.05         # 5% weight on volatility regime
+    kill_switch_state: 0.15         # 15% weight on kill-switch state
+    recovery_status: 0.05           # 5% weight on recovery status
+  # Recovery mode triggers
+  recovery:
+    losing_streak_threshold: 3      # consecutive losses → recovery mode
+    min_confidence_threshold: 0.75  # only allow trades with ≥ this confidence
+    recovery_target_trades: 2       # N winning trades to exit recovery
+    risk_multiplier: 0.5            # halve risk in recovery
+  # Capital preservation (near prop-firm DD limits)
+  capital_preservation:
+    trigger_dd_pct: 8.0             # activate at 8% total DD (FTMO limit is 10%)
+    halt_new_entries_dd_pct: 9.0    # stop new entries at 9% DD
+    risk_multiplier: 0.25           # quarter risk in capital preservation
+  # Profit lock
+  profit_lock:
+    enabled: false                  # off by default — opt-in feature
+    lock_distance_pct: 2.0          # lock equity after +2% gain
+    trail_distance_pct: 1.0         # allow equity to dip 1% below peak before lock
+  # Health → risk profile mapping (Health score → risk multiplier)
+  health_profiles:
+    normal:                         # 90-100
+      min_health: 90
+      risk_multiplier: 1.0
+      max_exposure_multiplier: 1.0
+      allow_new_entries: true
+    slight_reduction:               # 75-89
+      min_health: 75
+      risk_multiplier: 0.75
+      max_exposure_multiplier: 0.75
+      allow_new_entries: true
+    defensive:                      # 50-74
+      min_health: 50
+      risk_multiplier: 0.5
+      max_exposure_multiplier: 0.5
+      allow_new_entries: true
+    recovery_mode:                  # 25-49
+      min_health: 25
+      risk_multiplier: 0.25
+      max_exposure_multiplier: 0.25
+      allow_new_entries: true
+    capital_preservation:           # 0-24
+      min_health: 0
+      risk_multiplier: 0.0
+      max_exposure_multiplier: 0.0
+      allow_new_entries: false
+
 # ─── Kill-Switch FSM ─────────────────────────────────────────────────────────
 kill_switch:
   max_daily_loss_pct: 3.0          # → HALT_NEW_TRADES
