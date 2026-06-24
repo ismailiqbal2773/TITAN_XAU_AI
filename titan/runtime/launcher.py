@@ -122,6 +122,15 @@ class LauncherConfig:
     watchdog_dry_run: bool = True
     watchdog_check_interval_s: float = 10.0
 
+    # Prop Firm Adaptive Risk Layer (Sprint 9.0)
+    prop_firm_enabled: bool = False             # DEFAULT: false — no behavior change
+    prop_firm_profile: str = "none"             # none | auto | <profile_id>
+    prop_firm_phase: str = "challenge"
+    prop_firm_auto_detect_on_start: bool = True
+    prop_firm_lock_after_load: bool = True
+    prop_firm_initial_balance: float = 100000.0
+    prop_firm_custom_overrides: dict = field(default_factory=dict)
+
     # Raw config (for debugging)
     raw: dict = field(default_factory=dict)
 
@@ -229,6 +238,16 @@ class TitanLauncher:
         wd = raw.get("watchdog", {})
         cfg.watchdog_dry_run = bool(wd.get("dry_run", True))
         cfg.watchdog_check_interval_s = float(wd.get("check_interval_s", 10.0))
+
+        # Prop Firm Adaptive Risk Layer (Sprint 9.0)
+        pf = raw.get("prop_firm", {}) or {}
+        cfg.prop_firm_enabled = bool(pf.get("enabled", False))
+        cfg.prop_firm_profile = str(pf.get("profile", "none"))
+        cfg.prop_firm_phase = str(pf.get("phase", "challenge"))
+        cfg.prop_firm_auto_detect_on_start = bool(pf.get("auto_detect_on_start", True))
+        cfg.prop_firm_lock_after_load = bool(pf.get("lock_after_load", True))
+        cfg.prop_firm_initial_balance = float(pf.get("initial_balance", 100000.0))
+        cfg.prop_firm_custom_overrides = dict(pf.get("custom_overrides", {}) or {})
 
         # ─── SAFETY VALIDATION ──
         self._validate_safety(cfg)
@@ -372,6 +391,107 @@ class TitanLauncher:
             # Cold start
             reconciler = ColdStartReconciler(position_sync=sync)
             self._components["cold_start"] = reconciler
+
+            # ─── Sprint 9.0: Prop Firm Adaptive Risk Layer ───────────────
+            # When prop_firm.enabled=true, load profile from
+            # config/prop_firm_profiles.yaml and apply to KillSwitchFSM +
+            # TradeLoop + NewsFilter + ATR multipliers.
+            # When prop_firm.enabled=false (default), no behavior change.
+            prop_firm_mgr = None
+            if cfg.prop_firm_enabled:
+                from titan.production.prop_firm_manager import (
+                    PropFirmProfileManager,
+                    apply_profile_to_kill_switch,
+                    apply_profile_to_trade_loop,
+                    apply_profile_to_news_filter,
+                    apply_profile_to_atr,
+                )
+                profiles_yaml = REPO_ROOT / "config" / "prop_firm_profiles.yaml"
+                prop_firm_mgr = PropFirmProfileManager(
+                    profiles_path=str(profiles_yaml),
+                    journal=journal,
+                )
+                logger.info(f"PropFirmProfileManager loaded "
+                            f"({len(prop_firm_mgr.list_profiles())} profiles available)")
+
+                # Handle profile=auto, profile=none, profile=<id>
+                profile_id = cfg.prop_firm_profile
+                if profile_id == "none":
+                    logger.warning(
+                        "prop_firm.enabled=true but profile=none — "
+                        "refusing to start challenge mode (fail-closed)"
+                    )
+                    raise LauncherError(
+                        "prop_firm.enabled=true requires profile != 'none'. "
+                        "Set prop_firm.profile to a valid profile_id or 'auto'."
+                    )
+                elif profile_id == "auto":
+                    # Auto-detect (advisory only) — refuse to start
+                    # until operator confirms
+                    suggestion = None
+                    if cfg.prop_firm_auto_detect_on_start:
+                        try:
+                            import MetaTrader5 as mt5
+                            if mt5.initialize():
+                                acc = mt5.account_info()
+                                mt5.shutdown()
+                                suggestion = prop_firm_mgr.auto_detect(acc)
+                        except Exception as e:
+                            logger.warning(f"MT5 auto-detect failed: {e}")
+                    if suggestion is None:
+                        logger.error(
+                            "prop_firm.profile=auto but no suggestion found — "
+                            "refusing to start. Set prop_firm.profile explicitly."
+                        )
+                        raise LauncherError(
+                            "prop_firm.profile=auto requires operator confirmation. "
+                            "Set prop_firm.profile to a specific profile_id."
+                        )
+                    else:
+                        logger.error(
+                            f"Auto-detect suggested {suggestion!r} but auto-apply "
+                            f"is disabled. Set prop_firm.profile={suggestion!r} "
+                            f"explicitly to confirm."
+                        )
+                        raise LauncherError(
+                            f"Auto-detect suggested {suggestion!r}. Set "
+                            f"prop_firm.profile={suggestion!r} explicitly to confirm."
+                        )
+                else:
+                    # Explicit profile load
+                    profile = prop_firm_mgr.load_profile(
+                        profile_id,
+                        custom_overrides=cfg.prop_firm_custom_overrides if profile_id == "custom" else None,
+                    )
+                    logger.info(f"Prop firm profile loaded: {profile_id} ({profile.name})")
+
+                    # Apply profile to components
+                    apply_profile_to_kill_switch(profile, ks_cfg)
+                    # Re-init kill_switch with updated config
+                    kill_switch = KillSwitchFSM(
+                        config=ks_cfg, journal_callback=ks_callback,
+                    )
+                    self._components["kill_switch"] = kill_switch
+                    apply_profile_to_trade_loop(profile, loop_cfg)
+                    apply_profile_to_news_filter(profile, self._components.get("news_filter"))
+                    apply_profile_to_atr(profile, loop_cfg)
+
+                    # Re-init trade_loop with updated config + new kill_switch
+                    trade_loop = TradeLoop(
+                        config=loop_cfg, journal=journal, kill_switch=kill_switch,
+                    )
+                    self._components["trade_loop"] = trade_loop
+
+                    # Lock profile if configured
+                    if cfg.prop_firm_lock_after_load:
+                        prop_firm_mgr.lock()
+
+                    self._components["prop_firm_manager"] = prop_firm_mgr
+                    logger.info(f"✓ Prop firm layer ACTIVE: profile={profile_id} "
+                                f"locked={prop_firm_mgr.is_locked}")
+            else:
+                logger.info("Prop firm layer DISABLED (prop_firm.enabled=false) — "
+                            "existing runtime behavior unchanged")
 
             logger.info("✓ All components initialized")
 

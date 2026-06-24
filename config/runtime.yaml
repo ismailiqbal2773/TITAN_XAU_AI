@@ -76,6 +76,38 @@ atr_profiles:
     atr_sl_multiplier: 3.0
     atr_tp_multiplier: 6.0
 
+# ─── Prop Firm Adaptive Risk Layer (Sprint 9.0) ──────────────────────────────
+# When enabled=true, TITAN enforces prop-firm-specific risk rules from
+# config/prop_firm_profiles.yaml. When enabled=false (default), existing
+# runtime behavior is unchanged — no risk to current dry-run / live-trading flow.
+#
+# Profile selection:
+#   profile: none                → prop firm layer disabled (default)
+#   profile: auto                → auto-detect from MT5 account_info (advisory only;
+#                                   TITAN refuses to start until operator confirms)
+#   profile: ftmo_challenge      → load FTMO challenge profile
+#   profile: ftmo_verification   → load FTMO verification profile
+#   profile: ftmo_funded         → load FTMO funded profile (trailing DD)
+#   profile: fundednext_challenge
+#   profile: fundednext_funded
+#   profile: the5ers_challenge
+#   profile: myfundedfx_challenge
+#   profile: custom              → use custom_overrides below
+#
+# Safety invariants:
+#   - profile max_lot can only DECREASE risk (trade_loop MAX_LOT_CAP=0.01 hard-coded)
+#   - profile never changes dry_run / live_trading flags
+#   - profile never changes models, thresholds, or ATR formulas
+#   - all profile decisions journaled via EventType.PROFILE_*
+prop_firm:
+  enabled: false                    # DEFAULT: false — no behavior change
+  profile: none                     # none | auto | <profile_id>
+  phase: challenge                  # challenge | verification | funded
+  auto_detect_on_start: true        # suggest from MT5 account_info (advisory only)
+  lock_after_load: true             # lock profile for challenge duration
+  initial_balance: 100000.0         # challenge starting balance (for % calc)
+  custom_overrides: {}              # only used when profile=custom
+
 # ─── Kill-Switch FSM ─────────────────────────────────────────────────────────
 kill_switch:
   max_daily_loss_pct: 3.0          # → HALT_NEW_TRADES

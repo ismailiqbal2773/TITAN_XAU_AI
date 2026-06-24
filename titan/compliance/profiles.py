@@ -39,6 +39,7 @@ class FirmId(str, Enum):
     E8 = "e8"
     THE5ERS = "the5ers"
     FUNDING_PIPS = "funding_pips"
+    MYFUNDEDFX = "myfundedfx"      # Sprint 9.0
     CUSTOM = "custom"
 
 
@@ -279,6 +280,35 @@ def _custom_profile(balance: float = 100_000.0) -> FirmProfile:
     )
 
 
+def _myfundedfx_profile(balance: float = 100_000.0) -> FirmProfile:
+    """Sprint 9.0 — MyFundedFX challenge profile."""
+    return FirmProfile(
+        firm_id=FirmId.MYFUNDEDFX,
+        name="MyFundedFX",
+        initial_balance=balance,
+        max_daily_loss_pct=0.05,
+        soft_daily_loss_pct=0.04,
+        max_overall_drawdown_pct=0.10,
+        drawdown_mode=DrawdownMode.STATIC,
+        daily_loss_mode=DailyLossMode.BALANCE_BASED,
+        profit_target_pct_phase1=0.08,
+        profit_target_pct_phase2=0.05,
+        min_trading_days=3,
+        max_trading_days=0,
+        consistency_pct=0.0,
+        news_mode=NewsMode.ALLOW,
+        news_blackout_minutes=0,
+        weekend_mode=WeekendMode.FLAT_BY_FRIDAY_CLOSE,
+        max_lot_per_trade=0.0,
+        max_open_positions=0,
+        max_overall_leverage=0.0,
+        hedging_allowed=True,
+        eas_allowed=True,
+        timezone_offset_hours=0,
+        notes="MyFundedFX: 8% target, 5% daily, 10% DD, 3 min days, no consistency rule",
+    )
+
+
 class PropFirmProfiles:
     """Factory for built-in firm profiles."""
 
@@ -288,6 +318,7 @@ class PropFirmProfiles:
         FirmId.E8: _e8_profile,
         FirmId.THE5ERS: _the5ers_profile,
         FirmId.FUNDING_PIPS: _funding_pips_profile,
+        FirmId.MYFUNDEDFX: _myfundedfx_profile,
         FirmId.CUSTOM: _custom_profile,
     }
 

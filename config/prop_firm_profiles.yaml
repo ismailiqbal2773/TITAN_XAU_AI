@@ -1,0 +1,264 @@
+# TITAN XAU AI — Prop Firm Profiles (Sprint 9.0)
+#
+# All percentages stored as decimals (0.05 = 5%).
+# Loaded by titan.production.prop_firm_manager.PropFirmProfileManager.
+#
+# Profile selection is via config/runtime.yaml:
+#   prop_firm:
+#     enabled: true
+#     profile: ftmo_challenge   # or "auto" for suggestion-only
+#     phase: challenge
+#
+# Safety invariants:
+#   - profile max_lot can only DECREASE risk (trade_loop MAX_LOT_CAP=0.01 hard-coded)
+#   - profile never changes dry_run / live_trading flags
+#   - profile never changes models, thresholds, or ATR formulas
+#   - all profile decisions are journaled via EventType.PROFILE_*
+
+profiles:
+
+  # ─── FTMO ──────────────────────────────────────────────────────────────────
+  ftmo_challenge:
+    firm_id: ftmo
+    name: "FTMO Challenge Phase 1"
+    initial_balance: 100000.0
+    profit_target_pct: 0.10
+    max_daily_loss_pct: 0.05
+    max_total_loss_pct: 0.10
+    emergency_halt_pct: 0.08
+    daily_caution_pct: 0.04
+    drawdown_mode: static
+    daily_loss_mode: balance_based
+    min_trading_days: 4
+    max_trading_days: 0
+    consistency_rule_enabled: true
+    consistency_pct: 0.40
+    weekend_close_required: true
+    use_news_filter: true
+    news_blackout_minutes: 30
+    max_open_positions: 1
+    max_lot: 0.01
+    risk_per_trade_pct: 0.01
+    max_symbol_exposure: 0.01
+    atr_profile: challenge           # 1.5/3.0
+    phase: challenge
+    hedging_allowed: true
+    notes: "FTMO Challenge: 10% target, 5% daily, 10% DD, 4 min days, 40% consistency"
+
+  ftmo_verification:
+    firm_id: ftmo
+    name: "FTMO Verification Phase 2"
+    initial_balance: 100000.0
+    profit_target_pct: 0.05
+    max_daily_loss_pct: 0.05
+    max_total_loss_pct: 0.10
+    emergency_halt_pct: 0.08
+    daily_caution_pct: 0.04
+    drawdown_mode: static
+    daily_loss_mode: balance_based
+    min_trading_days: 4
+    max_trading_days: 0
+    consistency_rule_enabled: true
+    consistency_pct: 0.40
+    weekend_close_required: true
+    use_news_filter: true
+    news_blackout_minutes: 30
+    max_open_positions: 1
+    max_lot: 0.01
+    risk_per_trade_pct: 0.01
+    max_symbol_exposure: 0.01
+    atr_profile: challenge           # 1.5/3.0
+    phase: verification
+    hedging_allowed: true
+    notes: "FTMO Verification: 5% target, 5% daily, 10% DD, 4 min days, 40% consistency"
+
+  ftmo_funded:
+    firm_id: ftmo
+    name: "FTMO Funded Account"
+    initial_balance: 100000.0
+    profit_target_pct: 0.0
+    max_daily_loss_pct: 0.05
+    max_total_loss_pct: 0.10
+    emergency_halt_pct: 0.08
+    daily_caution_pct: 0.04
+    drawdown_mode: trailing          # ← KEY: trailing on funded
+    daily_loss_mode: balance_based
+    min_trading_days: 0
+    max_trading_days: 0
+    consistency_rule_enabled: false
+    consistency_pct: 0.0
+    weekend_close_required: true
+    use_news_filter: true
+    news_blackout_minutes: 30
+    max_open_positions: 1
+    max_lot: 0.01
+    risk_per_trade_pct: 0.01
+    max_symbol_exposure: 0.01
+    atr_profile: production_aggressive   # 3.0/6.0
+    phase: funded
+    hedging_allowed: true
+    notes: "FTMO Funded: trailing DD, no profit target, don't breach"
+
+  # ─── FundedNext ────────────────────────────────────────────────────────────
+  fundednext_challenge:
+    firm_id: fundednext
+    name: "FundedNext Challenge"
+    initial_balance: 100000.0
+    profit_target_pct: 0.10
+    max_daily_loss_pct: 0.05
+    max_total_loss_pct: 0.10
+    emergency_halt_pct: 0.08
+    daily_caution_pct: 0.045
+    drawdown_mode: static
+    daily_loss_mode: balance_based
+    min_trading_days: 0
+    max_trading_days: 0
+    consistency_rule_enabled: false
+    consistency_pct: 0.0
+    weekend_close_required: true
+    use_news_filter: true
+    news_blackout_minutes: 30
+    max_open_positions: 1
+    max_lot: 0.01
+    risk_per_trade_pct: 0.01
+    max_symbol_exposure: 0.01
+    atr_profile: challenge           # 1.5/3.0
+    phase: challenge
+    hedging_allowed: true
+    notes: "FundedNext Challenge: 10% target, 5% daily, 10% DD, no consistency rule"
+
+  fundednext_funded:
+    firm_id: fundednext
+    name: "FundedNext Funded Account"
+    initial_balance: 100000.0
+    profit_target_pct: 0.0
+    max_daily_loss_pct: 0.05
+    max_total_loss_pct: 0.10
+    emergency_halt_pct: 0.08
+    daily_caution_pct: 0.045
+    drawdown_mode: trailing          # ← FundedNext trailing on funded
+    daily_loss_mode: balance_based
+    min_trading_days: 0
+    max_trading_days: 0
+    consistency_rule_enabled: false
+    consistency_pct: 0.0
+    weekend_close_required: true
+    use_news_filter: true
+    news_blackout_minutes: 30
+    max_open_positions: 1
+    max_lot: 0.01
+    risk_per_trade_pct: 0.01
+    max_symbol_exposure: 0.01
+    atr_profile: production_aggressive   # 3.0/6.0
+    phase: funded
+    hedging_allowed: true
+    notes: "FundedNext Funded: trailing DD, no target, no consistency"
+
+  # ─── The 5ers ──────────────────────────────────────────────────────────────
+  the5ers_challenge:
+    firm_id: the5ers
+    name: "The 5ers Challenge"
+    initial_balance: 100000.0
+    profit_target_pct: 0.06          # 6% target
+    max_daily_loss_pct: 0.04         # 4% daily (tighter)
+    max_total_loss_pct: 0.06         # 6% overall (tighter)
+    emergency_halt_pct: 0.05
+    daily_caution_pct: 0.035
+    drawdown_mode: static
+    daily_loss_mode: balance_based
+    min_trading_days: 0
+    max_trading_days: 0
+    consistency_rule_enabled: false
+    consistency_pct: 0.0
+    weekend_close_required: true
+    use_news_filter: true
+    news_blackout_minutes: 2         # 5ers only requires 2min
+    max_open_positions: 1
+    max_lot: 0.01
+    risk_per_trade_pct: 0.008
+    max_symbol_exposure: 0.01
+    atr_profile: challenge           # 1.5/3.0 (low-DD firm)
+    phase: challenge
+    hedging_allowed: false
+    notes: "The 5ers: 6% target, 4% daily, 6% DD, 2min news blackout, no hedging"
+
+  # ─── MyFundedFX ────────────────────────────────────────────────────────────
+  myfundedfx_challenge:
+    firm_id: myfundedfx
+    name: "MyFundedFX Challenge"
+    initial_balance: 100000.0
+    profit_target_pct: 0.08          # 8% target
+    max_daily_loss_pct: 0.05
+    max_total_loss_pct: 0.10
+    emergency_halt_pct: 0.08
+    daily_caution_pct: 0.04
+    drawdown_mode: static
+    daily_loss_mode: balance_based
+    min_trading_days: 3              # MyFundedFX requires 3 days
+    max_trading_days: 0
+    consistency_rule_enabled: false
+    consistency_pct: 0.0
+    weekend_close_required: true
+    use_news_filter: true
+    news_blackout_minutes: 30
+    max_open_positions: 1
+    max_lot: 0.01
+    risk_per_trade_pct: 0.01
+    max_symbol_exposure: 0.01
+    atr_profile: balanced            # 2.0/4.0
+    phase: challenge
+    hedging_allowed: true
+    notes: "MyFundedFX: 8% target, 5% daily, 10% DD, 3 min days"
+
+  # ─── Custom (fully configurable via runtime.yaml overrides) ────────────────
+  custom:
+    firm_id: custom
+    name: "Custom Profile"
+    initial_balance: 100000.0
+    profit_target_pct: 0.08
+    max_daily_loss_pct: 0.05
+    max_total_loss_pct: 0.10
+    emergency_halt_pct: 0.08
+    daily_caution_pct: 0.04
+    drawdown_mode: hybrid
+    daily_loss_mode: balance_based
+    min_trading_days: 3
+    max_trading_days: 30
+    consistency_rule_enabled: true
+    consistency_pct: 0.40
+    weekend_close_required: true
+    use_news_filter: true
+    news_blackout_minutes: 30
+    max_open_positions: 1
+    max_lot: 0.01
+    risk_per_trade_pct: 0.01
+    max_symbol_exposure: 0.01
+    atr_profile: balanced            # 2.0/4.0
+    phase: challenge
+    hedging_allowed: true
+    notes: "Custom: fully configurable via runtime.yaml:prop_firm.custom_overrides"
+
+# ─── MT5 auto-detection rules ────────────────────────────────────────────────
+# Used by PropFirmProfileManager.auto_detect(mt5_account_info).
+# Auto-detection is ADVISORY ONLY — never auto-applies. Operator must confirm.
+auto_detect:
+  rules:
+    - match: "FTMO"
+      field: company
+      profile: ftmo_challenge
+    - match: "FundedNext"
+      field: company
+      profile: fundednext_challenge
+    - match: "5ers"
+      field: company
+      profile: the5ers_challenge
+    - match: "MyFundedFX"
+      field: company
+      profile: myfundedfx_challenge
+  on_no_match: refuse_start          # refuse_start | default_to_custom
+
+# ─── ATR profile mapping (already exists in runtime.yaml:atr_profiles) ───────
+# Referenced by profiles via `atr_profile` field:
+#   challenge           → atr_sl_multiplier: 1.5, atr_tp_multiplier: 3.0
+#   balanced            → atr_sl_multiplier: 2.0, atr_tp_multiplier: 4.0
+#   production_aggressive → atr_sl_multiplier: 3.0, atr_tp_multiplier: 6.0
