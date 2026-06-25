@@ -664,6 +664,14 @@ class TitanLauncher:
                 runtime = AutonomousRuntime(
                     config=rt_cfg,
                     journal=self._components["journal"],
+                    # Sprint 9.3.1: pass capital-protection engines when active
+                    health_engine=self._components.get("health_engine"),
+                    dynamic_risk_engine=self._components.get("dynamic_risk_engine"),
+                    recovery_mode=self._components.get("recovery_mode"),
+                    capital_preservation=self._components.get("capital_preservation"),
+                    profit_lock=self._components.get("profit_lock"),
+                    equity_protection=self._components.get("equity_protection"),
+                    prop_firm_manager=self._components.get("prop_firm_manager"),
                 )
                 runtime.initialize()
                 self._components["autonomous_runtime"] = runtime

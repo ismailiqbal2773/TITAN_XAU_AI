@@ -353,6 +353,17 @@ class TradeJournal:
         ):
             if hasattr(decision, attr):
                 data[attr] = getattr(decision, attr)
+        # ── Sprint 9.3.1: Capital Protection context fields ──
+        # These fields MUST be present on every DECISION record so we can
+        # verify at audit time that capital-protection context was propagated
+        # through the trade path.
+        for attr in (
+            "health_score", "health_band", "risk_profile", "risk_multiplier",
+            "recovery_mode_active", "capital_preservation_active",
+            "profit_lock_active", "prop_profile_id", "challenge_status",
+        ):
+            if hasattr(decision, attr):
+                data[attr] = getattr(decision, attr)
         return self._write(self._make_record("DECISION", data))
 
     def log_order(self, decision) -> str:

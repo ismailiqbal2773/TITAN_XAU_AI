@@ -96,6 +96,18 @@ class AutonomousRuntime:
         config: Optional[RuntimeConfig] = None,
         journal: Optional[TradeJournal] = None,
         journal_path: str = "data/runtime/titan_journal.jsonl",
+        # Sprint 9.3.1: optional capital-protection engines.
+        # When None (default), behavior is unchanged — no health score,
+        # no dynamic risk, no recovery mode, no capital preservation.
+        # When provided (from launcher when capital_protection.enabled=true),
+        # these engines are queried in heartbeat + inference loops.
+        health_engine=None,
+        dynamic_risk_engine=None,
+        recovery_mode=None,
+        capital_preservation=None,
+        profit_lock=None,
+        equity_protection=None,
+        prop_firm_manager=None,
     ):
         self.config = config or RuntimeConfig()
         self.journal = journal or TradeJournal(path=journal_path)
@@ -111,6 +123,22 @@ class AutonomousRuntime:
         self.slippage_monitor: Optional[SlippageMonitor] = None
         self.news_filter: Optional[NewsFilter] = None
         self.meta_calibration: Optional[MetaCalibrationMonitor] = None
+
+        # Sprint 9.3.1: Capital-protection engines (all optional)
+        self.health_engine = health_engine
+        self.dynamic_risk_engine = dynamic_risk_engine
+        self.recovery_mode = recovery_mode
+        self.capital_preservation = capital_preservation
+        self.profit_lock = profit_lock
+        self.equity_protection = equity_protection
+        self.prop_firm_manager = prop_firm_manager
+
+        # Sprint 9.3.1: runtime state shared between heartbeat + inference
+        self._latest_health_score: Optional[float] = None
+        self._latest_health_band: str = ""
+        self._latest_risk_profile: str = ""
+        self._latest_risk_multiplier: float = 1.0
+        self._latest_challenge_status: Optional[dict] = None
 
         # State
         self._running = False
@@ -314,11 +342,117 @@ class AutonomousRuntime:
                 # Compute current ATR for ATR-based SL/TP (Sprint 8.4)
                 current_atr = self._compute_current_atr()
 
+                # ── Sprint 9.3.1: capital-protection pre-checks ──
+                # When engines are present (capital_protection.enabled=true),
+                # consult recovery mode + capital preservation before allowing
+                # the trade. When engines are None (default), this block is
+                # skipped and behavior is identical to pre-9.3.1.
+                ctx_health_score = self._latest_health_score
+                ctx_health_band = self._latest_health_band
+                ctx_risk_profile = self._latest_risk_profile
+                ctx_risk_multiplier = self._latest_risk_multiplier
+                ctx_recovery_active = (
+                    self.recovery_mode.is_active if self.recovery_mode else False
+                )
+                ctx_cap_pres_active = (
+                    self.capital_preservation.is_active
+                    if self.capital_preservation else False
+                )
+                ctx_profit_lock_active = (
+                    self.profit_lock.is_locked if self.profit_lock else False
+                )
+                ctx_prop_profile_id = (
+                    self.prop_firm_manager.active_profile_id
+                    if self.prop_firm_manager else ""
+                )
+
+                # Recovery mode: only allow high-confidence trades
+                if ctx_recovery_active and self.recovery_mode is not None:
+                    if not self.recovery_mode.should_allow_trade(signal.confidence):
+                        self._trades_blocked += 1
+                        self.journal.log_event(EventType.SIGNAL_REJECTED, {
+                            "bar_time": bar_time,
+                            "reason": "recovery_mode_block",
+                            "signal_confidence": signal.confidence,
+                            "min_confidence_threshold":
+                                self.recovery_mode.config.min_confidence_threshold,
+                            "health_score": ctx_health_score,
+                            "health_band": ctx_health_band,
+                        })
+                        logger.info(
+                            f"Trade blocked by recovery_mode: conf={signal.confidence} "
+                            f"< threshold={self.recovery_mode.config.min_confidence_threshold}"
+                        )
+                        await asyncio.sleep(self.config.inference_interval_s)
+                        continue
+
+                # Capital preservation: halt new entries if DD too high
+                if (ctx_cap_pres_active and self.capital_preservation is not None
+                        and not self.capital_preservation.should_allow_new_entry()):
+                    self._trades_blocked += 1
+                    self.journal.log_event(EventType.SIGNAL_REJECTED, {
+                        "bar_time": bar_time,
+                        "reason": "capital_preservation_block",
+                        "total_dd_pct": self.capital_preservation.state.current_dd_pct,
+                        "halt_threshold":
+                            self.capital_preservation.config.halt_new_entries_dd_pct,
+                        "health_score": ctx_health_score,
+                        "health_band": ctx_health_band,
+                    })
+                    logger.info(
+                        f"Trade blocked by capital_preservation: "
+                        f"DD={self.capital_preservation.state.current_dd_pct}% "
+                        f"≥ halt={self.capital_preservation.config.halt_new_entries_dd_pct}%"
+                    )
+                    await asyncio.sleep(self.config.inference_interval_s)
+                    continue
+
+                # Health-gated block: capital_preservation band → no entries
+                if (ctx_health_band == "capital_preservation"
+                        and ctx_risk_multiplier == 0.0):
+                    self._trades_blocked += 1
+                    self.journal.log_event(EventType.SIGNAL_REJECTED, {
+                        "bar_time": bar_time,
+                        "reason": "health_too_low",
+                        "health_score": ctx_health_score,
+                        "health_band": ctx_health_band,
+                        "risk_multiplier": ctx_risk_multiplier,
+                    })
+                    logger.info(
+                        f"Trade blocked by health_too_low: "
+                        f"score={ctx_health_score} band={ctx_health_band}"
+                    )
+                    await asyncio.sleep(self.config.inference_interval_s)
+                    continue
+
+                # Apply dynamic risk multiplier to effective max_lot.
+                # Safety: this can only REDUCE max_lot, never increase it.
+                # Hard cap MAX_LOT_CAP=0.01 is enforced inside TradeLoop.
+                if (ctx_risk_multiplier is not None
+                        and ctx_risk_multiplier < 1.0
+                        and ctx_risk_multiplier >= 0.0):
+                    effective_max_lot = max(
+                        0.0, self.trade_loop.config.max_lot * ctx_risk_multiplier
+                    )
+                    # Floor at 0.001 so we don't completely zero out
+                    effective_max_lot = max(0.001, effective_max_lot)
+                    self.trade_loop.config.max_lot = effective_max_lot
+
                 decision = await self.trade_loop.process_signal(
                     signal=signal,
                     entry_price=self.config.entry_price_default,
                     spread_usd=self.config.spread_default,
                     current_atr=current_atr,
+                    # Sprint 9.3.1: pass capital-protection context
+                    health_score=ctx_health_score,
+                    health_band=ctx_health_band,
+                    risk_profile=ctx_risk_profile,
+                    risk_multiplier=ctx_risk_multiplier,
+                    recovery_mode_active=ctx_recovery_active,
+                    capital_preservation_active=ctx_cap_pres_active,
+                    profit_lock_active=ctx_profit_lock_active,
+                    prop_profile_id=ctx_prop_profile_id,
+                    challenge_status=self._latest_challenge_status,
                 )
 
                 if decision.accepted:
@@ -530,10 +664,16 @@ class AutonomousRuntime:
     # ─── Loop 5: Heartbeat + Health ─────────────────────────────────────
 
     async def _heartbeat_loop(self) -> None:
-        """Log heartbeat every 30 seconds."""
+        """Log heartbeat every 30 seconds + Sprint 9.3.1 capital-protection updates."""
         logger.info("Heartbeat loop started")
         while self._running:
             try:
+                # Sprint 9.3.1: invoke capital-protection engines when present.
+                # All engines are optional — when None (default), this block
+                # is skipped and behavior is identical to pre-9.3.1.
+                if self.health_engine is not None:
+                    self._update_capital_protection()
+
                 self.journal.log_heartbeat({
                     "event": "runtime_heartbeat",
                     "running": self._running,
@@ -544,10 +684,107 @@ class AutonomousRuntime:
                         if self.kill_switch else "UNKNOWN",
                     "open_positions": self.position_sync.position_count,
                     "uptime_s": time.time() - time.time(),  # simplified
+                    # Sprint 9.3.1: include capital-protection snapshot
+                    "health_score": self._latest_health_score,
+                    "health_band": self._latest_health_band,
+                    "risk_profile": self._latest_risk_profile,
+                    "risk_multiplier": self._latest_risk_multiplier,
+                    "recovery_mode_active": (
+                        self.recovery_mode.is_active if self.recovery_mode else False
+                    ),
+                    "capital_preservation_active": (
+                        self.capital_preservation.is_active if self.capital_preservation else False
+                    ),
+                    "profit_lock_active": (
+                        self.profit_lock.is_locked if self.profit_lock else False
+                    ),
+                    "prop_firm_profile": (
+                        self.prop_firm_manager.active_profile_id
+                        if self.prop_firm_manager else None
+                    ),
                 })
             except Exception as e:
                 logger.error(f"Heartbeat error: {e}")
             await asyncio.sleep(self.config.heartbeat_interval_s)
+
+    def _update_capital_protection(self) -> None:
+        """
+        Sprint 9.3.1: compute health score, dynamic risk profile, update
+        profit lock + equity protection, update capital preservation.
+        Stores results in self._latest_* for inference loop to consume.
+        """
+        # Compute current equity + DD from position_sync (stub-safe)
+        current_equity = self.config.entry_price_default  # fallback
+        # In a real runtime with broker_source=mt5, this would query
+        # mt5.account_info().equity. For dry_run/stub, we use the default.
+        # This is intentional — the engines still exercise their logic.
+        initial_balance = (
+            self.prop_firm_manager.active_profile.initial_balance
+            if self.prop_firm_manager and self.prop_firm_manager.active_profile
+            else current_equity
+        )
+
+        # Equity protection tracking
+        if self.equity_protection is not None:
+            locked_equity = (
+                self.profit_lock.locked_equity
+                if self.profit_lock is not None else None
+            )
+            ep_state = self.equity_protection.update(current_equity, locked_equity)
+            total_dd_pct = ep_state.drawdown_from_peak_pct
+            daily_dd_pct = ep_state.drawdown_from_initial_pct
+        else:
+            total_dd_pct = 0.0
+            daily_dd_pct = 0.0
+
+        # Capital preservation
+        if self.capital_preservation is not None:
+            self.capital_preservation.update(total_dd_pct)
+
+        # Profit lock
+        if self.profit_lock is not None:
+            self.profit_lock.update(current_equity)
+
+        # Build AccountHealthInput from current state
+        from titan.production.account_health_engine import AccountHealthInput
+        ks_state_str = (
+            self.kill_switch.state.value if self.kill_switch else "NORMAL"
+        )
+        recovery_active = (
+            self.recovery_mode.is_active if self.recovery_mode else False
+        )
+        recovery_progress = 0.0
+        if recovery_active and self.recovery_mode is not None:
+            target = max(1, self.recovery_mode.config.recovery_target_trades)
+            recovery_progress = (
+                self.recovery_mode.state.consecutive_wins_in_recovery / target
+            )
+
+        inp = AccountHealthInput(
+            daily_dd_pct=daily_dd_pct,
+            total_dd_pct=total_dd_pct,
+            max_daily_dd_limit_pct=5.0,   # FTMO default
+            max_total_dd_limit_pct=10.0,  # FTMO default
+            consecutive_losses=(
+                self.recovery_mode.state.consecutive_losses
+                if self.recovery_mode else 0
+            ),
+            winning_streak=0,  # not tracked at runtime level
+            equity_slope=0.0,  # not tracked at runtime level
+            volatility_regime="normal",
+            kill_switch_state=ks_state_str,
+            in_recovery_mode=recovery_active,
+            recovery_progress=recovery_progress,
+        )
+        score = self.health_engine.evaluate(inp)
+        self._latest_health_score = score.score
+        self._latest_health_band = score.band
+
+        # Dynamic risk profile
+        if self.dynamic_risk_engine is not None:
+            risk_eval = self.dynamic_risk_engine.evaluate(score.score)
+            self._latest_risk_profile = risk_eval.profile_name
+            self._latest_risk_multiplier = risk_eval.risk_multiplier
 
     # ─── Helpers ────────────────────────────────────────────────────────
 

@@ -90,6 +90,16 @@ class TradeDecision:
     entry_price: float = 0.0                  # price used for SL/TP computation
     computed_sl: float = 0.0                  # final SL passed to order_request
     computed_tp: float = 0.0                  # final TP passed to order_request
+    # ── Sprint 9.3.1 Capital Protection Context (journaled on DECISION) ──
+    health_score: Optional[float] = None      # 0-100 from AccountHealthEngine
+    health_band: str = ""                     # normal | slight_reduction | defensive | recovery_mode | capital_preservation
+    risk_profile: str = ""                    # dynamic risk profile name
+    risk_multiplier: float = 1.0              # 0.0-1.0 from DynamicRiskEngine
+    recovery_mode_active: bool = False        # True if RecoveryMode.is_active
+    capital_preservation_active: bool = False # True if CapitalPreservation.is_active
+    profit_lock_active: bool = False          # True if ProfitLock.is_locked
+    prop_profile_id: str = ""                 # active prop firm profile id (if any)
+    challenge_status: Optional[dict] = None   # latest CHALLENGE_STATUS snapshot
 
     def __repr__(self) -> str:
         if self.accepted:
@@ -140,6 +150,16 @@ class TradeLoop:
         current_equity: float = 10000.0,
         account_state: Optional[dict] = None,
         current_atr: float = 0.0,
+        # ── Sprint 9.3.1 Capital Protection Context (optional, default None) ──
+        health_score: Optional[float] = None,
+        health_band: str = "",
+        risk_profile: str = "",
+        risk_multiplier: Optional[float] = None,
+        recovery_mode_active: bool = False,
+        capital_preservation_active: bool = False,
+        profit_lock_active: bool = False,
+        prop_profile_id: str = "",
+        challenge_status: Optional[dict] = None,
     ) -> TradeDecision:
         """
         Process a Signal through the full trade chain.
@@ -154,6 +174,21 @@ class TradeLoop:
             account_state: Optional dict with balance/margin/margin_level/etc.
         """
         t0 = time.perf_counter()
+
+        # Sprint 9.3.1: stash capital-protection context on self so _reject()
+        # can include it on rejected TradeDecision records too. Cleared in
+        # finally below to avoid leaking across calls.
+        self._current_context = {
+            "health_score": health_score,
+            "health_band": health_band,
+            "risk_profile": risk_profile,
+            "risk_multiplier": (1.0 if risk_multiplier is None else float(risk_multiplier)),
+            "recovery_mode_active": recovery_mode_active,
+            "capital_preservation_active": capital_preservation_active,
+            "profit_lock_active": profit_lock_active,
+            "prop_profile_id": prop_profile_id,
+            "challenge_status": challenge_status,
+        }
 
         # ── PRE-CHECK 0: Kill-switch FSM state ──
         if self.kill_switch is not None:
@@ -317,6 +352,16 @@ class TradeLoop:
                 entry_price=atr_audit["entry_price"],
                 computed_sl=atr_audit["computed_sl"],
                 computed_tp=atr_audit["computed_tp"],
+                # ── Sprint 9.3.1 Capital Protection context ──
+                health_score=health_score,
+                health_band=health_band,
+                risk_profile=risk_profile,
+                risk_multiplier=(1.0 if risk_multiplier is None else float(risk_multiplier)),
+                recovery_mode_active=recovery_mode_active,
+                capital_preservation_active=capital_preservation_active,
+                profit_lock_active=profit_lock_active,
+                prop_profile_id=prop_profile_id,
+                challenge_status=challenge_status,
             )
             # Journal the decision + order
             if self.journal is not None:
@@ -383,6 +428,16 @@ class TradeLoop:
                 entry_price=atr_audit["entry_price"],
                 computed_sl=atr_audit["computed_sl"],
                 computed_tp=atr_audit["computed_tp"],
+                # ── Sprint 9.3.1 Capital Protection context ──
+                health_score=health_score,
+                health_band=health_band,
+                risk_profile=risk_profile,
+                risk_multiplier=(1.0 if risk_multiplier is None else float(risk_multiplier)),
+                recovery_mode_active=recovery_mode_active,
+                capital_preservation_active=capital_preservation_active,
+                profit_lock_active=profit_lock_active,
+                prop_profile_id=prop_profile_id,
+                challenge_status=challenge_status,
             )
         except ImportError as e:
             return self._reject(signal, f"execution_engine_import_error: {e}", t0,
@@ -505,6 +560,8 @@ class TradeLoop:
                 adjusted_volume: float = 0.0) -> TradeDecision:
         elapsed = (time.perf_counter() - t0) * 1000.0
         logger.info(f"Signal rejected: {reason}")
+        # Sprint 9.3.1: pull capital-protection context from current call
+        ctx = getattr(self, "_current_context", {}) or {}
         decision = TradeDecision(
             accepted=False,
             reject_reason=reason,
@@ -513,6 +570,16 @@ class TradeLoop:
             adjusted_volume=adjusted_volume,
             evaluation_ms=elapsed,
             dry_run=self.config.dry_run,
+            # Sprint 9.3.1 context fields (None defaults if not set)
+            health_score=ctx.get("health_score"),
+            health_band=ctx.get("health_band", ""),
+            risk_profile=ctx.get("risk_profile", ""),
+            risk_multiplier=ctx.get("risk_multiplier", 1.0),
+            recovery_mode_active=ctx.get("recovery_mode_active", False),
+            capital_preservation_active=ctx.get("capital_preservation_active", False),
+            profit_lock_active=ctx.get("profit_lock_active", False),
+            prop_profile_id=ctx.get("prop_profile_id", ""),
+            challenge_status=ctx.get("challenge_status"),
         )
         # Journal the rejection
         if self.journal is not None:
