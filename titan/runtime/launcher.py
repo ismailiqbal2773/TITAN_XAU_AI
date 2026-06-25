@@ -137,6 +137,9 @@ class LauncherConfig:
     # Universal Execution Intelligence (Sprint 9.5)
     broker_intelligence_enabled: bool = False   # DEFAULT: false — no behavior change
 
+    # AI Exit Intelligence (Sprint 9.6)
+    exit_intelligence_enabled: bool = False     # DEFAULT: false — no behavior change
+
     # Raw config (for debugging)
     raw: dict = field(default_factory=dict)
 
@@ -262,6 +265,10 @@ class TitanLauncher:
         # Universal Execution Intelligence (Sprint 9.5)
         bi = raw.get("broker_intelligence", {}) or {}
         cfg.broker_intelligence_enabled = bool(bi.get("enabled", False))
+
+        # AI Exit Intelligence (Sprint 9.6)
+        ei = raw.get("exit_intelligence", {}) or {}
+        cfg.exit_intelligence_enabled = bool(ei.get("enabled", False))
 
         # ─── SAFETY VALIDATION ──
         self._validate_safety(cfg)
@@ -643,6 +650,45 @@ class TitanLauncher:
             else:
                 logger.info("Broker intelligence layer DISABLED "
                             "(broker_intelligence.enabled=false) — "
+                            "existing runtime behavior unchanged")
+
+            # ─── Sprint 9.6: AI Exit Intelligence ────────────────────────
+            # When exit_intelligence.enabled=true, initialize AIExitEngine,
+            # ExitStrategyEngine, ExitQualityScorer, ExitGovernance.
+            # Engines are stored in _components for AutonomousRuntime to
+            # query during exit evaluation. They DO NOT replace existing
+            # ExitManager — they provide additional AI-driven exit decisions.
+            # When exit_intelligence.enabled=false (default), no behavior change.
+            if cfg.exit_intelligence_enabled:
+                from titan.production.ai_exit_engine import AIExitEngine
+                from titan.production.exit_strategy_engine import ExitStrategyEngine
+                from titan.production.exit_quality_scorer import ExitQualityScorer
+                from titan.production.exit_governance import ExitGovernance
+                ei_cfg = (raw or {}).get("exit_intelligence", {}) or {}
+
+                ai_exit = AIExitEngine(
+                    journal=journal,
+                    config=ei_cfg,
+                )
+                strategy = ExitStrategyEngine(
+                    journal=journal,
+                    config=ei_cfg,
+                )
+                quality_scorer = ExitQualityScorer(journal=journal)
+                governance = ExitGovernance(
+                    journal=journal,
+                    weights=ei_cfg.get("governance", {}).get("weights"),
+                )
+
+                self._components["ai_exit_engine"] = ai_exit
+                self._components["exit_strategy_engine"] = strategy
+                self._components["exit_quality_scorer"] = quality_scorer
+                self._components["exit_governance"] = governance
+                logger.info("✓ AI Exit Intelligence layer ACTIVE "
+                            "(ai_exit + strategy + quality_scorer + governance)")
+            else:
+                logger.info("AI Exit Intelligence layer DISABLED "
+                            "(exit_intelligence.enabled=false) — "
                             "existing runtime behavior unchanged")
 
             logger.info("✓ All components initialized")

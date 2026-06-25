@@ -149,6 +149,78 @@ broker_intelligence:
     max_rejection_rate: 0.10        # >10% rejections → BROKER_UNSAFE
     pause_entries_on_unsafe: true   # halt new entries when unsafe
 
+# ─── AI Exit Intelligence (Sprint 9.6) ───────────────────────────────────────
+# When enabled=true, TITAN evaluates every open position continuously and
+# makes institutional-grade exit decisions (HOLD/PARTIAL/BE/TRAIL/BOOK/FULL/
+# EMERGENCY). Replaces static TP + fixed-R break-even with AI-driven exits.
+# When enabled=false (default), existing ExitManager behavior is unchanged.
+#
+# Safety invariants:
+#   - All engines optional, fail-closed
+#   - Exit AI can only DECREASE risk (exit earlier/tighter), never increase
+#   - Hard caps (max_lot=0.01) always enforced
+#   - dry_run / live_trading flags never changed
+#   - Models, thresholds, ATR, inference — all untouched
+exit_intelligence:
+  enabled: false                    # DEFAULT: false — no behavior change
+  eval_interval_s: 5.0              # evaluate open positions every N seconds
+  # AI Exit Engine weights (sum to ~1.0)
+  weights:
+    xgb_confidence: 0.15
+    meta_confidence: 0.15
+    trend_strength: 0.15
+    momentum: 0.10
+    volatility: 0.05
+    atr: 0.10
+    time_in_trade: 0.05
+    floating_pnl: 0.10
+    r_multiple: 0.05
+    broker_quality: 0.05
+    news_status: 0.03
+    session: 0.02
+  # Dynamic TP extension
+  dynamic_tp:
+    strong_trend_extension_pct: 50  # extend TP by 50% in strong trend
+    weak_momentum_reduction_pct: 25 # reduce TP by 25% in weak momentum
+    sideways_early_exit_pct: 75     # exit at 75% of TP in sideways
+  # Adaptive trailing
+  trailing:
+    base_atr_multiplier: 1.0        # base trail = 1.0 × ATR
+    strong_trend_loosen: 2.0        # loosen to 2.0 × ATR in strong trend
+    weak_market_tighten: 0.5        # tighten to 0.5 × ATR in weak market
+    min_trail_distance_atr: 0.3     # never trail closer than 0.3 × ATR
+  # Partial profit engine
+  partial_exits:
+    enabled: true
+    levels:
+      - r_multiple: 1.0             # at +1R
+        close_pct: 25               # close 25%
+      - r_multiple: 2.0             # at +2R
+        close_pct: 25               # close 25%
+      - r_multiple: 3.0             # at +3R
+        close_pct: 25               # close 25%
+    min_remaining_pct: 25           # never close below 25% remaining
+  # Early exit triggers
+  early_exit:
+    meta_confidence_collapse: 0.40  # meta < 0.40 → early exit
+    trend_reversal_threshold: -0.3  # trend strength < -0.3 → early exit
+    momentum_collapse: 0.20         # momentum < 0.20 → early exit
+  # Time exit
+  time_exit:
+    max_holding_hours_strong_trend: 48
+    max_holding_hours_normal: 24
+    max_holding_hours_sideways: 8
+  # CEO governance
+  governance:
+    enabled: true
+    weights:
+      exit_ai: 0.40
+      risk_engine: 0.20
+      capital_protection: 0.15
+      broker_intelligence: 0.10
+      meta_model: 0.10
+      context_engine: 0.05
+
 # ─── Adaptive Capital Protection Layer (Sprint 9.2) ──────────────────────────
 # When enabled=true, TITAN computes an account health score (0-100) every
 # heartbeat and dynamically adjusts risk multiplier, max exposure, and trading
