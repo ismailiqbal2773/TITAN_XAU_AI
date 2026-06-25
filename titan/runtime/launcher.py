@@ -134,6 +134,9 @@ class LauncherConfig:
     # Adaptive Capital Protection Layer (Sprint 9.2)
     capital_protection_enabled: bool = False    # DEFAULT: false — no behavior change
 
+    # Universal Execution Intelligence (Sprint 9.5)
+    broker_intelligence_enabled: bool = False   # DEFAULT: false — no behavior change
+
     # Raw config (for debugging)
     raw: dict = field(default_factory=dict)
 
@@ -255,6 +258,10 @@ class TitanLauncher:
         # Adaptive Capital Protection Layer (Sprint 9.2)
         cp = raw.get("capital_protection", {}) or {}
         cfg.capital_protection_enabled = bool(cp.get("enabled", False))
+
+        # Universal Execution Intelligence (Sprint 9.5)
+        bi = raw.get("broker_intelligence", {}) or {}
+        cfg.broker_intelligence_enabled = bool(bi.get("enabled", False))
 
         # ─── SAFETY VALIDATION ──
         self._validate_safety(cfg)
@@ -586,6 +593,58 @@ class TitanLauncher:
                             "(capital_protection.enabled=false) — "
                             "existing runtime behavior unchanged")
 
+            # ─── Sprint 9.5: Universal Execution Intelligence ─────────────
+            # When broker_intelligence.enabled=true, initialize BrokerIntelligenceLayer,
+            # BrokerQualityEngine, ExecutionProfileSelector, BrokerRiskAdapter,
+            # BrokerScoreHistory, ExecutionSelfProtection. Engines are stored in
+            # _components for AutonomousRuntime to query. They DO NOT modify any
+            # existing risk logic — they only provide dynamic broker-aware limits.
+            # When broker_intelligence.enabled=false (default), no behavior change.
+            if cfg.broker_intelligence_enabled:
+                from titan.production.broker_intelligence import BrokerIntelligenceLayer
+                from titan.production.broker_quality_engine import BrokerQualityEngine
+                from titan.production.execution_profile import ExecutionProfileSelector
+                from titan.production.broker_risk_adapter import BrokerRiskAdapter
+                from titan.production.broker_score_history import BrokerScoreHistory
+                from titan.production.execution_self_protection import (
+                    ExecutionSelfProtection, SelfProtectionConfig,
+                )
+                bi_cfg = (raw or {}).get("broker_intelligence", {}) or {}
+
+                broker_layer = BrokerIntelligenceLayer(journal=journal)
+                quality_engine = BrokerQualityEngine(journal=journal)
+                profile_selector = ExecutionProfileSelector(journal=journal)
+                risk_adapter = BrokerRiskAdapter(journal=journal)
+                score_history = BrokerScoreHistory(
+                    history_dir=bi_cfg.get("history_dir", "data/runtime/broker_history"),
+                    journal=journal,
+                )
+                sp_cfg = bi_cfg.get("self_protection", {}) or {}
+                self_protection = ExecutionSelfProtection(
+                    config=SelfProtectionConfig(
+                        max_spread_spike_usd=float(sp_cfg.get("max_spread_spike_usd", 3.0)),
+                        max_latency_ms=float(sp_cfg.get("max_latency_ms", 1000)),
+                        max_requote_rate=float(sp_cfg.get("max_requote_rate", 0.10)),
+                        max_rejection_rate=float(sp_cfg.get("max_rejection_rate", 0.10)),
+                        pause_entries_on_unsafe=bool(sp_cfg.get("pause_entries_on_unsafe", True)),
+                    ),
+                    journal=journal,
+                )
+
+                self._components["broker_intelligence"] = broker_layer
+                self._components["broker_quality_engine"] = quality_engine
+                self._components["execution_profile_selector"] = profile_selector
+                self._components["broker_risk_adapter"] = risk_adapter
+                self._components["broker_score_history"] = score_history
+                self._components["execution_self_protection"] = self_protection
+                logger.info("✓ Broker intelligence layer ACTIVE "
+                            "(broker_layer + quality_engine + profile_selector + "
+                            "risk_adapter + score_history + self_protection)")
+            else:
+                logger.info("Broker intelligence layer DISABLED "
+                            "(broker_intelligence.enabled=false) — "
+                            "existing runtime behavior unchanged")
+
             logger.info("✓ All components initialized")
 
             # ─── Run smoke test (single inference cycle) ──
@@ -672,6 +731,13 @@ class TitanLauncher:
                     profit_lock=self._components.get("profit_lock"),
                     equity_protection=self._components.get("equity_protection"),
                     prop_firm_manager=self._components.get("prop_firm_manager"),
+                    # Sprint 9.5: pass broker-intelligence engines when active
+                    broker_intelligence=self._components.get("broker_intelligence"),
+                    broker_quality_engine=self._components.get("broker_quality_engine"),
+                    execution_profile_selector=self._components.get("execution_profile_selector"),
+                    broker_risk_adapter=self._components.get("broker_risk_adapter"),
+                    broker_score_history=self._components.get("broker_score_history"),
+                    execution_self_protection=self._components.get("execution_self_protection"),
                 )
                 runtime.initialize()
                 self._components["autonomous_runtime"] = runtime

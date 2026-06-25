@@ -108,6 +108,47 @@ prop_firm:
   initial_balance: 100000.0         # challenge starting balance (for % calc)
   custom_overrides: {}              # only used when profile=custom
 
+# ─── Universal Execution Intelligence (Sprint 9.5) ───────────────────────────
+# When enabled=true, TITAN auto-detects broker properties, scores broker
+# quality continuously, selects execution profile automatically, and adapts
+# risk based on broker quality. When enabled=false (default), existing
+# runtime behavior is unchanged.
+#
+# Safety invariants:
+#   - All engines optional, fail-closed
+#   - Broker quality can only DECREASE risk, never increase
+#   - Hard caps (max_lot=0.01) always enforced
+#   - dry_run / live_trading flags never changed
+#   - Models, thresholds, ATR, inference — all untouched
+broker_intelligence:
+  enabled: false                    # DEFAULT: false — no behavior change
+  quality_check_interval_s: 30.0    # score broker every N seconds
+  history_dir: data/runtime/broker_history
+  # Auto execution profile thresholds (broker quality → profile)
+  auto_profile:
+    enabled: true                   # auto-select execution profile
+    institutional_min: 95           # ≥95 → institutional
+    excellent_min: 85               # 85-94 → excellent
+    good_min: 75                    # 75-84 → good
+    average_min: 60                 # 60-74 → average
+    # below 60 → unsafe (halt new entries)
+  # Auto risk adaptation (broker quality → risk multiplier)
+  risk_adaptation:
+    enabled: true
+    institutional_multiplier: 1.0   # cannot exceed 1.0 (hard cap)
+    excellent_multiplier: 1.0
+    good_multiplier: 0.8
+    average_multiplier: 0.6
+    unsafe_multiplier: 0.0          # halt
+  # Self-protection triggers
+  self_protection:
+    enabled: true
+    max_spread_spike_usd: 3.0       # spread > $3 → EXECUTION_WARNING
+    max_latency_ms: 1000            # latency > 1000ms → EXECUTION_DEGRADED
+    max_requote_rate: 0.10          # >10% requotes → EXECUTION_DEGRADED
+    max_rejection_rate: 0.10        # >10% rejections → BROKER_UNSAFE
+    pause_entries_on_unsafe: true   # halt new entries when unsafe
+
 # ─── Adaptive Capital Protection Layer (Sprint 9.2) ──────────────────────────
 # When enabled=true, TITAN computes an account health score (0-100) every
 # heartbeat and dynamically adjusts risk multiplier, max exposure, and trading

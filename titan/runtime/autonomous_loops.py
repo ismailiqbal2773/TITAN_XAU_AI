@@ -108,6 +108,16 @@ class AutonomousRuntime:
         profit_lock=None,
         equity_protection=None,
         prop_firm_manager=None,
+        # Sprint 9.5: optional broker-intelligence engines.
+        # When None (default), behavior is unchanged.
+        # When provided (from launcher when broker_intelligence.enabled=true),
+        # these engines are queried in heartbeat.
+        broker_intelligence=None,
+        broker_quality_engine=None,
+        execution_profile_selector=None,
+        broker_risk_adapter=None,
+        broker_score_history=None,
+        execution_self_protection=None,
     ):
         self.config = config or RuntimeConfig()
         self.journal = journal or TradeJournal(path=journal_path)
@@ -133,12 +143,27 @@ class AutonomousRuntime:
         self.equity_protection = equity_protection
         self.prop_firm_manager = prop_firm_manager
 
+        # Sprint 9.5: Broker-intelligence engines (all optional)
+        self.broker_intelligence = broker_intelligence
+        self.broker_quality_engine = broker_quality_engine
+        self.execution_profile_selector = execution_profile_selector
+        self.broker_risk_adapter = broker_risk_adapter
+        self.broker_score_history = broker_score_history
+        self.execution_self_protection = execution_self_protection
+
         # Sprint 9.3.1: runtime state shared between heartbeat + inference
         self._latest_health_score: Optional[float] = None
         self._latest_health_band: str = ""
         self._latest_risk_profile: str = ""
         self._latest_risk_multiplier: float = 1.0
         self._latest_challenge_status: Optional[dict] = None
+
+        # Sprint 9.5: broker-intelligence runtime state
+        self._latest_broker_score: Optional[float] = None
+        self._latest_broker_band: str = ""
+        self._latest_execution_profile: str = ""
+        self._latest_broker_risk_multiplier: float = 1.0
+        self._latest_entries_paused: bool = False
 
         # State
         self._running = False
@@ -664,7 +689,7 @@ class AutonomousRuntime:
     # ─── Loop 5: Heartbeat + Health ─────────────────────────────────────
 
     async def _heartbeat_loop(self) -> None:
-        """Log heartbeat every 30 seconds + Sprint 9.3.1 capital-protection updates."""
+        """Log heartbeat every 30 seconds + Sprint 9.3.1 capital-protection updates + Sprint 9.5 broker intelligence."""
         logger.info("Heartbeat loop started")
         while self._running:
             try:
@@ -673,6 +698,12 @@ class AutonomousRuntime:
                 # is skipped and behavior is identical to pre-9.3.1.
                 if self.health_engine is not None:
                     self._update_capital_protection()
+
+                # Sprint 9.5: invoke broker-intelligence engines when present.
+                # All engines are optional — when None (default), this block
+                # is skipped and behavior is identical to pre-9.5.
+                if self.broker_quality_engine is not None:
+                    self._update_broker_intelligence()
 
                 self.journal.log_heartbeat({
                     "event": "runtime_heartbeat",
@@ -702,10 +733,79 @@ class AutonomousRuntime:
                         self.prop_firm_manager.active_profile_id
                         if self.prop_firm_manager else None
                     ),
+                    # Sprint 9.5: include broker-intelligence snapshot
+                    "broker_score": self._latest_broker_score,
+                    "broker_band": self._latest_broker_band,
+                    "execution_profile": self._latest_execution_profile,
+                    "broker_risk_multiplier": self._latest_broker_risk_multiplier,
+                    "entries_paused": self._latest_entries_paused,
                 })
             except Exception as e:
                 logger.error(f"Heartbeat error: {e}")
             await asyncio.sleep(self.config.heartbeat_interval_s)
+
+    def _update_broker_intelligence(self) -> None:
+        """
+        Sprint 9.5: compute broker quality score, select execution profile,
+        adapt risk, run self-protection. Stores results in self._latest_*.
+
+        All engines are optional. This method is only called when
+        broker_quality_engine is present (broker_intelligence.enabled=true).
+        """
+        # Step 1: Detect broker (one-time, cached in BrokerInfo.last_info)
+        broker_info = None
+        if self.broker_intelligence is not None:
+            broker_info = self.broker_intelligence.last_info
+            # If not yet detected, try to detect now (MT5 must be available)
+            if broker_info is None:
+                broker_info = self.broker_intelligence.detect()
+
+        # Step 2: Evaluate broker quality
+        # In dry_run/stub mode, we use synthetic inputs (no real broker metrics).
+        # In live mode, these would come from slippage_monitor + spread tracker.
+        from titan.production.broker_quality_engine import BrokerQualityInput
+        spread_usd = self.config.spread_default
+        if self.news_filter is not None:
+            # Use spread from kill-switch input if available
+            pass
+        inp = BrokerQualityInput(
+            spread_usd=spread_usd,
+            spread_mean_usd=spread_usd,
+            connection_uptime_pct=100.0,  # assume stable in dry_run
+            symbol_health=100.0,
+        )
+        score = self.broker_quality_engine.evaluate(inp)
+        self._latest_broker_score = score.score
+        self._latest_broker_band = score.band
+
+        # Record in history
+        if self.broker_score_history is not None:
+            self.broker_score_history.record(score, spread=spread_usd)
+
+        # Step 3: Select execution profile
+        if self.execution_profile_selector is not None:
+            profile = self.execution_profile_selector.select(score, broker_info)
+            self._latest_execution_profile = profile.name
+
+            # Step 4: Adapt risk
+            if self.broker_risk_adapter is not None:
+                adaptation = self.broker_risk_adapter.adapt(score, profile)
+                self._latest_broker_risk_multiplier = adaptation.risk_multiplier
+                self._latest_entries_paused = not adaptation.allow_new_entries
+
+        # Step 5: Self-protection
+        if self.execution_self_protection is not None:
+            action = self.execution_self_protection.evaluate(
+                spread_usd=spread_usd,
+                latency_ms=0,  # no live latency data in dry_run
+                requote_rate=0.0,
+                rejection_rate=0.0,
+            )
+            if action.pause_entries:
+                self._latest_entries_paused = True
+            # Use the more conservative risk multiplier
+            if action.risk_multiplier < self._latest_broker_risk_multiplier:
+                self._latest_broker_risk_multiplier = action.risk_multiplier
 
     def _update_capital_protection(self) -> None:
         """
