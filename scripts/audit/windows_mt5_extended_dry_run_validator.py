@@ -1,5 +1,5 @@
 """
-TITAN XAU AI — Sprint 9.6.3.2 Finalized Windows MT5 Extended Dry-Run Validator
+TITAN XAU AI — Sprint 9.6.3.4 Finalized Windows MT5 Extended Dry-Run Validator
 ================================================================================
 
 Fixes Sprint 9.6.3.1 issues:
@@ -291,7 +291,7 @@ def write_initial_running_report(report_path: Path, run_id: str, git_commit: str
                                   live_trading: bool, order_guard_installed: bool):
     """Write an initial RUNNING report immediately after startup."""
     report = {
-        "audit": "sprint_9_6_3_2_finalized_windows_mt5_validator",
+        "audit": "sprint_9_6_3_4_strict_readiness_windows_mt5_validator",
         "run_id": run_id,
         "status": "RUNNING",
         "git_commit": git_commit,
@@ -325,7 +325,7 @@ def generate_final_report(out_dir, report_path, run_id, git_commit, git_branch,
     """Generate complete evidence pack — called from finally block."""
 
     report = {
-        "audit": "sprint_9_6_3_2_finalized_windows_mt5_validator",
+        "audit": "sprint_9_6_3_4_strict_readiness_windows_mt5_validator",
         "run_id": run_id,
         "status": "COMPLETED" if verdict != "C" else "FAILED_WITH_REPORT",
         "git_commit": git_commit,
@@ -431,7 +431,7 @@ def generate_final_report(out_dir, report_path, run_id, git_commit, git_branch,
 
     # Verdict markdown
     with open(out_dir / "windows_mt5_final_verdict.md", "w", encoding="utf-8") as f:
-        f.write(f"# Sprint 9.6.3.2 — Finalized Windows MT5 Final Verdict\n\n")
+        f.write(f"# Sprint 9.6.3.4 — Finalized Windows MT5 Final Verdict\n\n")
         f.write(f"**Verdict: {verdict}) {verdict_text}**\n\n")
         f.write(f"| Metric | Value |\n|---|---|\n")
         f.write(f"| Run ID | {run_id} |\n")
@@ -451,7 +451,7 @@ def generate_final_report(out_dir, report_path, run_id, git_commit, git_branch,
 
 async def run_validator(args):
     print("=" * 78)
-    print("  TITAN XAU AI — Sprint 9.6.3.2 Finalized Windows MT5 Validator")
+    print("  TITAN XAU AI — Sprint 9.6.3.4 Finalized Windows MT5 Validator")
     print("=" * 78)
 
     start_utc_dt = datetime.now(timezone.utc)
@@ -499,7 +499,7 @@ async def run_validator(args):
         # ── Linux / no MT5: OPERATOR_REQUIRED ──
         print("\n  ⚠  MT5 not available — producing OPERATOR_REQUIRED report")
         report = {
-            "audit": "sprint_9_6_3_2", "run_id": run_id, "status": "OPERATOR_REQUIRED",
+            "audit": "sprint_9_6_3_4", "run_id": run_id, "status": "OPERATOR_REQUIRED",
             "git_commit": git_commit, "git_branch": git_branch, "git_clean": git_clean,
             "platform": platform.system(), "mt5_available": False,
             "verdict": "B", "verdict_text": "Validator complete, operator Windows run required",
@@ -522,7 +522,7 @@ async def run_validator(args):
             ("windows_mt5_event_counts.json", {"total": 0, "event_types": {}}),
             ("windows_mt5_performance_summary.json", {"status": "not_run"}),
             ("windows_mt5_final_verdict.md",
-             f"# Sprint 9.6.3.2 Final Verdict\n\n**Verdict: B) Validator complete, operator Windows run required**\n\n"
+             f"# Sprint 9.6.3.4 Final Verdict\n\n**Verdict: B) Validator complete, operator Windows run required**\n\n"
              f"MT5 not available on {platform.system()}.\nGit commit: {git_commit}\nRun ID: {run_id}\n"),
         ]:
             p = out_dir / fname
@@ -544,7 +544,7 @@ async def run_validator(args):
     except HardFailError as e:
         print(f"  ✗ HARD FAIL: {e}")
         with open(report_path, "w", encoding="utf-8") as f:
-            json.dump({"audit": "sprint_9_6_3_2", "run_id": run_id,
+            json.dump({"audit": "sprint_9_6_3_4", "run_id": run_id,
                        "verdict": "C", "verdict_text": f"Hard fail: {e}"}, f, indent=2)
         print(f"\n  >>> VERDICT: C) Failed — {e}")
         return
@@ -552,7 +552,7 @@ async def run_validator(args):
     if not is_demo:
         print("  ✗ HARD FAIL: Account is not DEMO")
         with open(report_path, "w", encoding="utf-8") as f:
-            json.dump({"audit": "sprint_9_6_3_2", "run_id": run_id,
+            json.dump({"audit": "sprint_9_6_3_4", "run_id": run_id,
                        "verdict": "C", "verdict_text": "Account is not DEMO"}, f, indent=2)
         print(f"\n  >>> VERDICT: C) Failed — account is not DEMO")
         return
@@ -646,11 +646,11 @@ async def run_validator(args):
     print("  AutonomousRuntime initialized")
     print("  launcher_equivalence_verified=True")
 
-    # ── Run with startup readiness phase + monitoring loop + try/except/finally ──
+    # ── Run with strict readiness + stabilization + monitoring + try/finally ──
     print(f"\n── Starting {args.duration_minutes}-minute extended dry-run ──")
     tracemalloc.start()
     mem_before = tracemalloc.get_traced_memory()[0]
-    t_start = time.perf_counter()
+    process_start_s = time.perf_counter()
 
     start_task = asyncio.create_task(rt.start())
     cpu_sample_task = asyncio.create_task(_cpu_sampler(cpu_monitor, interval=5.0))
@@ -661,17 +661,24 @@ async def run_validator(args):
     shutdown_clean = False
     interrupted = False
 
-    # ── FIX 1: Startup readiness phase ──
-    # Do NOT check rt._running immediately — rt.start() needs time to
-    # set _running=True and spawn async loops. Wait for readiness.
+    # ── STRICT READINESS PHASE ──
+    # runtime_ready=True ONLY if:
+    #   rt._running is True
+    #   AND len(rt._tasks) >= expected_loop_count (default 5)
+    #   AND at least one of: loop evidence in journal OR 2 consecutive checks pass
+    # STARTUP event alone is NOT sufficient (it can exist before _running=True).
     startup_timeout_s = 30.0
+    expected_loop_count = 5
+    stabilization_s = 3.0  # wait 3s after readiness for stability
+
     startup_phase_completed = False
     runtime_ready = False
     runtime_ready_reason = ""
     runtime_ended_before_ready = False
     startup_t0 = time.perf_counter()
+    consecutive_ready_checks = 0
 
-    print(f"  Startup readiness phase (timeout={startup_timeout_s}s)...")
+    print(f"  Strict readiness phase (timeout={startup_timeout_s}s, expected_loops={expected_loop_count})...")
     try:
         while True:
             startup_elapsed = time.perf_counter() - startup_t0
@@ -690,44 +697,89 @@ async def run_validator(args):
                 runtime_ready_reason = "start_task_done_during_startup"
                 break
 
-            # Check readiness conditions
-            if rt._running:
-                runtime_ready = True
-                runtime_ready_reason = "rt._running=True"
-                startup_phase_completed = True
-                break
+            # STRICT readiness: _running AND enough tasks
+            running = rt._running
+            task_count = len(rt._tasks)
 
-            # Also check if tasks have been created (loops are starting)
-            if len(rt._tasks) >= 3:
-                runtime_ready = True
-                runtime_ready_reason = f"loops_started ({len(rt._tasks)} tasks)"
-                startup_phase_completed = True
-                break
-
-            # Check journal for STARTUP or first loop evidence
-            journal.flush()
-            startup_records = journal.read_all()
-            has_startup = any(r.get("event_type") == "STARTUP" for r in startup_records)
-            if has_startup:
-                runtime_ready = True
-                runtime_ready_reason = "STARTUP event in journal"
-                startup_phase_completed = True
-                break
+            if running and task_count >= expected_loop_count:
+                consecutive_ready_checks += 1
+                # Require 2 consecutive checks (1s apart) for stability
+                if consecutive_ready_checks >= 2:
+                    runtime_ready = True
+                    runtime_ready_reason = (
+                        f"rt._running=True + {task_count} tasks + "
+                        f"{consecutive_ready_checks} consecutive checks"
+                    )
+                    startup_phase_completed = True
+                    break
+                else:
+                    logger.info(f"  Readiness check {consecutive_ready_checks}/2 passed "
+                                f"(running={running}, tasks={task_count})")
+            else:
+                consecutive_ready_checks = 0
+                # Log why not ready
+                if startup_elapsed < 5 or int(startup_elapsed) % 5 == 0:
+                    logger.info(f"  Not ready yet: running={running}, "
+                                f"tasks={task_count}/{expected_loop_count}, "
+                                f"elapsed={startup_elapsed:.1f}s")
 
             # Check timeout
             if startup_elapsed >= startup_timeout_s:
                 runtime_ready = False
-                runtime_ready_reason = f"startup_timeout ({startup_timeout_s}s)"
-                errors.append(f"startup_timeout: runtime not ready within {startup_timeout_s}s")
-                logger.error(f"Startup timeout — runtime not ready within {startup_timeout_s}s")
+                runtime_ready_reason = (
+                    f"startup_timeout ({startup_timeout_s}s) — "
+                    f"running={running}, tasks={task_count}/{expected_loop_count}"
+                )
+                errors.append(f"startup_timeout: runtime not ready within {startup_timeout_s}s "
+                              f"(running={running}, tasks={task_count})")
+                logger.error(f"Startup timeout — running={running}, "
+                             f"tasks={task_count}/{expected_loop_count}")
                 break
 
             await asyncio.sleep(0.5)
 
         startup_duration_s = time.perf_counter() - startup_t0
+
+        # ── STABILIZATION PHASE ──
         if runtime_ready:
+            runtime_ready_s = time.perf_counter() - process_start_s
             print(f"  ✓ Runtime ready in {startup_duration_s:.1f}s ({runtime_ready_reason})")
+            print(f"  Stabilization phase ({stabilization_s}s)...")
+            stable = True
+            for _ in range(int(stabilization_s / 0.5)):
+                if not rt._running:
+                    stable = False
+                    errors.append("runtime_lost_during_stabilization: rt._running=False")
+                    logger.error("Runtime lost _running during stabilization")
+                    break
+                if start_task.done():
+                    stable = False
+                    exc = start_task.exception()
+                    if exc:
+                        start_task_exception = exc
+                        errors.append(f"runtime_crashed_during_stabilization: {exc}")
+                    else:
+                        errors.append("runtime_ended_during_stabilization")
+                    logger.error("Runtime task ended during stabilization")
+                    break
+                if len(rt._tasks) < expected_loop_count:
+                    stable = False
+                    errors.append(f"runtime_lost_tasks_during_stabilization: "
+                                  f"tasks={len(rt._tasks)} < {expected_loop_count}")
+                    logger.error(f"Runtime lost tasks during stabilization: "
+                                 f"{len(rt._tasks)} < {expected_loop_count}")
+                    break
+                await asyncio.sleep(0.5)
+
+            if not stable:
+                runtime_ready = False
+                runtime_ready_reason = "stabilization_failed"
+                startup_phase_completed = False
+                print(f"  ✗ Stabilization failed — runtime not stable")
+            else:
+                print(f"  ✓ Stabilization passed — runtime stable")
         else:
+            runtime_ready_s = 0
             print(f"  ✗ Runtime NOT ready after {startup_duration_s:.1f}s ({runtime_ready_reason})")
 
     except KeyboardInterrupt:
@@ -735,22 +787,26 @@ async def run_validator(args):
         print("\n  Interrupted by operator during startup (KeyboardInterrupt)")
         errors.append("operator_interrupt_during_startup: KeyboardInterrupt")
         startup_phase_completed = False
+        runtime_ready_s = 0
     except Exception as e:
         errors.append(f"startup_phase_error: {e}")
         logger.error(f"Startup phase error: {e}")
         startup_phase_completed = False
+        runtime_ready_s = 0
 
-    # ── Normal monitoring loop (only if runtime is ready) ──
+    # ── MONITORING LOOP (only if runtime ready + stable) ──
+    monitoring_start_s = time.perf_counter()
+    monitoring_end_s = monitoring_start_s
+
     try:
         if runtime_ready and not interrupted:
             print(f"  Entering monitoring loop for {duration_s:.0f}s...")
             while True:
-                elapsed = time.perf_counter() - t_start
+                elapsed = time.perf_counter() - monitoring_start_s
                 if elapsed >= duration_s:
                     print(f"  Duration reached ({elapsed:.1f}s)")
                     break
 
-                # Check if start_task ended early (after ready phase)
                 if start_task.done():
                     runtime_ended_early = True
                     exc = start_task.exception()
@@ -763,7 +819,6 @@ async def run_validator(args):
                         logger.warning("Runtime task ended early without exception")
                     break
 
-                # Check if runtime stopped (after readiness confirmed)
                 if not rt._running:
                     runtime_ended_early = True
                     errors.append("runtime_stopped_early: rt._running=False after ready")
@@ -772,39 +827,69 @@ async def run_validator(args):
 
                 await asyncio.sleep(5.0)
 
+            monitoring_end_s = time.perf_counter()
+        else:
+            monitoring_end_s = time.perf_counter()
+
     except KeyboardInterrupt:
         interrupted = True
         print("\n  Interrupted by operator (KeyboardInterrupt)")
         errors.append("operator_interrupt: KeyboardInterrupt")
+        monitoring_end_s = time.perf_counter()
     except Exception as e:
         errors.append(f"validator_error: {e}")
         logger.error(f"Validator error: {e}")
+        monitoring_end_s = time.perf_counter()
 
-    t_elapsed = time.perf_counter() - t_start
+    # Duration is measured from monitoring start to monitoring end
+    t_elapsed = monitoring_end_s - monitoring_start_s
+    total_elapsed_s = time.perf_counter() - process_start_s
     mem_after = tracemalloc.get_traced_memory()[0]
     mem_growth = mem_after - mem_before
 
-    # ── FIX 4: Finally block — always generate report ──
-    print("\n── Finalizing (finally block) ──")
+    # ── SHUTDOWN (always in finally-style block) ──
+    print("\n── Finalizing ──")
     try:
-        # Shutdown
-        try:
-            if rt._running:
-                rt.shutdown()
-            if not start_task.done():
-                await asyncio.wait_for(start_task, timeout=15.0)
-            shutdown_clean = True
-        except asyncio.TimeoutError:
-            start_task.cancel()
+        # Only call rt.shutdown() if runtime was actually running
+        if rt._running:
             try:
-                await start_task
-            except asyncio.CancelledError:
-                pass
-            shutdown_clean = False
-            errors.append("shutdown_timeout: runtime did not stop within 15s")
-        except Exception as e:
-            shutdown_clean = False
-            errors.append(f"shutdown_error: {e}")
+                rt.shutdown()
+            except Exception as e:
+                errors.append(f"shutdown_call_error: {e}")
+                logger.error(f"Shutdown call error: {e}")
+
+        # Wait for start_task to finish (with timeout)
+        if not start_task.done():
+            try:
+                await asyncio.wait_for(start_task, timeout=15.0)
+            except asyncio.TimeoutError:
+                start_task.cancel()
+                try:
+                    await start_task
+                except asyncio.CancelledError:
+                    pass
+                errors.append("shutdown_timeout: runtime did not stop within 15s")
+                logger.error("Shutdown timeout — runtime task did not finish within 15s")
+            except Exception as e:
+                errors.append(f"shutdown_wait_error: {e}")
+
+        # Verify all tasks are done/cancelled
+        pending_tasks = [t for t in rt._tasks if not t.done()]
+        if pending_tasks:
+            for t in pending_tasks:
+                t.cancel()
+                try:
+                    await t
+                except asyncio.CancelledError:
+                    pass
+            errors.append(f"pending_tasks_after_shutdown: {len(pending_tasks)} tasks were still running")
+
+        # Shutdown is clean only if rt._running=False and no pending tasks
+        remaining_pending = [t for t in rt._tasks if not t.done()]
+        shutdown_clean = (not rt._running) and (len(remaining_pending) == 0)
+        if not shutdown_clean and "shutdown_timeout" not in str(errors):
+            errors.append(f"shutdown_not_clean: rt._running={rt._running}, "
+                          f"pending_tasks={len(remaining_pending)}")
 
         # Cancel CPU sampler
         cpu_sample_task.cancel()

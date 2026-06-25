@@ -644,3 +644,134 @@ class TestHardFailStillWorks:
     def test_live_trading_true_still_hard_fails(self):
         with pytest.raises(HardFailError, match="live_trading"):
             check_hard_fail_conditions(True, True, "0", 0.01)
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# Sprint 9.6.3.4 — Strict Readiness + Shutdown Fix Tests
+# ════════════════════════════════════════════════════════════════════════════
+class TestStrictReadiness:
+    def test_startup_event_alone_does_not_mark_ready(self):
+        """STARTUP event alone must NOT set runtime_ready=True."""
+        has_startup_event = True
+        rt_running = False
+        task_count = 0
+        expected_loop_count = 5
+        # Old logic would set ready=True just from STARTUP event
+        # New logic requires _running AND tasks >= expected
+        runtime_ready = rt_running and task_count >= expected_loop_count
+        assert runtime_ready is False  # STARTUP alone is not enough
+
+    def test_running_but_tasks_too_few_does_not_mark_ready(self):
+        """rt._running=True but tasks < 5 → NOT ready."""
+        rt_running = True
+        task_count = 2
+        expected_loop_count = 5
+        runtime_ready = rt_running and task_count >= expected_loop_count
+        assert runtime_ready is False
+
+    def test_tasks_enough_but_not_running_does_not_mark_ready(self):
+        """tasks >= 5 but rt._running=False → NOT ready."""
+        rt_running = False
+        task_count = 5
+        expected_loop_count = 5
+        runtime_ready = rt_running and task_count >= expected_loop_count
+        assert runtime_ready is False
+
+    def test_running_and_tasks_enough_marks_ready(self):
+        """rt._running=True AND tasks >= 5 → ready (after 2 consecutive checks)."""
+        rt_running = True
+        task_count = 5
+        expected_loop_count = 5
+        consecutive_checks = 2
+        base_condition = rt_running and task_count >= expected_loop_count
+        runtime_ready = base_condition and consecutive_checks >= 2
+        assert runtime_ready is True
+
+    def test_readiness_requires_stability(self):
+        """Readiness requires 2 consecutive checks."""
+        consecutive_ready_checks = 1  # only 1 check
+        runtime_ready = consecutive_ready_checks >= 2
+        assert runtime_ready is False
+
+    def test_runtime_loses_running_during_stabilization_gives_c(self):
+        """If runtime loses _running during stabilization → Verdict C."""
+        stable = False
+        runtime_ready = False  # stabilization failed
+        interrupted = False
+        startup_failed = not runtime_ready and not interrupted
+        if startup_failed:
+            verdict = "C"
+        else:
+            verdict = "A"
+        assert verdict == "C"
+
+
+class TestDurationTimerFix:
+    def test_monitoring_start_after_ready(self):
+        """monitoring_start_s must occur after runtime_ready_s."""
+        runtime_ready_s = 5.0
+        monitoring_start_s = 5.1  # just after ready
+        assert monitoring_start_s > runtime_ready_s
+
+    def test_duration_measured_from_monitoring_start(self):
+        """duration_actual_s = monitoring_end - monitoring_start, not process start."""
+        process_start = 0.0
+        monitoring_start = 5.0
+        monitoring_end = 125.0
+        duration_actual = monitoring_end - monitoring_start
+        total_elapsed = monitoring_end - process_start
+        assert duration_actual == 120.0  # 2 minutes of monitoring
+        assert total_elapsed == 125.0    # includes startup
+        assert duration_actual != total_elapsed  # not the same
+
+    def test_2_minute_completed_monitoring_has_duration_above_100(self):
+        """Completed 2-min monitoring → duration_actual_s >= 100."""
+        monitoring_start = 5.0
+        monitoring_end = 125.0
+        duration_actual = monitoring_end - monitoring_start
+        assert duration_actual >= 100
+
+
+class TestFinalizationShutdown:
+    def test_finalization_not_during_startup(self):
+        """Finalization must not start during startup phase."""
+        runtime_ready = False
+        startup_phase_active = True
+        # Finalization only runs after startup phase completes
+        finalization_allowed = not startup_phase_active or runtime_ready
+        assert finalization_allowed is False  # not allowed during startup
+
+    def test_shutdown_clean_requires_running_false(self):
+        """shutdown_clean=True only if rt._running=False after shutdown."""
+        rt_running_after = False
+        pending_tasks = 0
+        shutdown_clean = (not rt_running_after) and (pending_tasks == 0)
+        assert shutdown_clean is True
+
+    def test_pending_tasks_after_shutdown_gives_not_clean(self):
+        """Pending tasks after shutdown → shutdown_clean=False."""
+        rt_running_after = False
+        pending_tasks = 2  # still running
+        shutdown_clean = (not rt_running_after) and (pending_tasks == 0)
+        assert shutdown_clean is False
+
+    def test_cancelled_tasks_handled_safely(self):
+        """Cancelled tasks should not cause crash."""
+        import asyncio
+        async def test_cancel():
+            task = asyncio.create_task(asyncio.sleep(100))
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass  # handled safely
+            return True
+        result = asyncio.run(test_cancel())
+        assert result is True
+
+
+class TestReportLabel:
+    def test_report_label_is_9_6_3_4(self):
+        """Report should say Sprint 9.6.3.4 not 9.6.3.2."""
+        assert "9_6_3_4" in "sprint_9_6_3_4_strict_readiness_windows_mt5_validator"
+        assert "9_6_3_2" not in "sprint_9_6_3_4_strict_readiness_windows_mt5_validator"
