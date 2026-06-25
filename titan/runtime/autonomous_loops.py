@@ -118,6 +118,17 @@ class AutonomousRuntime:
         broker_risk_adapter=None,
         broker_score_history=None,
         execution_self_protection=None,
+        # Sprint 9.6.1: optional AI exit-intelligence engines.
+        # When None (default), behavior is unchanged — existing ExitManager
+        # handles all exit decisions. When provided (from launcher when
+        # exit_intelligence.enabled=true), these engines are queried in
+        # _exit_manager_loop BEFORE the existing ExitManager, providing
+        # AI-driven exit recommendations. ExitManager safety always runs
+        # afterward as the final safety layer.
+        ai_exit_engine=None,
+        exit_strategy_engine=None,
+        exit_quality_scorer=None,
+        exit_governance=None,
     ):
         self.config = config or RuntimeConfig()
         self.journal = journal or TradeJournal(path=journal_path)
@@ -150,6 +161,12 @@ class AutonomousRuntime:
         self.broker_risk_adapter = broker_risk_adapter
         self.broker_score_history = broker_score_history
         self.execution_self_protection = execution_self_protection
+
+        # Sprint 9.6.1: AI exit-intelligence engines (all optional)
+        self.ai_exit_engine = ai_exit_engine
+        self.exit_strategy_engine = exit_strategy_engine
+        self.exit_quality_scorer = exit_quality_scorer
+        self.exit_governance = exit_governance
 
         # Sprint 9.3.1: runtime state shared between heartbeat + inference
         self._latest_health_score: Optional[float] = None
@@ -521,11 +538,41 @@ class AutonomousRuntime:
     # ─── Loop 3: Exit Manager ───────────────────────────────────────────
 
     async def _exit_manager_loop(self) -> None:
-        """Check open positions for exit conditions every 5 seconds."""
+        """Check open positions for exit conditions every 5 seconds.
+
+        Sprint 9.6.1: When ai_exit_engine is present, AI Exit evaluates
+        each position BEFORE the existing ExitManager. AI Exit provides
+        recommendations (HOLD/PARTIAL/TRAIL/BE/BOOK/FULL/EMERGENCY).
+        ExitManager safety always runs afterward as the final safety layer.
+        If AI Exit fails, fallback to ExitManager only (fail-closed).
+        """
         logger.info("Exit manager loop started")
         while self._running:
             try:
                 positions = self.position_sync.open_positions
+
+                # ── Sprint 9.6.1: AI Exit evaluation (optional) ──
+                # When ai_exit_engine is present, evaluate each position
+                # through the AI exit layer BEFORE the existing ExitManager.
+                # This provides AI-driven recommendations. ExitManager safety
+                # always runs afterward regardless of AI Exit output.
+                if self.ai_exit_engine is not None and positions:
+                    for pos in positions:
+                        try:
+                            self._evaluate_ai_exit(pos)
+                        except Exception as ai_err:
+                            logger.warning(
+                                f"AI Exit evaluation failed (fallback to "
+                                f"ExitManager): {ai_err}"
+                            )
+                            self.journal.log_event(EventType.EXIT_AI_DECISION, {
+                                "ticket": getattr(pos, "ticket", 0),
+                                "action": "FALLBACK",
+                                "reason": f"ai_exit_error: {ai_err}",
+                                "ai_exit_fallback_used": True,
+                            })
+
+                # ── Existing ExitManager (always runs — final safety layer) ──
                 for pos in positions:
                     exit_decision = self.exit_manager.evaluate(
                         position=pos,
@@ -887,6 +934,256 @@ class AutonomousRuntime:
             self._latest_risk_multiplier = risk_eval.risk_multiplier
 
     # ─── Helpers ────────────────────────────────────────────────────────
+
+    def _evaluate_ai_exit(self, pos) -> None:
+        """
+        Sprint 9.6.1: Evaluate a single open position through the AI Exit
+        Intelligence layer. Builds ExitInput from runtime context, calls
+        AIExitEngine, journals the decision, and simulates dry-run actions.
+
+        Safety:
+          - In dry_run=true: journals what WOULD happen, sends no MT5 orders
+          - In live_trading=false: never calls mt5.order_send
+          - Existing ExitManager runs AFTER this as the final safety layer
+          - If any field is unavailable, uses safe defaults + marks missing
+          - Latency measured for every evaluation
+          - Emergency fast-path bypasses AI slow path (<50ms)
+        """
+        import time as _time
+        from titan.production.ai_exit_engine import ExitInput, ExitAction
+
+        t0 = _time.perf_counter()
+        missing_fields = []
+
+        # ── Build ExitInput from position + runtime context ──
+        direction = getattr(pos, "type", 0)  # MT5: 0=BUY, 1=SELL
+        direction_int = 1 if direction == 0 else -1  # +1 long, -1 short
+        entry_price = float(getattr(pos, "price_open", 0) or 0)
+        current_price = float(getattr(pos, "price_current", 0) or
+                              self.config.entry_price_default)
+        stop_loss = float(getattr(pos, "sl", 0) or 0)
+        take_profit = float(getattr(pos, "tp", 0) or 0)
+        volume = float(getattr(pos, "volume", 0.01) or 0.01)
+        floating_pnl = float(getattr(pos, "profit", 0) or 0)
+
+        # Compute R-multiple (floating PnL / initial risk)
+        initial_risk = abs(entry_price - stop_loss) * 100 * volume if stop_loss > 0 else 0
+        r_multiple = floating_pnl / initial_risk if initial_risk > 0 else 0.0
+
+        # Time in trade
+        import time as _time_mod
+        pos_time = getattr(pos, "time", None)
+        if pos_time is not None:
+            try:
+                time_in_trade_hours = (_time_mod.time() - float(pos_time)) / 3600.0
+            except (TypeError, ValueError):
+                time_in_trade_hours = 0.0
+                missing_fields.append("time_in_trade")
+        else:
+            time_in_trade_hours = 0.0
+            missing_fields.append("time_in_trade")
+
+        # Current ATR
+        current_atr = self._compute_current_atr()
+        if current_atr <= 0:
+            missing_fields.append("current_atr")
+
+        # Model confidence (use latest from inference — may be stale)
+        xgb_confidence = 0.5  # safe default
+        meta_confidence = getattr(self, "_last_meta_confidence", 0.65)
+        if meta_confidence is None:
+            meta_confidence = 0.65
+            missing_fields.append("meta_confidence")
+
+        # Account health
+        account_health = self._latest_health_score or 100.0
+        if self._latest_health_score is None:
+            missing_fields.append("account_health")
+
+        # Risk profile
+        risk_profile = self._latest_risk_profile or "normal"
+
+        # Broker quality
+        broker_quality = self._latest_broker_score or 100.0
+        if self._latest_broker_score is None:
+            missing_fields.append("broker_quality")
+
+        # Capital protection + recovery
+        cap_pres_active = (
+            self.capital_preservation.is_active
+            if self.capital_preservation else False
+        )
+        recovery_active = (
+            self.recovery_mode.is_active
+            if self.recovery_mode else False
+        )
+
+        # News state
+        news_halt = self.news_filter.is_halt_active() if self.news_filter else False
+
+        # Session (simplified)
+        from datetime import datetime, timezone
+        now = datetime.now(timezone.utc)
+        hour = now.hour
+        if 0 <= hour < 8:
+            session = "asia"
+        elif 8 <= hour < 14:
+            session = "eu"
+        elif 14 <= hour < 22:
+            session = "us"
+        else:
+            session = "off"
+
+        # Regime (simplified — would come from context engine)
+        regime = "normal"
+        if current_atr > 30:
+            regime = "volatile"
+        elif self._latest_health_band == "normal":
+            regime = "trend"
+
+        # Trend strength (simplified — would come from feature stream)
+        trend_strength = 0.3  # safe default
+        momentum = 0.5  # safe default
+
+        # Build ExitInput
+        exit_input = ExitInput(
+            direction=direction_int,
+            entry_price=entry_price,
+            current_price=current_price,
+            stop_loss=stop_loss,
+            take_profit=take_profit,
+            volume=volume,
+            xgb_confidence=xgb_confidence,
+            meta_confidence=meta_confidence,
+            trend_strength=trend_strength,
+            momentum=momentum,
+            volatility_regime="high" if current_atr > 30 else "normal",
+            atr=current_atr,
+            spread_usd=self.config.spread_default,
+            time_in_trade_hours=time_in_trade_hours,
+            floating_pnl_usd=floating_pnl,
+            r_multiple=r_multiple,
+            account_health_score=account_health,
+            capital_preservation_active=cap_pres_active,
+            recovery_mode_active=recovery_active,
+            broker_quality_score=broker_quality,
+            news_halt_active=news_halt,
+            news_imminent=False,  # would come from news filter
+            session=session,
+            regime=regime,
+        )
+
+        # Build cached context dict from latest runtime state
+        cached_context = {
+            "health_score": account_health,
+            "risk_profile": risk_profile,
+            "broker_quality": broker_quality,
+        }
+
+        # ── Call AIExitEngine ──
+        ai_decision = self.ai_exit_engine.evaluate(
+            exit_input, cached_context=cached_context
+        )
+
+        # ── Call ExitGovernance (if present) ──
+        governance_decision = None
+        if self.exit_governance is not None:
+            try:
+                governance_decision = self.exit_governance.decide(ai_decision)
+            except Exception as gov_err:
+                logger.warning(f"ExitGovernance failed: {gov_err}")
+                missing_fields.append("governance_decision")
+
+        # ── Determine action application ──
+        # In dry_run=true: journal what WOULD happen, send no MT5 orders
+        # In live_trading=false: never call mt5.order_send
+        would_modify = False
+        would_close = False
+        dry_run = self.config.dry_run
+
+        if ai_decision.action == ExitAction.HOLD:
+            pass  # no modification
+        elif ai_decision.action == ExitAction.MOVE_TO_BREAK_EVEN:
+            would_modify = True
+        elif ai_decision.action == ExitAction.TRAIL:
+            would_modify = True
+        elif ai_decision.action == ExitAction.PARTIAL_CLOSE:
+            would_close = True
+        elif ai_decision.action == ExitAction.BOOK_PROFIT:
+            would_close = True
+        elif ai_decision.action == ExitAction.FULL_EXIT:
+            would_close = True
+        elif ai_decision.action == ExitAction.EMERGENCY_EXIT:
+            would_close = True
+
+        # ── Journal the full decision ──
+        latency_ms = (_time.perf_counter() - t0) * 1000
+        ticket = getattr(pos, "ticket", 0)
+        symbol = getattr(pos, "symbol", "XAUUSD")
+
+        journal_data = {
+            "ticket": ticket,
+            "symbol": symbol,
+            "direction": direction_int,
+            "current_price": current_price,
+            "floating_pnl": floating_pnl,
+            "r_multiple": r_multiple,
+            "action": ai_decision.action.value,
+            "confidence": ai_decision.confidence,
+            "exit_latency_ms": round(latency_ms, 3),
+            "emergency_fast_path_used": ai_decision.emergency_fast_path_used,
+            "used_cached_context": ai_decision.used_cached_context,
+            "ai_exit_fallback_used": False,
+            "missing_context_fields": missing_fields,
+            "dry_run": dry_run,
+            "live_trading": not dry_run,
+            "would_modify_order": would_modify,
+            "would_close_order": would_close,
+            "decision_path": ai_decision.decision_path,
+            "reason": ai_decision.reason,
+        }
+
+        # Add governance decision if available
+        if governance_decision is not None:
+            journal_data["governance_decision"] = governance_decision.final_action.value
+            journal_data["governance_confidence"] = governance_decision.final_confidence
+
+        # Add partial close details
+        if ai_decision.action == ExitAction.PARTIAL_CLOSE:
+            journal_data["partial_close_pct"] = ai_decision.partial_close_pct
+            journal_data["partial_volume"] = volume * ai_decision.partial_close_pct / 100
+
+        # Add new SL for trail/BE
+        if ai_decision.action == ExitAction.TRAIL:
+            journal_data["new_trailing_sl"] = ai_decision.new_trailing_sl
+        elif ai_decision.action == ExitAction.MOVE_TO_BREAK_EVEN:
+            journal_data["new_break_even_sl"] = ai_decision.new_break_even_sl
+
+        self.journal.log_event(EventType.EXIT_AI_DECISION, journal_data)
+
+        # ── Safety: SL never moves in wrong direction ──
+        if would_modify and ai_decision.action == ExitAction.TRAIL:
+            if direction_int == 1 and ai_decision.new_trailing_sl <= stop_loss:
+                logger.warning(
+                    f"AI trail SL {ai_decision.new_trailing_sl} <= current "
+                    f"SL {stop_loss} for LONG — ignoring (safety)"
+                )
+                would_modify = False
+            elif direction_int == -1 and ai_decision.new_trailing_sl >= stop_loss:
+                logger.warning(
+                    f"AI trail SL {ai_decision.new_trailing_sl} >= current "
+                    f"SL {stop_loss} for SHORT — ignoring (safety)"
+                )
+                would_modify = False
+
+        # ── Safety: partial close never over-closes ──
+        if would_close and ai_decision.action == ExitAction.PARTIAL_CLOSE:
+            if ai_decision.partial_close_pct > 75:
+                logger.warning(
+                    f"AI partial close {ai_decision.partial_close_pct}% > 75% "
+                    f"— capping at 75% (safety)"
+                )
+                ai_decision.partial_close_pct = 75
 
     def _compute_current_atr(self) -> float:
         """

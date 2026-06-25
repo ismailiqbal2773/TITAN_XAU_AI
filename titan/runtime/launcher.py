@@ -784,6 +784,11 @@ class TitanLauncher:
                     broker_risk_adapter=self._components.get("broker_risk_adapter"),
                     broker_score_history=self._components.get("broker_score_history"),
                     execution_self_protection=self._components.get("execution_self_protection"),
+                    # Sprint 9.6.1: pass AI exit-intelligence engines when active
+                    ai_exit_engine=self._components.get("ai_exit_engine"),
+                    exit_strategy_engine=self._components.get("exit_strategy_engine"),
+                    exit_quality_scorer=self._components.get("exit_quality_scorer"),
+                    exit_governance=self._components.get("exit_governance"),
                 )
                 runtime.initialize()
                 self._components["autonomous_runtime"] = runtime
