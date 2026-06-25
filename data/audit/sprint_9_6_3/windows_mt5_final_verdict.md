@@ -4,14 +4,14 @@
 
 | Metric | Value |
 |---|---|
-| Run ID | windows_mt5_20260625_125046 |
-| Git commit | c8dc112 |
+| Run ID | windows_mt5_20260625_134503 |
+| Git commit | 077ae74 |
 | Platform | Windows |
-| Duration | 30 min (1805.0s) |
-| Signals | 2 |
-| Heartbeats | 60 |
-| Journal records | 314 |
-| Memory growth | 4086.8 KB |
+| Duration | 240 min (14403.0s) |
+| Signals | 5 |
+| Heartbeats | 478 |
+| Journal records | 2419 |
+| Memory growth | 4357.0 KB |
 | order_send called | 0 |
 | order_send success | 0 |
 | Runtime ended early | False |

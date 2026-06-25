@@ -1,8 +1,8 @@
 {
   "audit": "sprint_9_6_3_4_strict_readiness_windows_mt5_validator",
-  "run_id": "windows_mt5_20260625_125046",
+  "run_id": "windows_mt5_20260625_134503",
   "status": "COMPLETED",
-  "git_commit": "c8dc112",
+  "git_commit": "077ae74",
   "git_branch": "main",
   "git_clean": false,
   "platform": "Windows",
@@ -12,29 +12,29 @@
   "account_type": "DEMO",
   "symbol": "XAUUSD",
   "timeframe": "H1",
-  "start_utc": "2026-06-25T12:50:46.651431+00:00",
-  "end_utc": "2026-06-25T13:21:02.065133+00:00",
-  "duration_minutes": 30,
-  "duration_actual_s": 1805.0336886999994,
+  "start_utc": "2026-06-25T13:45:03.901859+00:00",
+  "end_utc": "2026-06-25T17:45:32.222203+00:00",
+  "duration_minutes": 240,
+  "duration_actual_s": 14402.9812967,
   "runtime_ended_early": false,
   "start_task_exception": null,
   "loops_active": 5,
-  "signals_generated": 2,
-  "decisions_generated": 2,
-  "dry_run_orders": 2,
+  "signals_generated": 5,
+  "decisions_generated": 5,
+  "dry_run_orders": 5,
   "live_orders_executed": 0,
-  "heartbeat_count": 60,
-  "broker_score_events": 60,
-  "account_health_events": 60,
+  "heartbeat_count": 478,
+  "broker_score_events": 478,
+  "account_health_events": 478,
   "ai_exit_events": 0,
   "exit_governance_events": 0,
   "atr_usage_count": 1,
   "memory_start_kb": 0.0,
-  "memory_end_kb": 4086.8115234375,
-  "memory_growth_kb": 4086.8115234375,
-  "cpu_average": 29.69943661971831,
-  "cpu_max": 89.3,
-  "cpu_samples": 355,
+  "memory_end_kb": 4357.0029296875,
+  "memory_growth_kb": 4357.0029296875,
+  "cpu_average": 19.5972695035461,
+  "cpu_max": 100.0,
+  "cpu_samples": 2820,
   "cpu_status": "available",
   "errors": [],
   "warnings": [],
@@ -82,7 +82,7 @@
     {
       "check": "9. Inference loop",
       "status": "PASS",
-      "evidence": "signals=2"
+      "evidence": "signals=5"
     },
     {
       "check": "10. Position sync",
@@ -102,17 +102,17 @@
     {
       "check": "13. Heartbeat count",
       "status": "PASS",
-      "evidence": "60 \u2265 58"
+      "evidence": "478 \u2265 478"
     },
     {
       "check": "14. Broker Intelligence events",
       "status": "PASS",
-      "evidence": "60 events"
+      "evidence": "478 events"
     },
     {
       "check": "15. Capital Protection events",
       "status": "PASS",
-      "evidence": "60 events"
+      "evidence": "478 events"
     },
     {
       "check": "16. Dynamic Risk active",
@@ -122,22 +122,22 @@
     {
       "check": "17. ATR SL/TP evidence",
       "status": "PASS",
-      "evidence": "found=True, atr=22.906428571428574"
+      "evidence": "found=True, atr=22.644285714285747"
     },
     {
       "check": "18. SIGNAL_CREATED events",
       "status": "PASS",
-      "evidence": "2 events"
+      "evidence": "5 events"
     },
     {
       "check": "19. DECISION events",
       "status": "PASS",
-      "evidence": "2 events"
+      "evidence": "5 events"
     },
     {
       "check": "20. ORDER records dry_run only",
       "status": "PASS",
-      "evidence": "2 orders, all_dry=True"
+      "evidence": "5 orders, all_dry=True"
     },
     {
       "check": "21. No live ORDER_SEND",
@@ -152,12 +152,12 @@
     {
       "check": "23. Memory stable",
       "status": "PASS",
-      "evidence": "growth=4086.8KB"
+      "evidence": "growth=4357.0KB"
     },
     {
       "check": "24. CPU acceptable",
       "status": "PASS",
-      "evidence": "avg=29.7%, max=89.3%"
+      "evidence": "avg=19.6%, max=100.0%"
     },
     {
       "check": "25. No deadlocks",
@@ -167,7 +167,7 @@
     {
       "check": "26. No loop starvation",
       "status": "PASS",
-      "evidence": "signals=2"
+      "evidence": "signals=5"
     },
     {
       "check": "27. No duplicate same-candle orders",
@@ -215,7 +215,7 @@
   "verdict_text": "Windows MT5 extended dry-run validated",
   "journal_path": "data\\audit\\sprint_9_6_3\\windows_mt5_extended_journal.jsonl",
   "startup_phase_completed": true,
-  "startup_duration_s": 1.5024469999989378,
+  "startup_duration_s": 1.7207551000028616,
   "runtime_ready": true,
   "runtime_ready_reason": "rt._running=True + 5 tasks + 2 consecutive checks",
   "runtime_ended_before_ready": false,

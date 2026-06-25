@@ -1,11 +1,11 @@
 {
-  "duration_s": 1805.0336886999994,
-  "memory_growth_kb": 4086.8115234375,
-  "signals_generated": 2,
-  "heartbeats": 60,
-  "journal_records": 314,
-  "cpu_average": 29.69943661971831,
-  "cpu_max": 89.3,
+  "duration_s": 14402.9812967,
+  "memory_growth_kb": 4357.0029296875,
+  "signals_generated": 5,
+  "heartbeats": 478,
+  "journal_records": 2419,
+  "cpu_average": 19.5972695035461,
+  "cpu_max": 100.0,
   "cpu_status": "available",
   "shutdown_clean": true
 }
