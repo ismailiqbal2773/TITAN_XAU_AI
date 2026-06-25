@@ -317,7 +317,11 @@ def generate_final_report(out_dir, report_path, run_id, git_commit, git_branch,
                           order_guard, cpu_monitor, mem_growth, mem_before, mem_after,
                           shutdown_clean, checks, verdict, verdict_text,
                           errors, runtime_ended_early, start_task_exception,
-                          capital_preservation_info, mt5_account_info, is_demo):
+                          capital_preservation_info, mt5_account_info, is_demo,
+                          startup_phase_completed=False, startup_duration_s=0,
+                          runtime_ready=False, runtime_ready_reason="",
+                          runtime_ended_before_ready=False, startup_timeout_s=30,
+                          no_tradeable_signal=False, no_tradeable_signal_reason=""):
     """Generate complete evidence pack — called from finally block."""
 
     report = {
@@ -377,6 +381,17 @@ def generate_final_report(out_dir, report_path, run_id, git_commit, git_branch,
         "verdict": verdict,
         "verdict_text": verdict_text,
         "journal_path": str(journal.path if hasattr(journal, 'path') else ""),
+        # Sprint 9.6.3.3: startup phase + no-tradeable-signal fields
+        "startup_phase_completed": startup_phase_completed,
+        "startup_duration_s": startup_duration_s,
+        "runtime_ready": runtime_ready,
+        "runtime_ready_reason": runtime_ready_reason,
+        "runtime_ended_before_ready": runtime_ended_before_ready,
+        "startup_timeout_s": startup_timeout_s,
+        "no_tradeable_signal": no_tradeable_signal,
+        "no_tradeable_signal_reason": no_tradeable_signal_reason,
+        "decision_evidence_available": check_atr_evidence(records)[0],
+        "atr_evidence_available": check_atr_evidence(records)[0],
     }
     with open(report_path, "w", encoding="utf-8") as f:
         json.dump(report, f, indent=2, default=str)
@@ -631,7 +646,7 @@ async def run_validator(args):
     print("  AutonomousRuntime initialized")
     print("  launcher_equivalence_verified=True")
 
-    # ── FIX 4/6: Run with monitoring loop + try/except/finally ──
+    # ── Run with startup readiness phase + monitoring loop + try/except/finally ──
     print(f"\n── Starting {args.duration_minutes}-minute extended dry-run ──")
     tracemalloc.start()
     mem_before = tracemalloc.get_traced_memory()[0]
@@ -646,31 +661,116 @@ async def run_validator(args):
     shutdown_clean = False
     interrupted = False
 
+    # ── FIX 1: Startup readiness phase ──
+    # Do NOT check rt._running immediately — rt.start() needs time to
+    # set _running=True and spawn async loops. Wait for readiness.
+    startup_timeout_s = 30.0
+    startup_phase_completed = False
+    runtime_ready = False
+    runtime_ready_reason = ""
+    runtime_ended_before_ready = False
+    startup_t0 = time.perf_counter()
+
+    print(f"  Startup readiness phase (timeout={startup_timeout_s}s)...")
     try:
-        # FIX 6: Monitoring loop instead of plain asyncio.sleep
         while True:
-            elapsed = time.perf_counter() - t_start
-            if elapsed >= duration_s:
-                break
-            # FIX 5: Check if start_task ended early
+            startup_elapsed = time.perf_counter() - startup_t0
+
+            # Check if start_task crashed during startup
             if start_task.done():
-                runtime_ended_early = True
                 exc = start_task.exception()
                 if exc:
                     start_task_exception = exc
-                    errors.append(f"runtime_task_exception: {exc}")
-                    logger.error(f"Runtime task ended with exception: {exc}")
+                    errors.append(f"runtime_task_exception_during_startup: {exc}")
+                    logger.error(f"Runtime task crashed during startup: {exc}")
                 else:
-                    errors.append("runtime_task_ended_early: task completed without exception")
-                    logger.warning("Runtime task ended early without exception")
+                    errors.append("runtime_task_ended_during_startup: task completed without exception")
+                    logger.warning("Runtime task ended during startup")
+                runtime_ended_before_ready = True
+                runtime_ready_reason = "start_task_done_during_startup"
                 break
-            # Check if runtime stopped
-            if not rt._running:
-                runtime_ended_early = True
-                errors.append("runtime_stopped_early: rt._running=False")
-                logger.warning("Runtime stopped early (rt._running=False)")
+
+            # Check readiness conditions
+            if rt._running:
+                runtime_ready = True
+                runtime_ready_reason = "rt._running=True"
+                startup_phase_completed = True
                 break
-            await asyncio.sleep(5.0)
+
+            # Also check if tasks have been created (loops are starting)
+            if len(rt._tasks) >= 3:
+                runtime_ready = True
+                runtime_ready_reason = f"loops_started ({len(rt._tasks)} tasks)"
+                startup_phase_completed = True
+                break
+
+            # Check journal for STARTUP or first loop evidence
+            journal.flush()
+            startup_records = journal.read_all()
+            has_startup = any(r.get("event_type") == "STARTUP" for r in startup_records)
+            if has_startup:
+                runtime_ready = True
+                runtime_ready_reason = "STARTUP event in journal"
+                startup_phase_completed = True
+                break
+
+            # Check timeout
+            if startup_elapsed >= startup_timeout_s:
+                runtime_ready = False
+                runtime_ready_reason = f"startup_timeout ({startup_timeout_s}s)"
+                errors.append(f"startup_timeout: runtime not ready within {startup_timeout_s}s")
+                logger.error(f"Startup timeout — runtime not ready within {startup_timeout_s}s")
+                break
+
+            await asyncio.sleep(0.5)
+
+        startup_duration_s = time.perf_counter() - startup_t0
+        if runtime_ready:
+            print(f"  ✓ Runtime ready in {startup_duration_s:.1f}s ({runtime_ready_reason})")
+        else:
+            print(f"  ✗ Runtime NOT ready after {startup_duration_s:.1f}s ({runtime_ready_reason})")
+
+    except KeyboardInterrupt:
+        interrupted = True
+        print("\n  Interrupted by operator during startup (KeyboardInterrupt)")
+        errors.append("operator_interrupt_during_startup: KeyboardInterrupt")
+        startup_phase_completed = False
+    except Exception as e:
+        errors.append(f"startup_phase_error: {e}")
+        logger.error(f"Startup phase error: {e}")
+        startup_phase_completed = False
+
+    # ── Normal monitoring loop (only if runtime is ready) ──
+    try:
+        if runtime_ready and not interrupted:
+            print(f"  Entering monitoring loop for {duration_s:.0f}s...")
+            while True:
+                elapsed = time.perf_counter() - t_start
+                if elapsed >= duration_s:
+                    print(f"  Duration reached ({elapsed:.1f}s)")
+                    break
+
+                # Check if start_task ended early (after ready phase)
+                if start_task.done():
+                    runtime_ended_early = True
+                    exc = start_task.exception()
+                    if exc:
+                        start_task_exception = exc
+                        errors.append(f"runtime_task_exception: {exc}")
+                        logger.error(f"Runtime task ended with exception: {exc}")
+                    else:
+                        errors.append("runtime_task_ended_early: task completed without exception")
+                        logger.warning("Runtime task ended early without exception")
+                    break
+
+                # Check if runtime stopped (after readiness confirmed)
+                if not rt._running:
+                    runtime_ended_early = True
+                    errors.append("runtime_stopped_early: rt._running=False after ready")
+                    logger.warning("Runtime stopped early (rt._running=False after ready)")
+                    break
+
+                await asyncio.sleep(5.0)
 
     except KeyboardInterrupt:
         interrupted = True
@@ -830,10 +930,44 @@ async def run_validator(args):
     failed_count = sum(1 for c in checks if c["status"] == "FAIL")
     warn_count = sum(1 for c in checks if c["status"] == "WARN")
 
+    # FIX 5: No-tradeable-signal detection
+    # If signals were generated but rejected (xgb_below_threshold etc),
+    # and runtime was stable, this is Verdict B not C.
     no_tradeable_signal = (sig_events == 0 or dec_count == 0) and failed_count == 0
+    no_tradeable_signal_reason = ""
+    if no_tradeable_signal:
+        # Try to find the reason from journal
+        for r in records:
+            if r.get("event_type") == "SIGNAL_REJECTED":
+                reason = r.get("data", {}).get("reason", "")
+                if reason:
+                    no_tradeable_signal_reason = reason
+                    break
+            if r.get("event_type") == "SIGNAL_CREATED":
+                data = r.get("data", {})
+                if not data.get("is_tradeable", True):
+                    no_tradeable_signal_reason = data.get("reject_reason", "not_tradeable")
+                    break
+        if not no_tradeable_signal_reason and sig_events == 0:
+            no_tradeable_signal_reason = "no_signal_generated"
+        elif not no_tradeable_signal_reason:
+            no_tradeable_signal_reason = "xgb_below_threshold"
 
-    # FIX 7: runtime_ended_early → Verdict C (unless operator interrupt)
-    if runtime_ended_early and not interrupted and not (start_task_exception is None and rt._signals_generated > 0):
+    # Duration check: if duration is near 0, that's C
+    duration_too_short = t_elapsed < max(10, duration_s * 0.5) and not interrupted
+
+    # Startup failure → C
+    startup_failed = not runtime_ready and not interrupted
+
+    # FIX 1: runtime_ended_early → C (unless operator interrupt OR
+    # runtime actually ran successfully but signals were not tradeable)
+    if startup_failed:
+        verdict = "C"
+        verdict_text = f"Startup failed — {runtime_ready_reason}"
+    elif duration_too_short:
+        verdict = "C"
+        verdict_text = f"Duration too short ({t_elapsed:.1f}s, expected ≥{duration_s*0.5:.0f}s)"
+    elif runtime_ended_early and not interrupted:
         verdict = "C"
         verdict_text = f"Runtime ended early — {start_task_exception or 'unknown reason'}"
     elif failed_count > 0:
@@ -851,7 +985,7 @@ async def run_validator(args):
         verdict = "A"
         verdict_text = "Windows MT5 extended dry-run validated"
 
-    # ── FIX 8: Generate final report (always) ──
+    # ── Generate final report (always) ──
     generate_final_report(
         out_dir, report_path, run_id, git_commit, git_branch, git_clean,
         args, start_utc, end_utc, t_elapsed, rt, journal, records,
@@ -859,6 +993,15 @@ async def run_validator(args):
         mem_growth, mem_before, mem_after, shutdown_clean, checks,
         verdict, verdict_text, errors, runtime_ended_early, start_task_exception,
         capital_preservation_info, mt5_account_info, is_demo,
+        # Sprint 9.6.3.3: startup phase fields
+        startup_phase_completed=startup_phase_completed,
+        startup_duration_s=startup_duration_s if 'startup_duration_s' in dir() else 0,
+        runtime_ready=runtime_ready,
+        runtime_ready_reason=runtime_ready_reason,
+        runtime_ended_before_ready=runtime_ended_before_ready,
+        startup_timeout_s=startup_timeout_s,
+        no_tradeable_signal=no_tradeable_signal,
+        no_tradeable_signal_reason=no_tradeable_signal_reason,
     )
 
     print(f"\n  Evidence pack: {out_dir}")
@@ -866,12 +1009,16 @@ async def run_validator(args):
     print(f"  Git commit: {git_commit}")
     print(f"  Platform: {platform.system()}")
     print(f"  Duration: {t_elapsed:.1f}s (requested {args.duration_minutes} min)")
+    print(f"  Startup completed: {startup_phase_completed} ({runtime_ready_reason})")
+    print(f"  Runtime ready: {runtime_ready}")
     print(f"  Runtime ended early: {runtime_ended_early}")
     print(f"  Shutdown clean: {shutdown_clean}")
     print(f"  Checks: {passed_count} PASS, {failed_count} FAIL, {warn_count} WARN")
     print(f"  Capital preservation activated: {capital_preservation_info['activated']}")
     if capital_preservation_info["activated"]:
         print(f"  Capital preservation reason: {capital_preservation_info['reason']}")
+    if no_tradeable_signal:
+        print(f"  No tradeable signal: {no_tradeable_signal_reason}")
     print(f"\n  >>> VERDICT: {verdict}) {verdict_text}")
 
 
