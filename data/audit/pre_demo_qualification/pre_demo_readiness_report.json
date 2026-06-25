@@ -1,13 +1,13 @@
 {
-  "audit": "sprint_9_7_pre_demo_qualification_gate",
-  "timestamp_utc": "2026-06-25T20:42:20.061855+00:00",
-  "score": 88,
+  "audit": "sprint_9_7_1_pre_demo_qualification_gate_fixed",
+  "timestamp_utc": "2026-06-25T21:02:45.196425+00:00",
+  "score": 91,
   "max_score": 100,
   "verdict": "EXTENDED_DRY_RUN_READY",
-  "verdict_reason": "Score 88/100 + 4h Verdict A (24h pending)",
+  "verdict_reason": "Score 91/100 + 4h Verdict A (24h pending)",
   "categories": {
     "safety_gates": {
-      "score": 35,
+      "score": 33,
       "max": 35,
       "passes": [
         "dry_run (5pts)",
@@ -17,10 +17,11 @@
         "order_send_success_zero (5pts)",
         "live_orders_zero (5pts)",
         "account_demo (3pts)",
-        "shutdown_clean (2pts)",
         "runtime_not_ended_early (2pts)"
       ],
-      "failures": []
+      "failures": [
+        "shutdown_clean (0pts)"
+      ]
     },
     "runtime_stability": {
       "score": 25,
@@ -37,13 +38,13 @@
       "failures": []
     },
     "evidence_depth": {
-      "score": 8,
+      "score": 13,
       "max": 20,
       "passes": [
+        "30min_evidence (5pts)",
         "4h_evidence (8pts)"
       ],
       "failures": [
-        "30min_evidence (0pts)",
         "24h_evidence (0pts)"
       ]
     },
@@ -60,7 +61,7 @@
       "score": 10,
       "max": 10,
       "passes": [
-        "cpu_acceptable (4pts, avg=19.6%)",
+        "cpu_acceptable (4pts, avg=0.0%)",
         "kill_switch_normal (3pts)",
         "platform_windows (2pts)",
         "git_commit_present (1pts, 077ae74)"
@@ -69,7 +70,7 @@
     }
   },
   "evidence_available": {
-    "30min": false,
+    "30min": true,
     "4h": true,
     "24h": false
   },
@@ -77,16 +78,19 @@
     "platform": "Windows",
     "git_commit": "077ae74",
     "duration_actual_s": 14402.9812967,
-    "dry_run": false,
-    "live_trading": true,
+    "dry_run_normalized": true,
+    "live_trading_normalized": false,
+    "shutdown_clean_normalized": null,
+    "account_type_normalized": "DEMO",
     "order_send_called": 0,
     "order_send_success": 0,
     "live_orders_executed": 0,
-    "shutdown_clean": false,
     "runtime_ended_early": false,
     "heartbeat_count": 478,
     "signals_generated": 5,
     "decisions_generated": 5,
     "atr_evidence": true
-  }
+  },
+  "manifest_path": "/home/z/my-project/TITAN_XAU_AI/data/audit/evidence_registry/evidence_manifest.json",
+  "manifest_run_count": 3
 }
