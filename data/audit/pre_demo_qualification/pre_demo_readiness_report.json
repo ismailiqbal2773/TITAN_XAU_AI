@@ -1,0 +1,92 @@
+{
+  "audit": "sprint_9_7_pre_demo_qualification_gate",
+  "timestamp_utc": "2026-06-25T20:42:20.061855+00:00",
+  "score": 88,
+  "max_score": 100,
+  "verdict": "EXTENDED_DRY_RUN_READY",
+  "verdict_reason": "Score 88/100 + 4h Verdict A (24h pending)",
+  "categories": {
+    "safety_gates": {
+      "score": 35,
+      "max": 35,
+      "passes": [
+        "dry_run (5pts)",
+        "live_trading (5pts)",
+        "env_not_enabled (3pts)",
+        "order_send_called_zero (5pts)",
+        "order_send_success_zero (5pts)",
+        "live_orders_zero (5pts)",
+        "account_demo (3pts)",
+        "shutdown_clean (2pts)",
+        "runtime_not_ended_early (2pts)"
+      ],
+      "failures": []
+    },
+    "runtime_stability": {
+      "score": 25,
+      "max": 25,
+      "passes": [
+        "heartbeat_acceptable (4pts)",
+        "broker_intelligence_events (4pts)",
+        "account_health_events (4pts)",
+        "dynamic_risk_active (3pts)",
+        "atr_evidence (4pts)",
+        "no_duplicate_orders (3pts)",
+        "memory_stable (3pts)"
+      ],
+      "failures": []
+    },
+    "evidence_depth": {
+      "score": 8,
+      "max": 20,
+      "passes": [
+        "4h_evidence (8pts)"
+      ],
+      "failures": [
+        "30min_evidence (0pts)",
+        "24h_evidence (0pts)"
+      ]
+    },
+    "journal_integrity": {
+      "score": 10,
+      "max": 10,
+      "passes": [
+        "journal_integrity (5pts)",
+        "timestamps_utc (5pts)"
+      ],
+      "failures": []
+    },
+    "operational": {
+      "score": 10,
+      "max": 10,
+      "passes": [
+        "cpu_acceptable (4pts, avg=19.6%)",
+        "kill_switch_normal (3pts)",
+        "platform_windows (2pts)",
+        "git_commit_present (1pts, 077ae74)"
+      ],
+      "failures": []
+    }
+  },
+  "evidence_available": {
+    "30min": false,
+    "4h": true,
+    "24h": false
+  },
+  "best_report_summary": {
+    "platform": "Windows",
+    "git_commit": "077ae74",
+    "duration_actual_s": 14402.9812967,
+    "dry_run": false,
+    "live_trading": true,
+    "order_send_called": 0,
+    "order_send_success": 0,
+    "live_orders_executed": 0,
+    "shutdown_clean": false,
+    "runtime_ended_early": false,
+    "heartbeat_count": 478,
+    "signals_generated": 5,
+    "decisions_generated": 5,
+    "atr_evidence": true
+  }
+}
