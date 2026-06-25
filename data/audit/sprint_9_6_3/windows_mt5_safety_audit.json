@@ -1,0 +1,6 @@
+{
+  "dry_run": true,
+  "live_trading": false,
+  "max_lot_cap": 0.01,
+  "env_live_trading": "0"
+}
