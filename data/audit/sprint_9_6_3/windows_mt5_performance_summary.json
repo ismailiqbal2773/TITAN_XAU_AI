@@ -1,3 +1,11 @@
 {
-  "status": "not_run"
+  "duration_s": 1805.0336886999994,
+  "memory_growth_kb": 4086.8115234375,
+  "signals_generated": 2,
+  "heartbeats": 60,
+  "journal_records": 314,
+  "cpu_average": 29.69943661971831,
+  "cpu_max": 89.3,
+  "cpu_status": "available",
+  "shutdown_clean": true
 }

@@ -1,4 +1,22 @@
 {
-  "total": 0,
-  "event_types": {}
+  "total": 314,
+  "record_types": {
+    "EVENT": 248,
+    "SIGNAL": 2,
+    "DECISION": 2,
+    "ORDER": 2,
+    "HEARTBEAT": 60
+  },
+  "event_types": {
+    "STARTUP": 1,
+    "SIGNAL_CREATED": 2,
+    "ORDER_CREATED": 2,
+    "EQUITY_PROTECTION": 60,
+    "ACCOUNT_HEALTH": 60,
+    "BROKER_DETECTED": 1,
+    "BROKER_SCORE_UPDATED": 60,
+    "BROKER_PROFILE_SELECTED": 60,
+    "EXECUTION_RECOVERED": 1,
+    "SHUTDOWN": 1
+  }
 }

@@ -2,5 +2,13 @@
   "dry_run": true,
   "live_trading": false,
   "max_lot_cap": 0.01,
-  "env_live_trading": "0"
+  "env_live_trading": "0",
+  "account_type": "DEMO",
+  "no_order_send": true,
+  "no_real_trades": true,
+  "kill_switch_state": "NORMAL",
+  "shutdown_clean": true,
+  "hard_fail_conditions": "ALL PASSED",
+  "order_send_called": 0,
+  "order_send_success": 0
 }

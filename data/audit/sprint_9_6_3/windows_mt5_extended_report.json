@@ -1,33 +1,227 @@
 {
-  "audit": "sprint_9_6_3_4",
-  "run_id": "windows_mt5_20260625_123322",
-  "status": "OPERATOR_REQUIRED",
-  "git_commit": "d56f29d",
+  "audit": "sprint_9_6_3_4_strict_readiness_windows_mt5_validator",
+  "run_id": "windows_mt5_20260625_125046",
+  "status": "COMPLETED",
+  "git_commit": "c8dc112",
   "git_branch": "main",
   "git_clean": false,
-  "platform": "Linux",
-  "mt5_available": false,
-  "verdict": "B",
-  "verdict_text": "Validator complete, operator Windows run required",
-  "start_utc": "2026-06-25T12:33:22.197637+00:00",
-  "end_utc": "2026-06-25T12:33:22.217562+00:00",
-  "duration_minutes": 0,
-  "reason": "MetaTrader5 not available. Operator must run on Windows.",
-  "checks": [],
-  "safety_audit": {
-    "dry_run": true,
-    "live_trading": false,
-    "max_lot_cap": 0.01,
-    "env_live_trading": "0"
-  },
+  "platform": "Windows",
+  "mt5_available": true,
+  "mt5_server": "FundedNext-Server 3",
+  "mt5_login_masked": "****5693",
+  "account_type": "DEMO",
+  "symbol": "XAUUSD",
+  "timeframe": "H1",
+  "start_utc": "2026-06-25T12:50:46.651431+00:00",
+  "end_utc": "2026-06-25T13:21:02.065133+00:00",
+  "duration_minutes": 30,
+  "duration_actual_s": 1805.0336886999994,
+  "runtime_ended_early": false,
+  "start_task_exception": null,
+  "loops_active": 5,
+  "signals_generated": 2,
+  "decisions_generated": 2,
+  "dry_run_orders": 2,
+  "live_orders_executed": 0,
+  "heartbeat_count": 60,
+  "broker_score_events": 60,
+  "account_health_events": 60,
+  "ai_exit_events": 0,
+  "exit_governance_events": 0,
+  "atr_usage_count": 1,
+  "memory_start_kb": 0.0,
+  "memory_end_kb": 4086.8115234375,
+  "memory_growth_kb": 4086.8115234375,
+  "cpu_average": 29.69943661971831,
+  "cpu_max": 89.3,
+  "cpu_samples": 355,
+  "cpu_status": "available",
+  "errors": [],
+  "warnings": [],
+  "checks": [
+    {
+      "check": "1. MT5 connection",
+      "status": "PASS",
+      "evidence": ""
+    },
+    {
+      "check": "2. Account DEMO",
+      "status": "PASS",
+      "evidence": ""
+    },
+    {
+      "check": "3. dry_run=true",
+      "status": "PASS",
+      "evidence": ""
+    },
+    {
+      "check": "4. live_trading=false",
+      "status": "PASS",
+      "evidence": ""
+    },
+    {
+      "check": "5. TITAN_LIVE_TRADING not enabled",
+      "status": "PASS",
+      "evidence": "env=0"
+    },
+    {
+      "check": "6. No mt5.order_send calls",
+      "status": "PASS",
+      "evidence": "called=0, success=0"
+    },
+    {
+      "check": "7. Runtime starts",
+      "status": "PASS",
+      "evidence": ""
+    },
+    {
+      "check": "8. Autonomous loops",
+      "status": "PASS",
+      "evidence": "5 tasks"
+    },
+    {
+      "check": "9. Inference loop",
+      "status": "PASS",
+      "evidence": "signals=2"
+    },
+    {
+      "check": "10. Position sync",
+      "status": "PASS",
+      "evidence": ""
+    },
+    {
+      "check": "11. Exit manager",
+      "status": "PASS",
+      "evidence": ""
+    },
+    {
+      "check": "12. AI Exit path",
+      "status": "PASS",
+      "evidence": ""
+    },
+    {
+      "check": "13. Heartbeat count",
+      "status": "PASS",
+      "evidence": "60 \u2265 58"
+    },
+    {
+      "check": "14. Broker Intelligence events",
+      "status": "PASS",
+      "evidence": "60 events"
+    },
+    {
+      "check": "15. Capital Protection events",
+      "status": "PASS",
+      "evidence": "60 events"
+    },
+    {
+      "check": "16. Dynamic Risk active",
+      "status": "PASS",
+      "evidence": "profile=normal"
+    },
+    {
+      "check": "17. ATR SL/TP evidence",
+      "status": "PASS",
+      "evidence": "found=True, atr=22.906428571428574"
+    },
+    {
+      "check": "18. SIGNAL_CREATED events",
+      "status": "PASS",
+      "evidence": "2 events"
+    },
+    {
+      "check": "19. DECISION events",
+      "status": "PASS",
+      "evidence": "2 events"
+    },
+    {
+      "check": "20. ORDER records dry_run only",
+      "status": "PASS",
+      "evidence": "2 orders, all_dry=True"
+    },
+    {
+      "check": "21. No live ORDER_SEND",
+      "status": "PASS",
+      "evidence": "success=0"
+    },
+    {
+      "check": "22. Kill switch NORMAL",
+      "status": "PASS",
+      "evidence": "state=NORMAL"
+    },
+    {
+      "check": "23. Memory stable",
+      "status": "PASS",
+      "evidence": "growth=4086.8KB"
+    },
+    {
+      "check": "24. CPU acceptable",
+      "status": "PASS",
+      "evidence": "avg=29.7%, max=89.3%"
+    },
+    {
+      "check": "25. No deadlocks",
+      "status": "PASS",
+      "evidence": "running=False"
+    },
+    {
+      "check": "26. No loop starvation",
+      "status": "PASS",
+      "evidence": "signals=2"
+    },
+    {
+      "check": "27. No duplicate same-candle orders",
+      "status": "PASS",
+      "evidence": "0 duplicates"
+    },
+    {
+      "check": "28. Journal integrity",
+      "status": "PASS",
+      "evidence": "0 errors"
+    },
+    {
+      "check": "29. Timestamps valid UTC",
+      "status": "PASS",
+      "evidence": "0 errors"
+    },
+    {
+      "check": "30. Shutdown clean",
+      "status": "PASS",
+      "evidence": ""
+    }
+  ],
   "launcher_equivalence_verified": true,
+  "launcher_note": "AutonomousRuntime used directly (not TitanLauncher.start) because launcher blocks indefinitely. Engines injected identically.",
   "order_send_guard": {
     "called_count": 0,
     "success_count": 0,
-    "no_calls": true
+    "no_calls": true,
+    "attempts": []
   },
-  "cpu_monitor": {
-    "status": "unavailable"
+  "capital_preservation_activation_reason": {
+    "initial_balance_used": 6000.0,
+    "account_balance": 6000.0,
+    "account_equity": 6000.0,
+    "computed_drawdown_pct": 0.0,
+    "trigger_threshold": 8.0,
+    "activated": false,
+    "reason": "not activated",
+    "missing_account_baseline": false
   },
-  "capital_preservation_activation_reason": null
+  "duplicate_orders": [],
+  "journal_integrity_errors": [],
+  "timestamp_errors": [],
+  "verdict": "A",
+  "verdict_text": "Windows MT5 extended dry-run validated",
+  "journal_path": "data\\audit\\sprint_9_6_3\\windows_mt5_extended_journal.jsonl",
+  "startup_phase_completed": true,
+  "startup_duration_s": 1.5024469999989378,
+  "runtime_ready": true,
+  "runtime_ready_reason": "rt._running=True + 5 tasks + 2 consecutive checks",
+  "runtime_ended_before_ready": false,
+  "startup_timeout_s": 30.0,
+  "no_tradeable_signal": false,
+  "no_tradeable_signal_reason": "",
+  "decision_evidence_available": true,
+  "atr_evidence_available": true
 }
