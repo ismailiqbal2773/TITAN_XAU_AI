@@ -1,0 +1,166 @@
+{
+  "audit": "sprint_9_3_system_integration_validation",
+  "timestamp_utc": "2026-06-25T00:00:09.990814+00:00",
+  "scenarios": {
+    "scenario_1": {
+      "scenario": 1,
+      "name": "Healthy account \u2192 normal trade",
+      "passed": true,
+      "health_score": 100.0,
+      "band": "normal",
+      "risk_profile": "normal",
+      "risk_multiplier": 1.0,
+      "allow_new_entries": true,
+      "recovery_active": false,
+      "capital_preservation_active": false,
+      "profit_lock_active": false
+    },
+    "scenario_2": {
+      "scenario": 2,
+      "name": "Health deterioration \u2192 recovery + risk reduction",
+      "passed": true,
+      "recovery_activated": true,
+      "recovery_deactivated": true,
+      "recovery_risk_multiplier": 1.0,
+      "dynamic_risk_multiplier": 0.5,
+      "health_score": 51.0,
+      "band": "defensive"
+    },
+    "scenario_3": {
+      "scenario": 3,
+      "name": "Capital preservation activation/deactivation",
+      "passed": true,
+      "activations": 1,
+      "deactivations": 1,
+      "halt_events": 1
+    },
+    "scenario_4": {
+      "scenario": 4,
+      "name": "Profit lock activation + trail",
+      "passed": true,
+      "locked": true,
+      "peak_equity": 10500.0,
+      "locked_equity": 10395.0,
+      "activations": 1,
+      "raise_events": 1
+    },
+    "scenario_5": {
+      "scenario": 5,
+      "name": "FTMO profile auto-application",
+      "passed": true,
+      "profile_id": "ftmo_challenge",
+      "max_daily_loss_pct": 0.05,
+      "max_total_loss_pct": 0.1,
+      "min_trading_days": 4,
+      "consistency_pct": 0.4,
+      "atr_sl_multiplier": 1.5,
+      "atr_tp_multiplier": 3.0,
+      "challenge_progress_pct": 50.0
+    },
+    "scenario_6": {
+      "scenario": 6,
+      "name": "News filter blocks trade",
+      "passed": true,
+      "halt_active_during_event": true,
+      "halt_cleared_after_event": true
+    },
+    "scenario_7": {
+      "scenario": 7,
+      "name": "Execution ATR \u2192 SL \u2192 TP \u2192 Journal \u2192 Order consistency",
+      "passed": true,
+      "current_atr": 26.48814285714291,
+      "entry_price": 4155.73,
+      "expected_sl": 4115.997785714285,
+      "expected_tp": 4235.194428571428,
+      "computed_sl": 4115.99779,
+      "computed_tp": 4235.19443,
+      "order_sl": 4115.99779,
+      "order_tp": 4235.19443,
+      "sl_tp_mode_used": "atr",
+      "fallback_used": false,
+      "sl_formula_match": true,
+      "tp_formula_match": true,
+      "order_sl_match": true,
+      "order_tp_match": true
+    },
+    "scenario_8": {
+      "scenario": 8,
+      "name": "Journal completeness",
+      "passed": true,
+      "required_fields": [
+        "signal",
+        "confidence",
+        "meta_confidence",
+        "health_score",
+        "risk_profile",
+        "capital_protection_status",
+        "prop_profile",
+        "atr",
+        "sl",
+        "tp",
+        "decision",
+        "order",
+        "heartbeat"
+      ],
+      "missing_from_decision": [
+        "signal"
+      ],
+      "integration_gaps": [],
+      "record_types_present": {
+        "SIGNAL": true,
+        "DECISION": true,
+        "ORDER": true,
+        "HEARTBEAT": true,
+        "ACCOUNT_HEALTH": true,
+        "RECOVERY_MODE": true,
+        "CAPITAL_PRESERVATION": true,
+        "PROFIT_LOCK": true,
+        "PROFILE_LOADED": true,
+        "CHALLENGE_STATUS": true
+      }
+    }
+  },
+  "integration_gap_audit": {
+    "gaps": [
+      {
+        "gap": "AutonomousRuntime does not reference health_engine",
+        "file": "/home/z/my-project/TITAN_XAU_AI/titan/runtime/autonomous_loops.py",
+        "severity": "HIGH",
+        "description": "AccountHealthEngine is initialized in launcher.start() and stored in _components, but AutonomousRuntime._inference_loop and _heartbeat_loop never query it. Health score is never computed during runtime, only when explicitly called by operator scripts.",
+        "fix": "Add health_engine to AutonomousRuntime constructor + evaluate() in heartbeat_loop."
+      },
+      {
+        "gap": "AutonomousRuntime does not reference dynamic_risk",
+        "file": "/home/z/my-project/TITAN_XAU_AI/titan/runtime/autonomous_loops.py",
+        "severity": "HIGH",
+        "description": "DynamicRiskEngine is initialized but never queried. Risk multipliers computed by dynamic_risk.evaluate() are not applied to trade_loop.",
+        "fix": "Add dynamic_risk to AutonomousRuntime + apply risk_multiplier to trade_loop.config.max_lot before process_signal()."
+      },
+      {
+        "gap": "AutonomousRuntime does not reference recovery/capital_preservation",
+        "file": "/home/z/my-project/TITAN_XAU_AI/titan/runtime/autonomous_loops.py",
+        "severity": "HIGH",
+        "description": "RecoveryMode and CapitalPreservation are initialized but never queried. Their should_allow_trade() / should_allow_new_entry() are not consulted before trade decisions.",
+        "fix": "Add both engines to AutonomousRuntime + consult before process_signal()."
+      },
+      {
+        "gap": "AutonomousRuntime does not reference profit_lock",
+        "file": "/home/z/my-project/TITAN_XAU_AI/titan/runtime/autonomous_loops.py",
+        "severity": "MEDIUM",
+        "description": "ProfitLock is initialized but never updated with current equity. Locked equity floor is never enforced.",
+        "fix": "Add profit_lock.update(current_equity) to heartbeat_loop."
+      },
+      {
+        "gap": "TradeLoop.process_signal does not accept health_score",
+        "file": "/home/z/my-project/TITAN_XAU_AI/titan/production/trade_loop.py",
+        "severity": "MEDIUM",
+        "description": "process_signal() signature does not include health_score, risk_profile, or capital_protection_status. These cannot be journaled on DECISION records.",
+        "fix": "Add optional health_score/risk_profile/capital_protection kwargs to process_signal() + journal them on DECISION."
+      }
+    ],
+    "gap_count": 5
+  },
+  "verdict": "B",
+  "verdict_text": "Minor integration fixes required \u2014 5 engine(s) initialized but not wired into trade path",
+  "journal_path": "/home/z/my-project/TITAN_XAU_AI/data/audit/sprint_9_3/integration_journal.jsonl"
+}
