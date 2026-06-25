@@ -1,16 +1,18 @@
 {
-  "audit": "sprint_9_6_3_1_hardened_windows_mt5_validator",
-  "git_commit": "db70d0a",
+  "audit": "sprint_9_6_3_2",
+  "run_id": "windows_mt5_20260625_112339",
+  "status": "OPERATOR_REQUIRED",
+  "git_commit": "401677b",
   "git_branch": "main",
   "git_clean": false,
   "platform": "Linux",
   "mt5_available": false,
   "verdict": "B",
   "verdict_text": "Validator complete, operator Windows run required",
-  "start_utc": "2026-06-25T11:09:02.432596+00:00",
-  "end_utc": "2026-06-25T11:09:02.450379+00:00",
+  "start_utc": "2026-06-25T11:23:39.742738+00:00",
+  "end_utc": "2026-06-25T11:23:39.760347+00:00",
   "duration_minutes": 0,
-  "reason": "MetaTrader5 package not available. Operator must run on Windows.",
+  "reason": "MetaTrader5 not available. Operator must run on Windows.",
   "checks": [],
   "safety_audit": {
     "dry_run": true,
@@ -26,5 +28,6 @@
   },
   "cpu_monitor": {
     "status": "unavailable"
-  }
+  },
+  "capital_preservation_activation_reason": null
 }
