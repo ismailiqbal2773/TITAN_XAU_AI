@@ -1,6 +1,6 @@
 {
   "audit": "sprint_9_8_1_demo_micro_readiness_gate",
-  "timestamp_utc": "2026-06-26T22:07:03.713940+00:00",
+  "timestamp_utc": "2026-06-26T22:21:42.140748+00:00",
   "verdict": "DEMO_MICRO_READY",
   "reason": "All checks passed",
   "checks": {
@@ -14,5 +14,5 @@
     "cost_drag_under_35": true,
     "normal_dd_under_5": true
   },
-  "source_report": "/home/z/my-project/TITAN_XAU_AI/data/audit/virtual_lifecycle/virtual_lifecycle_report.json"
+  "source_report": "D:\\Forex project\\TITAN_XAU_AI\\data\\audit\\virtual_lifecycle\\virtual_lifecycle_report.json"
 }
