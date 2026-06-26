@@ -1,8 +1,8 @@
 {
   "audit": "sprint_9_6_3_4_strict_readiness_windows_mt5_validator",
-  "run_id": "windows_mt5_20260625_134503",
-  "status": "COMPLETED",
-  "git_commit": "077ae74",
+  "run_id": "windows_mt5_20260625_212653",
+  "status": "FAILED_WITH_REPORT",
+  "git_commit": "38a1057",
   "git_branch": "main",
   "git_clean": false,
   "platform": "Windows",
@@ -12,29 +12,29 @@
   "account_type": "DEMO",
   "symbol": "XAUUSD",
   "timeframe": "H1",
-  "start_utc": "2026-06-25T13:45:03.901859+00:00",
-  "end_utc": "2026-06-25T17:45:32.222203+00:00",
-  "duration_minutes": 240,
-  "duration_actual_s": 14402.9812967,
+  "start_utc": "2026-06-25T21:26:53.727980+00:00",
+  "end_utc": "2026-06-26T21:26:57.998260+00:00",
+  "duration_minutes": 1440,
+  "duration_actual_s": 86400.047682,
   "runtime_ended_early": false,
   "start_task_exception": null,
   "loops_active": 5,
-  "signals_generated": 5,
-  "decisions_generated": 5,
-  "dry_run_orders": 5,
+  "signals_generated": 25,
+  "decisions_generated": 23,
+  "dry_run_orders": 23,
   "live_orders_executed": 0,
-  "heartbeat_count": 478,
-  "broker_score_events": 478,
-  "account_health_events": 478,
+  "heartbeat_count": 2860,
+  "broker_score_events": 2860,
+  "account_health_events": 2860,
   "ai_exit_events": 0,
   "exit_governance_events": 0,
   "atr_usage_count": 1,
   "memory_start_kb": 0.0,
-  "memory_end_kb": 4357.0029296875,
-  "memory_growth_kb": 4357.0029296875,
-  "cpu_average": 19.5972695035461,
+  "memory_end_kb": 5743.59765625,
+  "memory_growth_kb": 5743.59765625,
+  "cpu_average": 24.699964465501925,
   "cpu_max": 100.0,
-  "cpu_samples": 2820,
+  "cpu_samples": 16885,
   "cpu_status": "available",
   "errors": [],
   "warnings": [],
@@ -82,7 +82,7 @@
     {
       "check": "9. Inference loop",
       "status": "PASS",
-      "evidence": "signals=5"
+      "evidence": "signals=25"
     },
     {
       "check": "10. Position sync",
@@ -101,18 +101,18 @@
     },
     {
       "check": "13. Heartbeat count",
-      "status": "PASS",
-      "evidence": "478 \u2265 478"
+      "status": "FAIL",
+      "evidence": "2860 \u2265 2878"
     },
     {
       "check": "14. Broker Intelligence events",
       "status": "PASS",
-      "evidence": "478 events"
+      "evidence": "2860 events"
     },
     {
       "check": "15. Capital Protection events",
       "status": "PASS",
-      "evidence": "478 events"
+      "evidence": "2860 events"
     },
     {
       "check": "16. Dynamic Risk active",
@@ -122,22 +122,22 @@
     {
       "check": "17. ATR SL/TP evidence",
       "status": "PASS",
-      "evidence": "found=True, atr=22.644285714285747"
+      "evidence": "found=True, atr=20.86285714285717"
     },
     {
       "check": "18. SIGNAL_CREATED events",
       "status": "PASS",
-      "evidence": "5 events"
+      "evidence": "25 events"
     },
     {
       "check": "19. DECISION events",
       "status": "PASS",
-      "evidence": "5 events"
+      "evidence": "23 events"
     },
     {
       "check": "20. ORDER records dry_run only",
       "status": "PASS",
-      "evidence": "5 orders, all_dry=True"
+      "evidence": "23 orders, all_dry=True"
     },
     {
       "check": "21. No live ORDER_SEND",
@@ -152,12 +152,12 @@
     {
       "check": "23. Memory stable",
       "status": "PASS",
-      "evidence": "growth=4357.0KB"
+      "evidence": "growth=5743.6KB"
     },
     {
       "check": "24. CPU acceptable",
       "status": "PASS",
-      "evidence": "avg=19.6%, max=100.0%"
+      "evidence": "avg=24.7%, max=100.0%"
     },
     {
       "check": "25. No deadlocks",
@@ -167,7 +167,7 @@
     {
       "check": "26. No loop starvation",
       "status": "PASS",
-      "evidence": "signals=5"
+      "evidence": "signals=25"
     },
     {
       "check": "27. No duplicate same-candle orders",
@@ -211,11 +211,11 @@
   "duplicate_orders": [],
   "journal_integrity_errors": [],
   "timestamp_errors": [],
-  "verdict": "A",
-  "verdict_text": "Windows MT5 extended dry-run validated",
+  "verdict": "C",
+  "verdict_text": "1 check(s) failed \u2014 blocker found",
   "journal_path": "data\\audit\\sprint_9_6_3\\windows_mt5_extended_journal.jsonl",
   "startup_phase_completed": true,
-  "startup_duration_s": 1.7207551000028616,
+  "startup_duration_s": 1.0873635999960243,
   "runtime_ready": true,
   "runtime_ready_reason": "rt._running=True + 5 tasks + 2 consecutive checks",
   "runtime_ended_before_ready": false,

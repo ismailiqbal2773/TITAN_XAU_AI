@@ -1,22 +1,23 @@
 {
-  "total": 2419,
+  "total": 14425,
   "record_types": {
-    "EVENT": 1926,
-    "SIGNAL": 5,
-    "DECISION": 5,
-    "ORDER": 5,
-    "HEARTBEAT": 478
+    "EVENT": 11494,
+    "SIGNAL": 25,
+    "DECISION": 23,
+    "ORDER": 23,
+    "HEARTBEAT": 2860
   },
   "event_types": {
     "STARTUP": 1,
-    "SIGNAL_CREATED": 5,
-    "ORDER_CREATED": 5,
-    "EQUITY_PROTECTION": 478,
-    "ACCOUNT_HEALTH": 478,
+    "SIGNAL_CREATED": 25,
+    "ORDER_CREATED": 23,
+    "EQUITY_PROTECTION": 2860,
+    "ACCOUNT_HEALTH": 2860,
     "BROKER_DETECTED": 1,
-    "BROKER_SCORE_UPDATED": 478,
-    "BROKER_PROFILE_SELECTED": 478,
+    "BROKER_SCORE_UPDATED": 2860,
+    "BROKER_PROFILE_SELECTED": 2860,
     "EXECUTION_RECOVERED": 1,
+    "SIGNAL_REJECTED": 2,
     "SHUTDOWN": 1
   }
 }

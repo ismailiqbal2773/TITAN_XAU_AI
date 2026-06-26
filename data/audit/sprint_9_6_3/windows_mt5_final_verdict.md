@@ -1,17 +1,17 @@
 # Sprint 9.6.3.4 — Finalized Windows MT5 Final Verdict
 
-**Verdict: A) Windows MT5 extended dry-run validated**
+**Verdict: C) 1 check(s) failed — blocker found**
 
 | Metric | Value |
 |---|---|
-| Run ID | windows_mt5_20260625_134503 |
-| Git commit | 077ae74 |
+| Run ID | windows_mt5_20260625_212653 |
+| Git commit | 38a1057 |
 | Platform | Windows |
-| Duration | 240 min (14403.0s) |
-| Signals | 5 |
-| Heartbeats | 478 |
-| Journal records | 2419 |
-| Memory growth | 4357.0 KB |
+| Duration | 1440 min (86400.0s) |
+| Signals | 25 |
+| Heartbeats | 2860 |
+| Journal records | 14425 |
+| Memory growth | 5743.6 KB |
 | order_send called | 0 |
 | order_send success | 0 |
 | Runtime ended early | False |
