@@ -20,7 +20,7 @@
 | max_drawdown_pct_of_peak_equity | 0.1761 |
 | avg_r | 0.6778 |
 | expectancy_net | 6.1778 |
-| avg_holding_time | 0.0 |
+| avg_holding_time | 0.01 |
 | mfe_avg | 5.7778 |
 | mae_avg | 3.0 |
 | cost_drag_total | 5.4 |
@@ -41,7 +41,7 @@
 | max_drawdown_pct_of_peak_equity | 0.3163 |
 | avg_r | -0.075 |
 | expectancy_net | -1.4375 |
-| avg_holding_time | 0.0 |
+| avg_holding_time | 0.01 |
 | mfe_avg | 9.375 |
 | mae_avg | 4.375 |
 | cost_drag_total | 5.5 |
@@ -62,7 +62,7 @@
 | max_drawdown_pct_of_peak_equity | 0.1889 |
 | avg_r | 0.3235 |
 | expectancy_net | 2.5941 |
-| avg_holding_time | 0.0 |
+| avg_holding_time | 0.01 |
 | mfe_avg | 7.4706 |
 | mae_avg | 3.6471 |
 | cost_drag_total | 10.9 |
