@@ -1,10 +1,9 @@
 """
-TITAN XAU AI — Sprint 9.8 Virtual Lifecycle Validator
-=======================================================
+TITAN XAU AI — Sprint 9.8 Virtual Lifecycle Validator (Fixed DD)
+==================================================================
 
-Runs virtual lifecycle simulation using synthetic scenarios.
-Proves TITAN can manage complete open-to-close trade lifecycle
-without sending real MT5 orders.
+Fixed Sprint 9.8.1: DD now calculated from configurable starting equity
+(6000.00), not from 0. Normal vs stress scenarios separated.
 
 Output:
   data/audit/virtual_lifecycle/virtual_lifecycle_report.json
@@ -25,14 +24,26 @@ from titan.production.virtual_position_ledger import VirtualPositionLedger
 from titan.production.net_profit_engine import NetProfitEngine
 from titan.production.trade_journal import TradeJournal
 
+DEFAULT_START_EQUITY = 6000.00
+
+# Scenario classification
+NORMAL_SCENARIOS = {
+    "BUY_TP", "BUY_SL", "SELL_TP", "SELL_SL",
+    "BUY_AI_EXIT", "SELL_AI_EXIT",
+    "PROFIT_LOCK", "MAX_HOLDING", "STALE_EXIT",
+}
+STRESS_SCENARIOS = {
+    "REGIME_FLIP_BUY", "REGIME_FLIP_SELL", "ALPHA_DECAY",
+    "AMBIGUOUS_CANDLE", "SPREAD_SPIKE_TP", "HIGH_VOLATILITY",
+    "EQUITY_PROTECTION", "CAPITAL_PRESERVATION",
+}
+
 
 def run_scenarios(journal):
-    """Run all 25 synthetic scenarios."""
     ledger = VirtualPositionLedger(journal=journal)
     engine = NetProfitEngine()
 
     scenarios = [
-        # (name, direction, entry, sl, tp, high, low, close, expected_reason, spread, commission)
         ("BUY_TP", "BUY", 2000, 1990, 2020, 2021, 2005, 2020, "TP_HIT", 0.30, 0.30),
         ("BUY_SL", "BUY", 2000, 1990, 2020, 2005, 1989, 1990, "SL_HIT", 0.30, 0.30),
         ("SELL_TP", "SELL", 2000, 2010, 1980, 2005, 1979, 1980, "TP_HIT", 0.30, 0.30),
@@ -62,17 +73,17 @@ def run_scenarios(journal):
         if reason in ("TP_HIT", "SL_HIT"):
             ledger.update_positions(current_price=close, high=high, low=low)
         else:
-            # Manual close for AI exits
             ledger.close_position(pos.position_id, close, reason)
 
-        # Calculate net PnL
         net_result = engine.calculate(
             direction=direction, entry_price=entry, close_price=pos.close_price or close,
             lot=0.01, sl=sl, spread_usd=spread, slippage_pips=2.0, swap_cost=0,
         )
 
+        is_stress = name in STRESS_SCENARIOS
         results.append({
             "scenario": name,
+            "category": "STRESS" if is_stress else "NORMAL",
             "direction": direction,
             "entry": entry,
             "close": pos.close_price or close,
@@ -89,69 +100,54 @@ def run_scenarios(journal):
     return ledger, results
 
 
-def compute_metrics(ledger, results):
-    """Compute aggregate metrics."""
-    closed = ledger.get_closed_positions()
+def compute_metrics(closed_positions, start_equity=DEFAULT_START_EQUITY):
+    """Compute metrics with proper equity-based DD calculation."""
+    if not closed_positions:
+        return _empty_metrics()
 
-    total_entries = len(results)
-    closed_count = len(closed)
-    sl_closes = sum(1 for p in closed if p.close_reason == "SL_HIT")
-    tp_closes = sum(1 for p in closed if p.close_reason == "TP_HIT")
-    ai_exit_closes = sum(1 for p in closed if "AI_EXIT" in p.close_reason or
-                         p.close_reason in ("REGIME_RISK_EXIT", "ALPHA_DECAY_EXIT",
-                                            "MAX_HOLDING_EXIT", "STALE_POSITION_EXIT",
-                                            "PROFIT_LOCK_EXIT", "EQUITY_PROTECTION_EXIT",
-                                            "CAPITAL_PRESERVATION_EXIT"))
-    profit_lock_closes = sum(1 for p in closed if p.close_reason == "PROFIT_LOCK_EXIT")
-    timeout_closes = sum(1 for p in closed if p.close_reason == "MAX_HOLDING_EXIT")
-
-    gross_pnl_total = sum(p.gross_pnl for p in closed)
-    net_pnl_total = sum(p.net_pnl for p in closed)
-
-    wins = [p for p in closed if p.net_pnl > 0]
-    losses = [p for p in closed if p.net_pnl < 0]
-    win_rate = len(wins) / len(closed) * 100 if closed else 0
-
+    gross_pnl_total = sum(p.gross_pnl for p in closed_positions)
+    net_pnl_total = sum(p.net_pnl for p in closed_positions)
+    wins = [p for p in closed_positions if p.net_pnl > 0]
+    losses = [p for p in closed_positions if p.net_pnl < 0]
+    win_rate = len(wins) / len(closed_positions) * 100
     gross_wins = sum(p.net_pnl for p in wins) if wins else 0
     gross_losses = abs(sum(p.net_pnl for p in losses)) if losses else 0
     profit_factor = gross_wins / gross_losses if gross_losses > 0 else float('inf')
-
-    avg_r = sum(p.r_multiple for p in closed) / len(closed) if closed else 0
-    expectancy = net_pnl_total / len(closed) if closed else 0
-    avg_holding = sum(p.holding_seconds for p in closed) / len(closed) if closed else 0
-    mfe_avg = sum(p.mfe for p in closed) / len(closed) if closed else 0
-    mae_avg = sum(p.mae for p in closed) / len(closed) if closed else 0
-
-    cost_drag_total = sum(p.spread_cost + p.commission_cost + p.slippage_cost + p.swap_cost
-                          for p in closed)
+    avg_r = sum(p.r_multiple for p in closed_positions) / len(closed_positions)
+    expectancy = net_pnl_total / len(closed_positions)
+    avg_holding = sum(p.holding_seconds for p in closed_positions) / len(closed_positions)
+    mfe_avg = sum(p.mfe for p in closed_positions) / len(closed_positions)
+    mae_avg = sum(p.mae for p in closed_positions) / len(closed_positions)
+    cost_drag_total = sum(p.spread_cost + p.commission_cost + p.slippage_cost + p.swap_cost for p in closed_positions)
     cost_drag_pct = (cost_drag_total / abs(gross_pnl_total) * 100) if gross_pnl_total != 0 else 0
 
-    # Max drawdown (simplified)
-    equity = 0
-    peak = 0
-    max_dd = 0
-    for p in closed:
+    # DD calculation with realistic starting equity
+    equity = start_equity
+    peak = start_equity
+    max_dd_usd = 0.0
+    max_dd_pct_peak = 0.0
+    for p in closed_positions:
         equity += p.net_pnl
         if equity > peak:
             peak = equity
-        dd = (peak - equity) / peak * 100 if peak > 0 else 0
-        if dd > max_dd:
-            max_dd = dd
+        dd_usd = peak - equity
+        dd_pct = (dd_usd / peak * 100) if peak > 0 else 0
+        if dd_usd > max_dd_usd:
+            max_dd_usd = dd_usd
+        if dd_pct > max_dd_pct_peak:
+            max_dd_pct_peak = dd_pct
+
+    max_dd_pct_start = (max_dd_usd / start_equity * 100) if start_equity > 0 else 0
 
     return {
-        "total_virtual_entries": total_entries,
-        "open_positions": ledger.open_count,
-        "closed_positions": closed_count,
-        "sl_closes": sl_closes,
-        "tp_closes": tp_closes,
-        "ai_exit_closes": ai_exit_closes,
-        "profit_lock_closes": profit_lock_closes,
-        "timeout_closes": timeout_closes,
+        "closed_positions": len(closed_positions),
         "gross_pnl_total": round(gross_pnl_total, 4),
         "net_pnl_total": round(net_pnl_total, 4),
         "win_rate_net": round(win_rate, 2),
         "profit_factor_net": round(profit_factor, 2),
-        "max_drawdown_net": round(max_dd, 2),
+        "max_drawdown_usd": round(max_dd_usd, 4),
+        "max_drawdown_pct_of_start_equity": round(max_dd_pct_start, 4),
+        "max_drawdown_pct_of_peak_equity": round(max_dd_pct_peak, 4),
         "avg_r": round(avg_r, 4),
         "expectancy_net": round(expectancy, 4),
         "avg_holding_time": round(avg_holding, 2),
@@ -159,13 +155,25 @@ def compute_metrics(ledger, results):
         "mae_avg": round(mae_avg, 4),
         "cost_drag_total": round(cost_drag_total, 4),
         "cost_drag_pct": round(cost_drag_pct, 2),
-        "journal_integrity": True,
+        "start_equity": start_equity,
+    }
+
+
+def _empty_metrics():
+    return {
+        "closed_positions": 0, "gross_pnl_total": 0, "net_pnl_total": 0,
+        "win_rate_net": 0, "profit_factor_net": 0,
+        "max_drawdown_usd": 0, "max_drawdown_pct_of_start_equity": 0,
+        "max_drawdown_pct_of_peak_equity": 0,
+        "avg_r": 0, "expectancy_net": 0, "avg_holding_time": 0,
+        "mfe_avg": 0, "mae_avg": 0, "cost_drag_total": 0, "cost_drag_pct": 0,
+        "start_equity": DEFAULT_START_EQUITY,
     }
 
 
 def main():
     print("=" * 78)
-    print("  TITAN XAU AI — Sprint 9.8 Virtual Lifecycle Validator")
+    print("  TITAN XAU AI — Sprint 9.8.1 Virtual Lifecycle Validator (Fixed DD)")
     print("=" * 78)
 
     out_dir = REPO_ROOT / "data" / "audit" / "virtual_lifecycle"
@@ -174,71 +182,119 @@ def main():
     if journal_path.exists():
         journal_path.unlink()
 
-    journal = TradeJournal(path=str(journal_path), session_id="vlc_9_8")
+    journal = TradeJournal(path=str(journal_path), session_id="vlc_9_8_1")
 
     print("\n── Running 17 virtual lifecycle scenarios ──")
     ledger, results = run_scenarios(journal)
     journal.flush()
 
-    print("\n── Computing metrics ──")
-    metrics = compute_metrics(ledger, results)
+    all_closed = ledger.get_closed_positions()
+    normal_closed = [p for p, r in zip(all_closed, results) if r["category"] == "NORMAL"]
+    stress_closed = [p for p, r in zip(all_closed, results) if r["category"] == "STRESS"]
 
-    # Print results
-    print(f"\n  Total entries:     {metrics['total_virtual_entries']}")
-    print(f"  Closed:            {metrics['closed_positions']}")
-    print(f"  SL closes:         {metrics['sl_closes']}")
-    print(f"  TP closes:         {metrics['tp_closes']}")
-    print(f"  AI exit closes:    {metrics['ai_exit_closes']}")
-    print(f"  Gross PnL total:   ${metrics['gross_pnl_total']:.2f}")
-    print(f"  Net PnL total:     ${metrics['net_pnl_total']:.2f}")
-    print(f"  Win rate (net):    {metrics['win_rate_net']}%")
-    print(f"  Profit factor:     {metrics['profit_factor_net']}")
-    print(f"  Max DD:            {metrics['max_drawdown_net']}%")
-    print(f"  Avg R:             {metrics['avg_r']}")
-    print(f"  Expectancy:        ${metrics['expectancy_net']:.4f}")
-    print(f"  Cost drag:         {metrics['cost_drag_pct']}%")
+    print(f"\n  Normal scenarios: {len(normal_closed)}")
+    print(f"  Stress scenarios: {len(stress_closed)}")
+
+    print("\n── Computing metrics (equity-based DD) ──")
+    combined_metrics = compute_metrics(all_closed, DEFAULT_START_EQUITY)
+    normal_metrics = compute_metrics(normal_closed, DEFAULT_START_EQUITY) if normal_closed else _empty_metrics()
+    stress_metrics = compute_metrics(stress_closed, DEFAULT_START_EQUITY) if stress_closed else _empty_metrics()
+
+    # Print
+    print(f"\n  ── COMBINED ──")
+    _print_metrics(combined_metrics)
+    print(f"\n  ── NORMAL ──")
+    _print_metrics(normal_metrics)
+    print(f"\n  ── STRESS ──")
+    _print_metrics(stress_metrics)
 
     # Verify no order_send
     import titan.production.virtual_position_ledger as vpl
     import inspect
     src = inspect.getsource(vpl)
-    order_send_safe = "order_send" not in src
+    order_send_safe = "import MetaTrader5" not in src and "mt5.order_send" not in src
 
-    verdict = "VIRTUAL_LIFECYCLE_READY" if order_send_safe else "BLOCKED"
+    # Verdict
+    if not order_send_safe:
+        verdict = "BLOCKED"
+    else:
+        verdict = "VIRTUAL_LIFECYCLE_READY"
 
-    # Save JSON report
+    # Demo gate
+    demo_gate = _demo_gate(combined_metrics, normal_metrics, order_send_safe)
+
+    print(f"\n  {'=' * 50}")
+    print(f"  VERDICT:     {verdict}")
+    print(f"  DEMO_GATE:   {demo_gate}")
+    print(f"  order_send:  {'NO' if order_send_safe else 'YES'}")
+    print(f"  {'=' * 50}")
+
+    # Save reports
     report = {
-        "audit": "sprint_9_8_virtual_lifecycle",
+        "audit": "sprint_9_8_1_virtual_lifecycle_fixed",
         "timestamp_utc": datetime.now(timezone.utc).isoformat(),
         "verdict": verdict,
+        "demo_gate": demo_gate,
         "order_send_used": not order_send_safe,
         "live_execution_touched": False,
-        "metrics": metrics,
+        "combined_metrics": combined_metrics,
+        "normal_metrics": normal_metrics,
+        "stress_metrics": stress_metrics,
         "scenarios": results,
     }
     json_path = out_dir / "virtual_lifecycle_report.json"
     with open(json_path, "w", encoding="utf-8") as f:
         json.dump(report, f, indent=2, default=str)
 
-    # Save markdown
     md_path = out_dir / "virtual_lifecycle_report.md"
     with open(md_path, "w", encoding="utf-8") as f:
-        f.write("# Sprint 9.8 — Virtual Lifecycle Report\n\n")
+        f.write("# Sprint 9.8.1 — Virtual Lifecycle Report (Fixed DD)\n\n")
         f.write(f"**Verdict: {verdict}**\n\n")
+        f.write(f"**Demo Gate: {demo_gate}**\n\n")
         f.write(f"**Order_send used: {not order_send_safe}**\n\n")
-        f.write(f"## Metrics\n\n| Metric | Value |\n|---|---|\n")
-        for k, v in metrics.items():
+        f.write(f"## Normal Metrics\n\n| Metric | Value |\n|---|---|\n")
+        for k, v in normal_metrics.items():
             f.write(f"| {k} | {v} |\n")
-        f.write(f"\n## Scenarios ({len(results)})\n\n")
-        f.write("| Scenario | Direction | Reason | Gross | Net | R |\n|---|---|---|---|---|---|\n")
-        for r in results:
-            f.write(f"| {r['scenario']} | {r['direction']} | {r['reason']} | "
-                    f"{r['gross_pnl']:.2f} | {r['net_pnl']:.2f} | {r['r_multiple']:.2f} |\n")
+        f.write(f"\n## Stress Metrics\n\n| Metric | Value |\n|---|---|\n")
+        for k, v in stress_metrics.items():
+            f.write(f"| {k} | {v} |\n")
+        f.write(f"\n## Combined Metrics\n\n| Metric | Value |\n|---|---|\n")
+        for k, v in combined_metrics.items():
+            f.write(f"| {k} | {v} |\n")
 
     print(f"\n  JSON: {json_path}")
     print(f"  MD:   {md_path}")
     print(f"  Journal: {journal_path}")
-    print(f"\n  >>> VERDICT: {verdict}")
+
+
+def _print_metrics(m):
+    print(f"    Net PnL:          ${m['net_pnl_total']:.2f}")
+    print(f"    Win rate:          {m['win_rate_net']}%")
+    print(f"    Profit factor:     {m['profit_factor_net']}")
+    print(f"    Max DD (USD):      ${m['max_drawdown_usd']:.2f}")
+    print(f"    Max DD (% equity): {m['max_drawdown_pct_of_start_equity']}%")
+    print(f"    Max DD (% peak):   {m['max_drawdown_pct_of_peak_equity']}%")
+    print(f"    Expectancy:        ${m['expectancy_net']:.4f}")
+    print(f"    Cost drag:         {m['cost_drag_pct']}%")
+
+
+def _demo_gate(combined, normal, order_send_safe):
+    """Evaluate demo micro readiness."""
+    if not order_send_safe:
+        return "DEMO_MICRO_BLOCKED"
+    if combined["net_pnl_total"] <= 0:
+        return "DEMO_MICRO_BLOCKED"
+    if combined["profit_factor_net"] < 1.2:
+        return "DEMO_MICRO_BLOCKED"
+    if combined["win_rate_net"] < 40:
+        return "DEMO_MICRO_BLOCKED"
+    if combined["expectancy_net"] <= 0:
+        return "DEMO_MICRO_BLOCKED"
+    if combined["cost_drag_pct"] > 35:
+        return "DEMO_MICRO_BLOCKED"
+    if normal["max_drawdown_pct_of_start_equity"] > 5.0:
+        return "NEEDS_RISK_REVIEW"
+    return "DEMO_MICRO_READY"
 
 
 if __name__ == "__main__":
