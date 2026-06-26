@@ -1,0 +1,31 @@
+{
+  "mode": "DRY_ARM_CHECK_ONLY",
+  "timestamp_utc": "2026-06-26T22:35:56.045060+00:00",
+  "hard_gate_verdict": "DEMO_MICRO_BLOCKED",
+  "hard_gate_checks": {
+    "mt5_reachable": false,
+    "account_demo": false,
+    "demo_micro_enabled": false,
+    "arm_token_present": false,
+    "not_real_account": true,
+    "max_lot_ok": true,
+    "max_positions_ok": true,
+    "max_trades_ok": true,
+    "force_close_on_end": true,
+    "kill_switch_normal": true,
+    "market_open": true,
+    "demo_micro_readiness_ok": true
+  },
+  "hard_gate_reasons": [
+    "MT5 not reachable (Linux or not installed)",
+    "demo_micro.enabled=false (default)",
+    "TITAN_DEMO_MICRO_ARMED not set to 1"
+  ],
+  "order_send_called": false,
+  "order_send_success": 0,
+  "trades_opened": 0,
+  "trades_closed": 0,
+  "net_pnl": 0,
+  "final_verdict": "DEMO_MICRO_BLOCKED",
+  "message": "DRY_ARM_CHECK_ONLY \u2014 no orders sent. Execute would be BLOCKED."
+}

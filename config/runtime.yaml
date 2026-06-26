@@ -108,6 +108,30 @@ prop_firm:
   initial_balance: 100000.0         # challenge starting balance (for % calc)
   custom_overrides: {}              # only used when profile=custom
 
+# ─── Demo Micro Full-Cycle Test (Sprint 9.9) ────────────────────────────────
+# Controlled DEMO-only micro test harness. Default disabled.
+# Z AI must NEVER run DEMO_MICRO_EXECUTE — operator only.
+demo_micro:
+  enabled: false
+  require_operator_arm: true
+  arm_token_env: TITAN_DEMO_MICRO_ARMED
+  account_type_required: DEMO
+  symbol: XAUUSD
+  timeframe: H1
+  max_lot: 0.01
+  max_open_positions: 1
+  max_trades_per_run: 1
+  max_duration_minutes: 240
+  max_daily_loss_pct: 0.25
+  max_total_loss_pct: 0.50
+  force_close_on_end: true
+  force_close_after_minutes: 240
+  allow_weekend: false
+  allow_high_spread: false
+  max_spread_usd: 1.0
+  no_trade_news_window_minutes: 30
+  journal_path: data/audit/demo_micro/demo_micro_journal.jsonl
+
 # ─── Universal Execution Intelligence (Sprint 9.5) ───────────────────────────
 # When enabled=true, TITAN auto-detects broker properties, scores broker
 # quality continuously, selects execution profile automatically, and adapts
