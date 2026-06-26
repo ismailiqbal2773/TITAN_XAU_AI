@@ -1,13 +1,12 @@
 {
   "verdict": "DEMO_MICRO_BLOCKED",
   "reasons": [
-    "MT5 not reachable (Linux or not installed)",
     "demo_micro.enabled=false (default)",
     "TITAN_DEMO_MICRO_ARMED not set to 1"
   ],
   "checks": {
-    "mt5_reachable": false,
-    "account_demo": false,
+    "mt5_reachable": true,
+    "account_demo": true,
     "demo_micro_enabled": false,
     "arm_token_present": false,
     "not_real_account": true,
@@ -19,6 +18,6 @@
     "market_open": true,
     "demo_micro_readiness_ok": true
   },
-  "platform": "Linux",
-  "timestamp_utc": "2026-06-26T22:44:11.586837+00:00"
+  "platform": "Windows",
+  "timestamp_utc": "2026-06-26T22:49:40.766294+00:00"
 }

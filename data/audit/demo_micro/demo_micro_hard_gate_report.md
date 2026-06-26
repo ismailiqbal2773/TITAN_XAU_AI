@@ -6,8 +6,8 @@
 
 | Check | Passed |
 |---|---|
-| mt5_reachable | ✗ |
-| account_demo | ✗ |
+| mt5_reachable | ✓ |
+| account_demo | ✓ |
 | demo_micro_enabled | ✗ |
 | arm_token_present | ✗ |
 | not_real_account | ✓ |
@@ -21,6 +21,5 @@
 
 ## Reasons
 
-- MT5 not reachable (Linux or not installed)
 - demo_micro.enabled=false (default)
 - TITAN_DEMO_MICRO_ARMED not set to 1
