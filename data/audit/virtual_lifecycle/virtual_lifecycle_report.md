@@ -23,7 +23,7 @@
 | max_drawdown_net | 54.64 |
 | avg_r | 0.3235 |
 | expectancy_net | 2.5941 |
-| avg_holding_time | 0.0 |
+| avg_holding_time | 0.01 |
 | mfe_avg | 7.4706 |
 | mae_avg | 3.6471 |
 | cost_drag_total | 10.9 |

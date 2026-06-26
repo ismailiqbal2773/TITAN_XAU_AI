@@ -1,6 +1,6 @@
 {
   "audit": "sprint_9_8_virtual_lifecycle",
-  "timestamp_utc": "2026-06-26T21:44:42.153589+00:00",
+  "timestamp_utc": "2026-06-26T21:54:57.697261+00:00",
   "verdict": "VIRTUAL_LIFECYCLE_READY",
   "order_send_used": false,
   "live_execution_touched": false,
@@ -20,7 +20,7 @@
     "max_drawdown_net": 54.64,
     "avg_r": 0.3235,
     "expectancy_net": 2.5941,
-    "avg_holding_time": 0.0,
+    "avg_holding_time": 0.01,
     "mfe_avg": 7.4706,
     "mae_avg": 3.6471,
     "cost_drag_total": 10.9,
