@@ -1,12 +1,13 @@
 {
   "verdict": "DEMO_MICRO_BLOCKED",
   "reasons": [
-    "demo_micro.enabled=false (default)",
+    "MT5 not reachable (Linux or not installed)",
+    "demo_micro.enabled=False (config)",
     "TITAN_DEMO_MICRO_ARMED not set to 1"
   ],
   "checks": {
-    "mt5_reachable": true,
-    "account_demo": true,
+    "mt5_reachable": false,
+    "account_demo": false,
     "demo_micro_enabled": false,
     "arm_token_present": false,
     "not_real_account": true,
@@ -18,6 +19,10 @@
     "market_open": true,
     "demo_micro_readiness_ok": true
   },
-  "platform": "Windows",
-  "timestamp_utc": "2026-06-26T22:49:40.766294+00:00"
+  "platform": "Linux",
+  "timestamp_utc": "2026-06-26T23:15:00.152006+00:00",
+  "config_path_used": "/home/z/my-project/TITAN_XAU_AI/config/runtime.yaml",
+  "demo_micro_config_found": true,
+  "demo_micro_enabled_raw": false,
+  "demo_micro_enabled_effective": false
 }

@@ -1,13 +1,22 @@
-# Sprint 9.9 — Demo Micro Hard Gate
+# Sprint 9.9.2 — Demo Micro Hard Gate (Config Fix)
 
 **Verdict: DEMO_MICRO_BLOCKED**
+
+## Config Diagnostics
+
+| Field | Value |
+|---|---|
+| config_path_used | /home/z/my-project/TITAN_XAU_AI/config/runtime.yaml |
+| demo_micro_config_found | True |
+| demo_micro_enabled_raw | False |
+| demo_micro_enabled_effective | False |
 
 ## Checks
 
 | Check | Passed |
 |---|---|
-| mt5_reachable | ✓ |
-| account_demo | ✓ |
+| mt5_reachable | ✗ |
+| account_demo | ✗ |
 | demo_micro_enabled | ✗ |
 | arm_token_present | ✗ |
 | not_real_account | ✓ |
@@ -21,5 +30,6 @@
 
 ## Reasons
 
-- demo_micro.enabled=false (default)
+- MT5 not reachable (Linux or not installed)
+- demo_micro.enabled=False (config)
 - TITAN_DEMO_MICRO_ARMED not set to 1

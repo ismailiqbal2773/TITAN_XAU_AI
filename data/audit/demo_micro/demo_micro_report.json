@@ -1,10 +1,10 @@
 {
   "mode": "DRY_ARM_CHECK_ONLY",
-  "timestamp_utc": "2026-06-26T22:50:08.282190+00:00",
+  "timestamp_utc": "2026-06-26T23:15:00.341976+00:00",
   "hard_gate_verdict": "DEMO_MICRO_BLOCKED",
   "hard_gate_checks": {
-    "mt5_reachable": true,
-    "account_demo": true,
+    "mt5_reachable": false,
+    "account_demo": false,
     "demo_micro_enabled": false,
     "arm_token_present": false,
     "not_real_account": true,
@@ -17,7 +17,8 @@
     "demo_micro_readiness_ok": true
   },
   "hard_gate_reasons": [
-    "demo_micro.enabled=false (default)",
+    "MT5 not reachable (Linux or not installed)",
+    "demo_micro.enabled=False (config)",
     "TITAN_DEMO_MICRO_ARMED not set to 1"
   ],
   "order_send_called": false,

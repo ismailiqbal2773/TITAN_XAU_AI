@@ -1,9 +1,8 @@
 """
-TITAN XAU AI — Sprint 9.9 Demo Micro Hard Gate
-================================================
-
-Checks all safety gates before DEMO micro execution.
-Verdicts: DEMO_MICRO_ARMED, DEMO_MICRO_BLOCKED, MARKET_CLOSED, DEMO_MANUAL_REVIEW_REQUIRED
+TITAN XAU AI — Sprint 9.9.2 Demo Micro Hard Gate (Config Fix)
+===============================================================
+Fixed: now reads top-level demo_micro config from runtime.yaml.
+Uses shared config loader from demo_micro_config.py.
 """
 from __future__ import annotations
 import json, os, sys, platform
@@ -16,10 +15,15 @@ sys.path.insert(0, str(REPO_ROOT))
 OUTPUT_DIR = REPO_ROOT / "data" / "audit" / "demo_micro"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
+from scripts.audit.demo_micro_config import load_demo_micro_config
 
-def evaluate() -> dict:
+
+def evaluate(config_path: str = None) -> dict:
     checks = {}
     reasons = []
+
+    # Load config
+    cfg = load_demo_micro_config(config_path)
 
     # 1. MT5 reachable
     mt5_ok = False
@@ -44,12 +48,16 @@ def evaluate() -> dict:
     if account_info and not is_demo:
         reasons.append("Account is NOT DEMO — BLOCKED")
 
-    # 3. demo_micro.enabled
-    checks["demo_micro_enabled"] = False  # default disabled
-    reasons.append("demo_micro.enabled=false (default)")
+    # 3. demo_micro.enabled — NOW READ FROM CONFIG (was hardcoded False)
+    checks["demo_micro_enabled"] = cfg["demo_micro_enabled_effective"]
+    if not cfg["demo_micro_enabled_effective"]:
+        if not cfg["demo_micro_config_found"]:
+            reasons.append("demo_micro section not found in config — default false")
+        else:
+            reasons.append(f"demo_micro.enabled={cfg['demo_micro_enabled_raw']} (config)")
 
     # 4. Operator arm token
-    arm_env = "TITAN_DEMO_MICRO_ARMED"
+    arm_env = cfg["arm_token_env"]
     arm_present = os.environ.get(arm_env, "0") == "1"
     checks["arm_token_present"] = arm_present
     if not arm_present:
@@ -61,16 +69,24 @@ def evaluate() -> dict:
         reasons.append("Real/live account detected — BLOCKED")
 
     # 6. max_lot <= 0.01
-    checks["max_lot_ok"] = True  # config enforces 0.01
+    checks["max_lot_ok"] = cfg["max_lot"] <= 0.01
+    if not checks["max_lot_ok"]:
+        reasons.append(f"max_lot={cfg['max_lot']} > 0.01")
 
     # 7. max_open_positions == 1
-    checks["max_positions_ok"] = True
+    checks["max_positions_ok"] = cfg["max_open_positions"] == 1
+    if not checks["max_positions_ok"]:
+        reasons.append(f"max_open_positions={cfg['max_open_positions']} != 1")
 
     # 8. max_trades <= 3
-    checks["max_trades_ok"] = True
+    checks["max_trades_ok"] = cfg["max_trades_per_run"] <= 3
+    if not checks["max_trades_ok"]:
+        reasons.append(f"max_trades_per_run={cfg['max_trades_per_run']} > 3")
 
     # 9. force_close_on_end
-    checks["force_close_on_end"] = True
+    checks["force_close_on_end"] = cfg["force_close_on_end"]
+    if not cfg["force_close_on_end"]:
+        reasons.append("force_close_on_end=false")
 
     # 10. Kill switch NORMAL (assumed)
     checks["kill_switch_normal"] = True
@@ -103,6 +119,8 @@ def evaluate() -> dict:
         verdict = "DEMO_MICRO_BLOCKED"
     elif not is_demo:
         verdict = "DEMO_MICRO_BLOCKED"
+    elif not cfg["demo_micro_enabled_effective"]:
+        verdict = "DEMO_MICRO_BLOCKED"
     elif not arm_present:
         verdict = "DEMO_MICRO_BLOCKED"
     elif not readiness_ok:
@@ -112,13 +130,23 @@ def evaluate() -> dict:
     else:
         verdict = "DEMO_MICRO_BLOCKED"
 
-    return {"verdict": verdict, "reasons": reasons, "checks": checks,
-            "platform": platform.system(), "timestamp_utc": datetime.now(timezone.utc).isoformat()}
+    return {
+        "verdict": verdict,
+        "reasons": reasons,
+        "checks": checks,
+        "platform": platform.system(),
+        "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+        # Diagnostic fields (Sprint 9.9.2)
+        "config_path_used": cfg["config_path_used"],
+        "demo_micro_config_found": cfg["demo_micro_config_found"],
+        "demo_micro_enabled_raw": cfg["demo_micro_enabled_raw"],
+        "demo_micro_enabled_effective": cfg["demo_micro_enabled_effective"],
+    }
 
 
 def main():
     print("=" * 78)
-    print("  TITAN XAU AI — Sprint 9.9 Demo Micro Hard Gate")
+    print("  TITAN XAU AI — Sprint 9.9.2 Demo Micro Hard Gate (Config Fix)")
     print("=" * 78)
 
     result = evaluate()
@@ -126,6 +154,14 @@ def main():
     print(f"\n── Hard Gate Checks ──")
     for k, v in result["checks"].items():
         print(f"  [{'✓' if v else '✗'}] {k}: {v}")
+
+    # Diagnostic output
+    print(f"\n── Config Diagnostics ──")
+    print(f"  config_path_used:            {result['config_path_used']}")
+    print(f"  demo_micro_config_found:     {result['demo_micro_config_found']}")
+    print(f"  demo_micro_enabled_raw:      {result['demo_micro_enabled_raw']}")
+    print(f"  demo_micro_enabled_effective: {result['demo_micro_enabled_effective']}")
+
     if result["reasons"]:
         print(f"\n  Reasons:")
         for r in result["reasons"]:
@@ -140,9 +176,14 @@ def main():
 
     md_path = OUTPUT_DIR / "demo_micro_hard_gate_report.md"
     with open(md_path, "w", encoding="utf-8") as f:
-        f.write("# Sprint 9.9 — Demo Micro Hard Gate\n\n")
+        f.write("# Sprint 9.9.2 — Demo Micro Hard Gate (Config Fix)\n\n")
         f.write(f"**Verdict: {result['verdict']}**\n\n")
-        f.write(f"## Checks\n\n| Check | Passed |\n|---|---|\n")
+        f.write(f"## Config Diagnostics\n\n| Field | Value |\n|---|---|\n")
+        f.write(f"| config_path_used | {result['config_path_used']} |\n")
+        f.write(f"| demo_micro_config_found | {result['demo_micro_config_found']} |\n")
+        f.write(f"| demo_micro_enabled_raw | {result['demo_micro_enabled_raw']} |\n")
+        f.write(f"| demo_micro_enabled_effective | {result['demo_micro_enabled_effective']} |\n")
+        f.write(f"\n## Checks\n\n| Check | Passed |\n|---|---|\n")
         for k, v in result["checks"].items():
             f.write(f"| {k} | {'✓' if v else '✗'} |\n")
         if result["reasons"]:

@@ -17,6 +17,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT))
 
 from scripts.audit.demo_micro_hard_gate import evaluate as hard_gate_evaluate
+from scripts.audit.demo_micro_config import load_demo_micro_config
 from titan.production.trade_journal import TradeJournal
 
 OUTPUT_DIR = REPO_ROOT / "data" / "audit" / "demo_micro"
