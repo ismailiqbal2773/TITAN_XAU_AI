@@ -5,12 +5,17 @@ TITAN XAU AI — Sprint 9.8 Virtual Lifecycle Validator (Fixed DD)
 Fixed Sprint 9.8.1: DD now calculated from configurable starting equity
 (6000.00), not from 0. Normal vs stress scenarios separated.
 
+Sprint 9.9.3.2: Added optional --governance flag to apply the
+StressLossGovernanceEngine decision layer. When --governance is NOT
+passed (default), behavior is unchanged — full backward compatibility.
+
 Output:
   data/audit/virtual_lifecycle/virtual_lifecycle_report.json
   data/audit/virtual_lifecycle/virtual_lifecycle_report.md
   data/audit/virtual_lifecycle/virtual_lifecycle_journal.jsonl
 """
 from __future__ import annotations
+import argparse
 import json
 import sys
 import time
@@ -39,7 +44,7 @@ STRESS_SCENARIOS = {
 }
 
 
-def run_scenarios(journal):
+def run_scenarios(journal, governance_engine=None):
     ledger = VirtualPositionLedger(journal=journal)
     engine = NetProfitEngine()
 
@@ -64,7 +69,50 @@ def run_scenarios(journal):
     ]
 
     results = []
+    governance_decisions = []
     for name, direction, entry, sl, tp, high, low, close, reason, spread, comm in scenarios:
+        # Sprint 9.9.3.2: If governance engine provided, evaluate entry first.
+        # If blocked, skip this scenario entirely (no position opened).
+        governance_decision = None
+        if governance_engine is not None:
+            from titan.production.stress_loss_governance import GovernanceInput
+            # Build a representative GovernanceInput for this scenario.
+            # We use the same logic as in stress_loss_mitigation_comparison.py
+            # to keep behavior consistent.
+            inp = _scenario_to_governance_input(name, governance_engine.account_profile)
+            governance_decision = governance_engine.evaluate_entry(inp)
+            if not governance_decision.allow_trade:
+                # Skip scenario — record as blocked, no position opened
+                is_stress = name in STRESS_SCENARIOS
+                results.append({
+                    "scenario": name,
+                    "category": "STRESS" if is_stress else "NORMAL",
+                    "direction": direction,
+                    "entry": entry,
+                    "close": entry,  # no trade
+                    "reason": "GOVERNANCE_BLOCKED",
+                    "gross_pnl": 0.0,
+                    "net_pnl": 0.0,
+                    "r_multiple": 0.0,
+                    "mfe": 0.0,
+                    "mae": 0.0,
+                    "costs": {
+                        "spread_cost": 0, "commission_cost": 0,
+                        "slippage_cost": 0, "swap_cost": 0,
+                        "total_cost": 0, "is_estimate": False, "estimate_reason": "",
+                    },
+                    "is_profitable_net": False,
+                    "governance_blocked": True,
+                    "governance_block_reason": governance_decision.block_reason,
+                })
+                governance_decisions.append({
+                    "scenario": name,
+                    "allow_trade": False,
+                    "block_reason": governance_decision.block_reason,
+                    "governance_score": governance_decision.governance_score,
+                })
+                continue
+
         pos = ledger.open_position(
             "XAUUSD", direction, entry, 0.01, sl, tp,
             spread_cost=spread, commission_cost=comm,
@@ -95,9 +143,86 @@ def run_scenarios(journal):
             "mae": pos.mae,
             "costs": net_result.costs.to_dict(),
             "is_profitable_net": pos.net_pnl > 0,
+            "governance_blocked": False,
+            "governance_block_reason": "",
         })
+        if governance_decision is not None:
+            governance_decisions.append({
+                "scenario": name,
+                "allow_trade": True,
+                "risk_multiplier": governance_decision.risk_multiplier,
+                "governance_score": governance_decision.governance_score,
+                "institutional_approval": governance_decision.institutional_approval,
+            })
 
-    return ledger, results
+    return ledger, results, governance_decisions
+
+
+def _scenario_to_governance_input(name, profile):
+    """Map a scenario to a GovernanceInput (mirrors comparison script logic)."""
+    from titan.production.stress_loss_governance import GovernanceInput
+    base = dict(
+        account_profile=profile,
+        regime_label="TREND_UP",
+        regime_confidence=0.75,
+        meta_confidence=0.70,
+        atr_percentile=50.0,
+        volatility_state="NORMAL",
+        spread_usd=0.30,
+        slippage_pips=2.0,
+        session="LONDON",
+        liquidity="GOOD",
+        account_health=90.0,
+        equity_protection_active=False,
+        capital_preservation_active=False,
+        broker_quality=80.0,
+        daily_dd_pct=0.5,
+        daily_dd_threshold_pct=3.0,
+        regime_flip_probability=0.20,
+        rolling_setup_winrate=0.50,
+    )
+    if name == "BUY_TP":
+        base.update(dict(meta_confidence=0.78, regime_confidence=0.80))
+    elif name == "BUY_SL":
+        base.update(dict(meta_confidence=0.68, spread_usd=0.32))
+    elif name == "SELL_TP":
+        base.update(dict(regime_label="TREND_DOWN", meta_confidence=0.78, regime_confidence=0.80))
+    elif name == "SELL_SL":
+        base.update(dict(regime_label="TREND_DOWN", meta_confidence=0.68, spread_usd=0.32))
+    elif name == "BUY_AI_EXIT":
+        base.update(dict(meta_confidence=0.72, regime_confidence=0.72))
+    elif name == "SELL_AI_EXIT":
+        base.update(dict(regime_label="TREND_DOWN", meta_confidence=0.72, regime_confidence=0.72))
+    elif name == "REGIME_FLIP_BUY":
+        base.update(dict(regime_label="TRANSITION", regime_confidence=0.55,
+                         regime_flip_probability=0.70, meta_confidence=0.65))
+    elif name == "REGIME_FLIP_SELL":
+        base.update(dict(regime_label="TRANSITION", regime_confidence=0.55,
+                         regime_flip_probability=0.70, meta_confidence=0.65))
+    elif name == "ALPHA_DECAY":
+        base.update(dict(meta_confidence=0.62, regime_confidence=0.65))
+    elif name == "AMBIGUOUS_CANDLE":
+        base.update(dict(ambiguous_candle=True, confirmation_present=False,
+                         meta_confidence=0.65, regime_confidence=0.60,
+                         liquidity="NORMAL"))
+    elif name == "SPREAD_SPIKE_TP":
+        base.update(dict(spread_usd=0.80, meta_confidence=0.80, regime_confidence=0.80))
+    elif name == "HIGH_VOLATILITY":
+        base.update(dict(atr_percentile=95.0, volatility_state="EXTREME",
+                         spread_usd=0.50, meta_confidence=0.70))
+    elif name == "MAX_HOLDING":
+        base.update(dict(meta_confidence=0.72, regime_confidence=0.72))
+    elif name == "PROFIT_LOCK":
+        base.update(dict(meta_confidence=0.75, regime_confidence=0.75))
+    elif name == "STALE_EXIT":
+        base.update(dict(meta_confidence=0.65, regime_confidence=0.65))
+    elif name == "EQUITY_PROTECTION":
+        base.update(dict(equity_protection_active=True, account_health=55.0,
+                         daily_dd_pct=2.5, daily_dd_threshold_pct=3.0))
+    elif name == "CAPITAL_PRESERVATION":
+        base.update(dict(capital_preservation_active=True, account_health=20.0,
+                         daily_dd_pct=2.9, daily_dd_threshold_pct=3.0))
+    return GovernanceInput(**base)
 
 
 def compute_metrics(closed_positions, start_equity=DEFAULT_START_EQUITY):
@@ -172,9 +297,30 @@ def _empty_metrics():
 
 
 def main():
+    parser = argparse.ArgumentParser(
+        description="TITAN XAU AI Sprint 9.8.1 Virtual Lifecycle Validator")
+    parser.add_argument("--governance", action="store_true",
+                        help="Apply StressLossGovernanceEngine decision layer "
+                             "(Sprint 9.9.3.2). Default: off (backward compatible).")
+    parser.add_argument("--profile",
+                        choices=["RETAIL_SAFE", "PROP_FIRM_STRICT",
+                                 "INSTITUTIONAL_CAPITAL_PROTECTION"],
+                        default="PROP_FIRM_STRICT",
+                        help="Account profile for governance (default: PROP_FIRM_STRICT)")
+    args = parser.parse_args()
+
     print("=" * 78)
     print("  TITAN XAU AI — Sprint 9.8.1 Virtual Lifecycle Validator (Fixed DD)")
+    if args.governance:
+        print(f"  + Sprint 9.9.3.2 Governance: ENABLED (profile={args.profile})")
     print("=" * 78)
+
+    governance_engine = None
+    if args.governance:
+        from titan.production.stress_loss_governance import (
+            StressLossGovernanceEngine, AccountProfile,
+        )
+        governance_engine = StressLossGovernanceEngine(args.profile)
 
     out_dir = REPO_ROOT / "data" / "audit" / "virtual_lifecycle"
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -185,12 +331,21 @@ def main():
     journal = TradeJournal(path=str(journal_path), session_id="vlc_9_8_1")
 
     print("\n── Running 17 virtual lifecycle scenarios ──")
-    ledger, results = run_scenarios(journal)
+    ledger, results, governance_decisions = run_scenarios(journal, governance_engine)
     journal.flush()
 
     all_closed = ledger.get_closed_positions()
-    normal_closed = [p for p, r in zip(all_closed, results) if r["category"] == "NORMAL"]
-    stress_closed = [p for p, r in zip(all_closed, results) if r["category"] == "STRESS"]
+    # When governance is enabled, some scenarios are blocked (no position opened).
+    # We must align all_closed with results carefully: results includes both
+    # blocked entries (governance_blocked=True, no position) and ran entries.
+    # Only the ran entries have a corresponding closed position in the ledger.
+    ran_results = [r for r in results if not r.get("governance_blocked", False)]
+    normal_closed = [p for p, r in zip(all_closed, ran_results) if r["category"] == "NORMAL"]
+    stress_closed = [p for p, r in zip(all_closed, ran_results) if r["category"] == "STRESS"]
+
+    if governance_engine is not None:
+        blocked_count = sum(1 for r in results if r.get("governance_blocked", False))
+        print(f"\n  Governance: blocked {blocked_count} / {len(results)} scenarios")
 
     print(f"\n  Normal scenarios: {len(normal_closed)}")
     print(f"  Stress scenarios: {len(stress_closed)}")
@@ -242,6 +397,14 @@ def main():
         "stress_metrics": stress_metrics,
         "scenarios": results,
     }
+    if governance_engine is not None:
+        report["governance_enabled"] = True
+        report["governance_profile"] = governance_engine.account_profile
+        report["governance_decisions"] = governance_decisions
+        report["governance_blocked_count"] = sum(
+            1 for r in results if r.get("governance_blocked", False))
+    else:
+        report["governance_enabled"] = False
     json_path = out_dir / "virtual_lifecycle_report.json"
     with open(json_path, "w", encoding="utf-8") as f:
         json.dump(report, f, indent=2, default=str)

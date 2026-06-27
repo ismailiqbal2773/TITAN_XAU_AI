@@ -1,6 +1,6 @@
 {
   "audit": "sprint_9_8_1_virtual_lifecycle_fixed",
-  "timestamp_utc": "2026-06-26T22:49:07.053259+00:00",
+  "timestamp_utc": "2026-06-27T01:54:19.633477+00:00",
   "verdict": "VIRTUAL_LIFECYCLE_READY",
   "demo_gate": "DEMO_MICRO_READY",
   "order_send_used": false,
@@ -16,7 +16,7 @@
     "max_drawdown_pct_of_peak_equity": 0.1889,
     "avg_r": 0.3235,
     "expectancy_net": 2.5941,
-    "avg_holding_time": 0.01,
+    "avg_holding_time": 0.0,
     "mfe_avg": 7.4706,
     "mae_avg": 3.6471,
     "cost_drag_total": 10.9,
@@ -34,7 +34,7 @@
     "max_drawdown_pct_of_peak_equity": 0.1761,
     "avg_r": 0.6778,
     "expectancy_net": 6.1778,
-    "avg_holding_time": 0.01,
+    "avg_holding_time": 0.0,
     "mfe_avg": 5.7778,
     "mae_avg": 3.0,
     "cost_drag_total": 5.4,
@@ -52,7 +52,7 @@
     "max_drawdown_pct_of_peak_equity": 0.3163,
     "avg_r": -0.075,
     "expectancy_net": -1.4375,
-    "avg_holding_time": 0.01,
+    "avg_holding_time": 0.0,
     "mfe_avg": 9.375,
     "mae_avg": 4.375,
     "cost_drag_total": 5.5,
@@ -81,7 +81,9 @@
         "is_estimate": false,
         "estimate_reason": ""
       },
-      "is_profitable_net": true
+      "is_profitable_net": true,
+      "governance_blocked": false,
+      "governance_block_reason": ""
     },
     {
       "scenario": "BUY_SL",
@@ -104,7 +106,9 @@
         "is_estimate": false,
         "estimate_reason": ""
       },
-      "is_profitable_net": false
+      "is_profitable_net": false,
+      "governance_blocked": false,
+      "governance_block_reason": ""
     },
     {
       "scenario": "SELL_TP",
@@ -127,7 +131,9 @@
         "is_estimate": false,
         "estimate_reason": ""
       },
-      "is_profitable_net": true
+      "is_profitable_net": true,
+      "governance_blocked": false,
+      "governance_block_reason": ""
     },
     {
       "scenario": "SELL_SL",
@@ -150,7 +156,9 @@
         "is_estimate": false,
         "estimate_reason": ""
       },
-      "is_profitable_net": false
+      "is_profitable_net": false,
+      "governance_blocked": false,
+      "governance_block_reason": ""
     },
     {
       "scenario": "BUY_AI_EXIT",
@@ -173,7 +181,9 @@
         "is_estimate": false,
         "estimate_reason": ""
       },
-      "is_profitable_net": true
+      "is_profitable_net": true,
+      "governance_blocked": false,
+      "governance_block_reason": ""
     },
     {
       "scenario": "SELL_AI_EXIT",
@@ -196,7 +206,9 @@
         "is_estimate": false,
         "estimate_reason": ""
       },
-      "is_profitable_net": true
+      "is_profitable_net": true,
+      "governance_blocked": false,
+      "governance_block_reason": ""
     },
     {
       "scenario": "REGIME_FLIP_BUY",
@@ -219,7 +231,9 @@
         "is_estimate": false,
         "estimate_reason": ""
       },
-      "is_profitable_net": false
+      "is_profitable_net": false,
+      "governance_blocked": false,
+      "governance_block_reason": ""
     },
     {
       "scenario": "REGIME_FLIP_SELL",
@@ -242,7 +256,9 @@
         "is_estimate": false,
         "estimate_reason": ""
       },
-      "is_profitable_net": false
+      "is_profitable_net": false,
+      "governance_blocked": false,
+      "governance_block_reason": ""
     },
     {
       "scenario": "ALPHA_DECAY",
@@ -265,7 +281,9 @@
         "is_estimate": false,
         "estimate_reason": ""
       },
-      "is_profitable_net": true
+      "is_profitable_net": true,
+      "governance_blocked": false,
+      "governance_block_reason": ""
     },
     {
       "scenario": "AMBIGUOUS_CANDLE",
@@ -288,7 +306,9 @@
         "is_estimate": false,
         "estimate_reason": ""
       },
-      "is_profitable_net": false
+      "is_profitable_net": false,
+      "governance_blocked": false,
+      "governance_block_reason": ""
     },
     {
       "scenario": "SPREAD_SPIKE_TP",
@@ -311,7 +331,9 @@
         "is_estimate": false,
         "estimate_reason": ""
       },
-      "is_profitable_net": true
+      "is_profitable_net": true,
+      "governance_blocked": false,
+      "governance_block_reason": ""
     },
     {
       "scenario": "HIGH_VOLATILITY",
@@ -334,7 +356,9 @@
         "is_estimate": false,
         "estimate_reason": ""
       },
-      "is_profitable_net": false
+      "is_profitable_net": false,
+      "governance_blocked": false,
+      "governance_block_reason": ""
     },
     {
       "scenario": "MAX_HOLDING",
@@ -357,7 +381,9 @@
         "is_estimate": false,
         "estimate_reason": ""
       },
-      "is_profitable_net": true
+      "is_profitable_net": true,
+      "governance_blocked": false,
+      "governance_block_reason": ""
     },
     {
       "scenario": "PROFIT_LOCK",
@@ -380,7 +406,9 @@
         "is_estimate": false,
         "estimate_reason": ""
       },
-      "is_profitable_net": true
+      "is_profitable_net": true,
+      "governance_blocked": false,
+      "governance_block_reason": ""
     },
     {
       "scenario": "STALE_EXIT",
@@ -403,7 +431,9 @@
         "is_estimate": false,
         "estimate_reason": ""
       },
-      "is_profitable_net": true
+      "is_profitable_net": true,
+      "governance_blocked": false,
+      "governance_block_reason": ""
     },
     {
       "scenario": "EQUITY_PROTECTION",
@@ -426,7 +456,9 @@
         "is_estimate": false,
         "estimate_reason": ""
       },
-      "is_profitable_net": false
+      "is_profitable_net": false,
+      "governance_blocked": false,
+      "governance_block_reason": ""
     },
     {
       "scenario": "CAPITAL_PRESERVATION",
@@ -449,7 +481,10 @@
         "is_estimate": false,
         "estimate_reason": ""
       },
-      "is_profitable_net": false
+      "is_profitable_net": false,
+      "governance_blocked": false,
+      "governance_block_reason": ""
     }
-  ]
+  ],
+  "governance_enabled": false
 }

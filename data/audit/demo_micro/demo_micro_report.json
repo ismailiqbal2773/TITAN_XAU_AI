@@ -1,6 +1,6 @@
 {
   "mode": "DRY_ARM_CHECK_ONLY",
-  "timestamp_utc": "2026-06-27T00:07:12.759277+00:00",
+  "timestamp_utc": "2026-06-27T01:56:21.791610+00:00",
   "hard_gate_verdict": "DEMO_MICRO_BLOCKED",
   "hard_gate_checks": {
     "mt5_reachable": false,

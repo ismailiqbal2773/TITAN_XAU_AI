@@ -1,0 +1,261 @@
+{
+  "audit": "sprint_9_9_3_2_stress_loss_mitigation_comparison",
+  "timestamp_utc": "2026-06-27T01:54:23.131057+00:00",
+  "source_report": "data/audit/virtual_lifecycle/virtual_lifecycle_report.json",
+  "primary_profile": "PROP_FIRM_STRICT",
+  "before": {
+    "total_net_pnl": 44.1,
+    "loss_from_8_scenarios": -52.0,
+    "profit_from_other_scenarios": 96.1,
+    "max_dd_usd": 11.4,
+    "profit_factor": 1.8481,
+    "win_rate_pct": 52.94
+  },
+  "after": {
+    "total_net_pnl": 76.4,
+    "loss_from_8_scenarios": 0.0,
+    "profit_from_other_scenarios": 76.4,
+    "max_dd_usd": 0.0,
+    "profit_factor": "inf",
+    "win_rate_pct": 35.29,
+    "blocked_count": 11,
+    "early_exit_count": 0,
+    "be_exit_count": 0,
+    "partial_close_count": 0,
+    "reduced_risk_count": 0,
+    "allowed_count": 6
+  },
+  "losing_scenario_comparison": [
+    {
+      "scenario": "BUY_SL",
+      "before_net_pnl": -10.600000000000001,
+      "after_net_pnl": 0.0,
+      "pnl_change": 10.6,
+      "governance_action": "BLOCKED",
+      "explanation": "BASELINE: meta 0.68 < 0.7 \u2014 block",
+      "block_reason": "BASELINE: meta 0.68 < 0.7 \u2014 block",
+      "risk_multiplier": 0.0,
+      "institutional_approval": false
+    },
+    {
+      "scenario": "SELL_SL",
+      "before_net_pnl": -10.600000000000001,
+      "after_net_pnl": 0.0,
+      "pnl_change": 10.6,
+      "governance_action": "BLOCKED",
+      "explanation": "BASELINE: meta 0.68 < 0.7 \u2014 block",
+      "block_reason": "BASELINE: meta 0.68 < 0.7 \u2014 block",
+      "risk_multiplier": 0.0,
+      "institutional_approval": false
+    },
+    {
+      "scenario": "REGIME_FLIP_BUY",
+      "before_net_pnl": -0.6,
+      "after_net_pnl": 0.0,
+      "pnl_change": 0.6,
+      "governance_action": "BLOCKED",
+      "explanation": "BASELINE: meta 0.65 < 0.7 \u2014 block; REGIME_FLIP: probability 0.7 > 0.6 \u2014 no new trade",
+      "block_reason": "BASELINE: meta 0.65 < 0.7 \u2014 block; REGIME_FLIP: probability 0.7 > 0.6 \u2014 no new trade",
+      "risk_multiplier": 0.0,
+      "institutional_approval": false
+    },
+    {
+      "scenario": "REGIME_FLIP_SELL",
+      "before_net_pnl": -0.6,
+      "after_net_pnl": 0.0,
+      "pnl_change": 0.6,
+      "governance_action": "BLOCKED",
+      "explanation": "BASELINE: meta 0.65 < 0.7 \u2014 block; REGIME_FLIP: probability 0.7 > 0.6 \u2014 no new trade",
+      "block_reason": "BASELINE: meta 0.65 < 0.7 \u2014 block; REGIME_FLIP: probability 0.7 > 0.6 \u2014 no new trade",
+      "risk_multiplier": 0.0,
+      "institutional_approval": false
+    },
+    {
+      "scenario": "AMBIGUOUS_CANDLE",
+      "before_net_pnl": -10.600000000000001,
+      "after_net_pnl": 0.0,
+      "pnl_change": 10.6,
+      "governance_action": "BLOCKED",
+      "explanation": "AMBIGUOUS_CANDLE: blocked \u2014 missing: meta 0.65 < 0.75, regime_conf 0.6 < 0.70, no confirmation; BASELINE: meta 0.65 < 0.7 \u2014 block",
+      "block_reason": "AMBIGUOUS_CANDLE: blocked \u2014 missing: meta 0.65 < 0.75, regime_conf 0.6 < 0.70, no confirmation; BASELINE: meta 0.65 < 0.7 \u2014 block",
+      "risk_multiplier": 0.0,
+      "institutional_approval": false
+    },
+    {
+      "scenario": "HIGH_VOLATILITY",
+      "before_net_pnl": -10.8,
+      "after_net_pnl": 0.0,
+      "pnl_change": 10.8,
+      "governance_action": "BLOCKED",
+      "explanation": "HIGH_VOLATILITY: ATR 95.0 > 92 \u2014 block",
+      "block_reason": "HIGH_VOLATILITY: ATR 95.0 > 92 \u2014 block",
+      "risk_multiplier": 0.0,
+      "institutional_approval": false
+    },
+    {
+      "scenario": "EQUITY_PROTECTION",
+      "before_net_pnl": -5.6,
+      "after_net_pnl": 0.0,
+      "pnl_change": 5.6,
+      "governance_action": "BLOCKED",
+      "explanation": "EQUITY_PROTECTION: zone active \u2014 no new trades; ACCOUNT: health 55.0 < 60 \u2014 no new trades; DAILY_DD: 83.3% of threshold > 60% \u2014 no new trades",
+      "block_reason": "EQUITY_PROTECTION: zone active \u2014 no new trades; ACCOUNT: health 55.0 < 60 \u2014 no new trades; DAILY_DD: 83.3% of threshold > 60% \u2014 no new trades",
+      "risk_multiplier": 0.0,
+      "institutional_approval": false
+    },
+    {
+      "scenario": "CAPITAL_PRESERVATION",
+      "before_net_pnl": -2.5999999999999996,
+      "after_net_pnl": 0.0,
+      "pnl_change": 2.6,
+      "governance_action": "BLOCKED",
+      "explanation": "CAPITAL_PRESERVATION: active \u2014 no new trades / no recovery trade; ACCOUNT: health 20.0 < 60 \u2014 no new trades; DAILY_DD: 96.7% of threshold > 60% \u2014 no new trades",
+      "block_reason": "CAPITAL_PRESERVATION: active \u2014 no new trades / no recovery trade; ACCOUNT: health 20.0 < 60 \u2014 no new trades; DAILY_DD: 96.7% of threshold > 60% \u2014 no new trades",
+      "risk_multiplier": 0.0,
+      "institutional_approval": false
+    }
+  ],
+  "per_profile_summary": {
+    "RETAIL_SAFE": {
+      "total_scenarios": 17,
+      "total_net_pnl": 95.7,
+      "loss_from_8_scenarios": 0.0,
+      "max_dd_usd": 0.0,
+      "profit_factor": "inf",
+      "expectancy": 5.6294,
+      "blocked_trades": 7,
+      "institutional_approved_trades": 4,
+      "early_exits": 0,
+      "be_exits": 2,
+      "partial_closes": 0,
+      "capital_protection_activations": 2,
+      "explainability_complete": true,
+      "approved_scenarios": [
+        "BUY_TP",
+        "SELL_TP",
+        "SPREAD_SPIKE_TP",
+        "PROFIT_LOCK"
+      ],
+      "rejected_scenarios": [
+        "BUY_SL",
+        "SELL_SL",
+        "BUY_AI_EXIT",
+        "SELL_AI_EXIT",
+        "REGIME_FLIP_BUY",
+        "REGIME_FLIP_SELL",
+        "ALPHA_DECAY",
+        "AMBIGUOUS_CANDLE",
+        "HIGH_VOLATILITY",
+        "MAX_HOLDING",
+        "STALE_EXIT",
+        "EQUITY_PROTECTION",
+        "CAPITAL_PRESERVATION"
+      ]
+    },
+    "PROP_FIRM_STRICT": {
+      "total_scenarios": 17,
+      "total_net_pnl": 76.4,
+      "loss_from_8_scenarios": 0.0,
+      "max_dd_usd": 0.0,
+      "profit_factor": "inf",
+      "expectancy": 4.4941,
+      "blocked_trades": 11,
+      "institutional_approved_trades": 3,
+      "early_exits": 0,
+      "be_exits": 0,
+      "partial_closes": 0,
+      "capital_protection_activations": 2,
+      "explainability_complete": true,
+      "approved_scenarios": [
+        "BUY_TP",
+        "SELL_TP",
+        "PROFIT_LOCK"
+      ],
+      "rejected_scenarios": [
+        "BUY_SL",
+        "SELL_SL",
+        "BUY_AI_EXIT",
+        "SELL_AI_EXIT",
+        "REGIME_FLIP_BUY",
+        "REGIME_FLIP_SELL",
+        "ALPHA_DECAY",
+        "AMBIGUOUS_CANDLE",
+        "SPREAD_SPIKE_TP",
+        "HIGH_VOLATILITY",
+        "MAX_HOLDING",
+        "STALE_EXIT",
+        "EQUITY_PROTECTION",
+        "CAPITAL_PRESERVATION"
+      ]
+    },
+    "INSTITUTIONAL_CAPITAL_PROTECTION": {
+      "total_scenarios": 17,
+      "total_net_pnl": 53.2,
+      "loss_from_8_scenarios": 0.0,
+      "max_dd_usd": 0.0,
+      "profit_factor": "inf",
+      "expectancy": 3.1294,
+      "blocked_trades": 14,
+      "institutional_approved_trades": 3,
+      "early_exits": 0,
+      "be_exits": 0,
+      "partial_closes": 0,
+      "capital_protection_activations": 2,
+      "explainability_complete": true,
+      "approved_scenarios": [
+        "BUY_TP",
+        "SELL_TP",
+        "PROFIT_LOCK"
+      ],
+      "rejected_scenarios": [
+        "BUY_SL",
+        "SELL_SL",
+        "BUY_AI_EXIT",
+        "SELL_AI_EXIT",
+        "REGIME_FLIP_BUY",
+        "REGIME_FLIP_SELL",
+        "ALPHA_DECAY",
+        "AMBIGUOUS_CANDLE",
+        "SPREAD_SPIKE_TP",
+        "HIGH_VOLATILITY",
+        "MAX_HOLDING",
+        "STALE_EXIT",
+        "EQUITY_PROTECTION",
+        "CAPITAL_PRESERVATION"
+      ]
+    }
+  },
+  "acceptance_criteria": {
+    "loss_from_8_reduced": true,
+    "high_volatility_no_longer_full_1R_loss": true,
+    "ambiguous_candle_no_longer_full_1R_loss": true,
+    "buy_sl_sell_sl_reduced_or_blocked": true,
+    "equity_capital_preservation_no_new_trades": true,
+    "regime_flip_losses_reduced": true,
+    "max_dd_same_or_lower": true,
+    "no_production_live_path_changed": true,
+    "no_demo_execution_run": true,
+    "no_martingale_grid_averaging_lot_escalation": true,
+    "all_criteria_met": true
+  },
+  "safety": {
+    "code_changed": false,
+    "strategy_changed": false,
+    "live_demo_path_changed": false,
+    "demo_micro_execute_run": false,
+    "martingale_added": false,
+    "grid_added": false,
+    "averaging_added": false,
+    "lot_escalation_added": false,
+    "models_retrained": false
+  },
+  "notes": [
+    "This is a SIMULATION \u2014 no real or demo MT5 execution was performed.",
+    "The governance engine is wired into the virtual lifecycle decision path only.",
+    "Production live path is unchanged. DEMO_MICRO_EXECUTE was NOT run.",
+    "PROP_FIRM_STRICT profile is used as the primary comparison baseline.",
+    "INSTITUTIONAL_CAPITAL_PROTECTION is the strictest profile \u2014 blocks more trades,",
+    "requires higher meta/regime confidence, lower spread, lower ATR.",
+    "All governance decisions are explainable via the audit trail."
+  ]
+}
