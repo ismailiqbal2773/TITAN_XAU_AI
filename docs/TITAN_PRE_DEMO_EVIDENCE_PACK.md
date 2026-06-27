@@ -271,3 +271,153 @@ After the test, send the following files to Z AI:
 - `data/audit/demo_micro/demo_micro_hard_gate_report.json`
 
 Z AI will analyze the results and recommend next steps.
+
+---
+
+## 15. Monday DEMO Micro Test — Scope Clarification
+
+> **CRITICAL**: The Monday DEMO micro test is **NOT a profit test**.
+
+### What This Test IS
+
+The Monday DEMO micro test is **only an execution lifecycle safety test**:
+
+```
+open → sync → controlled close → report
+```
+
+The purpose is to prove that:
+1. The DEMO_MICRO_EXECUTE mode can actually send ONE real MT5 DEMO order
+2. The position sync logic correctly identifies the opened position
+3. The controlled close logic correctly closes the position (BUY→SELL or SELL→BUY)
+4. The reporting pipeline generates correct JSON/MD/journal files
+5. The full cycle completes with `final_verdict: DEMO_FULL_CYCLE_PASS`
+6. No open positions remain after the test
+
+### What This Test IS NOT
+
+- **NOT a profit test** — net PnL may be positive, negative, or zero; it does not matter
+- **NOT a strategy validation** — strategy was already validated in Sprints 9.9.3.4 and 9.9.3.6
+- **NOT a governance test** — governance is NOT wired into DEMO_MICRO_EXECUTE
+- **NOT a performance benchmark** — only ONE trade is sent
+- **NOT a multi-trade test** — max_trades is hard-capped at 1
+
+### Expected Parameters
+
+| Parameter | Value | Hard Cap |
+|---|---|---|
+| Lot | 0.01 | YES (config enforces) |
+| Max trades | 1 | YES (config enforces) |
+| Max open positions | 1 | YES (config enforces) |
+| Max hold seconds | 60 | operator-chosen for short test |
+| Max duration minutes | 5 | absolute cap |
+| Side | BUY (or SELL) | explicit via --side, no guessing |
+| Account | FundedNext DEMO | hard gate enforces trade_mode==0 |
+
+### Governance Wiring Rule
+
+**No governance live/demo wiring before this test passes.**
+
+Governance remains opt-in via `--governance` flag on `virtual_lifecycle_validator.py` only. It is NOT wired into:
+- `titan/production/trade_loop.py`
+- `scripts/audit/fundednext_demo_micro_full_cycle.py`
+- `titan/runtime/launcher.py`
+
+Governance will only be considered for live/demo wiring in a **separate future sprint** after:
+1. Monday DEMO micro test passes with `DEMO_FULL_CYCLE_PASS`
+2. Operator confirms the report is correct
+3. Z AI explicitly approves governance wiring
+
+---
+
+## 16. Final GO / NO-GO Table
+
+> **The operator must verify ALL GO conditions before running DEMO_MICRO_EXECUTE.**
+>
+> **If ANY condition is NO-GO, the operator MUST STOP and must NOT execute.**
+
+### Pre-Execution GO/NO-GO (verify before Step 12 of runbook)
+
+| # | Check | GO Condition | NO-GO Condition | Action if NO-GO |
+|---|---|---|---|---|
+| 1 | Repository on latest commit | `git log --oneline -1` shows `946eca8` or newer, `git status` clean | Behind origin/main or dirty working tree | Run `git pull --ff-only origin main`; if still NO-GO, STOP |
+| 2 | first_run_check passes | 12+ PASS, 0 FAIL | Any FAIL | STOP — fix FAIL before proceeding |
+| 3 | All tests pass | 25 hard gate + 63 harness + 58 governance = 146 passed | Any test failure | STOP — fix tests before proceeding |
+| 4 | MT5 initialize succeeds | `mt5.initialize()` returns True | Returns False or ImportError | STOP — verify MT5 terminal is running and logged in |
+| 5 | Account is DEMO | `mt5.account_info().trade_mode == 0` | trade_mode != 0 (CONTEST or REAL) | **STOP immediately** — never run on real/live account |
+| 6 | No existing XAUUSD position | `mt5.positions_get(symbol='XAUUSD')` is empty | Any open position exists | STOP — manually close positions in MT5 terminal first |
+| 7 | Config defaults correct | dry_run=true, live_trading=false, demo_micro.enabled=false (initially) | Any default wrong | STOP — run `git checkout config/runtime.yaml` to restore |
+| 8 | demo_micro temporarily enabled | After Step 8: demo_micro.enabled=true | Still false after edit | STOP — verify config edit saved correctly |
+| 9 | Arm token set | After Step 9: `echo %TITAN_DEMO_MICRO_ARMED%` shows `1` | Empty or wrong value | STOP — re-run `set TITAN_DEMO_MICRO_ARMED=1` |
+| 10 | Hard gate ARMED | After Step 10: `VERDICT: DEMO_MICRO_ARMED` with all 12 checks `[✓]` | VERDICT: DEMO_MICRO_BLOCKED or any `[✗]` | STOP — review reasons in hard gate output |
+| 11 | DRY_ARM_CHECK_ONLY passes | `final_verdict: DEMO_MICRO_ARMED`, `order_send_called: false` | BLOCKED or order_send attempted | STOP — do NOT proceed to DEMO_MICRO_EXECUTE |
+| 12 | Market is open | Hard gate shows `market_open: True` | `market_open: False` (weekend/holiday) | STOP — wait for market open (Mon-Fri 07:00-21:00 UTC) |
+| 13 | Spread acceptable | Hard gate shows spread ≤ 1.0 USD | Spread > 1.0 USD | STOP — wait for spread to normalize |
+| 14 | TITAN_LIVE_TRADING NOT set | `echo %TITAN_LIVE_TRADING%` is empty | Shows `1` | STOP — unset with `set TITAN_LIVE_TRADING=` |
+| 15 | No real/live account anywhere | MT5 terminal shows "DEMO" or "Demo" | Shows "Real", "Live", or "Contest" | **STOP immediately** — switch to DEMO account |
+
+### Execution Decision
+
+```
+IF all 15 checks above are GO:
+    → PROCEED to Step 12: DEMO_MICRO_EXECUTE
+ELSE:
+    → STOP — do NOT execute
+    → Report the NO-GO reason to Z AI
+    → Fix the issue before retrying
+```
+
+### Post-Execution GO/NO-GO (verify after Step 12)
+
+| # | Check | GO Condition | NO-GO Condition | Action if NO-GO |
+|---|---|---|---|---|
+| P1 | Final verdict | `DEMO_FULL_CYCLE_PASS` | `DEMO_MANUAL_REVIEW_REQUIRED` or `DEMO_FULL_CYCLE_FAIL` | Do NOT retry — send reports to Z AI for analysis |
+| P2 | No open positions remain | `mt5.positions_get(symbol='XAUUSD')` is empty | Position still open | Manually close in MT5 terminal immediately, then send reports to Z AI |
+| P3 | order_send_attempts = 1 | Report shows exactly 1 open attempt | 0 or 2+ attempts | Send reports to Z AI — possible duplicate or missed order |
+| P4 | close_attempts = 1 | Report shows exactly 1 close attempt | 0 or 2+ attempts | Send reports to Z AI — close may have failed |
+| P5 | open_positions_remaining = 0 | Report shows 0 | 1+ | Manually close in MT5 terminal, send reports to Z AI |
+| P6 | Config restored | demo_micro.enabled=false after cleanup | Still true | Run `git checkout config/runtime.yaml` immediately |
+| P7 | Arm token cleared | `echo %TITAN_DEMO_MICRO_ARMED%` is empty | Still shows `1` | Run `set TITAN_DEMO_MICRO_ARMED=` immediately |
+| P8 | Hard gate BLOCKED again | `VERDICT: DEMO_MICRO_BLOCKED` after cleanup | Still ARMED | Config or env not cleaned — re-do cleanup steps |
+
+### Post-Execution Decision
+
+```
+IF P1 = GO (DEMO_FULL_CYCLE_PASS) AND P2-P5 = GO:
+    → Monday test SUCCESSFUL
+    → Send reports to Z AI
+    → Z AI may propose governance wiring in future sprint
+ELSE:
+    → Monday test FAILED or needs review
+    → Do NOT retry
+    → Send reports to Z AI for root-cause analysis
+    → Wait for Z AI guidance before next step
+```
+
+### Mandatory Cleanup (regardless of P1 outcome)
+
+Even if the test fails, the operator MUST complete cleanup steps P6-P8:
+1. Restore config: `git checkout config/runtime.yaml`
+2. Clear arm token: `set TITAN_DEMO_MICRO_ARMED=`
+3. Verify hard gate is BLOCKED again
+
+**Leaving demo_micro.enabled=true or TITAN_DEMO_MICRO_ARMED=1 set after the test is a CRITICAL SAFETY VIOLATION.**
+
+---
+
+## 17. Summary
+
+| Item | Value |
+|---|---|
+| Repository on latest commit | YES (`946eca8`, up to date with origin/main) |
+| All safety checks pass | YES (35/35 freeze checklist items) |
+| All tests pass | YES (146 passed, 1 skipped) |
+| Config defaults correct | YES (all 8 settings) |
+| No tokens leaked | YES (0 in tracked files, 0 in history) |
+| Governance wired | NO (opt-in only, not in live/demo path) |
+| Working tree clean | YES |
+| Monday test scope | Execution lifecycle safety test ONLY (not profit test) |
+| Expected lot | 0.01 (hard cap) |
+| Expected max trades | 1 (hard cap) |
+| GO/NO-GO table | 15 pre-execution + 8 post-execution checks |
+| **Monday readiness** | **GO** (all pre-conditions met) |
