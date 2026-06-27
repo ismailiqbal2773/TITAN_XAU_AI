@@ -1,0 +1,700 @@
+{
+  "ranking": [
+    {
+      "bot": "TITAN_9_9_3_3_PROP_FIRM_STRICT",
+      "metrics": {
+        "trade_count": 252,
+        "total_net_pnl": 1895.54,
+        "gross_profit": 2131.13,
+        "gross_loss": 235.59,
+        "profit_factor": 9.0459,
+        "win_rate_pct": 67.86,
+        "avg_win": 12.4628,
+        "avg_loss": 6.5442,
+        "payoff_ratio": 1.9044,
+        "expectancy_per_trade": 7.522,
+        "max_dd_usd": 67.05,
+        "max_dd_pct": 0.66,
+        "daily_dd_max_usd": 47.64,
+        "sharpe": 10.3954,
+        "sortino": 13.1968,
+        "calmar": 28.2723,
+        "recovery_factor": 28.2723,
+        "longest_losing_streak": 3,
+        "largest_single_loss": -42.25,
+        "largest_single_win": 47.25,
+        "mae_avg": 0.606,
+        "mfe_avg": 0.7125,
+        "monthly_returns": {
+          "2025-01": 61.42,
+          "2025-02": 24.55,
+          "2025-03": 72.12,
+          "2025-04": 338.08,
+          "2025-05": 299.13,
+          "2025-06": 98.79,
+          "2025-07": 93.01,
+          "2025-08": 31.75,
+          "2025-09": 241.48,
+          "2025-10": 345.74,
+          "2025-11": 155.24,
+          "2025-12": 134.24
+        }
+      },
+      "score": {
+        "total_score": 92.5,
+        "components": {
+          "net_pnl_quality": 20.0,
+          "max_dd_control": 17.32,
+          "profit_factor_expectancy": 15.0,
+          "stress_survival": 10.18,
+          "profit_retention": 10.0,
+          "overfiltering_control": 10.0,
+          "trade_frequency_sufficiency": 5.0,
+          "explainability_completeness": 5.0
+        }
+      }
+    },
+    {
+      "bot": "buy_and_hold",
+      "metrics": {
+        "trade_count": 1,
+        "total_net_pnl": 1692.82,
+        "gross_profit": 1692.82,
+        "gross_loss": 0,
+        "profit_factor": Infinity,
+        "win_rate_pct": 100,
+        "max_dd_usd": 0,
+        "max_dd_pct": 0
+      },
+      "score": {
+        "total_score": 90.0,
+        "components": {
+          "net_pnl_quality": 20.0,
+          "max_dd_control": 20.0,
+          "profit_factor_expectancy": 15.0,
+          "stress_survival": 15.0,
+          "profit_retention": 10.0,
+          "overfiltering_control": 10.0,
+          "trade_frequency_sufficiency": 0.0,
+          "explainability_completeness": 0.0
+        }
+      }
+    },
+    {
+      "bot": "random_entry_half_risk",
+      "metrics": {
+        "trade_count": 421,
+        "total_net_pnl": -195.12,
+        "gross_profit": 1397.06,
+        "gross_loss": 1592.18,
+        "profit_factor": 0.8774,
+        "win_rate_pct": 44.66,
+        "avg_win": 7.4312,
+        "avg_loss": 6.8334,
+        "payoff_ratio": 1.0875,
+        "expectancy_per_trade": -0.4635,
+        "max_dd_usd": 312.76,
+        "max_dd_pct": 3.12,
+        "daily_dd_max_usd": 30.0,
+        "sharpe": -0.9689,
+        "sortino": -1.719,
+        "calmar": -0.6239,
+        "recovery_factor": -0.6239,
+        "longest_losing_streak": 9,
+        "largest_single_loss": -29.65,
+        "largest_single_win": 65.3,
+        "mae_avg": 0.6352,
+        "mfe_avg": 0.7728,
+        "monthly_returns": {
+          "2025-01": -12.08,
+          "2025-02": -8.7,
+          "2025-03": -12.74,
+          "2025-04": 21.76,
+          "2025-05": -13.86,
+          "2025-06": -15.1,
+          "2025-07": -80.23,
+          "2025-08": -88.54,
+          "2025-09": -51.59,
+          "2025-10": 172.41,
+          "2025-11": -47.38,
+          "2025-12": -59.08
+        }
+      },
+      "score": {
+        "total_score": 39.19,
+        "components": {
+          "net_pnl_quality": 0.0,
+          "max_dd_control": 7.49,
+          "profit_factor_expectancy": 0.0,
+          "stress_survival": 6.7,
+          "profit_retention": 10.0,
+          "overfiltering_control": 10.0,
+          "trade_frequency_sufficiency": 5.0,
+          "explainability_completeness": 0.0
+        }
+      }
+    },
+    {
+      "bot": "trend_only_buy",
+      "metrics": {
+        "trade_count": 551,
+        "total_net_pnl": 59.87,
+        "gross_profit": 3809.9,
+        "gross_loss": 3750.03,
+        "profit_factor": 1.016,
+        "win_rate_pct": 48.46,
+        "avg_win": 14.2693,
+        "avg_loss": 13.2043,
+        "payoff_ratio": 1.0807,
+        "expectancy_per_trade": 0.1087,
+        "max_dd_usd": 498.16,
+        "max_dd_pct": 4.8,
+        "daily_dd_max_usd": 94.91,
+        "sharpe": 0.1359,
+        "sortino": 0.1974,
+        "calmar": 0.1202,
+        "recovery_factor": 0.1202,
+        "longest_losing_streak": 7,
+        "largest_single_loss": -77.85,
+        "largest_single_win": 57.39,
+        "mae_avg": 0.5681,
+        "mfe_avg": 0.8093,
+        "monthly_returns": {
+          "2025-01": 28.64,
+          "2025-02": -76.16,
+          "2025-03": 67.59,
+          "2025-04": 204.93,
+          "2025-05": -122.18,
+          "2025-06": 41.1,
+          "2025-07": -111.42,
+          "2025-08": -81.23,
+          "2025-09": 119.96,
+          "2025-10": 32.84,
+          "2025-11": 29.68,
+          "2025-12": -73.88
+        }
+      },
+      "score": {
+        "total_score": 34.86,
+        "components": {
+          "net_pnl_quality": 2.39,
+          "max_dd_control": 0.07,
+          "profit_factor_expectancy": 0.12,
+          "stress_survival": 7.27,
+          "profit_retention": 10.0,
+          "overfiltering_control": 10.0,
+          "trade_frequency_sufficiency": 5.0,
+          "explainability_completeness": 0.0
+        }
+      }
+    },
+    {
+      "bot": "baseline_no_gov",
+      "metrics": {
+        "trade_count": 872,
+        "total_net_pnl": -992.26,
+        "gross_profit": 6016.48,
+        "gross_loss": 7008.74,
+        "profit_factor": 0.8584,
+        "win_rate_pct": 44.38,
+        "avg_win": 15.5465,
+        "avg_loss": 14.451,
+        "payoff_ratio": 1.0758,
+        "expectancy_per_trade": -1.1379,
+        "max_dd_usd": 1417.32,
+        "max_dd_pct": 13.83,
+        "daily_dd_max_usd": 166.83,
+        "sharpe": -1.6152,
+        "sortino": -2.5353,
+        "calmar": -0.7001,
+        "recovery_factor": -0.7001,
+        "longest_losing_streak": 8,
+        "largest_single_loss": -77.85,
+        "largest_single_win": 130.6,
+        "mae_avg": 0.6815,
+        "mfe_avg": 0.798,
+        "monthly_returns": {
+          "2025-01": -52.77,
+          "2025-02": -120.87,
+          "2025-03": 16.86,
+          "2025-04": 203.82,
+          "2025-05": -334.76,
+          "2025-06": 22.87,
+          "2025-07": -144.83,
+          "2025-08": -280.55,
+          "2025-09": -68.01,
+          "2025-10": -88.16,
+          "2025-11": -25.03,
+          "2025-12": -120.84
+        }
+      },
+      "score": {
+        "total_score": 31.66,
+        "components": {
+          "net_pnl_quality": 0.0,
+          "max_dd_control": 0.0,
+          "profit_factor_expectancy": 0.0,
+          "stress_survival": 6.66,
+          "profit_retention": 10.0,
+          "overfiltering_control": 10.0,
+          "trade_frequency_sufficiency": 5.0,
+          "explainability_completeness": 0.0
+        }
+      }
+    },
+    {
+      "bot": "fixed_threshold",
+      "metrics": {
+        "trade_count": 872,
+        "total_net_pnl": -992.26,
+        "gross_profit": 6016.48,
+        "gross_loss": 7008.74,
+        "profit_factor": 0.8584,
+        "win_rate_pct": 44.38,
+        "avg_win": 15.5465,
+        "avg_loss": 14.451,
+        "payoff_ratio": 1.0758,
+        "expectancy_per_trade": -1.1379,
+        "max_dd_usd": 1417.32,
+        "max_dd_pct": 13.83,
+        "daily_dd_max_usd": 166.83,
+        "sharpe": -1.6152,
+        "sortino": -2.5353,
+        "calmar": -0.7001,
+        "recovery_factor": -0.7001,
+        "longest_losing_streak": 8,
+        "largest_single_loss": -77.85,
+        "largest_single_win": 130.6,
+        "mae_avg": 0.6815,
+        "mfe_avg": 0.798,
+        "monthly_returns": {
+          "2025-01": -52.77,
+          "2025-02": -120.87,
+          "2025-03": 16.86,
+          "2025-04": 203.82,
+          "2025-05": -334.76,
+          "2025-06": 22.87,
+          "2025-07": -144.83,
+          "2025-08": -280.55,
+          "2025-09": -68.01,
+          "2025-10": -88.16,
+          "2025-11": -25.03,
+          "2025-12": -120.84
+        }
+      },
+      "score": {
+        "total_score": 31.66,
+        "components": {
+          "net_pnl_quality": 0.0,
+          "max_dd_control": 0.0,
+          "profit_factor_expectancy": 0.0,
+          "stress_survival": 6.66,
+          "profit_retention": 10.0,
+          "overfiltering_control": 10.0,
+          "trade_frequency_sufficiency": 5.0,
+          "explainability_completeness": 0.0
+        }
+      }
+    },
+    {
+      "bot": "mean_reversion_sell",
+      "metrics": {
+        "trade_count": 321,
+        "total_net_pnl": -1052.14,
+        "gross_profit": 2206.58,
+        "gross_loss": 3258.72,
+        "profit_factor": 0.6771,
+        "win_rate_pct": 37.38,
+        "avg_win": 18.3882,
+        "avg_loss": 16.2125,
+        "payoff_ratio": 1.1342,
+        "expectancy_per_trade": -3.2777,
+        "max_dd_usd": 1163.25,
+        "max_dd_pct": 11.63,
+        "daily_dd_max_usd": 87.84,
+        "sharpe": -2.4693,
+        "sortino": -4.3359,
+        "calmar": -0.9045,
+        "recovery_factor": -0.9045,
+        "longest_losing_streak": 8,
+        "largest_single_loss": -76.81,
+        "largest_single_win": 130.6,
+        "mae_avg": 0.8761,
+        "mfe_avg": 0.7787,
+        "monthly_returns": {
+          "2025-01": -81.4,
+          "2025-02": -44.71,
+          "2025-03": -50.73,
+          "2025-04": -1.11,
+          "2025-05": -212.58,
+          "2025-06": -18.23,
+          "2025-07": -33.42,
+          "2025-08": -199.32,
+          "2025-09": -187.97,
+          "2025-10": -121.0,
+          "2025-11": -54.7,
+          "2025-12": -46.96
+        }
+      },
+      "score": {
+        "total_score": 30.61,
+        "components": {
+          "net_pnl_quality": 0.0,
+          "max_dd_control": 0.0,
+          "profit_factor_expectancy": 0.0,
+          "stress_survival": 5.61,
+          "profit_retention": 10.0,
+          "overfiltering_control": 10.0,
+          "trade_frequency_sufficiency": 5.0,
+          "explainability_completeness": 0.0
+        }
+      }
+    }
+  ],
+  "all_results": {
+    "TITAN_9_9_3_3_PROP_FIRM_STRICT": {
+      "metrics": {
+        "trade_count": 252,
+        "total_net_pnl": 1895.54,
+        "gross_profit": 2131.13,
+        "gross_loss": 235.59,
+        "profit_factor": 9.0459,
+        "win_rate_pct": 67.86,
+        "avg_win": 12.4628,
+        "avg_loss": 6.5442,
+        "payoff_ratio": 1.9044,
+        "expectancy_per_trade": 7.522,
+        "max_dd_usd": 67.05,
+        "max_dd_pct": 0.66,
+        "daily_dd_max_usd": 47.64,
+        "sharpe": 10.3954,
+        "sortino": 13.1968,
+        "calmar": 28.2723,
+        "recovery_factor": 28.2723,
+        "longest_losing_streak": 3,
+        "largest_single_loss": -42.25,
+        "largest_single_win": 47.25,
+        "mae_avg": 0.606,
+        "mfe_avg": 0.7125,
+        "monthly_returns": {
+          "2025-01": 61.42,
+          "2025-02": 24.55,
+          "2025-03": 72.12,
+          "2025-04": 338.08,
+          "2025-05": 299.13,
+          "2025-06": 98.79,
+          "2025-07": 93.01,
+          "2025-08": 31.75,
+          "2025-09": 241.48,
+          "2025-10": 345.74,
+          "2025-11": 155.24,
+          "2025-12": 134.24
+        }
+      },
+      "score": {
+        "total_score": 92.5,
+        "components": {
+          "net_pnl_quality": 20.0,
+          "max_dd_control": 17.32,
+          "profit_factor_expectancy": 15.0,
+          "stress_survival": 10.18,
+          "profit_retention": 10.0,
+          "overfiltering_control": 10.0,
+          "trade_frequency_sufficiency": 5.0,
+          "explainability_completeness": 5.0
+        }
+      }
+    },
+    "baseline_no_gov": {
+      "metrics": {
+        "trade_count": 872,
+        "total_net_pnl": -992.26,
+        "gross_profit": 6016.48,
+        "gross_loss": 7008.74,
+        "profit_factor": 0.8584,
+        "win_rate_pct": 44.38,
+        "avg_win": 15.5465,
+        "avg_loss": 14.451,
+        "payoff_ratio": 1.0758,
+        "expectancy_per_trade": -1.1379,
+        "max_dd_usd": 1417.32,
+        "max_dd_pct": 13.83,
+        "daily_dd_max_usd": 166.83,
+        "sharpe": -1.6152,
+        "sortino": -2.5353,
+        "calmar": -0.7001,
+        "recovery_factor": -0.7001,
+        "longest_losing_streak": 8,
+        "largest_single_loss": -77.85,
+        "largest_single_win": 130.6,
+        "mae_avg": 0.6815,
+        "mfe_avg": 0.798,
+        "monthly_returns": {
+          "2025-01": -52.77,
+          "2025-02": -120.87,
+          "2025-03": 16.86,
+          "2025-04": 203.82,
+          "2025-05": -334.76,
+          "2025-06": 22.87,
+          "2025-07": -144.83,
+          "2025-08": -280.55,
+          "2025-09": -68.01,
+          "2025-10": -88.16,
+          "2025-11": -25.03,
+          "2025-12": -120.84
+        }
+      },
+      "score": {
+        "total_score": 31.66,
+        "components": {
+          "net_pnl_quality": 0.0,
+          "max_dd_control": 0.0,
+          "profit_factor_expectancy": 0.0,
+          "stress_survival": 6.66,
+          "profit_retention": 10.0,
+          "overfiltering_control": 10.0,
+          "trade_frequency_sufficiency": 5.0,
+          "explainability_completeness": 0.0
+        }
+      }
+    },
+    "trend_only_buy": {
+      "metrics": {
+        "trade_count": 551,
+        "total_net_pnl": 59.87,
+        "gross_profit": 3809.9,
+        "gross_loss": 3750.03,
+        "profit_factor": 1.016,
+        "win_rate_pct": 48.46,
+        "avg_win": 14.2693,
+        "avg_loss": 13.2043,
+        "payoff_ratio": 1.0807,
+        "expectancy_per_trade": 0.1087,
+        "max_dd_usd": 498.16,
+        "max_dd_pct": 4.8,
+        "daily_dd_max_usd": 94.91,
+        "sharpe": 0.1359,
+        "sortino": 0.1974,
+        "calmar": 0.1202,
+        "recovery_factor": 0.1202,
+        "longest_losing_streak": 7,
+        "largest_single_loss": -77.85,
+        "largest_single_win": 57.39,
+        "mae_avg": 0.5681,
+        "mfe_avg": 0.8093,
+        "monthly_returns": {
+          "2025-01": 28.64,
+          "2025-02": -76.16,
+          "2025-03": 67.59,
+          "2025-04": 204.93,
+          "2025-05": -122.18,
+          "2025-06": 41.1,
+          "2025-07": -111.42,
+          "2025-08": -81.23,
+          "2025-09": 119.96,
+          "2025-10": 32.84,
+          "2025-11": 29.68,
+          "2025-12": -73.88
+        }
+      },
+      "score": {
+        "total_score": 34.86,
+        "components": {
+          "net_pnl_quality": 2.39,
+          "max_dd_control": 0.07,
+          "profit_factor_expectancy": 0.12,
+          "stress_survival": 7.27,
+          "profit_retention": 10.0,
+          "overfiltering_control": 10.0,
+          "trade_frequency_sufficiency": 5.0,
+          "explainability_completeness": 0.0
+        }
+      }
+    },
+    "mean_reversion_sell": {
+      "metrics": {
+        "trade_count": 321,
+        "total_net_pnl": -1052.14,
+        "gross_profit": 2206.58,
+        "gross_loss": 3258.72,
+        "profit_factor": 0.6771,
+        "win_rate_pct": 37.38,
+        "avg_win": 18.3882,
+        "avg_loss": 16.2125,
+        "payoff_ratio": 1.1342,
+        "expectancy_per_trade": -3.2777,
+        "max_dd_usd": 1163.25,
+        "max_dd_pct": 11.63,
+        "daily_dd_max_usd": 87.84,
+        "sharpe": -2.4693,
+        "sortino": -4.3359,
+        "calmar": -0.9045,
+        "recovery_factor": -0.9045,
+        "longest_losing_streak": 8,
+        "largest_single_loss": -76.81,
+        "largest_single_win": 130.6,
+        "mae_avg": 0.8761,
+        "mfe_avg": 0.7787,
+        "monthly_returns": {
+          "2025-01": -81.4,
+          "2025-02": -44.71,
+          "2025-03": -50.73,
+          "2025-04": -1.11,
+          "2025-05": -212.58,
+          "2025-06": -18.23,
+          "2025-07": -33.42,
+          "2025-08": -199.32,
+          "2025-09": -187.97,
+          "2025-10": -121.0,
+          "2025-11": -54.7,
+          "2025-12": -46.96
+        }
+      },
+      "score": {
+        "total_score": 30.61,
+        "components": {
+          "net_pnl_quality": 0.0,
+          "max_dd_control": 0.0,
+          "profit_factor_expectancy": 0.0,
+          "stress_survival": 5.61,
+          "profit_retention": 10.0,
+          "overfiltering_control": 10.0,
+          "trade_frequency_sufficiency": 5.0,
+          "explainability_completeness": 0.0
+        }
+      }
+    },
+    "fixed_threshold": {
+      "metrics": {
+        "trade_count": 872,
+        "total_net_pnl": -992.26,
+        "gross_profit": 6016.48,
+        "gross_loss": 7008.74,
+        "profit_factor": 0.8584,
+        "win_rate_pct": 44.38,
+        "avg_win": 15.5465,
+        "avg_loss": 14.451,
+        "payoff_ratio": 1.0758,
+        "expectancy_per_trade": -1.1379,
+        "max_dd_usd": 1417.32,
+        "max_dd_pct": 13.83,
+        "daily_dd_max_usd": 166.83,
+        "sharpe": -1.6152,
+        "sortino": -2.5353,
+        "calmar": -0.7001,
+        "recovery_factor": -0.7001,
+        "longest_losing_streak": 8,
+        "largest_single_loss": -77.85,
+        "largest_single_win": 130.6,
+        "mae_avg": 0.6815,
+        "mfe_avg": 0.798,
+        "monthly_returns": {
+          "2025-01": -52.77,
+          "2025-02": -120.87,
+          "2025-03": 16.86,
+          "2025-04": 203.82,
+          "2025-05": -334.76,
+          "2025-06": 22.87,
+          "2025-07": -144.83,
+          "2025-08": -280.55,
+          "2025-09": -68.01,
+          "2025-10": -88.16,
+          "2025-11": -25.03,
+          "2025-12": -120.84
+        }
+      },
+      "score": {
+        "total_score": 31.66,
+        "components": {
+          "net_pnl_quality": 0.0,
+          "max_dd_control": 0.0,
+          "profit_factor_expectancy": 0.0,
+          "stress_survival": 6.66,
+          "profit_retention": 10.0,
+          "overfiltering_control": 10.0,
+          "trade_frequency_sufficiency": 5.0,
+          "explainability_completeness": 0.0
+        }
+      }
+    },
+    "buy_and_hold": {
+      "metrics": {
+        "trade_count": 1,
+        "total_net_pnl": 1692.82,
+        "gross_profit": 1692.82,
+        "gross_loss": 0,
+        "profit_factor": Infinity,
+        "win_rate_pct": 100,
+        "max_dd_usd": 0,
+        "max_dd_pct": 0
+      },
+      "score": {
+        "total_score": 90.0,
+        "components": {
+          "net_pnl_quality": 20.0,
+          "max_dd_control": 20.0,
+          "profit_factor_expectancy": 15.0,
+          "stress_survival": 15.0,
+          "profit_retention": 10.0,
+          "overfiltering_control": 10.0,
+          "trade_frequency_sufficiency": 0.0,
+          "explainability_completeness": 0.0
+        }
+      }
+    },
+    "random_entry_half_risk": {
+      "metrics": {
+        "trade_count": 421,
+        "total_net_pnl": -195.12,
+        "gross_profit": 1397.06,
+        "gross_loss": 1592.18,
+        "profit_factor": 0.8774,
+        "win_rate_pct": 44.66,
+        "avg_win": 7.4312,
+        "avg_loss": 6.8334,
+        "payoff_ratio": 1.0875,
+        "expectancy_per_trade": -0.4635,
+        "max_dd_usd": 312.76,
+        "max_dd_pct": 3.12,
+        "daily_dd_max_usd": 30.0,
+        "sharpe": -0.9689,
+        "sortino": -1.719,
+        "calmar": -0.6239,
+        "recovery_factor": -0.6239,
+        "longest_losing_streak": 9,
+        "largest_single_loss": -29.65,
+        "largest_single_win": 65.3,
+        "mae_avg": 0.6352,
+        "mfe_avg": 0.7728,
+        "monthly_returns": {
+          "2025-01": -12.08,
+          "2025-02": -8.7,
+          "2025-03": -12.74,
+          "2025-04": 21.76,
+          "2025-05": -13.86,
+          "2025-06": -15.1,
+          "2025-07": -80.23,
+          "2025-08": -88.54,
+          "2025-09": -51.59,
+          "2025-10": 172.41,
+          "2025-11": -47.38,
+          "2025-12": -59.08
+        }
+      },
+      "score": {
+        "total_score": 39.19,
+        "components": {
+          "net_pnl_quality": 0.0,
+          "max_dd_control": 7.49,
+          "profit_factor_expectancy": 0.0,
+          "stress_survival": 6.7,
+          "profit_retention": 10.0,
+          "overfiltering_control": 10.0,
+          "trade_frequency_sufficiency": 5.0,
+          "explainability_completeness": 0.0
+        }
+      }
+    }
+  },
+  "titan_rank": 1
+}
