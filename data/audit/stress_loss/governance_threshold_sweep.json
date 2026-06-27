@@ -1,0 +1,408 @@
+{
+  "audit": "sprint_9_9_3_3_governance_threshold_sweep",
+  "timestamp_utc": "2026-06-27T02:20:21.841743+00:00",
+  "source_report": "data/audit/virtual_lifecycle/virtual_lifecycle_report.json",
+  "synthetic_scenarios_count": 12,
+  "sweep_per_profile": {
+    "RETAIL_SAFE": {
+      "total_combinations_tested": 150,
+      "best_config": {
+        "min_meta_confidence_block": 0.55,
+        "min_meta_confidence": 0.7,
+        "min_meta_confidence_throttle": 0.7,
+        "max_atr_percentile_block": 92,
+        "max_atr_percentile_throttle": 85,
+        "max_spread_usd_block": 0.8,
+        "max_regime_flip_prob_block": 0.75,
+        "risk_multiplier_in_warn_vol": 0.75
+      },
+      "best_score": 95.66,
+      "top_5": [
+        {
+          "config": {
+            "min_meta_confidence_block": 0.55,
+            "min_meta_confidence": 0.7,
+            "min_meta_confidence_throttle": 0.7,
+            "max_atr_percentile_block": 92,
+            "max_atr_percentile_throttle": 85,
+            "max_spread_usd_block": 0.8,
+            "max_regime_flip_prob_block": 0.75,
+            "risk_multiplier_in_warn_vol": 0.75
+          },
+          "total_score": 95.66,
+          "net_pnl": 115.3,
+          "max_dd": 0.0,
+          "pf": Infinity,
+          "executed_win_rate": 100.0,
+          "blocked_count": 16,
+          "missed_profit": 0.8,
+          "avoided_loss": 104.0,
+          "overfiltering_ratio": 0.0077,
+          "profit_retention_pct": 88.49,
+          "loss_reduction_pct": 100.0
+        },
+        {
+          "config": {
+            "min_meta_confidence_block": 0.55,
+            "min_meta_confidence": 0.7,
+            "min_meta_confidence_throttle": 0.7,
+            "max_atr_percentile_block": 92,
+            "max_atr_percentile_throttle": 88,
+            "max_spread_usd_block": 0.8,
+            "max_regime_flip_prob_block": 0.75,
+            "risk_multiplier_in_warn_vol": 0.25
+          },
+          "total_score": 95.66,
+          "net_pnl": 115.3,
+          "max_dd": 0.0,
+          "pf": Infinity,
+          "executed_win_rate": 100.0,
+          "blocked_count": 16,
+          "missed_profit": 0.8,
+          "avoided_loss": 104.0,
+          "overfiltering_ratio": 0.0077,
+          "profit_retention_pct": 88.49,
+          "loss_reduction_pct": 100.0
+        },
+        {
+          "config": {
+            "min_meta_confidence_block": 0.55,
+            "min_meta_confidence": 0.7,
+            "min_meta_confidence_throttle": 0.7,
+            "max_atr_percentile_block": 92,
+            "max_atr_percentile_throttle": 90,
+            "max_spread_usd_block": 0.8,
+            "max_regime_flip_prob_block": 0.7,
+            "risk_multiplier_in_warn_vol": 0.5
+          },
+          "total_score": 95.66,
+          "net_pnl": 115.3,
+          "max_dd": 0.0,
+          "pf": Infinity,
+          "executed_win_rate": 100.0,
+          "blocked_count": 16,
+          "missed_profit": 0.8,
+          "avoided_loss": 104.0,
+          "overfiltering_ratio": 0.0077,
+          "profit_retention_pct": 88.49,
+          "loss_reduction_pct": 100.0
+        },
+        {
+          "config": {
+            "min_meta_confidence_block": 0.55,
+            "min_meta_confidence": 0.7,
+            "min_meta_confidence_throttle": 0.7,
+            "max_atr_percentile_block": 98,
+            "max_atr_percentile_throttle": 88,
+            "max_spread_usd_block": 1.0,
+            "max_regime_flip_prob_block": 0.8,
+            "risk_multiplier_in_warn_vol": 0.5
+          },
+          "total_score": 95.66,
+          "net_pnl": 115.3,
+          "max_dd": 0.0,
+          "pf": Infinity,
+          "executed_win_rate": 100.0,
+          "blocked_count": 16,
+          "missed_profit": 0.8,
+          "avoided_loss": 104.0,
+          "overfiltering_ratio": 0.0077,
+          "profit_retention_pct": 88.49,
+          "loss_reduction_pct": 100.0
+        },
+        {
+          "config": {
+            "min_meta_confidence_block": 0.55,
+            "min_meta_confidence": 0.7,
+            "min_meta_confidence_throttle": 0.7,
+            "max_atr_percentile_block": 98,
+            "max_atr_percentile_throttle": 90,
+            "max_spread_usd_block": 1.0,
+            "max_regime_flip_prob_block": 0.75,
+            "risk_multiplier_in_warn_vol": 0.75
+          },
+          "total_score": 95.66,
+          "net_pnl": 115.3,
+          "max_dd": 0.0,
+          "pf": Infinity,
+          "executed_win_rate": 100.0,
+          "blocked_count": 16,
+          "missed_profit": 0.8,
+          "avoided_loss": 104.0,
+          "overfiltering_ratio": 0.0077,
+          "profit_retention_pct": 88.49,
+          "loss_reduction_pct": 100.0
+        }
+      ]
+    },
+    "PROP_FIRM_STRICT": {
+      "total_combinations_tested": 150,
+      "best_config": {
+        "min_meta_confidence_block": 0.55,
+        "min_meta_confidence": 0.7,
+        "min_meta_confidence_throttle": 0.7,
+        "max_atr_percentile_block": 92,
+        "max_atr_percentile_throttle": 85,
+        "max_spread_usd_block": 0.8,
+        "max_regime_flip_prob_block": 0.75,
+        "risk_multiplier_in_warn_vol": 0.75
+      },
+      "best_score": 94.79,
+      "top_5": [
+        {
+          "config": {
+            "min_meta_confidence_block": 0.55,
+            "min_meta_confidence": 0.7,
+            "min_meta_confidence_throttle": 0.7,
+            "max_atr_percentile_block": 92,
+            "max_atr_percentile_throttle": 85,
+            "max_spread_usd_block": 0.8,
+            "max_regime_flip_prob_block": 0.75,
+            "risk_multiplier_in_warn_vol": 0.75
+          },
+          "total_score": 94.79,
+          "net_pnl": 103.85,
+          "max_dd": 0.0,
+          "pf": Infinity,
+          "executed_win_rate": 100.0,
+          "blocked_count": 16,
+          "missed_profit": 0.8,
+          "avoided_loss": 104.0,
+          "overfiltering_ratio": 0.0077,
+          "profit_retention_pct": 79.7,
+          "loss_reduction_pct": 100.0
+        },
+        {
+          "config": {
+            "min_meta_confidence_block": 0.55,
+            "min_meta_confidence": 0.7,
+            "min_meta_confidence_throttle": 0.7,
+            "max_atr_percentile_block": 92,
+            "max_atr_percentile_throttle": 88,
+            "max_spread_usd_block": 0.8,
+            "max_regime_flip_prob_block": 0.75,
+            "risk_multiplier_in_warn_vol": 0.25
+          },
+          "total_score": 94.79,
+          "net_pnl": 103.85,
+          "max_dd": 0.0,
+          "pf": Infinity,
+          "executed_win_rate": 100.0,
+          "blocked_count": 16,
+          "missed_profit": 0.8,
+          "avoided_loss": 104.0,
+          "overfiltering_ratio": 0.0077,
+          "profit_retention_pct": 79.7,
+          "loss_reduction_pct": 100.0
+        },
+        {
+          "config": {
+            "min_meta_confidence_block": 0.55,
+            "min_meta_confidence": 0.7,
+            "min_meta_confidence_throttle": 0.7,
+            "max_atr_percentile_block": 92,
+            "max_atr_percentile_throttle": 90,
+            "max_spread_usd_block": 0.8,
+            "max_regime_flip_prob_block": 0.7,
+            "risk_multiplier_in_warn_vol": 0.5
+          },
+          "total_score": 94.79,
+          "net_pnl": 103.85,
+          "max_dd": 0.0,
+          "pf": Infinity,
+          "executed_win_rate": 100.0,
+          "blocked_count": 16,
+          "missed_profit": 0.8,
+          "avoided_loss": 104.0,
+          "overfiltering_ratio": 0.0077,
+          "profit_retention_pct": 79.7,
+          "loss_reduction_pct": 100.0
+        },
+        {
+          "config": {
+            "min_meta_confidence_block": 0.55,
+            "min_meta_confidence": 0.7,
+            "min_meta_confidence_throttle": 0.7,
+            "max_atr_percentile_block": 98,
+            "max_atr_percentile_throttle": 88,
+            "max_spread_usd_block": 1.0,
+            "max_regime_flip_prob_block": 0.8,
+            "risk_multiplier_in_warn_vol": 0.5
+          },
+          "total_score": 94.79,
+          "net_pnl": 103.85,
+          "max_dd": 0.0,
+          "pf": Infinity,
+          "executed_win_rate": 100.0,
+          "blocked_count": 16,
+          "missed_profit": 0.8,
+          "avoided_loss": 104.0,
+          "overfiltering_ratio": 0.0077,
+          "profit_retention_pct": 79.7,
+          "loss_reduction_pct": 100.0
+        },
+        {
+          "config": {
+            "min_meta_confidence_block": 0.55,
+            "min_meta_confidence": 0.7,
+            "min_meta_confidence_throttle": 0.7,
+            "max_atr_percentile_block": 98,
+            "max_atr_percentile_throttle": 90,
+            "max_spread_usd_block": 1.0,
+            "max_regime_flip_prob_block": 0.75,
+            "risk_multiplier_in_warn_vol": 0.75
+          },
+          "total_score": 94.79,
+          "net_pnl": 103.85,
+          "max_dd": 0.0,
+          "pf": Infinity,
+          "executed_win_rate": 100.0,
+          "blocked_count": 16,
+          "missed_profit": 0.8,
+          "avoided_loss": 104.0,
+          "overfiltering_ratio": 0.0077,
+          "profit_retention_pct": 79.7,
+          "loss_reduction_pct": 100.0
+        }
+      ]
+    },
+    "INSTITUTIONAL_CAPITAL_PROTECTION": {
+      "total_combinations_tested": 150,
+      "best_config": {
+        "min_meta_confidence_block": 0.55,
+        "min_meta_confidence": 0.7,
+        "min_meta_confidence_throttle": 0.7,
+        "max_atr_percentile_block": 92,
+        "max_atr_percentile_throttle": 85,
+        "max_spread_usd_block": 0.8,
+        "max_regime_flip_prob_block": 0.75,
+        "risk_multiplier_in_warn_vol": 0.75
+      },
+      "best_score": 94.79,
+      "top_5": [
+        {
+          "config": {
+            "min_meta_confidence_block": 0.55,
+            "min_meta_confidence": 0.7,
+            "min_meta_confidence_throttle": 0.7,
+            "max_atr_percentile_block": 92,
+            "max_atr_percentile_throttle": 85,
+            "max_spread_usd_block": 0.8,
+            "max_regime_flip_prob_block": 0.75,
+            "risk_multiplier_in_warn_vol": 0.75
+          },
+          "total_score": 94.79,
+          "net_pnl": 103.85,
+          "max_dd": 0.0,
+          "pf": Infinity,
+          "executed_win_rate": 100.0,
+          "blocked_count": 16,
+          "missed_profit": 0.8,
+          "avoided_loss": 104.0,
+          "overfiltering_ratio": 0.0077,
+          "profit_retention_pct": 79.7,
+          "loss_reduction_pct": 100.0
+        },
+        {
+          "config": {
+            "min_meta_confidence_block": 0.55,
+            "min_meta_confidence": 0.7,
+            "min_meta_confidence_throttle": 0.7,
+            "max_atr_percentile_block": 92,
+            "max_atr_percentile_throttle": 88,
+            "max_spread_usd_block": 0.8,
+            "max_regime_flip_prob_block": 0.75,
+            "risk_multiplier_in_warn_vol": 0.25
+          },
+          "total_score": 94.79,
+          "net_pnl": 103.85,
+          "max_dd": 0.0,
+          "pf": Infinity,
+          "executed_win_rate": 100.0,
+          "blocked_count": 16,
+          "missed_profit": 0.8,
+          "avoided_loss": 104.0,
+          "overfiltering_ratio": 0.0077,
+          "profit_retention_pct": 79.7,
+          "loss_reduction_pct": 100.0
+        },
+        {
+          "config": {
+            "min_meta_confidence_block": 0.55,
+            "min_meta_confidence": 0.7,
+            "min_meta_confidence_throttle": 0.7,
+            "max_atr_percentile_block": 92,
+            "max_atr_percentile_throttle": 90,
+            "max_spread_usd_block": 0.8,
+            "max_regime_flip_prob_block": 0.7,
+            "risk_multiplier_in_warn_vol": 0.5
+          },
+          "total_score": 94.79,
+          "net_pnl": 103.85,
+          "max_dd": 0.0,
+          "pf": Infinity,
+          "executed_win_rate": 100.0,
+          "blocked_count": 16,
+          "missed_profit": 0.8,
+          "avoided_loss": 104.0,
+          "overfiltering_ratio": 0.0077,
+          "profit_retention_pct": 79.7,
+          "loss_reduction_pct": 100.0
+        },
+        {
+          "config": {
+            "min_meta_confidence_block": 0.55,
+            "min_meta_confidence": 0.7,
+            "min_meta_confidence_throttle": 0.7,
+            "max_atr_percentile_block": 98,
+            "max_atr_percentile_throttle": 88,
+            "max_spread_usd_block": 1.0,
+            "max_regime_flip_prob_block": 0.8,
+            "risk_multiplier_in_warn_vol": 0.5
+          },
+          "total_score": 94.79,
+          "net_pnl": 103.85,
+          "max_dd": 0.0,
+          "pf": Infinity,
+          "executed_win_rate": 100.0,
+          "blocked_count": 16,
+          "missed_profit": 0.8,
+          "avoided_loss": 104.0,
+          "overfiltering_ratio": 0.0077,
+          "profit_retention_pct": 79.7,
+          "loss_reduction_pct": 100.0
+        },
+        {
+          "config": {
+            "min_meta_confidence_block": 0.55,
+            "min_meta_confidence": 0.7,
+            "min_meta_confidence_throttle": 0.7,
+            "max_atr_percentile_block": 98,
+            "max_atr_percentile_throttle": 90,
+            "max_spread_usd_block": 1.0,
+            "max_regime_flip_prob_block": 0.75,
+            "risk_multiplier_in_warn_vol": 0.75
+          },
+          "total_score": 94.79,
+          "net_pnl": 103.85,
+          "max_dd": 0.0,
+          "pf": Infinity,
+          "executed_win_rate": 100.0,
+          "blocked_count": 16,
+          "missed_profit": 0.8,
+          "avoided_loss": 104.0,
+          "overfiltering_ratio": 0.0077,
+          "profit_retention_pct": 79.7,
+          "loss_reduction_pct": 100.0
+        }
+      ]
+    }
+  },
+  "notes": [
+    "Sweep tested combinations of meta/atr/spread/flip/risk_mult thresholds.",
+    "Competition score weights: PnL 20, DD 20, PF 15, loss reduction 15,",
+    "  profit retention 10, overfiltering control 10, trade frequency 5,",
+    "  explainability 5 (total /100).",
+    "Best config is the one with HIGHEST competition score, NOT zero losses."
+  ]
+}

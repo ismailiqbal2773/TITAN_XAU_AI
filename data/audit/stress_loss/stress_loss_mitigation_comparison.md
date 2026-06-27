@@ -1,6 +1,6 @@
 # Sprint 9.9.3.2 — Stress Loss Mitigation Comparison
 
-**Timestamp UTC:** 2026-06-27T01:54:23.131057+00:00
+**Timestamp UTC:** 2026-06-27T02:23:52.789098+00:00
 **Source report:** `data/audit/virtual_lifecycle/virtual_lifecycle_report.json`
 **Primary profile:** `PROP_FIRM_STRICT`
 
@@ -37,14 +37,14 @@
 
 | # | Scenario | Before | After | Change | Action | Explanation |
 |---|---|---|---|---|---|---|
-| 1 | BUY_SL | -10.600000000000001 | 0.0 | 10.6 | BLOCKED | BASELINE: meta 0.68 < 0.7 — block |
-| 2 | SELL_SL | -10.600000000000001 | 0.0 | 10.6 | BLOCKED | BASELINE: meta 0.68 < 0.7 — block |
-| 3 | REGIME_FLIP_BUY | -0.6 | 0.0 | 0.6 | BLOCKED | BASELINE: meta 0.65 < 0.7 — block; REGIME_FLIP: probability 0.7 > 0.6 — no new trade |
-| 4 | REGIME_FLIP_SELL | -0.6 | 0.0 | 0.6 | BLOCKED | BASELINE: meta 0.65 < 0.7 — block; REGIME_FLIP: probability 0.7 > 0.6 — no new trade |
-| 5 | AMBIGUOUS_CANDLE | -10.600000000000001 | 0.0 | 10.6 | BLOCKED | AMBIGUOUS_CANDLE: blocked — missing: meta 0.65 < 0.75, regime_conf 0.6 < 0.70, no confirmation; BASELINE: meta 0.65 < 0.7 — block |
-| 6 | HIGH_VOLATILITY | -10.8 | 0.0 | 10.8 | BLOCKED | HIGH_VOLATILITY: ATR 95.0 > 92 — block |
-| 7 | EQUITY_PROTECTION | -5.6 | 0.0 | 5.6 | BLOCKED | EQUITY_PROTECTION: zone active — no new trades; ACCOUNT: health 55.0 < 60 — no new trades; DAILY_DD: 83.3% of threshold > 60% — no new trades |
-| 8 | CAPITAL_PRESERVATION | -2.5999999999999996 | 0.0 | 2.6 | BLOCKED | CAPITAL_PRESERVATION: active — no new trades / no recovery trade; ACCOUNT: health 20.0 < 60 — no new trades; DAILY_DD: 96.7% of threshold > 60% — no new trades |
+| 1 | BUY_SL | -10.600000000000001 | 0.0 | 10.6 | BLOCKED | BASELINE: meta 0.68 < 0.7 AND no strong edge — block |
+| 2 | SELL_SL | -10.600000000000001 | 0.0 | 10.6 | BLOCKED | BASELINE: meta 0.68 < 0.7 AND no strong edge — block |
+| 3 | REGIME_FLIP_BUY | -0.6 | 0.0 | 0.6 | BLOCKED | BASELINE: meta 0.65 < 0.7 AND no strong edge — block; REGIME_FLIP: prob 0.7 > 0.6 AND no confirmation — block |
+| 4 | REGIME_FLIP_SELL | -0.6 | 0.0 | 0.6 | BLOCKED | BASELINE: meta 0.65 < 0.7 AND no strong edge — block; REGIME_FLIP: prob 0.7 > 0.6 AND no confirmation — block |
+| 5 | AMBIGUOUS_CANDLE | -10.600000000000001 | 0.0 | 10.6 | BLOCKED | AMBIGUOUS_CANDLE: blocked — missing: meta 0.65 < 0.75, regime_conf 0.6 < 0.70, no confirmation; BASELINE: meta 0.65 < 0.7 AND no strong edge — block |
+| 6 | HIGH_VOLATILITY | -10.8 | 0.0 | 10.8 | BLOCKED | HIGH_VOLATILITY: meta 0.7 < 0.8 in throttle vol (ATR 95.0); HIGH_VOLATILITY: spread 0.5 > 0.40 in throttle vol |
+| 7 | EQUITY_PROTECTION | -5.6 | 0.0 | 5.6 | BLOCKED | EQUITY_PROTECTION: zone active — no new trades; ACCOUNT: health 55.0 < 60 AND no strong edge — block; DAILY_DD: 83.3% of threshold > 60% — no new trades |
+| 8 | CAPITAL_PRESERVATION | -2.5999999999999996 | 0.0 | 2.6 | BLOCKED | CAPITAL_PRESERVATION: active — no new trades / no recovery trade; ACCOUNT: health 20.0 < 40 — hard block; DAILY_DD: 96.7% of threshold > 60% — no new trades |
 
 ## Acceptance Criteria
 

@@ -1,6 +1,6 @@
 {
   "audit": "sprint_9_9_3_2_stress_loss_mitigation_comparison",
-  "timestamp_utc": "2026-06-27T01:54:23.131057+00:00",
+  "timestamp_utc": "2026-06-27T02:23:52.789098+00:00",
   "source_report": "data/audit/virtual_lifecycle/virtual_lifecycle_report.json",
   "primary_profile": "PROP_FIRM_STRICT",
   "before": {
@@ -32,8 +32,8 @@
       "after_net_pnl": 0.0,
       "pnl_change": 10.6,
       "governance_action": "BLOCKED",
-      "explanation": "BASELINE: meta 0.68 < 0.7 \u2014 block",
-      "block_reason": "BASELINE: meta 0.68 < 0.7 \u2014 block",
+      "explanation": "BASELINE: meta 0.68 < 0.7 AND no strong edge \u2014 block",
+      "block_reason": "BASELINE: meta 0.68 < 0.7 AND no strong edge \u2014 block",
       "risk_multiplier": 0.0,
       "institutional_approval": false
     },
@@ -43,8 +43,8 @@
       "after_net_pnl": 0.0,
       "pnl_change": 10.6,
       "governance_action": "BLOCKED",
-      "explanation": "BASELINE: meta 0.68 < 0.7 \u2014 block",
-      "block_reason": "BASELINE: meta 0.68 < 0.7 \u2014 block",
+      "explanation": "BASELINE: meta 0.68 < 0.7 AND no strong edge \u2014 block",
+      "block_reason": "BASELINE: meta 0.68 < 0.7 AND no strong edge \u2014 block",
       "risk_multiplier": 0.0,
       "institutional_approval": false
     },
@@ -54,8 +54,8 @@
       "after_net_pnl": 0.0,
       "pnl_change": 0.6,
       "governance_action": "BLOCKED",
-      "explanation": "BASELINE: meta 0.65 < 0.7 \u2014 block; REGIME_FLIP: probability 0.7 > 0.6 \u2014 no new trade",
-      "block_reason": "BASELINE: meta 0.65 < 0.7 \u2014 block; REGIME_FLIP: probability 0.7 > 0.6 \u2014 no new trade",
+      "explanation": "BASELINE: meta 0.65 < 0.7 AND no strong edge \u2014 block; REGIME_FLIP: prob 0.7 > 0.6 AND no confirmation \u2014 block",
+      "block_reason": "BASELINE: meta 0.65 < 0.7 AND no strong edge \u2014 block; REGIME_FLIP: prob 0.7 > 0.6 AND no confirmation \u2014 block",
       "risk_multiplier": 0.0,
       "institutional_approval": false
     },
@@ -65,8 +65,8 @@
       "after_net_pnl": 0.0,
       "pnl_change": 0.6,
       "governance_action": "BLOCKED",
-      "explanation": "BASELINE: meta 0.65 < 0.7 \u2014 block; REGIME_FLIP: probability 0.7 > 0.6 \u2014 no new trade",
-      "block_reason": "BASELINE: meta 0.65 < 0.7 \u2014 block; REGIME_FLIP: probability 0.7 > 0.6 \u2014 no new trade",
+      "explanation": "BASELINE: meta 0.65 < 0.7 AND no strong edge \u2014 block; REGIME_FLIP: prob 0.7 > 0.6 AND no confirmation \u2014 block",
+      "block_reason": "BASELINE: meta 0.65 < 0.7 AND no strong edge \u2014 block; REGIME_FLIP: prob 0.7 > 0.6 AND no confirmation \u2014 block",
       "risk_multiplier": 0.0,
       "institutional_approval": false
     },
@@ -76,8 +76,8 @@
       "after_net_pnl": 0.0,
       "pnl_change": 10.6,
       "governance_action": "BLOCKED",
-      "explanation": "AMBIGUOUS_CANDLE: blocked \u2014 missing: meta 0.65 < 0.75, regime_conf 0.6 < 0.70, no confirmation; BASELINE: meta 0.65 < 0.7 \u2014 block",
-      "block_reason": "AMBIGUOUS_CANDLE: blocked \u2014 missing: meta 0.65 < 0.75, regime_conf 0.6 < 0.70, no confirmation; BASELINE: meta 0.65 < 0.7 \u2014 block",
+      "explanation": "AMBIGUOUS_CANDLE: blocked \u2014 missing: meta 0.65 < 0.75, regime_conf 0.6 < 0.70, no confirmation; BASELINE: meta 0.65 < 0.7 AND no strong edge \u2014 block",
+      "block_reason": "AMBIGUOUS_CANDLE: blocked \u2014 missing: meta 0.65 < 0.75, regime_conf 0.6 < 0.70, no confirmation; BASELINE: meta 0.65 < 0.7 AND no strong edge \u2014 block",
       "risk_multiplier": 0.0,
       "institutional_approval": false
     },
@@ -87,8 +87,8 @@
       "after_net_pnl": 0.0,
       "pnl_change": 10.8,
       "governance_action": "BLOCKED",
-      "explanation": "HIGH_VOLATILITY: ATR 95.0 > 92 \u2014 block",
-      "block_reason": "HIGH_VOLATILITY: ATR 95.0 > 92 \u2014 block",
+      "explanation": "HIGH_VOLATILITY: meta 0.7 < 0.8 in throttle vol (ATR 95.0); HIGH_VOLATILITY: spread 0.5 > 0.40 in throttle vol",
+      "block_reason": "HIGH_VOLATILITY: meta 0.7 < 0.8 in throttle vol (ATR 95.0); HIGH_VOLATILITY: spread 0.5 > 0.40 in throttle vol",
       "risk_multiplier": 0.0,
       "institutional_approval": false
     },
@@ -98,8 +98,8 @@
       "after_net_pnl": 0.0,
       "pnl_change": 5.6,
       "governance_action": "BLOCKED",
-      "explanation": "EQUITY_PROTECTION: zone active \u2014 no new trades; ACCOUNT: health 55.0 < 60 \u2014 no new trades; DAILY_DD: 83.3% of threshold > 60% \u2014 no new trades",
-      "block_reason": "EQUITY_PROTECTION: zone active \u2014 no new trades; ACCOUNT: health 55.0 < 60 \u2014 no new trades; DAILY_DD: 83.3% of threshold > 60% \u2014 no new trades",
+      "explanation": "EQUITY_PROTECTION: zone active \u2014 no new trades; ACCOUNT: health 55.0 < 60 AND no strong edge \u2014 block; DAILY_DD: 83.3% of threshold > 60% \u2014 no new trades",
+      "block_reason": "EQUITY_PROTECTION: zone active \u2014 no new trades; ACCOUNT: health 55.0 < 60 AND no strong edge \u2014 block; DAILY_DD: 83.3% of threshold > 60% \u2014 no new trades",
       "risk_multiplier": 0.0,
       "institutional_approval": false
     },
@@ -109,8 +109,8 @@
       "after_net_pnl": 0.0,
       "pnl_change": 2.6,
       "governance_action": "BLOCKED",
-      "explanation": "CAPITAL_PRESERVATION: active \u2014 no new trades / no recovery trade; ACCOUNT: health 20.0 < 60 \u2014 no new trades; DAILY_DD: 96.7% of threshold > 60% \u2014 no new trades",
-      "block_reason": "CAPITAL_PRESERVATION: active \u2014 no new trades / no recovery trade; ACCOUNT: health 20.0 < 60 \u2014 no new trades; DAILY_DD: 96.7% of threshold > 60% \u2014 no new trades",
+      "explanation": "CAPITAL_PRESERVATION: active \u2014 no new trades / no recovery trade; ACCOUNT: health 20.0 < 40 \u2014 hard block; DAILY_DD: 96.7% of threshold > 60% \u2014 no new trades",
+      "block_reason": "CAPITAL_PRESERVATION: active \u2014 no new trades / no recovery trade; ACCOUNT: health 20.0 < 40 \u2014 hard block; DAILY_DD: 96.7% of threshold > 60% \u2014 no new trades",
       "risk_multiplier": 0.0,
       "institutional_approval": false
     }

@@ -50,14 +50,34 @@ def _good_input(**overrides) -> GovernanceInput:
 # ─── 1. HIGH_VOLATILITY ──────────────────────────────────────────────────────
 
 class TestHighVolatility:
-    def test_01_high_vol_atr_above_90_blocks_trade(self):
-        """ATR percentile > 90 (PROP_FIRM_STRICT threshold) blocks trade."""
+    def test_01_high_vol_atr_above_95_hard_blocks_trade(self):
+        """Sprint 9.9.3.3: ATR percentile > 95 (hard block threshold) blocks trade.
+
+        Note: Sprint 9.9.3.2 used 92 as block threshold, causing over-filtering.
+        Sprint 9.9.3.3 moves the hard block to 95+ and uses 90-95 as throttle zone.
+        """
         engine = StressLossGovernanceEngine(AccountProfile.PROP_FIRM_STRICT.value)
-        inp = _good_input(atr_percentile=95.0)
+        inp = _good_input(atr_percentile=96.0)
         dec = engine.evaluate_entry(inp)
         assert dec.allow_trade is False
         assert dec.decision_label == DecisionLabel.NO_TRADE.value
         assert "HIGH_VOLATILITY" in dec.block_reason
+        assert "hard block" in dec.block_reason
+
+    def test_01b_high_vol_90_95_throttles_trade(self):
+        """Sprint 9.9.3.3: ATR 90-95 is throttle zone (allow with reduced risk if meta high)."""
+        engine = StressLossGovernanceEngine(AccountProfile.PROP_FIRM_STRICT.value)
+        # meta >= 0.80 (throttle requirement) → allowed with mult <= 0.25
+        inp = _good_input(atr_percentile=92.0, meta_confidence=0.82)
+        dec = engine.evaluate_entry(inp)
+        assert dec.allow_trade is True
+        assert dec.risk_multiplier <= 0.25
+        assert dec.decision_label == DecisionLabel.REDUCE_RISK.value
+        # meta < 0.80 (throttle requirement) → blocked
+        inp2 = _good_input(atr_percentile=92.0, meta_confidence=0.78)
+        dec2 = engine.evaluate_entry(inp2)
+        assert dec2.allow_trade is False
+        assert "HIGH_VOLATILITY" in dec2.block_reason
 
     def test_02_high_vol_75_90_requires_meta_075(self):
         """ATR percentile 75-90 requires meta_confidence >= 0.75."""
@@ -234,14 +254,26 @@ class TestSetupBroker:
         assert dec.allow_trade is False
         assert "SETUP" in dec.block_reason
 
-    def test_16_poor_broker_quality_blocks_trade(self):
-        """Poor broker quality (< 70 PROP_FIRM) blocks trade."""
+    def test_16_poor_broker_quality_throttles_trade(self):
+        """Sprint 9.9.3.3: Poor broker quality (50-70 PROP_FIRM) throttles trade.
+
+        Hard block is now at < 50 (PROP_FIRM_STRICT).
+        50-70 is throttle zone: allowed with reduced risk.
+        """
         engine = StressLossGovernanceEngine(AccountProfile.PROP_FIRM_STRICT.value)
+        # broker_quality 60 (throttle zone) → allowed with reduced risk
         inp = _good_input(broker_quality=60.0)
         dec = engine.evaluate_entry(inp)
-        assert dec.allow_trade is False
-        assert "BASELINE" in dec.block_reason
-        assert "broker_quality" in dec.block_reason
+        assert dec.allow_trade is True
+        assert dec.risk_multiplier <= 0.50
+        assert dec.decision_label == DecisionLabel.REDUCE_RISK.value
+        # broker_quality 40 (below hard block) → blocked
+        inp2 = _good_input(broker_quality=40.0)
+        dec2 = engine.evaluate_entry(inp2)
+        assert dec2.allow_trade is False
+        assert "BASELINE" in dec2.block_reason
+        assert "broker_quality" in dec2.block_reason
+        assert "hard block" in dec2.block_reason
 
 
 # ─── 8. Protection-zone management ───────────────────────────────────────────
@@ -464,3 +496,339 @@ class TestExplainability:
             _good_input(open_trade_side="BUY", current_r_multiple=1.6))
         assert dec3.exit_action == ExitAction.TIGHT_TRAIL.value
         assert dec3.exit_reason != ""
+
+
+# ─── 13. Sprint 9.9.3.3 — 3-tier calibration tests ───────────────────────────
+
+class TestSprint9933ThreeTier:
+    """Tests for the new 3-tier block/throttle/allow logic."""
+
+    def test_9933_atr_95_throttle_zone_allows_with_strong_meta(self):
+        """Sprint 9.9.3.3: ATR=95 in PROP_FIRM_STRICT (throttle zone, was hard block before).
+
+        With meta=0.82 (>= 0.80 throttle req), should be ALLOWED with risk_mult <= 0.25.
+        """
+        engine = StressLossGovernanceEngine(AccountProfile.PROP_FIRM_STRICT.value)
+        inp = _good_input(atr_percentile=95.0, meta_confidence=0.82)
+        dec = engine.evaluate_entry(inp)
+        # Should be allowed (throttle, not hard block)
+        assert dec.allow_trade is True
+        assert dec.risk_multiplier <= 0.25
+        assert dec.decision_label == DecisionLabel.REDUCE_RISK.value
+
+    def test_9933_atr_above_96_hard_blocks(self):
+        """Sprint 9.9.3.3: ATR > 95 (PROP_FIRM_STRICT) is hard block."""
+        engine = StressLossGovernanceEngine(AccountProfile.PROP_FIRM_STRICT.value)
+        inp = _good_input(atr_percentile=97.0, meta_confidence=0.90)
+        dec = engine.evaluate_entry(inp)
+        assert dec.allow_trade is False
+        assert "HIGH_VOLATILITY" in dec.block_reason
+        assert "hard block" in dec.block_reason
+
+    def test_9933_meta_below_block_threshold_blocks(self):
+        """Sprint 9.9.3.3: meta < 0.65 (PROP_FIRM_STRICT hard block threshold) blocks."""
+        engine = StressLossGovernanceEngine(AccountProfile.PROP_FIRM_STRICT.value)
+        inp = _good_input(meta_confidence=0.60)
+        dec = engine.evaluate_entry(inp)
+        assert dec.allow_trade is False
+        assert "BASELINE" in dec.block_reason
+        assert "hard block" in dec.block_reason
+
+    def test_9933_meta_throttle_zone_with_positive_edge_allows(self):
+        """Sprint 9.9.3.3: meta in [0.65, 0.70) with strong expected edge allows (throttle).
+
+        This is the KEY overfiltering fix — borderline weak alpha with strong expected
+        edge is now allowed with reduced risk, not blocked.
+        """
+        engine = StressLossGovernanceEngine(AccountProfile.PROP_FIRM_STRICT.value)
+        # meta=0.68 (between block 0.65 and throttle 0.70) with strong edge
+        inp = _good_input(meta_confidence=0.68, expected_edge_usd=1.5)
+        dec = engine.evaluate_entry(inp)
+        assert dec.allow_trade is True
+        assert dec.risk_multiplier <= 0.25  # heavily throttled
+        assert dec.decision_label == DecisionLabel.REDUCE_RISK.value
+
+    def test_9933_meta_throttle_zone_without_strong_edge_blocks(self):
+        """Sprint 9.9.3.3: meta in [0.65, 0.70) without strong edge blocks."""
+        engine = StressLossGovernanceEngine(AccountProfile.PROP_FIRM_STRICT.value)
+        # meta=0.68 (throttle zone) but no expected edge
+        inp = _good_input(meta_confidence=0.68, expected_edge_usd=0.0)
+        dec = engine.evaluate_entry(inp)
+        assert dec.allow_trade is False
+
+    def test_9933_spread_throttle_with_high_edge_allows(self):
+        """Sprint 9.9.3.3: spread > normal cap but expected_edge > cost_buffer allows.
+
+        Sprint 9.9.3.2 would have hard-blocked this; 9.9.3.3 throttles it.
+        """
+        engine = StressLossGovernanceEngine(AccountProfile.PROP_FIRM_STRICT.value)
+        # spread=0.55 (> 0.50 cap) but expected_edge=2.0 (> 0.50 buffer)
+        inp = _good_input(spread_usd=0.55, expected_edge_usd=2.0,
+                          meta_confidence=0.75)
+        dec = engine.evaluate_entry(inp)
+        assert dec.allow_trade is True
+        assert dec.risk_multiplier <= 0.50  # throttled
+
+    def test_9933_spread_hard_block_above_max(self):
+        """Sprint 9.9.3.3: spread > max_spread_usd_block (0.80 PROP_FIRM) hard blocks."""
+        engine = StressLossGovernanceEngine(AccountProfile.PROP_FIRM_STRICT.value)
+        inp = _good_input(spread_usd=1.00, expected_edge_usd=10.0)  # even strong edge
+        dec = engine.evaluate_entry(inp)
+        assert dec.allow_trade is False
+        assert "hard block" in dec.block_reason
+
+    def test_9933_regime_flip_throttle_with_confirmation_allows(self):
+        """Sprint 9.9.3.3: regime_flip in [0.60, 0.75] with confirmation + edge allows.
+
+        Sprint 9.9.3.2 would have hard-blocked this; 9.9.3.3 throttles it.
+        """
+        engine = StressLossGovernanceEngine(AccountProfile.PROP_FIRM_STRICT.value)
+        inp = _good_input(regime_flip_probability=0.68,
+                          confirmation_present=True,
+                          expected_edge_usd=2.0,
+                          meta_confidence=0.75)
+        dec = engine.evaluate_entry(inp)
+        assert dec.allow_trade is True
+        assert dec.risk_multiplier <= 0.50
+
+    def test_9933_regime_flip_hard_block_above_075(self):
+        """Sprint 9.9.3.3: regime_flip > 0.75 (PROP_FIRM) hard blocks."""
+        engine = StressLossGovernanceEngine(AccountProfile.PROP_FIRM_STRICT.value)
+        inp = _good_input(regime_flip_probability=0.80,
+                          confirmation_present=True,
+                          expected_edge_usd=10.0,
+                          meta_confidence=0.90)
+        dec = engine.evaluate_entry(inp)
+        assert dec.allow_trade is False
+        assert "REGIME_FLIP" in dec.block_reason
+        assert "hard block" in dec.block_reason
+
+    def test_9933_account_health_throttle_with_strong_edge_allows(self):
+        """Sprint 9.9.3.3: account_health in throttle zone with strong edge allows."""
+        engine = StressLossGovernanceEngine(AccountProfile.PROP_FIRM_STRICT.value)
+        # health=55 (between 40 block and 60 throttle) with strong edge
+        inp = _good_input(account_health=55.0, expected_edge_usd=1.5,
+                          meta_confidence=0.75)
+        dec = engine.evaluate_entry(inp)
+        assert dec.allow_trade is True
+
+    def test_9933_account_health_below_block_threshold_blocks(self):
+        """Sprint 9.9.3.3: account_health < min_account_health_block (40 PROP_FIRM) blocks."""
+        engine = StressLossGovernanceEngine(AccountProfile.PROP_FIRM_STRICT.value)
+        inp = _good_input(account_health=30.0, expected_edge_usd=10.0)
+        dec = engine.evaluate_entry(inp)
+        assert dec.allow_trade is False
+        assert "hard block" in dec.block_reason
+
+
+# ─── 14. Sprint 9.9.3.3 — Exit management coverage ──────────────────────────
+
+class TestSprint9933ExitManagement:
+    """Force coverage of all exit actions: MOVE_BE, PARTIAL_CLOSE, TIGHT_TRAIL,
+    EARLY_CLOSE, REDUCE, CLOSE_AT_BE."""
+
+    def test_9933_move_be_at_05R(self):
+        """MOVE_BE triggered at +0.5R (profit protection ladder)."""
+        engine = StressLossGovernanceEngine(AccountProfile.PROP_FIRM_STRICT.value)
+        dec = engine.evaluate_management(_good_input(
+            open_trade_side="BUY", current_r_multiple=0.55))
+        assert dec.exit_action == ExitAction.MOVE_BE.value
+        assert "profit_ladder" in dec.exit_reason
+
+    def test_9933_partial_close_at_1R(self):
+        """PARTIAL_CLOSE triggered at +1.0R (50% partial + BE)."""
+        engine = StressLossGovernanceEngine(AccountProfile.PROP_FIRM_STRICT.value)
+        dec = engine.evaluate_management(_good_input(
+            open_trade_side="BUY", current_r_multiple=1.05))
+        assert dec.exit_action == ExitAction.PARTIAL_CLOSE.value
+
+    def test_9933_tight_trail_at_15R(self):
+        """TIGHT_TRAIL triggered at +1.5R."""
+        engine = StressLossGovernanceEngine(AccountProfile.PROP_FIRM_STRICT.value)
+        dec = engine.evaluate_management(_good_input(
+            open_trade_side="BUY", current_r_multiple=1.6))
+        assert dec.exit_action == ExitAction.TIGHT_TRAIL.value
+
+    def test_9933_early_close_baseline_invalidation(self):
+        """EARLY_CLOSE triggered by baseline invalidation (-0.3R within 2 candles)."""
+        engine = StressLossGovernanceEngine(AccountProfile.PROP_FIRM_STRICT.value)
+        dec = engine.evaluate_management(_good_input(
+            open_trade_side="BUY", current_r_multiple=-0.35,
+            mae=4.0, candles_in_trade=2))
+        assert dec.exit_action == ExitAction.CLOSE.value
+        assert "invalidation" in dec.exit_reason.lower() or "baseline" in dec.exit_reason.lower()
+
+    def test_9933_reduce_on_equity_protection_losing_trade(self):
+        """REDUCE triggered for losing trade in equity protection zone."""
+        engine = StressLossGovernanceEngine(AccountProfile.PROP_FIRM_STRICT.value)
+        dec = engine.evaluate_management(_good_input(
+            open_trade_side="BUY", current_r_multiple=-0.4,
+            equity_protection_active=True))
+        assert dec.exit_action == ExitAction.REDUCE.value
+        assert "equity_protection" in dec.exit_reason
+
+    def test_9933_close_at_be_in_equity_protection_near_be(self):
+        """CLOSE_AT_BE triggered for near-BE trade in equity protection zone."""
+        engine = StressLossGovernanceEngine(AccountProfile.PROP_FIRM_STRICT.value)
+        dec = engine.evaluate_management(_good_input(
+            open_trade_side="BUY", current_r_multiple=0.1,
+            equity_protection_active=True))
+        assert dec.exit_action == ExitAction.CLOSE.value
+        assert "BE" in dec.exit_reason or "be" in dec.exit_reason.lower()
+
+    def test_9933_reduce_on_regime_flip_losing(self):
+        """REDUCE 50% triggered on losing trade with regime flip against."""
+        engine = StressLossGovernanceEngine(AccountProfile.PROP_FIRM_STRICT.value)
+        dec = engine.evaluate_management(_good_input(
+            open_trade_side="BUY", current_r_multiple=-0.3,
+            regime_flip_probability=0.75))
+        assert dec.exit_action == ExitAction.REDUCE.value
+        assert "regime_flip" in dec.exit_reason
+
+    def test_9933_partial_close_on_equity_protection_profitable(self):
+        """PARTIAL_CLOSE triggered to lock profit on +R trade in equity protection."""
+        engine = StressLossGovernanceEngine(AccountProfile.PROP_FIRM_STRICT.value)
+        dec = engine.evaluate_management(_good_input(
+            open_trade_side="BUY", current_r_multiple=0.5,
+            equity_protection_active=True))
+        assert dec.exit_action == ExitAction.PARTIAL_CLOSE.value
+        assert "lock profit" in dec.exit_reason
+
+    def test_9933_close_on_vol_shock_losing(self):
+        """CLOSE triggered on vol shock + losing trade."""
+        engine = StressLossGovernanceEngine(AccountProfile.PROP_FIRM_STRICT.value)
+        dec = engine.evaluate_management(_good_input(
+            open_trade_side="BUY", current_r_multiple=-0.2,
+            atr_percentile=97.0))
+        assert dec.exit_action == ExitAction.CLOSE.value
+        assert "high_volatility" in dec.exit_reason
+
+    def test_9933_reduce_on_vol_shock_profitable(self):
+        """REDUCE triggered on vol shock + profitable trade."""
+        engine = StressLossGovernanceEngine(AccountProfile.PROP_FIRM_STRICT.value)
+        dec = engine.evaluate_management(_good_input(
+            open_trade_side="BUY", current_r_multiple=0.3,
+            atr_percentile=97.0))
+        assert dec.exit_action == ExitAction.REDUCE.value
+        assert "high_volatility" in dec.exit_reason
+
+
+# ─── 15. Sprint 9.9.3.3 — Anti-overfit synthetic scenarios ──────────────────
+
+class TestSprint9933AntiOverfit:
+    """Anti-overfit tests using synthetic unseen scenarios.
+
+    Governance should:
+      - ALLOW strong winners (not over-filter)
+      - BLOCK clear losers
+      - THROTTLE borderline cases based on expected edge
+    """
+
+    def test_9933_hv_strong_alpha_allowed(self):
+        """High vol + strong alpha should be ALLOWED (throttled, not blocked)."""
+        engine = StressLossGovernanceEngine(AccountProfile.PROP_FIRM_STRICT.value)
+        inp = _good_input(
+            atr_percentile=92.0, meta_confidence=0.85, regime_confidence=0.85,
+            spread_usd=0.30, expected_edge_usd=6.0,
+        )
+        dec = engine.evaluate_entry(inp)
+        assert dec.allow_trade is True
+        # Should be throttled due to vol zone
+        assert dec.risk_multiplier <= 0.50
+
+    def test_9933_hv_weak_alpha_blocked(self):
+        """High vol + weak alpha should be BLOCKED."""
+        engine = StressLossGovernanceEngine(AccountProfile.PROP_FIRM_STRICT.value)
+        inp = _good_input(
+            atr_percentile=92.0, meta_confidence=0.62, regime_confidence=0.60,
+            spread_usd=0.40, expected_edge_usd=-3.0,
+        )
+        dec = engine.evaluate_entry(inp)
+        assert dec.allow_trade is False
+
+    def test_9933_ambiguous_with_confirmation_allowed(self):
+        """Ambiguous candle + confirmation + strong meta should be ALLOWED."""
+        engine = StressLossGovernanceEngine(AccountProfile.PROP_FIRM_STRICT.value)
+        inp = _good_input(
+            ambiguous_candle=True, confirmation_present=True,
+            meta_confidence=0.78, regime_confidence=0.75,
+            spread_usd=0.25, liquidity="GOOD",
+            expected_edge_usd=5.0,
+        )
+        dec = engine.evaluate_entry(inp)
+        assert dec.allow_trade is True
+
+    def test_9933_ambiguous_no_confirmation_blocked(self):
+        """Ambiguous candle + no confirmation should be BLOCKED."""
+        engine = StressLossGovernanceEngine(AccountProfile.PROP_FIRM_STRICT.value)
+        inp = _good_input(
+            ambiguous_candle=True, confirmation_present=False,
+            meta_confidence=0.60, regime_confidence=0.55,
+            spread_usd=0.30, liquidity="NORMAL",
+            expected_edge_usd=-2.0,
+        )
+        dec = engine.evaluate_entry(inp)
+        assert dec.allow_trade is False
+
+    def test_9933_flip_false_alarm_allowed_with_confirmation(self):
+        """Regime flip false alarm (high prob but confirmed) should be ALLOWED (throttled)."""
+        engine = StressLossGovernanceEngine(AccountProfile.PROP_FIRM_STRICT.value)
+        inp = _good_input(
+            regime_flip_probability=0.68, confirmation_present=True,
+            meta_confidence=0.78, regime_confidence=0.78,
+            expected_edge_usd=4.5,
+        )
+        dec = engine.evaluate_entry(inp)
+        assert dec.allow_trade is True
+        assert dec.risk_multiplier <= 0.50
+
+    def test_9933_flip_true_reversal_blocked(self):
+        """Regime flip true reversal (> 0.75) should be BLOCKED."""
+        engine = StressLossGovernanceEngine(AccountProfile.PROP_FIRM_STRICT.value)
+        inp = _good_input(
+            regime_flip_probability=0.80, confirmation_present=False,
+            meta_confidence=0.65, regime_confidence=0.50,
+            expected_edge_usd=-5.0,
+        )
+        dec = engine.evaluate_entry(inp)
+        assert dec.allow_trade is False
+        assert "hard block" in dec.block_reason
+
+    def test_9933_hi_spread_hi_edge_allowed(self):
+        """High spread + high expected edge should be ALLOWED (throttled)."""
+        engine = StressLossGovernanceEngine(AccountProfile.PROP_FIRM_STRICT.value)
+        inp = _good_input(
+            spread_usd=0.65, expected_edge_usd=8.0,
+            meta_confidence=0.80, regime_confidence=0.80,
+        )
+        dec = engine.evaluate_entry(inp)
+        assert dec.allow_trade is True
+        assert dec.risk_multiplier <= 0.50
+
+    def test_9933_lo_spread_weak_alpha_blocked(self):
+        """Low spread + weak alpha + no edge should be BLOCKED."""
+        engine = StressLossGovernanceEngine(AccountProfile.PROP_FIRM_STRICT.value)
+        inp = _good_input(
+            spread_usd=0.20, meta_confidence=0.60,
+            expected_edge_usd=-1.5,
+        )
+        dec = engine.evaluate_entry(inp)
+        assert dec.allow_trade is False
+
+    def test_9933_broker_poor_throttled_not_blocked(self):
+        """Broker quality in throttle zone (50-70) should be ALLOWED with reduced risk."""
+        engine = StressLossGovernanceEngine(AccountProfile.PROP_FIRM_STRICT.value)
+        inp = _good_input(broker_quality=55.0,
+                          meta_confidence=0.75, expected_edge_usd=2.0)
+        dec = engine.evaluate_entry(inp)
+        assert dec.allow_trade is True
+        assert dec.risk_multiplier <= 0.50
+
+    def test_9933_broker_poor_below_block_blocked(self):
+        """Broker quality below hard block (< 50) should be BLOCKED."""
+        engine = StressLossGovernanceEngine(AccountProfile.PROP_FIRM_STRICT.value)
+        inp = _good_input(broker_quality=40.0,
+                          meta_confidence=0.85, expected_edge_usd=5.0)
+        dec = engine.evaluate_entry(inp)
+        assert dec.allow_trade is False
+        assert "hard block" in dec.block_reason

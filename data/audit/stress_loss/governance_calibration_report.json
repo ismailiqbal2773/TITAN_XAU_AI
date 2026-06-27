@@ -1,0 +1,309 @@
+{
+  "audit": "sprint_9_9_3_3_governance_calibration",
+  "timestamp_utc": "2026-06-27T02:20:21.843331+00:00",
+  "source_report": "data/audit/virtual_lifecycle/virtual_lifecycle_report.json",
+  "best_prop_firm_strict_config": {
+    "min_meta_confidence_block": 0.55,
+    "min_meta_confidence": 0.7,
+    "min_meta_confidence_throttle": 0.7,
+    "max_atr_percentile_block": 92,
+    "max_atr_percentile_throttle": 85,
+    "max_spread_usd_block": 0.8,
+    "max_regime_flip_prob_block": 0.75,
+    "risk_multiplier_in_warn_vol": 0.75
+  },
+  "before": {
+    "total_net_pnl": 44.1,
+    "loss_from_8_scenarios": -52.0,
+    "max_dd": 11.4,
+    "pf": 1.8481,
+    "executed_win_rate_pct": 52.94,
+    "opportunity_win_rate_pct": 52.94,
+    "blocked_count": 0,
+    "missed_profit": 0.0,
+    "avoided_loss": 0.0,
+    "overfiltering_ratio": 0.0,
+    "profit_retention_pct": 100.0,
+    "loss_reduction_pct": 0.0,
+    "trade_frequency": 1.0,
+    "competition_score": {
+      "total_score": 69.44,
+      "components": {
+        "net_pnl_quality": 17.64,
+        "max_dd_control": 15.44,
+        "profit_factor_expectancy": 6.36,
+        "stress_loss_reduction": 0.0,
+        "profit_retention": 10.0,
+        "overfiltering_control": 10.0,
+        "trade_frequency_sufficiency": 5.0,
+        "explainability_completeness": 5.0
+      }
+    }
+  },
+  "sprint_9_9_3_2": {
+    "total_net_pnl": 76.4,
+    "loss_from_8_scenarios": 0.0,
+    "max_dd": 0.0,
+    "pf": Infinity,
+    "executed_win_rate_pct": 35.29,
+    "opportunity_win_rate_pct": 52.94,
+    "blocked_count": 11,
+    "blocked_winners": 5,
+    "blocked_losers": 6,
+    "missed_profit": 19.7,
+    "avoided_loss": 52.0,
+    "overfiltering_ratio": 0.38,
+    "profit_retention_pct": 79.5,
+    "loss_reduction_pct": 100.0,
+    "trade_frequency": 0.353,
+    "ev_per_executed_trade": 12.73,
+    "competition_score": {
+      "total_score": 91.71,
+      "components": {
+        "net_pnl_quality": 20.0,
+        "max_dd_control": 20.0,
+        "profit_factor_expectancy": 15.0,
+        "stress_loss_reduction": 15.0,
+        "profit_retention": 7.95,
+        "overfiltering_control": 8.1,
+        "trade_frequency_sufficiency": 0.66,
+        "explainability_completeness": 5.0
+      }
+    }
+  },
+  "sprint_9_9_3_3": {
+    "total_net_pnl": 103.85,
+    "loss_from_8_scenarios": 0.0,
+    "max_dd": 0.0,
+    "pf": Infinity,
+    "executed_win_rate_pct": 100.0,
+    "opportunity_win_rate_pct": 51.72,
+    "blocked_count": 16,
+    "blocked_winners": 2,
+    "blocked_losers": 14,
+    "missed_profit": 0.8,
+    "avoided_loss": 104.0,
+    "overfiltering_ratio": 0.0077,
+    "profit_retention_pct": 79.7,
+    "loss_reduction_pct": 100.0,
+    "trade_frequency": 0.4483,
+    "ev_per_executed_trade": 7.9885,
+    "loss_reduction_efficiency": 130.0,
+    "competition_score": {
+      "total_score": 94.79,
+      "components": {
+        "net_pnl_quality": 20.0,
+        "max_dd_control": 20.0,
+        "profit_factor_expectancy": 15.0,
+        "stress_loss_reduction": 15.0,
+        "profit_retention": 7.97,
+        "overfiltering_control": 9.96,
+        "trade_frequency_sufficiency": 1.85,
+        "explainability_completeness": 5.0
+      }
+    }
+  },
+  "losing_scenario_comparison": [
+    {
+      "scenario": "BUY_SL",
+      "before_pnl": -10.600000000000001,
+      "after_9933_pnl": 0.0,
+      "change": 10.6,
+      "action": "BLOCKED",
+      "risk_multiplier": 0.0,
+      "block_reason": "BASELINE: meta 0.68 < 0.7 AND no strong edge \u2014 block"
+    },
+    {
+      "scenario": "SELL_SL",
+      "before_pnl": -10.600000000000001,
+      "after_9933_pnl": 0.0,
+      "change": 10.6,
+      "action": "BLOCKED",
+      "risk_multiplier": 0.0,
+      "block_reason": "BASELINE: meta 0.68 < 0.7 AND no strong edge \u2014 block"
+    },
+    {
+      "scenario": "REGIME_FLIP_BUY",
+      "before_pnl": -0.6,
+      "after_9933_pnl": 0.0,
+      "change": 0.6,
+      "action": "BLOCKED",
+      "risk_multiplier": 0.0,
+      "block_reason": "BASELINE: meta 0.65 < 0.7 AND no strong edge \u2014 block; REGIME_FLIP: prob 0.7 > 0.6 AND no confirmation \u2014 block"
+    },
+    {
+      "scenario": "REGIME_FLIP_SELL",
+      "before_pnl": -0.6,
+      "after_9933_pnl": 0.0,
+      "change": 0.6,
+      "action": "BLOCKED",
+      "risk_multiplier": 0.0,
+      "block_reason": "BASELINE: meta 0.65 < 0.7 AND no strong edge \u2014 block; REGIME_FLIP: prob 0.7 > 0.6 AND no confirmation \u2014 block"
+    },
+    {
+      "scenario": "AMBIGUOUS_CANDLE",
+      "before_pnl": -10.600000000000001,
+      "after_9933_pnl": 0.0,
+      "change": 10.6,
+      "action": "BLOCKED",
+      "risk_multiplier": 0.0,
+      "block_reason": "AMBIGUOUS_CANDLE: blocked \u2014 missing: meta 0.65 < 0.75, regime_conf 0.6 < 0.70, no confirmation; BASELINE: meta 0.65 < 0.7 AND no strong edge \u2014 block"
+    },
+    {
+      "scenario": "HIGH_VOLATILITY",
+      "before_pnl": -10.8,
+      "after_9933_pnl": 0.0,
+      "change": 10.8,
+      "action": "BLOCKED",
+      "risk_multiplier": 0.0,
+      "block_reason": "HIGH_VOLATILITY: ATR 95.0 > 92 \u2014 hard block"
+    },
+    {
+      "scenario": "EQUITY_PROTECTION",
+      "before_pnl": -5.6,
+      "after_9933_pnl": 0.0,
+      "change": 5.6,
+      "action": "BLOCKED",
+      "risk_multiplier": 0.0,
+      "block_reason": "EQUITY_PROTECTION: zone active \u2014 no new trades; ACCOUNT: health 55.0 < 60 AND no strong edge \u2014 block; DAILY_DD: 83.3% of threshold > 60% \u2014 no new trades"
+    },
+    {
+      "scenario": "CAPITAL_PRESERVATION",
+      "before_pnl": -2.5999999999999996,
+      "after_9933_pnl": 0.0,
+      "change": 2.6,
+      "action": "BLOCKED",
+      "risk_multiplier": 0.0,
+      "block_reason": "CAPITAL_PRESERVATION: active \u2014 no new trades / no recovery trade; ACCOUNT: health 20.0 < 40 \u2014 hard block; DAILY_DD: 96.7% of threshold > 60% \u2014 no new trades"
+    }
+  ],
+  "synthetic_scenario_results": [
+    {
+      "scenario": "HV_STRONG_ALPHA",
+      "expected_pnl": 8.0,
+      "after_9933_pnl": 2.0,
+      "allowed": true,
+      "is_blocked_winner": false,
+      "is_blocked_loser": false,
+      "block_reason": ""
+    },
+    {
+      "scenario": "HV_WEAK_ALPHA",
+      "expected_pnl": -10.0,
+      "after_9933_pnl": 0.0,
+      "allowed": false,
+      "is_blocked_winner": false,
+      "is_blocked_loser": true,
+      "block_reason": "HIGH_VOLATILITY: meta 0.62 < 0.8 in throttle vol (ATR 92.0); BASELINE: meta 0.62 < 0.7 AND no strong edge \u2014 block"
+    },
+    {
+      "scenario": "AMB_WITH_CONF",
+      "expected_pnl": 6.0,
+      "after_9933_pnl": 3.0,
+      "allowed": true,
+      "is_blocked_winner": false,
+      "is_blocked_loser": false,
+      "block_reason": ""
+    },
+    {
+      "scenario": "AMB_NO_CONF",
+      "expected_pnl": -8.0,
+      "after_9933_pnl": 0.0,
+      "allowed": false,
+      "is_blocked_winner": false,
+      "is_blocked_loser": true,
+      "block_reason": "AMBIGUOUS_CANDLE: blocked \u2014 missing: meta 0.6 < 0.75, regime_conf 0.55 < 0.70, no confirmation; BASELINE: meta 0.6 < 0.7 AND no strong edge \u2014 block"
+    },
+    {
+      "scenario": "FLIP_FALSE_ALARM",
+      "expected_pnl": 5.0,
+      "after_9933_pnl": 2.5,
+      "allowed": true,
+      "is_blocked_winner": false,
+      "is_blocked_loser": false,
+      "block_reason": ""
+    },
+    {
+      "scenario": "FLIP_TRUE_REVERSAL",
+      "expected_pnl": -10.0,
+      "after_9933_pnl": 0.0,
+      "allowed": false,
+      "is_blocked_winner": false,
+      "is_blocked_loser": true,
+      "block_reason": "BASELINE: meta 0.65 < 0.7 AND no strong edge \u2014 block; REGIME_FLIP: probability 0.8 > 0.75 \u2014 hard block"
+    },
+    {
+      "scenario": "HI_SPREAD_HI_EDGE",
+      "expected_pnl": 6.0,
+      "after_9933_pnl": 3.0,
+      "allowed": true,
+      "is_blocked_winner": false,
+      "is_blocked_loser": false,
+      "block_reason": ""
+    },
+    {
+      "scenario": "LO_SPREAD_WEAK_ALPHA",
+      "expected_pnl": -8.0,
+      "after_9933_pnl": 0.0,
+      "allowed": false,
+      "is_blocked_winner": false,
+      "is_blocked_loser": true,
+      "block_reason": "BASELINE: meta 0.6 < 0.7 AND no strong edge \u2014 block"
+    },
+    {
+      "scenario": "BROKER_GOOD",
+      "expected_pnl": 5.0,
+      "after_9933_pnl": 2.5,
+      "allowed": true,
+      "is_blocked_winner": false,
+      "is_blocked_loser": false,
+      "block_reason": ""
+    },
+    {
+      "scenario": "BROKER_POOR",
+      "expected_pnl": -7.0,
+      "after_9933_pnl": 0.0,
+      "allowed": false,
+      "is_blocked_winner": false,
+      "is_blocked_loser": true,
+      "block_reason": "BASELINE: meta 0.65 < 0.7 AND no strong edge \u2014 block"
+    },
+    {
+      "scenario": "LIQ_GOOD",
+      "expected_pnl": 5.0,
+      "after_9933_pnl": 5.0,
+      "allowed": true,
+      "is_blocked_winner": false,
+      "is_blocked_loser": false,
+      "block_reason": ""
+    },
+    {
+      "scenario": "LIQ_BAD",
+      "expected_pnl": -9.0,
+      "after_9933_pnl": 0.0,
+      "allowed": false,
+      "is_blocked_winner": false,
+      "is_blocked_loser": true,
+      "block_reason": "BASELINE: meta 0.65 < 0.7 AND no strong edge \u2014 block"
+    }
+  ],
+  "acceptance_criteria": {
+    "loss_from_8_materially_reduced": true,
+    "profit_retention_improved_vs_9932": true,
+    "overfiltering_ratio_decreased": true,
+    "competition_score_improved": true,
+    "max_dd_acceptable": true,
+    "blocked_losers_more_than_blocked_winners": true,
+    "synthetic_anti_overfit_pass": true,
+    "all_criteria_met": true
+  },
+  "safety": {
+    "demo_micro_execute_run": false,
+    "live_demo_path_changed": false,
+    "martingale_added": false,
+    "grid_added": false,
+    "averaging_added": false,
+    "lot_escalation_added": false,
+    "models_retrained": false
+  }
+}
