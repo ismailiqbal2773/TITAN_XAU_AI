@@ -1,0 +1,431 @@
+{
+  "audit": "sprint_9_9_3_4_governance_robustness",
+  "timestamp_utc": "2026-06-27T03:31:45.309774+00:00",
+  "random_seed": 20261993,
+  "scenario_count": 220,
+  "scenario_distribution": {
+    "by_regime": {
+      "LOW_LIQUIDITY": 36,
+      "TREND_UP": 26,
+      "BREAKOUT": 35,
+      "RANGE": 34,
+      "HIGH_VOL": 31,
+      "TREND_DOWN": 29,
+      "TRANSITION": 29
+    },
+    "by_broker": {
+      "FundedNext": 58,
+      "Exness": 39,
+      "IC Markets": 47,
+      "Dukascopy": 35,
+      "FBS": 41
+    },
+    "by_session": {
+      "ASIA": 42,
+      "LONDON": 47,
+      "NY": 40,
+      "OVERLAP": 49,
+      "OFF": 42
+    },
+    "by_liquidity": {
+      "GOOD": 77,
+      "NORMAL": 64,
+      "POOR": 79
+    }
+  },
+  "walk_forward_results": {
+    "NO_GOVERNANCE": {
+      "analytics": {
+        "total_scenarios": 220,
+        "allowed_count": 220,
+        "blocked_count": 0,
+        "blocked_winners": 0,
+        "blocked_losers": 0,
+        "missed_profit": 0,
+        "avoided_loss": 0,
+        "total_opportunity_pnl": -70.47,
+        "total_after_pnl": -70.47,
+        "profit_retention_pct": 100.0,
+        "loss_reduction_pct": 0.0,
+        "overfiltering_ratio": 0.0,
+        "loss_reduction_efficiency": 0.0,
+        "executed_win_rate_pct": 55.0,
+        "opportunity_win_rate_pct": 55.0,
+        "trade_frequency": 1.0,
+        "ev_per_executed_trade": -0.3203
+      },
+      "max_dd": 114.38,
+      "pf": 0.868,
+      "score": {
+        "total_score": 40.0,
+        "components": {
+          "net_pnl_quality": 0.0,
+          "max_dd_control": 0.0,
+          "profit_factor_expectancy": 0.0,
+          "stress_survival": 15.0,
+          "profit_retention": 10.0,
+          "overfiltering_control": 10.0,
+          "trade_frequency_sufficiency": 5.0,
+          "explainability_completeness": 0.0
+        }
+      }
+    },
+    "SPRINT_9_9_3_2_RETAIL_SAFE": {
+      "analytics": {
+        "total_scenarios": 220,
+        "allowed_count": 103,
+        "blocked_count": 117,
+        "blocked_winners": 57,
+        "blocked_losers": 60,
+        "missed_profit": 193.73,
+        "avoided_loss": 329.56,
+        "total_opportunity_pnl": -70.47,
+        "total_after_pnl": 40.345,
+        "profit_retention_pct": 67.3,
+        "loss_reduction_pct": 73.58,
+        "overfiltering_ratio": 0.5878,
+        "loss_reduction_efficiency": 1.7011,
+        "executed_win_rate_pct": 62.14,
+        "opportunity_win_rate_pct": 55.0,
+        "trade_frequency": 0.4682,
+        "ev_per_executed_trade": 0.3917
+      },
+      "max_dd": 40.3925,
+      "pf": 1.2861,
+      "score": {
+        "total_score": 56.89,
+        "components": {
+          "net_pnl_quality": 4.03,
+          "max_dd_control": 11.92,
+          "profit_factor_expectancy": 2.15,
+          "stress_survival": 15.0,
+          "profit_retention": 6.73,
+          "overfiltering_control": 7.06,
+          "trade_frequency_sufficiency": 5.0,
+          "explainability_completeness": 5.0
+        }
+      },
+      "exit_action_counts": {
+        "HOLD": 79,
+        "MOVE_BE": 21,
+        "PARTIAL_CLOSE": 3
+      }
+    },
+    "SPRINT_9_9_3_2_PROP_FIRM_STRICT": {
+      "analytics": {
+        "total_scenarios": 220,
+        "allowed_count": 39,
+        "blocked_count": 181,
+        "blocked_winners": 94,
+        "blocked_losers": 87,
+        "missed_profit": 333.03,
+        "avoided_loss": 460.59,
+        "total_opportunity_pnl": -70.47,
+        "total_after_pnl": 29.3625,
+        "profit_retention_pct": 69.19,
+        "loss_reduction_pct": 88.62,
+        "overfiltering_ratio": 0.7231,
+        "loss_reduction_efficiency": 1.383,
+        "executed_win_rate_pct": 69.23,
+        "opportunity_win_rate_pct": 55.0,
+        "trade_frequency": 0.1773,
+        "ev_per_executed_trade": 0.7529
+      },
+      "max_dd": 26.4575,
+      "pf": 1.4836,
+      "score": {
+        "total_score": 56.08,
+        "components": {
+          "net_pnl_quality": 2.94,
+          "max_dd_control": 14.71,
+          "profit_factor_expectancy": 3.63,
+          "stress_survival": 15.0,
+          "profit_retention": 6.92,
+          "overfiltering_control": 6.38,
+          "trade_frequency_sufficiency": 1.5,
+          "explainability_completeness": 5.0
+        }
+      },
+      "exit_action_counts": {
+        "HOLD": 26,
+        "MOVE_BE": 11,
+        "PARTIAL_CLOSE": 2
+      }
+    },
+    "SPRINT_9_9_3_2_INSTITUTIONAL_CAPITAL_PROTECTION": {
+      "analytics": {
+        "total_scenarios": 220,
+        "allowed_count": 3,
+        "blocked_count": 217,
+        "blocked_winners": 118,
+        "blocked_losers": 99,
+        "missed_profit": 447.22,
+        "avoided_loss": 533.69,
+        "total_opportunity_pnl": -70.47,
+        "total_after_pnl": 8.0,
+        "profit_retention_pct": 50.0,
+        "loss_reduction_pct": 100.0,
+        "overfiltering_ratio": 0.838,
+        "loss_reduction_efficiency": 1.1934,
+        "executed_win_rate_pct": 100.0,
+        "opportunity_win_rate_pct": 55.0,
+        "trade_frequency": 0.0136,
+        "ev_per_executed_trade": 2.6667
+      },
+      "max_dd": 0.0,
+      "pf": Infinity,
+      "score": {
+        "total_score": 66.61,
+        "components": {
+          "net_pnl_quality": 0.8,
+          "max_dd_control": 20.0,
+          "profit_factor_expectancy": 15.0,
+          "stress_survival": 15.0,
+          "profit_retention": 5.0,
+          "overfiltering_control": 5.81,
+          "trade_frequency_sufficiency": 0.0,
+          "explainability_completeness": 5.0
+        }
+      },
+      "exit_action_counts": {
+        "CLOSE": 1,
+        "MOVE_BE": 2
+      }
+    },
+    "SPRINT_9_9_3_3_RETAIL_SAFE": {
+      "analytics": {
+        "total_scenarios": 220,
+        "allowed_count": 115,
+        "blocked_count": 105,
+        "blocked_winners": 45,
+        "blocked_losers": 60,
+        "missed_profit": 149.48,
+        "avoided_loss": 329.56,
+        "total_opportunity_pnl": -70.47,
+        "total_after_pnl": 52.7275,
+        "profit_retention_pct": 61.75,
+        "loss_reduction_pct": 73.58,
+        "overfiltering_ratio": 0.4536,
+        "loss_reduction_efficiency": 2.2047,
+        "executed_win_rate_pct": 66.09,
+        "opportunity_win_rate_pct": 55.0,
+        "trade_frequency": 0.5227,
+        "ev_per_executed_trade": 0.4585
+      },
+      "max_dd": 37.09,
+      "pf": 1.3739,
+      "score": {
+        "total_score": 59.57,
+        "components": {
+          "net_pnl_quality": 5.27,
+          "max_dd_control": 12.58,
+          "profit_factor_expectancy": 2.8,
+          "stress_survival": 15.0,
+          "profit_retention": 6.18,
+          "overfiltering_control": 7.73,
+          "trade_frequency_sufficiency": 5.0,
+          "explainability_completeness": 5.0
+        }
+      },
+      "exit_action_counts": {
+        "HOLD": 86,
+        "MOVE_BE": 24,
+        "PARTIAL_CLOSE": 3,
+        "CLOSE": 2
+      }
+    },
+    "SPRINT_9_9_3_3_PROP_FIRM_STRICT": {
+      "analytics": {
+        "total_scenarios": 220,
+        "allowed_count": 58,
+        "blocked_count": 162,
+        "blocked_winners": 75,
+        "blocked_losers": 87,
+        "missed_profit": 238.52,
+        "avoided_loss": 460.59,
+        "total_opportunity_pnl": -70.47,
+        "total_after_pnl": 62.57,
+        "profit_retention_pct": 54.87,
+        "loss_reduction_pct": 88.62,
+        "overfiltering_ratio": 0.5179,
+        "loss_reduction_efficiency": 1.931,
+        "executed_win_rate_pct": 79.31,
+        "opportunity_win_rate_pct": 55.0,
+        "trade_frequency": 0.2636,
+        "ev_per_executed_trade": 1.0788
+      },
+      "max_dd": 14.8775,
+      "pf": 2.0306,
+      "score": {
+        "total_score": 66.91,
+        "components": {
+          "net_pnl_quality": 6.26,
+          "max_dd_control": 17.02,
+          "profit_factor_expectancy": 7.73,
+          "stress_survival": 15.0,
+          "profit_retention": 5.49,
+          "overfiltering_control": 7.41,
+          "trade_frequency_sufficiency": 3.0,
+          "explainability_completeness": 5.0
+        }
+      },
+      "exit_action_counts": {
+        "HOLD": 38,
+        "MOVE_BE": 17,
+        "PARTIAL_CLOSE": 3
+      }
+    },
+    "SPRINT_9_9_3_3_INSTITUTIONAL_CAPITAL_PROTECTION": {
+      "analytics": {
+        "total_scenarios": 220,
+        "allowed_count": 23,
+        "blocked_count": 197,
+        "blocked_winners": 99,
+        "blocked_losers": 98,
+        "missed_profit": 331.42,
+        "avoided_loss": 522.8,
+        "total_opportunity_pnl": -70.47,
+        "total_after_pnl": 53.505,
+        "profit_retention_pct": 42.87,
+        "loss_reduction_pct": 99.44,
+        "overfiltering_ratio": 0.6339,
+        "loss_reduction_efficiency": 1.5775,
+        "executed_win_rate_pct": 95.65,
+        "opportunity_win_rate_pct": 55.0,
+        "trade_frequency": 0.1045,
+        "ev_per_executed_trade": 2.3263
+      },
+      "max_dd": 3.0,
+      "pf": 18.835,
+      "score": {
+        "total_score": 72.37,
+        "components": {
+          "net_pnl_quality": 5.35,
+          "max_dd_control": 19.4,
+          "profit_factor_expectancy": 15.0,
+          "stress_survival": 15.0,
+          "profit_retention": 4.29,
+          "overfiltering_control": 6.83,
+          "trade_frequency_sufficiency": 1.5,
+          "explainability_completeness": 5.0
+        }
+      },
+      "exit_action_counts": {
+        "MOVE_BE": 12,
+        "CLOSE": 3,
+        "HOLD": 6,
+        "PARTIAL_CLOSE": 2
+      }
+    }
+  },
+  "trade_frequency_analysis": {
+    "RETAIL_SAFE": {
+      "total_opportunities": 220,
+      "allowed_count": 115,
+      "blocked_count": 105,
+      "trade_frequency_pct": 52.27,
+      "expected_monthly_trade_count": 115,
+      "capital_idle_ratio": 0.4773,
+      "capital_utilization_ratio": 0.5227,
+      "acceptance": {
+        "prop_firm_not_inactive": null,
+        "institutional_capital_efficient": null,
+        "retail_preserves_opportunities": true
+      }
+    },
+    "PROP_FIRM_STRICT": {
+      "total_opportunities": 220,
+      "allowed_count": 58,
+      "blocked_count": 162,
+      "trade_frequency_pct": 26.36,
+      "expected_monthly_trade_count": 58,
+      "capital_idle_ratio": 0.7364,
+      "capital_utilization_ratio": 0.2636,
+      "acceptance": {
+        "prop_firm_not_inactive": true,
+        "institutional_capital_efficient": null,
+        "retail_preserves_opportunities": null
+      }
+    },
+    "INSTITUTIONAL_CAPITAL_PROTECTION": {
+      "total_opportunities": 220,
+      "allowed_count": 23,
+      "blocked_count": 197,
+      "trade_frequency_pct": 10.45,
+      "expected_monthly_trade_count": 23,
+      "capital_idle_ratio": 0.8955,
+      "capital_utilization_ratio": 0.1045,
+      "acceptance": {
+        "prop_firm_not_inactive": null,
+        "institutional_capital_efficient": true,
+        "retail_preserves_opportunities": null
+      }
+    }
+  },
+  "exit_management_replay": {
+    "exit_action_counts": {
+      "MOVE_BE": 17,
+      "PARTIAL_CLOSE": 3
+    },
+    "total_exit_actions_triggered": 20,
+    "pnl_with_ladder": 62.57,
+    "pnl_without_ladder": -35.23,
+    "full_sl_events_with_ladder": 6,
+    "full_sl_events_without_ladder": 17,
+    "mfe_captured_with_ladder": 123.28,
+    "mfe_captured_without_ladder": 463.22,
+    "ladder_improves_pnl": true,
+    "ladder_reduces_full_sl": true,
+    "ladder_captures_mfe_better": false
+  },
+  "robustness_verdict": {
+    "ready_for_live_demo_wiring": true,
+    "confidence": "HIGH",
+    "final_competition_score": 66.91,
+    "no_gov_score": 40.0,
+    "sprint_9932_score": 56.08,
+    "sprint_9933_score": 66.91,
+    "score_improvement_vs_no_gov": 26.91,
+    "score_improvement_vs_9932": 10.83,
+    "mc_p5_pnl": -14.16,
+    "mc_median_pnl": 5.53,
+    "mc_worst_pnl": -34.31,
+    "mc_worst_dd": 58.95,
+    "titan_rank": 2,
+    "titan_competitive_vs_bots": true,
+    "trade_frequency_score": 3.0,
+    "exit_action_count": 20,
+    "exit_action_breakdown": {
+      "MOVE_BE": 17,
+      "PARTIAL_CLOSE": 3
+    },
+    "acceptance_criteria": {
+      "governance_improves_score_out_of_sample": true,
+      "max_dd_controlled": true,
+      "missed_profit_reasonable": true,
+      "overfiltering_reasonable": true,
+      "trade_frequency_acceptable": true,
+      "exit_actions_trigger_in_replay": true,
+      "monte_carlo_5th_pct_acceptable": true,
+      "monte_carlo_median_positive": true,
+      "titan_competitive_vs_bots": true,
+      "ladder_improves_pnl": true,
+      "ladder_reduces_full_sl": true,
+      "titan_lower_dd_than_baseline": true,
+      "all_criteria_met": true
+    },
+    "criteria_met_count": 13,
+    "criteria_total_count": 12,
+    "realistic_concerns": [],
+    "metrics_look_realistic": true
+  },
+  "safety": {
+    "demo_micro_execute_run": false,
+    "live_demo_path_changed": false,
+    "martingale_added": false,
+    "grid_added": false,
+    "averaging_added": false,
+    "lot_escalation_added": false,
+    "models_retrained": false
+  }
+}

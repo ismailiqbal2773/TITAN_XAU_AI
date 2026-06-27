@@ -1,0 +1,269 @@
+{
+  "n_runs": 500,
+  "profile": "PROP_FIRM_STRICT",
+  "governance_version": "SPRINT_9_9_3_3",
+  "pnl_distribution": {
+    "median": 5.53,
+    "p5": -14.16,
+    "p25": -2.62,
+    "p75": 16.96,
+    "p95": 35.65,
+    "worst": -34.31,
+    "best": 55.26,
+    "mean": 7.72,
+    "stdev": 15.18
+  },
+  "max_dd_distribution": {
+    "median": 25.25,
+    "p5": 14.84,
+    "p95": 41.99,
+    "worst": 58.95,
+    "mean": 26.36
+  },
+  "pf_distribution": {
+    "median": 1.1,
+    "p5": 0.78,
+    "p95": 1.69,
+    "mean": 1.15
+  },
+  "win_rate_distribution": {
+    "median": 72.5,
+    "p5": 63.16,
+    "p95": 80.95,
+    "mean": 71.73
+  },
+  "blocked_winners_distribution": {
+    "median": 58.0,
+    "p95": 77,
+    "worst": 87
+  },
+  "blocked_losers_distribution": {
+    "median": 118.0,
+    "p95": 134,
+    "best": 146
+  },
+  "sample_runs": [
+    {
+      "run_idx": 0,
+      "total_pnl": 5.25,
+      "max_dd": 31.68,
+      "pf": 1.0599,
+      "win_rate": 65.08,
+      "blocked_count": 157,
+      "blocked_winners": 49,
+      "blocked_losers": 108,
+      "spread_mult": 0.864,
+      "slippage_mult": 1.633,
+      "latency_ms": 141.6,
+      "commission_shock": 1.754,
+      "partial_fill_prob": 0.292,
+      "price_spike_prob": 0.094,
+      "broker_degrade": -1.46,
+      "exit_counts": {
+        "HOLD": 48,
+        "MOVE_BE": 14,
+        "PARTIAL_CLOSE": 1
+      }
+    },
+    {
+      "run_idx": 1,
+      "total_pnl": 17.14,
+      "max_dd": 27.31,
+      "pf": 1.3497,
+      "win_rate": 77.14,
+      "blocked_count": 185,
+      "blocked_winners": 60,
+      "blocked_losers": 125,
+      "spread_mult": 1.566,
+      "slippage_mult": 2.046,
+      "latency_ms": 183.3,
+      "commission_shock": 1.005,
+      "partial_fill_prob": 0.053,
+      "price_spike_prob": 0.077,
+      "broker_degrade": -2.92,
+      "exit_counts": {
+        "HOLD": 25,
+        "MOVE_BE": 7,
+        "TIGHT_TRAIL": 1,
+        "PARTIAL_CLOSE": 2
+      }
+    },
+    {
+      "run_idx": 2,
+      "total_pnl": 13.09,
+      "max_dd": 23.68,
+      "pf": 1.2542,
+      "win_rate": 72.5,
+      "blocked_count": 180,
+      "blocked_winners": 66,
+      "blocked_losers": 114,
+      "spread_mult": 1.379,
+      "slippage_mult": 0.787,
+      "latency_ms": 276.2,
+      "commission_shock": 1.703,
+      "partial_fill_prob": 0.188,
+      "price_spike_prob": 0.099,
+      "broker_degrade": -4.15,
+      "exit_counts": {
+        "HOLD": 32,
+        "MOVE_BE": 7,
+        "PARTIAL_CLOSE": 1
+      }
+    },
+    {
+      "run_idx": 3,
+      "total_pnl": 14.22,
+      "max_dd": 27.73,
+      "pf": 1.2531,
+      "win_rate": 70.21,
+      "blocked_count": 173,
+      "blocked_winners": 50,
+      "blocked_losers": 123,
+      "spread_mult": 1.283,
+      "slippage_mult": 2.727,
+      "latency_ms": 377.0,
+      "commission_shock": 0.539,
+      "partial_fill_prob": 0.152,
+      "price_spike_prob": 0.066,
+      "broker_degrade": -0.04,
+      "exit_counts": {
+        "HOLD": 38,
+        "MOVE_BE": 8,
+        "PARTIAL_CLOSE": 1
+      }
+    },
+    {
+      "run_idx": 4,
+      "total_pnl": -11.39,
+      "max_dd": 49.58,
+      "pf": 0.863,
+      "win_rate": 73.33,
+      "blocked_count": 175,
+      "blocked_winners": 55,
+      "blocked_losers": 120,
+      "spread_mult": 1.317,
+      "slippage_mult": 2.21,
+      "latency_ms": 177.2,
+      "commission_shock": 0.65,
+      "partial_fill_prob": 0.084,
+      "price_spike_prob": 0.085,
+      "broker_degrade": -1.15,
+      "exit_counts": {
+        "HOLD": 36,
+        "MOVE_BE": 8,
+        "PARTIAL_CLOSE": 1
+      }
+    },
+    {
+      "run_idx": 5,
+      "total_pnl": 6.44,
+      "max_dd": 30.46,
+      "pf": 1.0851,
+      "win_rate": 66.13,
+      "blocked_count": 158,
+      "blocked_winners": 50,
+      "blocked_losers": 108,
+      "spread_mult": 0.904,
+      "slippage_mult": 1.577,
+      "latency_ms": 148.6,
+      "commission_shock": 1.539,
+      "partial_fill_prob": 0.007,
+      "price_spike_prob": 0.026,
+      "broker_degrade": -8.24,
+      "exit_counts": {
+        "HOLD": 52,
+        "MOVE_BE": 8,
+        "PARTIAL_CLOSE": 2
+      }
+    },
+    {
+      "run_idx": 6,
+      "total_pnl": -12.63,
+      "max_dd": 30.53,
+      "pf": 0.7215,
+      "win_rate": 73.91,
+      "blocked_count": 197,
+      "blocked_winners": 63,
+      "blocked_losers": 134,
+      "spread_mult": 1.865,
+      "slippage_mult": 2.497,
+      "latency_ms": 367.2,
+      "commission_shock": 1.915,
+      "partial_fill_prob": 0.28,
+      "price_spike_prob": 0.033,
+      "broker_degrade": -6.28,
+      "exit_counts": {
+        "HOLD": 18,
+        "MOVE_BE": 4,
+        "PARTIAL_CLOSE": 1
+      }
+    },
+    {
+      "run_idx": 7,
+      "total_pnl": 32.03,
+      "max_dd": 21.5,
+      "pf": 1.6972,
+      "win_rate": 77.27,
+      "blocked_count": 176,
+      "blocked_winners": 67,
+      "blocked_losers": 109,
+      "spread_mult": 1.345,
+      "slippage_mult": 0.509,
+      "latency_ms": 170.3,
+      "commission_shock": 1.179,
+      "partial_fill_prob": 0.142,
+      "price_spike_prob": 0.031,
+      "broker_degrade": -6.52,
+      "exit_counts": {
+        "HOLD": 31,
+        "MOVE_BE": 11,
+        "PARTIAL_CLOSE": 2
+      }
+    },
+    {
+      "run_idx": 8,
+      "total_pnl": 7.56,
+      "max_dd": 30.14,
+      "pf": 1.0983,
+      "win_rate": 65.15,
+      "blocked_count": 154,
+      "blocked_winners": 50,
+      "blocked_losers": 104,
+      "spread_mult": 0.809,
+      "slippage_mult": 1.303,
+      "latency_ms": 172.4,
+      "commission_shock": 1.563,
+      "partial_fill_prob": 0.015,
+      "price_spike_prob": 0.087,
+      "broker_degrade": -9.57,
+      "exit_counts": {
+        "HOLD": 54,
+        "MOVE_BE": 9,
+        "PARTIAL_CLOSE": 3
+      }
+    },
+    {
+      "run_idx": 9,
+      "total_pnl": 7.46,
+      "max_dd": 20.44,
+      "pf": 1.2576,
+      "win_rate": 82.35,
+      "blocked_count": 203,
+      "blocked_winners": 62,
+      "blocked_losers": 141,
+      "spread_mult": 1.945,
+      "slippage_mult": 2.529,
+      "latency_ms": 352.3,
+      "commission_shock": 1.052,
+      "partial_fill_prob": 0.109,
+      "price_spike_prob": 0.063,
+      "broker_degrade": -9.51,
+      "exit_counts": {
+        "HOLD": 12,
+        "MOVE_BE": 3,
+        "TIGHT_TRAIL": 1,
+        "PARTIAL_CLOSE": 1
+      }
+    }
+  ]
+}

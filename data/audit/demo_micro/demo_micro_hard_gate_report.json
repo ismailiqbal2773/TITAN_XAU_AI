@@ -21,7 +21,7 @@
     "demo_micro_readiness_ok": true
   },
   "platform": "Linux",
-  "timestamp_utc": "2026-06-27T01:56:14.804794+00:00",
+  "timestamp_utc": "2026-06-27T03:33:04.089911+00:00",
   "config_path_used": "/home/z/my-project/TITAN_XAU_AI/config/runtime.yaml",
   "demo_micro_config_found": true,
   "demo_micro_enabled_raw": false,
