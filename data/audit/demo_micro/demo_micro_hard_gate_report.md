@@ -25,7 +25,7 @@
 | max_trades_ok | ✓ |
 | force_close_on_end | ✓ |
 | kill_switch_normal | ✓ |
-| market_open | ✓ |
+| market_open | ✗ |
 | demo_micro_readiness_ok | ✓ |
 
 ## Reasons
@@ -33,3 +33,4 @@
 - MT5 not reachable (Linux or not installed)
 - demo_micro.enabled=False (config)
 - TITAN_DEMO_MICRO_ARMED not set to 1
+- Market closed (weekend)

@@ -108,11 +108,41 @@ class TestConfigReading:
         assert "order_send" not in src
 
     def test_13_no_order_send_in_dry_check(self):
+        """DRY_ARM_CHECK_ONLY path must never call order_send.
+
+        Sprint 9.9.3 note: order_send IS now used inside DEMO_MICRO_EXECUTE
+        (_run_execute), but it is NOT reachable from DRY_ARM_CHECK_ONLY.
+        We verify both at runtime (no order_send_called=True) and at the
+        source level by inspecting only the DRY_ARM_CHECK_ONLY branch.
+        """
         import inspect
         from scripts.audit import fundednext_demo_micro_full_cycle as harness
-        # DRY_ARM_CHECK_ONLY path doesn't call order_send
+
+        # Runtime check: running DRY_ARM_CHECK_ONLY must not call order_send.
+        import asyncio
+        old_argv = sys.argv
+        sys.argv = ["harness", "--mode", "DRY_ARM_CHECK_ONLY"]
+        from scripts.audit.fundednext_demo_micro_full_cycle import parse_args, run
+        args = parse_args()
+        sys.argv = old_argv
+        asyncio.run(run(args))
+
+        report_path = REPO_ROOT / "data" / "audit" / "demo_micro" / "demo_micro_report.json"
+        with open(report_path) as f:
+            r = json.load(f)
+        assert r["order_send_called"] is False
+
+        # Source check: order_send appears ONLY inside _run_execute (execute path).
         src = inspect.getsource(harness)
-        assert "mt5.order_send" not in src
+        # Find the DRY_ARM_CHECK_ONLY branch and assert it does not call order_send.
+        dry_marker = 'if args.mode == "DRY_ARM_CHECK_ONLY":'
+        execute_marker = 'if args.mode == "DEMO_MICRO_EXECUTE":'
+        assert dry_marker in src
+        assert execute_marker in src
+        dry_section = src.split(dry_marker)[1].split(execute_marker)[0]
+        assert "mt5.order_send" not in dry_section
+        assert "_send_open_order" not in dry_section
+        assert "_close_position" not in dry_section
 
     def test_14_execute_not_run_in_tests(self):
         """DEMO_MICRO_EXECUTE not run in tests"""

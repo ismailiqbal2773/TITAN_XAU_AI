@@ -3,7 +3,8 @@
   "reasons": [
     "MT5 not reachable (Linux or not installed)",
     "demo_micro.enabled=False (config)",
-    "TITAN_DEMO_MICRO_ARMED not set to 1"
+    "TITAN_DEMO_MICRO_ARMED not set to 1",
+    "Market closed (weekend)"
   ],
   "checks": {
     "mt5_reachable": false,
@@ -16,11 +17,11 @@
     "max_trades_ok": true,
     "force_close_on_end": true,
     "kill_switch_normal": true,
-    "market_open": true,
+    "market_open": false,
     "demo_micro_readiness_ok": true
   },
   "platform": "Linux",
-  "timestamp_utc": "2026-06-26T23:15:00.152006+00:00",
+  "timestamp_utc": "2026-06-27T00:07:09.276317+00:00",
   "config_path_used": "/home/z/my-project/TITAN_XAU_AI/config/runtime.yaml",
   "demo_micro_config_found": true,
   "demo_micro_enabled_raw": false,
