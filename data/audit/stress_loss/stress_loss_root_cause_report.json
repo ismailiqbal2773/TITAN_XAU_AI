@@ -1,0 +1,608 @@
+{
+  "audit": "sprint_9_9_3_stress_loss_root_cause",
+  "timestamp_utc": "2026-06-27T01:30:22.757349+00:00",
+  "source_report": "data/audit/virtual_lifecycle/virtual_lifecycle_report.json",
+  "source_journal": "data/audit/virtual_lifecycle/virtual_lifecycle_journal.jsonl",
+  "source_audit_id": "sprint_9_8_1_virtual_lifecycle_fixed",
+  "source_verdict": "VIRTUAL_LIFECYCLE_READY",
+  "source_demo_gate": "DEMO_MICRO_READY",
+  "summary": {
+    "total_scenarios": 17,
+    "normal_scenarios": 9,
+    "stress_scenarios": 8,
+    "profitable_scenarios": 9,
+    "losing_scenarios": 8,
+    "loss_total_net_pnl": -52.0,
+    "profit_total_net_pnl": 96.1,
+    "net_pnl_combined": 44.1,
+    "stress_net_pnl": -11.5,
+    "stress_win_rate": 25.0,
+    "stress_profit_factor": 0.63,
+    "stress_max_drawdown_usd": 19.0,
+    "stress_cost_drag_pct": 91.67,
+    "normal_cost_drag_pct": 8.85
+  },
+  "losing_scenarios_classified": [
+    {
+      "scenario": "HIGH_VOLATILITY",
+      "category": "STRESS",
+      "direction": "BUY",
+      "entry_price": 2000,
+      "close_price": 1990,
+      "close_reason": "SL_HIT",
+      "gross_pnl": -10.0,
+      "net_pnl": -10.8,
+      "r_multiple": -1.0,
+      "mfe": 30,
+      "mae": 20,
+      "costs": {
+        "spread_cost": 0.005,
+        "commission_cost": 0.302,
+        "slippage_cost": 2.0,
+        "swap_cost": 0,
+        "total_cost": 2.307,
+        "cost_drag_pct": 23.07
+      },
+      "is_cost_dominant_loss": false,
+      "root_causes": [
+        "volatility_shock",
+        "exit_delay_profit_giveback",
+        "weak_alpha_accepted"
+      ],
+      "mitigations": [
+        "volatility shock filter: block entries when ATR percentile > 90 (current regime has 30-point swing)",
+        "earlier break-even: move SL to BE when MFE >= 1.0R (currently +30 unrealized then SL hit = -1.0R giveback)",
+        "faster partial close: take 50% at +1R, lock 25% more at +2R (current partial plan not aggressive enough in high-vol)",
+        "trailing stop: tighten trail to 0.5R in high-vol regime (vs current 1.0R)",
+        "spread/slippage block: max_spread_usd < 0.40 in high-vol (was 0.50)"
+      ],
+      "severity": "CRITICAL",
+      "notes": [
+        "Position was +$30 profit but ended at SL = -1.0R. Worst giveback in test set."
+      ]
+    },
+    {
+      "scenario": "AMBIGUOUS_CANDLE",
+      "category": "STRESS",
+      "direction": "BUY",
+      "entry_price": 2000,
+      "close_price": 1990,
+      "close_reason": "SL_HIT",
+      "gross_pnl": -10.0,
+      "net_pnl": -10.600000000000001,
+      "r_multiple": -1.0,
+      "mfe": 25,
+      "mae": 15,
+      "costs": {
+        "spread_cost": 0.003,
+        "commission_cost": 0.302,
+        "slippage_cost": 2.0,
+        "swap_cost": 0,
+        "total_cost": 2.305,
+        "cost_drag_pct": 23.05
+      },
+      "is_cost_dominant_loss": false,
+      "root_causes": [
+        "weak_alpha_accepted",
+        "exit_delay_profit_giveback",
+        "bad_session_liquidity"
+      ],
+      "mitigations": [
+        "stricter alpha threshold: require meta_conf >= 0.70 on ambiguous candle patterns",
+        "earlier break-even: move SL to BE at +1.0R (was +25 unrealized then -10 at SL)",
+        "no-trade filter: skip entry if candle range > 2.0 * ATR AND direction ambiguous (close near middle)",
+        "faster partial close: lock 50% at +1R for ambiguous-candle entries",
+        "tighter regime-flip exit: any opposite-direction 1-bar momentum > 1.5 ATR \u2192 close immediately"
+      ],
+      "severity": "HIGH",
+      "notes": [
+        "Strong directional bias but gave back 100%+ of MFE. Exit policy too loose."
+      ]
+    },
+    {
+      "scenario": "BUY_SL",
+      "category": "NORMAL",
+      "direction": "BUY",
+      "entry_price": 2000,
+      "close_price": 1990,
+      "close_reason": "SL_HIT",
+      "gross_pnl": -10.0,
+      "net_pnl": -10.600000000000001,
+      "r_multiple": -1.0,
+      "mfe": 5,
+      "mae": 11,
+      "costs": {
+        "spread_cost": 0.003,
+        "commission_cost": 0.302,
+        "slippage_cost": 2.0,
+        "swap_cost": 0,
+        "total_cost": 2.305,
+        "cost_drag_pct": 23.05
+      },
+      "is_cost_dominant_loss": false,
+      "root_causes": [
+        "weak_alpha_accepted",
+        "spread_slippage_cost"
+      ],
+      "mitigations": [
+        "stricter alpha threshold: meta_conf >= 0.70 for entries (currently 0.65)",
+        "spread/slippage block: skip if spread > 0.30 USD (currently allows up to 1.00)",
+        "earlier break-even: move SL to BE at +0.5R (currently +1.0R) to reduce stop-out cost",
+        "faster partial close: take 25% at +0.5R to recoup spread/commission",
+        "disable strategy in that regime if win_rate < 35% over rolling 50 trades"
+      ],
+      "severity": "MEDIUM",
+      "notes": [
+        "Baseline SL test \u2014 expected loss (-10 gross + 0.6 cost). Loss is within R-model, but cost drag compounds in stress."
+      ]
+    },
+    {
+      "scenario": "SELL_SL",
+      "category": "NORMAL",
+      "direction": "SELL",
+      "entry_price": 2000,
+      "close_price": 2010,
+      "close_reason": "SL_HIT",
+      "gross_pnl": -10.0,
+      "net_pnl": -10.600000000000001,
+      "r_multiple": -1.0,
+      "mfe": 5,
+      "mae": 11,
+      "costs": {
+        "spread_cost": 0.003,
+        "commission_cost": 0.302,
+        "slippage_cost": 2.0,
+        "swap_cost": 0,
+        "total_cost": 2.305,
+        "cost_drag_pct": 23.05
+      },
+      "is_cost_dominant_loss": false,
+      "root_causes": [
+        "weak_alpha_accepted",
+        "spread_slippage_cost"
+      ],
+      "mitigations": [
+        "stricter alpha threshold: meta_conf >= 0.70 for entries (currently 0.65)",
+        "spread/slippage block: skip if spread > 0.30 USD (currently allows up to 1.00)",
+        "earlier break-even: move SL to BE at +0.5R (currently +1.0R) to reduce stop-out cost",
+        "faster partial close: take 25% at +0.5R to recoup spread/commission",
+        "disable strategy in that regime if win_rate < 35% over rolling 50 trades"
+      ],
+      "severity": "MEDIUM",
+      "notes": [
+        "Baseline SL test \u2014 expected loss (-10 gross + 0.6 cost). Loss is within R-model, but cost drag compounds in stress."
+      ]
+    },
+    {
+      "scenario": "EQUITY_PROTECTION",
+      "category": "STRESS",
+      "direction": "BUY",
+      "entry_price": 2000,
+      "close_price": 1995,
+      "close_reason": "EQUITY_PROTECTION_EXIT",
+      "gross_pnl": -5.0,
+      "net_pnl": -5.6,
+      "r_multiple": -0.5,
+      "mfe": 0.0,
+      "mae": 0.0,
+      "costs": {
+        "spread_cost": 0.003,
+        "commission_cost": 0.302,
+        "slippage_cost": 2.0,
+        "swap_cost": 0,
+        "total_cost": 2.305,
+        "cost_drag_pct": 46.1
+      },
+      "is_cost_dominant_loss": false,
+      "root_causes": [
+        "broker_execution_condition",
+        "weak_alpha_accepted"
+      ],
+      "mitigations": [
+        "disable strategy in that regime when equity protection is engaged (capital_preservation state)",
+        "reduce risk multiplier to 0.25 when equity-protection threshold is within 2% of trigger",
+        "no-trade filter: block new entries when daily DD > 50% of equity-protection threshold",
+        "earlier break-even: when in equity-protection zone, force BE at +0.3R instead of +1.0R"
+      ],
+      "severity": "MEDIUM",
+      "notes": [
+        "This is CORRECT BEHAVIOR \u2014 equity protection triggered before SL. Smaller loss (-5) than SL (-10)."
+      ]
+    },
+    {
+      "scenario": "CAPITAL_PRESERVATION",
+      "category": "STRESS",
+      "direction": "BUY",
+      "entry_price": 2000,
+      "close_price": 1998,
+      "close_reason": "CAPITAL_PRESERVATION_EXIT",
+      "gross_pnl": -2.0,
+      "net_pnl": -2.5999999999999996,
+      "r_multiple": -0.2,
+      "mfe": 0.0,
+      "mae": 0.0,
+      "costs": {
+        "spread_cost": 0.003,
+        "commission_cost": 0.302,
+        "slippage_cost": 2.0,
+        "swap_cost": 0,
+        "total_cost": 2.305,
+        "cost_drag_pct": 115.25
+      },
+      "is_cost_dominant_loss": false,
+      "root_causes": [
+        "broker_execution_condition",
+        "weak_alpha_accepted"
+      ],
+      "mitigations": [
+        "disable strategy in that regime when capital_preservation state active (allow_new_entries=false)",
+        "reduce risk multiplier to 0.0 when capital_preservation active (config already does this)",
+        "no-trade filter: block ALL new entries when account health < 25 (capital_preservation profile)",
+        "faster exit on capital_preservation: trigger exit at -0.3R (not -0.5R) in capital_preservation mode"
+      ],
+      "severity": "LOW",
+      "notes": [
+        "CORRECT BEHAVIOR \u2014 capital preservation correctly minimized loss (-2 vs SL -10)."
+      ]
+    },
+    {
+      "scenario": "REGIME_FLIP_BUY",
+      "category": "STRESS",
+      "direction": "BUY",
+      "entry_price": 2000,
+      "close_price": 2000,
+      "close_reason": "REGIME_RISK_EXIT",
+      "gross_pnl": 0.0,
+      "net_pnl": -0.6,
+      "r_multiple": 0.0,
+      "mfe": 0.0,
+      "mae": 0.0,
+      "costs": {
+        "spread_cost": 0.003,
+        "commission_cost": 0.302,
+        "slippage_cost": 2.0,
+        "swap_cost": 0,
+        "total_cost": 2.305,
+        "cost_drag_pct": 100.0
+      },
+      "is_cost_dominant_loss": true,
+      "root_causes": [
+        "regime_misclassification",
+        "tighter_regime_flip_exit"
+      ],
+      "mitigations": [
+        "no-trade filter: block entries within N bars of regime-flip signal",
+        "stricter alpha threshold per regime: require meta_conf >= 0.70 in transitional regime",
+        "reduce risk multiplier to 0.5 in transitional regime",
+        "faster regime-flip exit: trigger close on first regime probability > 0.6 (vs current > 0.7)"
+      ],
+      "severity": "LOW",
+      "notes": [
+        "Loss is small (only cost). But signal was wrong-direction or noise \u2014 entry filter should reject."
+      ]
+    },
+    {
+      "scenario": "REGIME_FLIP_SELL",
+      "category": "STRESS",
+      "direction": "SELL",
+      "entry_price": 2000,
+      "close_price": 2000,
+      "close_reason": "REGIME_RISK_EXIT",
+      "gross_pnl": 0.0,
+      "net_pnl": -0.6,
+      "r_multiple": 0.0,
+      "mfe": 0.0,
+      "mae": 0.0,
+      "costs": {
+        "spread_cost": 0.003,
+        "commission_cost": 0.302,
+        "slippage_cost": 2.0,
+        "swap_cost": 0,
+        "total_cost": 2.305,
+        "cost_drag_pct": 100.0
+      },
+      "is_cost_dominant_loss": true,
+      "root_causes": [
+        "regime_misclassification",
+        "tighter_regime_flip_exit"
+      ],
+      "mitigations": [
+        "no-trade filter: block entries within N bars of regime-flip signal",
+        "stricter alpha threshold per regime: require meta_conf >= 0.70 in transitional regime",
+        "reduce risk multiplier to 0.5 in transitional regime",
+        "faster regime-flip exit: trigger close on first regime probability > 0.6 (vs current > 0.7)"
+      ],
+      "severity": "LOW",
+      "notes": [
+        "Loss is small (only cost). But signal was wrong-direction or noise \u2014 entry filter should reject."
+      ]
+    }
+  ],
+  "profitable_scenarios": [
+    {
+      "scenario": "BUY_TP",
+      "category": "NORMAL",
+      "net_pnl": 19.4,
+      "r_multiple": 2.0,
+      "close_reason": "TP_HIT"
+    },
+    {
+      "scenario": "SELL_TP",
+      "category": "NORMAL",
+      "net_pnl": 19.4,
+      "r_multiple": 2.0,
+      "close_reason": "TP_HIT"
+    },
+    {
+      "scenario": "BUY_AI_EXIT",
+      "category": "NORMAL",
+      "net_pnl": 9.399999999999999,
+      "r_multiple": 1.0,
+      "close_reason": "AI_EXIT_CLOSE"
+    },
+    {
+      "scenario": "SELL_AI_EXIT",
+      "category": "NORMAL",
+      "net_pnl": 9.399999999999999,
+      "r_multiple": 1.0,
+      "close_reason": "AI_EXIT_CLOSE"
+    },
+    {
+      "scenario": "ALPHA_DECAY",
+      "category": "STRESS",
+      "net_pnl": 0.39999999999999997,
+      "r_multiple": 0.1,
+      "close_reason": "ALPHA_DECAY_EXIT"
+    },
+    {
+      "scenario": "SPREAD_SPIKE_TP",
+      "category": "STRESS",
+      "net_pnl": 18.9,
+      "r_multiple": 2.0,
+      "close_reason": "TP_HIT"
+    },
+    {
+      "scenario": "MAX_HOLDING",
+      "category": "NORMAL",
+      "net_pnl": 4.4,
+      "r_multiple": 0.5,
+      "close_reason": "MAX_HOLDING_EXIT"
+    },
+    {
+      "scenario": "PROFIT_LOCK",
+      "category": "NORMAL",
+      "net_pnl": 14.399999999999999,
+      "r_multiple": 1.5,
+      "close_reason": "PROFIT_LOCK_EXIT"
+    },
+    {
+      "scenario": "STALE_EXIT",
+      "category": "NORMAL",
+      "net_pnl": 0.39999999999999997,
+      "r_multiple": 0.1,
+      "close_reason": "STALE_POSITION_EXIT"
+    }
+  ],
+  "root_cause_frequency": {
+    "volatility_shock": 1,
+    "exit_delay_profit_giveback": 2,
+    "weak_alpha_accepted": 6,
+    "bad_session_liquidity": 1,
+    "spread_slippage_cost": 2,
+    "broker_execution_condition": 2,
+    "regime_misclassification": 2,
+    "tighter_regime_flip_exit": 2
+  },
+  "mitigation_backlog": [
+    {
+      "mitigation": "stricter alpha threshold: meta_conf >= 0.70 for entries (currently 0.65)",
+      "frequency": 2,
+      "applies_to_scenarios": [
+        "BUY_SL",
+        "SELL_SL"
+      ]
+    },
+    {
+      "mitigation": "spread/slippage block: skip if spread > 0.30 USD (currently allows up to 1.00)",
+      "frequency": 2,
+      "applies_to_scenarios": [
+        "BUY_SL",
+        "SELL_SL"
+      ]
+    },
+    {
+      "mitigation": "earlier break-even: move SL to BE at +0.5R (currently +1.0R) to reduce stop-out cost",
+      "frequency": 2,
+      "applies_to_scenarios": [
+        "BUY_SL",
+        "SELL_SL"
+      ]
+    },
+    {
+      "mitigation": "faster partial close: take 25% at +0.5R to recoup spread/commission",
+      "frequency": 2,
+      "applies_to_scenarios": [
+        "BUY_SL",
+        "SELL_SL"
+      ]
+    },
+    {
+      "mitigation": "disable strategy in that regime if win_rate < 35% over rolling 50 trades",
+      "frequency": 2,
+      "applies_to_scenarios": [
+        "BUY_SL",
+        "SELL_SL"
+      ]
+    },
+    {
+      "mitigation": "no-trade filter: block entries within N bars of regime-flip signal",
+      "frequency": 2,
+      "applies_to_scenarios": [
+        "REGIME_FLIP_BUY",
+        "REGIME_FLIP_SELL"
+      ]
+    },
+    {
+      "mitigation": "stricter alpha threshold per regime: require meta_conf >= 0.70 in transitional regime",
+      "frequency": 2,
+      "applies_to_scenarios": [
+        "REGIME_FLIP_BUY",
+        "REGIME_FLIP_SELL"
+      ]
+    },
+    {
+      "mitigation": "reduce risk multiplier to 0.5 in transitional regime",
+      "frequency": 2,
+      "applies_to_scenarios": [
+        "REGIME_FLIP_BUY",
+        "REGIME_FLIP_SELL"
+      ]
+    },
+    {
+      "mitigation": "faster regime-flip exit: trigger close on first regime probability > 0.6 (vs current > 0.7)",
+      "frequency": 2,
+      "applies_to_scenarios": [
+        "REGIME_FLIP_BUY",
+        "REGIME_FLIP_SELL"
+      ]
+    },
+    {
+      "mitigation": "volatility shock filter: block entries when ATR percentile > 90 (current regime has 30-point swing)",
+      "frequency": 1,
+      "applies_to_scenarios": [
+        "HIGH_VOLATILITY"
+      ]
+    },
+    {
+      "mitigation": "earlier break-even: move SL to BE when MFE >= 1.0R (currently +30 unrealized then SL hit = -1.0R giveback)",
+      "frequency": 1,
+      "applies_to_scenarios": [
+        "HIGH_VOLATILITY"
+      ]
+    },
+    {
+      "mitigation": "faster partial close: take 50% at +1R, lock 25% more at +2R (current partial plan not aggressive enough in high-vol)",
+      "frequency": 1,
+      "applies_to_scenarios": [
+        "HIGH_VOLATILITY"
+      ]
+    },
+    {
+      "mitigation": "trailing stop: tighten trail to 0.5R in high-vol regime (vs current 1.0R)",
+      "frequency": 1,
+      "applies_to_scenarios": [
+        "HIGH_VOLATILITY"
+      ]
+    },
+    {
+      "mitigation": "spread/slippage block: max_spread_usd < 0.40 in high-vol (was 0.50)",
+      "frequency": 1,
+      "applies_to_scenarios": [
+        "HIGH_VOLATILITY"
+      ]
+    },
+    {
+      "mitigation": "stricter alpha threshold: require meta_conf >= 0.70 on ambiguous candle patterns",
+      "frequency": 1,
+      "applies_to_scenarios": [
+        "AMBIGUOUS_CANDLE"
+      ]
+    },
+    {
+      "mitigation": "earlier break-even: move SL to BE at +1.0R (was +25 unrealized then -10 at SL)",
+      "frequency": 1,
+      "applies_to_scenarios": [
+        "AMBIGUOUS_CANDLE"
+      ]
+    },
+    {
+      "mitigation": "no-trade filter: skip entry if candle range > 2.0 * ATR AND direction ambiguous (close near middle)",
+      "frequency": 1,
+      "applies_to_scenarios": [
+        "AMBIGUOUS_CANDLE"
+      ]
+    },
+    {
+      "mitigation": "faster partial close: lock 50% at +1R for ambiguous-candle entries",
+      "frequency": 1,
+      "applies_to_scenarios": [
+        "AMBIGUOUS_CANDLE"
+      ]
+    },
+    {
+      "mitigation": "tighter regime-flip exit: any opposite-direction 1-bar momentum > 1.5 ATR \u2192 close immediately",
+      "frequency": 1,
+      "applies_to_scenarios": [
+        "AMBIGUOUS_CANDLE"
+      ]
+    },
+    {
+      "mitigation": "disable strategy in that regime when equity protection is engaged (capital_preservation state)",
+      "frequency": 1,
+      "applies_to_scenarios": [
+        "EQUITY_PROTECTION"
+      ]
+    },
+    {
+      "mitigation": "reduce risk multiplier to 0.25 when equity-protection threshold is within 2% of trigger",
+      "frequency": 1,
+      "applies_to_scenarios": [
+        "EQUITY_PROTECTION"
+      ]
+    },
+    {
+      "mitigation": "no-trade filter: block new entries when daily DD > 50% of equity-protection threshold",
+      "frequency": 1,
+      "applies_to_scenarios": [
+        "EQUITY_PROTECTION"
+      ]
+    },
+    {
+      "mitigation": "earlier break-even: when in equity-protection zone, force BE at +0.3R instead of +1.0R",
+      "frequency": 1,
+      "applies_to_scenarios": [
+        "EQUITY_PROTECTION"
+      ]
+    },
+    {
+      "mitigation": "disable strategy in that regime when capital_preservation state active (allow_new_entries=false)",
+      "frequency": 1,
+      "applies_to_scenarios": [
+        "CAPITAL_PRESERVATION"
+      ]
+    },
+    {
+      "mitigation": "reduce risk multiplier to 0.0 when capital_preservation active (config already does this)",
+      "frequency": 1,
+      "applies_to_scenarios": [
+        "CAPITAL_PRESERVATION"
+      ]
+    },
+    {
+      "mitigation": "no-trade filter: block ALL new entries when account health < 25 (capital_preservation profile)",
+      "frequency": 1,
+      "applies_to_scenarios": [
+        "CAPITAL_PRESERVATION"
+      ]
+    },
+    {
+      "mitigation": "faster exit on capital_preservation: trigger exit at -0.3R (not -0.5R) in capital_preservation mode",
+      "frequency": 1,
+      "applies_to_scenarios": [
+        "CAPITAL_PRESERVATION"
+      ]
+    }
+  ],
+  "code_changed": false,
+  "strategy_changed": false,
+  "demo_micro_execute_run": false,
+  "notes": [
+    "This audit is READ-ONLY \u2014 no code, strategy, or model changes were made.",
+    "All mitigations are recommendations for future sprints, not implemented here.",
+    "The 8 losing scenarios include 2 NORMAL (BUY_SL, SELL_SL) and 6 STRESS.",
+    "Two STRESS losses (EQUITY_PROTECTION, CAPITAL_PRESERVATION) are CORRECT BEHAVIOR \u2014 ",
+    "safety systems triggered before SL, minimizing loss.",
+    "Two STRESS losses (HIGH_VOLATILITY, AMBIGUOUS_CANDLE) are CRITICAL \u2014 large MFE giveback.",
+    "Two STRESS losses (REGIME_FLIP_BUY/SELL) are LOW \u2014 pure cost loss from wrong-direction entry."
+  ]
+}
