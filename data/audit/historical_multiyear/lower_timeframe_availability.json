@@ -1,0 +1,146 @@
+{
+  "datasets": [
+    {
+      "source": "canonical",
+      "timeframe": "M30",
+      "available": true,
+      "total_rows": 76069,
+      "start": "2020-01-02 01:00:00+00:00",
+      "end": "2026-06-19 20:00:00+00:00",
+      "rows_2025": 11860
+    },
+    {
+      "source": "canonical",
+      "timeframe": "M15",
+      "available": true,
+      "total_rows": 100645,
+      "start": "2022-03-22 00:00:00+00:00",
+      "end": "2026-06-19 20:00:00+00:00",
+      "rows_2025": 23718
+    },
+    {
+      "source": "canonical",
+      "timeframe": "M5",
+      "available": true,
+      "total_rows": 101092,
+      "start": "2025-01-17 01:05:00+00:00",
+      "end": "2026-06-19 19:55:00+00:00",
+      "rows_2025": 68091
+    },
+    {
+      "source": "exness",
+      "timeframe": "M30",
+      "available": true,
+      "total_rows": 76389,
+      "start": "2020-01-02 01:00:00+00:00",
+      "end": "2026-06-19 16:30:00+00:00",
+      "rows_2025": 11816
+    },
+    {
+      "source": "exness",
+      "timeframe": "M15",
+      "available": true,
+      "total_rows": 100341,
+      "start": "2022-03-22 00:00:00+00:00",
+      "end": "2026-06-19 16:45:00+00:00",
+      "rows_2025": 23620
+    },
+    {
+      "source": "exness",
+      "timeframe": "M5",
+      "available": true,
+      "total_rows": 100000,
+      "start": "2025-01-21 18:10:00+00:00",
+      "end": "2026-06-19 16:55:00+00:00",
+      "rows_2025": 67029
+    },
+    {
+      "source": "fundednext",
+      "timeframe": "M30",
+      "available": true,
+      "total_rows": 28909,
+      "start": "2024-01-01 21:00:00+00:00",
+      "end": "2026-06-19 20:00:00+00:00",
+      "rows_2025": 11825
+    },
+    {
+      "source": "fundednext",
+      "timeframe": "M15",
+      "available": true,
+      "total_rows": 57768,
+      "start": "2024-01-01 21:00:00+00:00",
+      "end": "2026-06-19 20:00:00+00:00",
+      "rows_2025": 23636
+    },
+    {
+      "source": "fundednext",
+      "timeframe": "M5",
+      "available": true,
+      "total_rows": 100863,
+      "start": "2025-01-17 01:00:00+00:00",
+      "end": "2026-06-19 20:00:00+00:00",
+      "rows_2025": 67856
+    },
+    {
+      "source": "icmarkets",
+      "timeframe": "M30",
+      "available": true,
+      "total_rows": 76453,
+      "start": "2019-12-31 19:00:00+00:00",
+      "end": "2026-06-19 19:30:00+00:00",
+      "rows_2025": 11820
+    },
+    {
+      "source": "icmarkets",
+      "timeframe": "M15",
+      "available": true,
+      "total_rows": 100000,
+      "start": "2022-03-28 18:15:00+00:00",
+      "end": "2026-06-19 19:45:00+00:00",
+      "rows_2025": 23638
+    },
+    {
+      "source": "icmarkets",
+      "timeframe": "M5",
+      "available": true,
+      "total_rows": 100000,
+      "start": "2025-01-22 03:00:00+00:00",
+      "end": "2026-06-19 19:55:00+00:00",
+      "rows_2025": 67051
+    },
+    {
+      "source": "fbs",
+      "timeframe": "M30",
+      "available": true,
+      "total_rows": 67639,
+      "start": "2020-09-28 01:00:00+00:00",
+      "end": "2026-06-19 20:00:00+00:00",
+      "rows_2025": 11808
+    },
+    {
+      "source": "fbs",
+      "timeframe": "M15",
+      "available": true,
+      "total_rows": 100723,
+      "start": "2022-03-15 00:00:00+00:00",
+      "end": "2026-06-19 20:00:00+00:00",
+      "rows_2025": 23612
+    },
+    {
+      "source": "fbs",
+      "timeframe": "M5",
+      "available": true,
+      "total_rows": 100000,
+      "start": "2024-07-30 22:50:00+00:00",
+      "end": "2025-12-31 23:50:00+00:00",
+      "rows_2025": 70311
+    }
+  ],
+  "totals": {
+    "M30": 325459,
+    "M15": 459477,
+    "M5": 501955
+  },
+  "recommendation": "defer_to_next_sprint",
+  "note": "M5/M15/M30 full validation deferred to next sprint. 2025 lightweight validation feasible."
+}

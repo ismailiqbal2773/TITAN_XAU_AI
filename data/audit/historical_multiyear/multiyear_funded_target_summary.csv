@@ -1,0 +1,6 @@
+config,years_tested,years_target_achieved,years_rule_breach,pass_rate_pct
+NO_GOVERNANCE,6,0,6,0.0
+SPRINT_9_9_3_2_PROP_FIRM_STRICT,6,6,0,100.0
+SPRINT_9_9_3_3_RETAIL_SAFE,6,6,0,100.0
+SPRINT_9_9_3_3_PROP_FIRM_STRICT,6,6,0,100.0
+SPRINT_9_9_3_3_INSTITUTIONAL,6,6,0,100.0

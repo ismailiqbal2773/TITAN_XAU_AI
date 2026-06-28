@@ -1,0 +1,6 @@
+config,config,net_pnl,trade_count,win_rate_pct,profit_factor,max_dd_usd,max_dd_pct,sharpe,profit_pct,target_achieved,rule_breach
+combined,NO_GOVERNANCE,-43250.07,22575,36.72,0.6273,2127.71,21.13,-5.8923,-432.5,False,True
+combined,SPRINT_9_9_3_2_PROP_FIRM_STRICT,25812.9,8038,68.38,4.5146,75.92,0.68,7.806,258.13,True,False
+combined,SPRINT_9_9_3_3_RETAIL_SAFE,36915.16,11284,69.79,4.4082,98.44,0.8,7.9997,369.15,True,False
+combined,SPRINT_9_9_3_3_PROP_FIRM_STRICT,27781.94,8830,70.68,5.0272,79.05,0.71,8.2777,277.82,True,False
+combined,SPRINT_9_9_3_3_INSTITUTIONAL,19685.99,7258,68.39,4.3839,87.88,0.73,7.4011,196.86,True,False

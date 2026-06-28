@@ -1,0 +1,638 @@
+{
+  "audit": "sprint_9_9_3_8_stage_a_data_inventory",
+  "timestamp_utc": "2026-06-28T14:06:35.211815+00:00",
+  "total_datasets": 20,
+  "datasets": [
+    {
+      "source": "canonical",
+      "timeframe": "H1",
+      "path": "titan/data/canonical/XAUUSD_H1_canonical.parquet",
+      "total_rows": 38234,
+      "start": "2020-01-02 01:00:00+00:00",
+      "end": "2026-06-19 20:00:00+00:00",
+      "rows_per_year": {
+        "2020": 5841,
+        "2021": 5917,
+        "2022": 5924,
+        "2023": 5900,
+        "2024": 5951,
+        "2025": 5933,
+        "2026": 2768
+      },
+      "spread_column": "spread_usd",
+      "spread_available": true,
+      "spread_mean_usd": 0.132,
+      "missing_pct": 0.0,
+      "duplicate_pct": 0.0,
+      "warnings": [],
+      "years_available": [
+        "2020",
+        "2021",
+        "2022",
+        "2023",
+        "2024",
+        "2025",
+        "2026"
+      ],
+      "broker_quality": 88,
+      "spread_multiplier": 1.0
+    },
+    {
+      "source": "canonical",
+      "timeframe": "M30",
+      "path": "titan/data/canonical/XAUUSD_M30_canonical.parquet",
+      "total_rows": 76069,
+      "start": "2020-01-02 01:00:00+00:00",
+      "end": "2026-06-19 20:00:00+00:00",
+      "rows_per_year": {
+        "2020": 11311,
+        "2021": 11834,
+        "2022": 11841,
+        "2023": 11793,
+        "2024": 11898,
+        "2025": 11860,
+        "2026": 5532
+      },
+      "spread_column": "spread_usd",
+      "spread_available": true,
+      "spread_mean_usd": 0.1229,
+      "missing_pct": 0.0,
+      "duplicate_pct": 0.0,
+      "warnings": [],
+      "years_available": [
+        "2020",
+        "2021",
+        "2022",
+        "2023",
+        "2024",
+        "2025",
+        "2026"
+      ],
+      "broker_quality": 88,
+      "spread_multiplier": 1.0
+    },
+    {
+      "source": "canonical",
+      "timeframe": "M15",
+      "path": "titan/data/canonical/XAUUSD_M15_canonical.parquet",
+      "total_rows": 100645,
+      "start": "2022-03-22 00:00:00+00:00",
+      "end": "2026-06-19 20:00:00+00:00",
+      "rows_per_year": {
+        "2022": 18493,
+        "2023": 23580,
+        "2024": 23791,
+        "2025": 23718,
+        "2026": 11063
+      },
+      "spread_column": "spread_usd",
+      "spread_available": true,
+      "spread_mean_usd": 0.1276,
+      "missing_pct": 30.11,
+      "duplicate_pct": 0.0,
+      "warnings": [],
+      "years_available": [
+        "2022",
+        "2023",
+        "2024",
+        "2025",
+        "2026"
+      ],
+      "broker_quality": 88,
+      "spread_multiplier": 1.0
+    },
+    {
+      "source": "canonical",
+      "timeframe": "M5",
+      "path": "titan/data/canonical/XAUUSD_M5_canonical.parquet",
+      "total_rows": 101092,
+      "start": "2025-01-17 01:05:00+00:00",
+      "end": "2026-06-19 19:55:00+00:00",
+      "rows_per_year": {
+        "2025": 68091,
+        "2026": 33001
+      },
+      "spread_column": "spread_usd",
+      "spread_available": true,
+      "spread_mean_usd": 0.1798,
+      "missing_pct": 76.6,
+      "duplicate_pct": 0.0,
+      "warnings": [
+        "high missing (76.6%)"
+      ],
+      "years_available": [
+        "2025",
+        "2026"
+      ],
+      "broker_quality": 88,
+      "spread_multiplier": 1.0
+    },
+    {
+      "source": "exness",
+      "timeframe": "H1",
+      "path": "titan/data/sources/mt5_brokers/exness/XAUUSD_H1.parquet",
+      "total_rows": 38215,
+      "start": "2020-01-02 01:00:00+00:00",
+      "end": "2026-06-19 16:00:00+00:00",
+      "rows_per_year": {
+        "2020": 5914,
+        "2021": 5906,
+        "2022": 5912,
+        "2023": 5890,
+        "2024": 5931,
+        "2025": 5912,
+        "2026": 2750
+      },
+      "spread_column": "spread",
+      "spread_available": true,
+      "spread_mean_usd": 0.7333,
+      "missing_pct": 0.0,
+      "duplicate_pct": 0.0,
+      "warnings": [],
+      "years_available": [
+        "2020",
+        "2021",
+        "2022",
+        "2023",
+        "2024",
+        "2025",
+        "2026"
+      ],
+      "broker_quality": 85,
+      "spread_multiplier": 1.0
+    },
+    {
+      "source": "exness",
+      "timeframe": "M30",
+      "path": "titan/data/sources/mt5_brokers/exness/XAUUSD_M30.parquet",
+      "total_rows": 76389,
+      "start": "2020-01-02 01:00:00+00:00",
+      "end": "2026-06-19 16:30:00+00:00",
+      "rows_per_year": {
+        "2020": 11826,
+        "2021": 11810,
+        "2022": 11817,
+        "2023": 11772,
+        "2024": 11851,
+        "2025": 11816,
+        "2026": 5497
+      },
+      "spread_column": "spread",
+      "spread_available": true,
+      "spread_mean_usd": 0.7389,
+      "missing_pct": 0.0,
+      "duplicate_pct": 0.0,
+      "warnings": [],
+      "years_available": [
+        "2020",
+        "2021",
+        "2022",
+        "2023",
+        "2024",
+        "2025",
+        "2026"
+      ],
+      "broker_quality": 85,
+      "spread_multiplier": 1.0
+    },
+    {
+      "source": "exness",
+      "timeframe": "M15",
+      "path": "titan/data/sources/mt5_brokers/exness/XAUUSD_M15.parquet",
+      "total_rows": 100341,
+      "start": "2022-03-22 00:00:00+00:00",
+      "end": "2026-06-19 16:45:00+00:00",
+      "rows_per_year": {
+        "2022": 18496,
+        "2023": 23537,
+        "2024": 23695,
+        "2025": 23620,
+        "2026": 10993
+      },
+      "spread_column": "spread",
+      "spread_available": true,
+      "spread_mean_usd": 0.5726,
+      "missing_pct": 30.32,
+      "duplicate_pct": 0.0,
+      "warnings": [],
+      "years_available": [
+        "2022",
+        "2023",
+        "2024",
+        "2025",
+        "2026"
+      ],
+      "broker_quality": 85,
+      "spread_multiplier": 1.0
+    },
+    {
+      "source": "exness",
+      "timeframe": "M5",
+      "path": "titan/data/sources/mt5_brokers/exness/XAUUSD_M5.parquet",
+      "total_rows": 100000,
+      "start": "2025-01-21 18:10:00+00:00",
+      "end": "2026-06-19 16:55:00+00:00",
+      "rows_per_year": {
+        "2025": 67029,
+        "2026": 32971
+      },
+      "spread_column": "spread",
+      "spread_available": true,
+      "spread_mean_usd": 0.5289,
+      "missing_pct": 76.85,
+      "duplicate_pct": 0.0,
+      "warnings": [
+        "high missing (76.9%)"
+      ],
+      "years_available": [
+        "2025",
+        "2026"
+      ],
+      "broker_quality": 85,
+      "spread_multiplier": 1.0
+    },
+    {
+      "source": "fundednext",
+      "timeframe": "H1",
+      "path": "titan/data/sources/mt5_brokers/fundednext/XAUUSD_H1.parquet",
+      "total_rows": 14460,
+      "start": "2024-01-01 21:00:00+00:00",
+      "end": "2026-06-19 20:00:00+00:00",
+      "rows_per_year": {
+        "2024": 5793,
+        "2025": 5914,
+        "2026": 2753
+      },
+      "spread_column": "spread",
+      "spread_available": true,
+      "spread_mean_usd": 0.2553,
+      "missing_pct": 59.83,
+      "duplicate_pct": 0.0,
+      "warnings": [
+        "high missing (59.8%)"
+      ],
+      "years_available": [
+        "2024",
+        "2025",
+        "2026"
+      ],
+      "broker_quality": 80,
+      "spread_multiplier": 1.15
+    },
+    {
+      "source": "fundednext",
+      "timeframe": "M30",
+      "path": "titan/data/sources/mt5_brokers/fundednext/XAUUSD_M30.parquet",
+      "total_rows": 28909,
+      "start": "2024-01-01 21:00:00+00:00",
+      "end": "2026-06-19 20:00:00+00:00",
+      "rows_per_year": {
+        "2024": 11579,
+        "2025": 11825,
+        "2026": 5505
+      },
+      "spread_column": "spread",
+      "spread_available": true,
+      "spread_mean_usd": 0.2611,
+      "missing_pct": 59.85,
+      "duplicate_pct": 0.0,
+      "warnings": [
+        "high missing (59.8%)"
+      ],
+      "years_available": [
+        "2024",
+        "2025",
+        "2026"
+      ],
+      "broker_quality": 80,
+      "spread_multiplier": 1.15
+    },
+    {
+      "source": "fundednext",
+      "timeframe": "M15",
+      "path": "titan/data/sources/mt5_brokers/fundednext/XAUUSD_M15.parquet",
+      "total_rows": 57768,
+      "start": "2024-01-01 21:00:00+00:00",
+      "end": "2026-06-19 20:00:00+00:00",
+      "rows_per_year": {
+        "2024": 23125,
+        "2025": 23636,
+        "2026": 11007
+      },
+      "spread_column": "spread",
+      "spread_available": true,
+      "spread_mean_usd": 0.2665,
+      "missing_pct": 59.88,
+      "duplicate_pct": 0.0,
+      "warnings": [
+        "high missing (59.9%)"
+      ],
+      "years_available": [
+        "2024",
+        "2025",
+        "2026"
+      ],
+      "broker_quality": 80,
+      "spread_multiplier": 1.15
+    },
+    {
+      "source": "fundednext",
+      "timeframe": "M5",
+      "path": "titan/data/sources/mt5_brokers/fundednext/XAUUSD_M5.parquet",
+      "total_rows": 100863,
+      "start": "2025-01-17 01:00:00+00:00",
+      "end": "2026-06-19 20:00:00+00:00",
+      "rows_per_year": {
+        "2025": 67856,
+        "2026": 33007
+      },
+      "spread_column": "spread",
+      "spread_available": true,
+      "spread_mean_usd": 0.363,
+      "missing_pct": 76.65,
+      "duplicate_pct": 0.0,
+      "warnings": [
+        "high missing (76.7%)"
+      ],
+      "years_available": [
+        "2025",
+        "2026"
+      ],
+      "broker_quality": 80,
+      "spread_multiplier": 1.15
+    },
+    {
+      "source": "icmarkets",
+      "timeframe": "H1",
+      "path": "titan/data/sources/mt5_brokers/icmarkets/XAUUSD_H1.parquet",
+      "total_rows": 38244,
+      "start": "2019-12-31 19:00:00+00:00",
+      "end": "2026-06-19 19:00:00+00:00",
+      "rows_per_year": {
+        "2020": 5926,
+        "2021": 5904,
+        "2022": 5917,
+        "2023": 5894,
+        "2024": 5938,
+        "2025": 5913,
+        "2026": 2750
+      },
+      "spread_column": "spread",
+      "spread_available": true,
+      "spread_mean_usd": 0.0223,
+      "missing_pct": 0.0,
+      "duplicate_pct": 0.0,
+      "warnings": [],
+      "years_available": [
+        "2020",
+        "2021",
+        "2022",
+        "2023",
+        "2024",
+        "2025",
+        "2026"
+      ],
+      "broker_quality": 88,
+      "spread_multiplier": 0.85
+    },
+    {
+      "source": "icmarkets",
+      "timeframe": "M30",
+      "path": "titan/data/sources/mt5_brokers/icmarkets/XAUUSD_M30.parquet",
+      "total_rows": 76453,
+      "start": "2019-12-31 19:00:00+00:00",
+      "end": "2026-06-19 19:30:00+00:00",
+      "rows_per_year": {
+        "2020": 11850,
+        "2021": 11805,
+        "2022": 11829,
+        "2023": 11782,
+        "2024": 11869,
+        "2025": 11820,
+        "2026": 5494
+      },
+      "spread_column": "spread",
+      "spread_available": true,
+      "spread_mean_usd": 0.0278,
+      "missing_pct": 0.0,
+      "duplicate_pct": 0.0,
+      "warnings": [],
+      "years_available": [
+        "2020",
+        "2021",
+        "2022",
+        "2023",
+        "2024",
+        "2025",
+        "2026"
+      ],
+      "broker_quality": 88,
+      "spread_multiplier": 0.85
+    },
+    {
+      "source": "icmarkets",
+      "timeframe": "M15",
+      "path": "titan/data/sources/mt5_brokers/icmarkets/XAUUSD_M15.parquet",
+      "total_rows": 100000,
+      "start": "2022-03-28 18:15:00+00:00",
+      "end": "2026-06-19 19:45:00+00:00",
+      "rows_per_year": {
+        "2022": 18082,
+        "2023": 23558,
+        "2024": 23736,
+        "2025": 23638,
+        "2026": 10986
+      },
+      "spread_column": "spread",
+      "spread_available": true,
+      "spread_mean_usd": 0.0386,
+      "missing_pct": 30.56,
+      "duplicate_pct": 0.0,
+      "warnings": [],
+      "years_available": [
+        "2022",
+        "2023",
+        "2024",
+        "2025",
+        "2026"
+      ],
+      "broker_quality": 88,
+      "spread_multiplier": 0.85
+    },
+    {
+      "source": "icmarkets",
+      "timeframe": "M5",
+      "path": "titan/data/sources/mt5_brokers/icmarkets/XAUUSD_M5.parquet",
+      "total_rows": 100000,
+      "start": "2025-01-22 03:00:00+00:00",
+      "end": "2026-06-19 19:55:00+00:00",
+      "rows_per_year": {
+        "2025": 67051,
+        "2026": 32949
+      },
+      "spread_column": "spread",
+      "spread_available": true,
+      "spread_mean_usd": 0.0604,
+      "missing_pct": 76.85,
+      "duplicate_pct": 0.0,
+      "warnings": [
+        "high missing (76.9%)"
+      ],
+      "years_available": [
+        "2025",
+        "2026"
+      ],
+      "broker_quality": 88,
+      "spread_multiplier": 0.85
+    },
+    {
+      "source": "fbs",
+      "timeframe": "H1",
+      "path": "titan/data/sources/mt5_brokers/fbs/XAUUSD_H1.parquet",
+      "total_rows": 36782,
+      "start": "2020-03-30 19:00:00+00:00",
+      "end": "2026-06-19 20:00:00+00:00",
+      "rows_per_year": {
+        "2020": 4491,
+        "2021": 5907,
+        "2022": 5911,
+        "2023": 5883,
+        "2024": 5932,
+        "2025": 5907,
+        "2026": 2751
+      },
+      "spread_column": "spread",
+      "spread_available": true,
+      "spread_mean_usd": 0.2593,
+      "missing_pct": 0.0,
+      "duplicate_pct": 0.0,
+      "warnings": [],
+      "years_available": [
+        "2020",
+        "2021",
+        "2022",
+        "2023",
+        "2024",
+        "2025",
+        "2026"
+      ],
+      "broker_quality": 75,
+      "spread_multiplier": 1.3
+    },
+    {
+      "source": "fbs",
+      "timeframe": "M30",
+      "path": "titan/data/sources/mt5_brokers/fbs/XAUUSD_M30.parquet",
+      "total_rows": 67639,
+      "start": "2020-09-28 01:00:00+00:00",
+      "end": "2026-06-19 20:00:00+00:00",
+      "rows_per_year": {
+        "2020": 3107,
+        "2021": 11814,
+        "2022": 11813,
+        "2023": 11744,
+        "2024": 11855,
+        "2025": 11808,
+        "2026": 5498
+      },
+      "spread_column": "spread",
+      "spread_available": true,
+      "spread_mean_usd": 0.2352,
+      "missing_pct": 6.06,
+      "duplicate_pct": 0.0,
+      "warnings": [],
+      "years_available": [
+        "2020",
+        "2021",
+        "2022",
+        "2023",
+        "2024",
+        "2025",
+        "2026"
+      ],
+      "broker_quality": 75,
+      "spread_multiplier": 1.3
+    },
+    {
+      "source": "fbs",
+      "timeframe": "M15",
+      "path": "titan/data/sources/mt5_brokers/fbs/XAUUSD_M15.parquet",
+      "total_rows": 100723,
+      "start": "2022-03-15 00:00:00+00:00",
+      "end": "2026-06-19 20:00:00+00:00",
+      "rows_per_year": {
+        "2022": 18947,
+        "2023": 23467,
+        "2024": 23702,
+        "2025": 23612,
+        "2026": 10995
+      },
+      "spread_column": "spread",
+      "spread_available": true,
+      "spread_mean_usd": 0.2144,
+      "missing_pct": 30.05,
+      "duplicate_pct": 0.0,
+      "warnings": [],
+      "years_available": [
+        "2022",
+        "2023",
+        "2024",
+        "2025",
+        "2026"
+      ],
+      "broker_quality": 75,
+      "spread_multiplier": 1.3
+    },
+    {
+      "source": "fbs",
+      "timeframe": "M5",
+      "path": "titan/data/sources/mt5_brokers/fbs/XAUUSD_M5.parquet",
+      "total_rows": 100000,
+      "start": "2024-07-30 22:50:00+00:00",
+      "end": "2025-12-31 23:50:00+00:00",
+      "rows_per_year": {
+        "2024": 29689,
+        "2025": 70311
+      },
+      "spread_column": "spread",
+      "spread_available": true,
+      "spread_mean_usd": 0.2217,
+      "missing_pct": 76.85,
+      "duplicate_pct": 0.0,
+      "warnings": [
+        "high missing (76.9%)"
+      ],
+      "years_available": [
+        "2024",
+        "2025"
+      ],
+      "broker_quality": 75,
+      "spread_multiplier": 1.3
+    }
+  ],
+  "summary": {
+    "sources": [
+      "canonical",
+      "exness",
+      "fbs",
+      "fundednext",
+      "icmarkets"
+    ],
+    "timeframes": [
+      "H1",
+      "M15",
+      "M30",
+      "M5"
+    ],
+    "total_rows": 1452826,
+    "years_covered": [
+      "2020",
+      "2021",
+      "2022",
+      "2023",
+      "2024",
+      "2025",
+      "2026"
+    ]
+  }
+}

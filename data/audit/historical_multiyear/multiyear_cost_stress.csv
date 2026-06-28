@@ -1,0 +1,7 @@
+cost_scenario,net_pnl,trade_count,win_rate_pct,profit_factor,max_dd_usd,max_dd_pct,sharpe,target_achieved,rule_breach
+NORMAL_COST,27781.94,8830,70.68,5.0272,79.05,0.71,8.2777,True,False
+HIGH_SPREAD,20010.01,6596,69.48,4.4262,83.56,0.75,7.3905,True,False
+HIGH_SLIPPAGE,20046.07,8358,59.28,2.8294,97.05,0.88,5.1597,True,False
+LOW_LIQUIDITY,17445.28,6566,63.53,3.3272,92.83,0.84,5.9523,True,False
+WORST_BROKER,13244.71,5517,60.32,2.9021,86.91,0.86,5.0645,True,False
+HARSH_COMBINED,9771.22,4128,60.32,2.7219,111.68,1.12,4.4062,True,False
