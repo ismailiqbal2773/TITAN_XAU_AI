@@ -1,0 +1,7 @@
+year,total_months,avg_monthly_pct,median_monthly_pct,best_month_pct,worst_month_pct,target_5_rate,target_8_rate,target_10_rate,max_dd_pct,dd_breach_count,avg_pf,avg_win_rate,avg_sharpe,avg_trade_count,best_broker,worst_broker,verdict
+2020,32,13.33,12.33,37.84,2.26,81.25,71.88,56.25,5.09,0,5.4,67.53,30.88,313.7,icmarkets,canonical,PASS
+2021,47,8.18,7.15,19.96,0.94,72.34,40.43,23.4,3.31,0,inf,75.81,30.75,314.1,icmarkets,canonical,PASS
+2022,48,8.87,7.44,42.93,0.0,83.33,35.42,12.5,4.32,0,inf,74.65,34.05,351.8,fbs,canonical,PASS
+2023,48,7.88,7.34,21.46,-0.19,70.83,41.67,37.5,3.31,0,inf,77.56,32.3,357.8,fbs,canonical,PASS
+2024,60,13.63,13.93,33.7,-5.27,85.0,76.67,68.33,7.25,0,4.69,70.14,35.69,413.1,fundednext,canonical,PASS
+2025,60,26.93,21.93,50.0,3.77,96.67,96.67,93.33,9.03,0,6.3,68.49,46.18,439.3,fundednext,canonical,PASS

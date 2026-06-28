@@ -1,0 +1,3 @@
+rule_mode,daily_dd_limit_pct,total_dd_limit_pct,dd_breach_count,daily_breach_count,max_dd_pct,pass
+standard,5.0,10.0,0,0,7.25,True
+strict,4.0,8.0,0,0,7.25,True

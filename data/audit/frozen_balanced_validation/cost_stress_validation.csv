@@ -1,0 +1,7 @@
+cost_scenario,avg_monthly_pct,target_10_rate,max_dd_pct,dd_breach_count,avg_pf,avg_win_rate,verdict
+NORMAL_COST,13.73,50.85,9.03,0,inf,72.37,PASS
+HIGH_SPREAD,12.72,49.49,9.48,0,inf,72.37,PASS
+HIGH_SLIPPAGE,12.46,46.44,9.57,0,inf,72.37,PASS
+LOW_LIQUIDITY,12.2,46.44,9.75,0,inf,72.37,PASS
+WORST_BROKER,11.41,44.75,10.11,12,inf,72.37,MARGINAL
+HARSH_COMBINED,10.47,40.34,10.65,36,inf,72.37,FAIL
