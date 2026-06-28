@@ -1,0 +1,5 @@
+profile,risk_pct,tp_rule,be_rule,partial_rule,trail_rule,pyramid_rule,mtf_rule,avg_monthly_pct,median_monthly_pct,best_month_pct,worst_month_pct,target_5_rate,target_8_rate,target_10_rate,max_dd_pct,dd_breach_count,avg_pf,avg_win_rate,avg_sharpe,avg_sortino,mfe_capture_pct,realism_verdict
+SAFE_FUNDED,0.0075,adaptive_2.5R,BE_at_0.8R,50pct_at_1R,tight_trail,no_pyramiding,H1_only,5.18,3.89,30.49,-1.94,39.66,15.93,10.17,4.51,0,inf,72.37,21.68,18.3,44.45,REALISTIC
+BALANCED_FUNDED_CHALLENGE,0.0125,adaptive_3R,BE_at_1.25R,25pct_at_1.5R,medium_trail,max_1_addon_locked,H1_M15_refinement,13.73,10.54,50.0,-5.27,82.37,62.03,50.85,9.03,0,inf,72.37,35.7,30.13,72.3,REALISTIC
+AGGRESSIVE_FUNDED_CHALLENGE,0.011,no_fixed_TP_ATR_trail_A_plus,no_BE_until_structure,no_partial_A_plus_trend,ATR_trail_after_2R,max_2_addons_protected,H1_M5_refinement,17.02,13.54,50.0,-6.77,87.46,75.25,64.07,9.43,0,inf,72.37,40.46,34.15,90.0,REALISTIC
+COMPETITION_DEMO_ONLY,0.015,adaptive_4R_strong_trend,BE_at_1.5R,no_partial_A_plus_trend,wide_trail_trend,max_2_addons_protected,H1_M5_refinement,20.19,16.79,50.0,-8.39,90.85,82.37,75.25,12.28,48,inf,72.37,45.04,38.02,90.0,OPTIMISTIC
