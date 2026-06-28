@@ -1,0 +1,274 @@
+{
+  "audit": "sprint_9_9_3_10_dynamic_risk_monthly_reprojection",
+  "timestamp_utc": "2026-06-28T15:35:37.964142+00:00",
+  "data_source": "Sprint 9.9.3.8 chunk files (26 chunks, 5 brokers, 2020-2025)",
+  "starting_equity": 10000.0,
+  "risk_modes_tested": [
+    "fixed_0.01_lot",
+    "0.25pct_equity",
+    "0.50pct_equity",
+    "0.75pct_equity",
+    "1.00pct_equity",
+    "1.25pct_equity",
+    "1.50pct_equity"
+  ],
+  "profiles_tested": [
+    "SPRINT_9_9_3_3_RETAIL_SAFE",
+    "SPRINT_9_9_3_3_PROP_FIRM_STRICT",
+    "SPRINT_9_9_3_3_INSTITUTIONAL"
+  ],
+  "sources_tested": [
+    "canonical",
+    "exness",
+    "icmarkets",
+    "fundednext",
+    "fbs"
+  ],
+  "rule_sets": {
+    "standard": {
+      "daily_dd_pct": 5.0,
+      "total_dd_pct": 10.0,
+      "target_pct": 10.0
+    },
+    "stricter": {
+      "daily_dd_pct": 4.0,
+      "total_dd_pct": 8.0,
+      "target_pct": 10.0
+    }
+  },
+  "prop_firm_strict_by_risk": {
+    "fixed_0.01_lot": {
+      "total_months": 295,
+      "target_5_rate_pct": 0.0,
+      "target_8_rate_pct": 0.0,
+      "target_10_rate_pct": 0.0,
+      "total_dd_breaches": 0,
+      "max_dd_pct": 0.71,
+      "avg_monthly_pct": 0.83,
+      "best_month_pct": 4.39,
+      "worst_month_pct": -0.28
+    },
+    "0.25pct_equity": {
+      "total_months": 295,
+      "target_5_rate_pct": 2.37,
+      "target_8_rate_pct": 0.34,
+      "target_10_rate_pct": 0.0,
+      "total_dd_breaches": 0,
+      "max_dd_pct": 1.77,
+      "avg_monthly_pct": 1.67,
+      "best_month_pct": 8.13,
+      "worst_month_pct": -0.58
+    },
+    "0.50pct_equity": {
+      "total_months": 295,
+      "target_5_rate_pct": 7.8,
+      "target_8_rate_pct": 2.71,
+      "target_10_rate_pct": 0.34,
+      "total_dd_breaches": 0,
+      "max_dd_pct": 3.55,
+      "avg_monthly_pct": 2.59,
+      "best_month_pct": 11.36,
+      "worst_month_pct": -0.89
+    },
+    "0.75pct_equity": {
+      "total_months": 295,
+      "target_5_rate_pct": 12.88,
+      "target_8_rate_pct": 5.08,
+      "target_10_rate_pct": 2.03,
+      "total_dd_breaches": 0,
+      "max_dd_pct": 5.32,
+      "avg_monthly_pct": 3.23,
+      "best_month_pct": 13.96,
+      "worst_month_pct": -1.08
+    },
+    "1.00pct_equity": {
+      "total_months": 295,
+      "target_5_rate_pct": 16.27,
+      "target_8_rate_pct": 7.46,
+      "target_10_rate_pct": 4.07,
+      "total_dd_breaches": 0,
+      "max_dd_pct": 7.1,
+      "avg_monthly_pct": 3.73,
+      "best_month_pct": 18.09,
+      "worst_month_pct": -1.21
+    },
+    "1.25pct_equity": {
+      "total_months": 295,
+      "target_5_rate_pct": 20.0,
+      "target_8_rate_pct": 8.81,
+      "target_10_rate_pct": 5.42,
+      "total_dd_breaches": 0,
+      "max_dd_pct": 8.88,
+      "avg_monthly_pct": 4.14,
+      "best_month_pct": 21.98,
+      "worst_month_pct": -1.3
+    },
+    "1.50pct_equity": {
+      "total_months": 295,
+      "target_5_rate_pct": 22.71,
+      "target_8_rate_pct": 9.49,
+      "target_10_rate_pct": 6.44,
+      "total_dd_breaches": 36,
+      "max_dd_pct": 10.65,
+      "avg_monthly_pct": 4.48,
+      "best_month_pct": 25.67,
+      "worst_month_pct": -1.37
+    }
+  },
+  "funded_rule_analysis": {
+    "standard": {
+      "fixed_0.01_lot": {
+        "total_months": 295,
+        "target_10_hit": 0,
+        "target_10_rate_pct": 0.0,
+        "total_breaches": 0,
+        "max_dd_pct": 0.71,
+        "verdict": "SUITABLE"
+      },
+      "0.25pct_equity": {
+        "total_months": 295,
+        "target_10_hit": 0,
+        "target_10_rate_pct": 0.0,
+        "total_breaches": 0,
+        "max_dd_pct": 1.77,
+        "verdict": "SUITABLE"
+      },
+      "0.50pct_equity": {
+        "total_months": 295,
+        "target_10_hit": 1,
+        "target_10_rate_pct": 0.34,
+        "total_breaches": 0,
+        "max_dd_pct": 3.55,
+        "verdict": "SUITABLE"
+      },
+      "0.75pct_equity": {
+        "total_months": 295,
+        "target_10_hit": 6,
+        "target_10_rate_pct": 2.03,
+        "total_breaches": 0,
+        "max_dd_pct": 5.32,
+        "verdict": "SUITABLE"
+      },
+      "1.00pct_equity": {
+        "total_months": 295,
+        "target_10_hit": 12,
+        "target_10_rate_pct": 4.07,
+        "total_breaches": 0,
+        "max_dd_pct": 7.1,
+        "verdict": "SUITABLE"
+      },
+      "1.25pct_equity": {
+        "total_months": 295,
+        "target_10_hit": 16,
+        "target_10_rate_pct": 5.42,
+        "total_breaches": 0,
+        "max_dd_pct": 8.88,
+        "verdict": "SUITABLE"
+      },
+      "1.50pct_equity": {
+        "total_months": 295,
+        "target_10_hit": 19,
+        "target_10_rate_pct": 6.44,
+        "total_breaches": 36,
+        "max_dd_pct": 10.65,
+        "verdict": "UNSUITABLE"
+      }
+    },
+    "stricter": {
+      "fixed_0.01_lot": {
+        "total_months": 295,
+        "total_breaches": 0,
+        "breach_rate_pct": 0.0,
+        "max_dd_pct": 0.71,
+        "verdict": "SUITABLE"
+      },
+      "0.25pct_equity": {
+        "total_months": 295,
+        "total_breaches": 0,
+        "breach_rate_pct": 0.0,
+        "max_dd_pct": 1.77,
+        "verdict": "SUITABLE"
+      },
+      "0.50pct_equity": {
+        "total_months": 295,
+        "total_breaches": 0,
+        "breach_rate_pct": 0.0,
+        "max_dd_pct": 3.55,
+        "verdict": "SUITABLE"
+      },
+      "0.75pct_equity": {
+        "total_months": 295,
+        "total_breaches": 0,
+        "breach_rate_pct": 0.0,
+        "max_dd_pct": 5.32,
+        "verdict": "SUITABLE"
+      },
+      "1.00pct_equity": {
+        "total_months": 295,
+        "total_breaches": 0,
+        "breach_rate_pct": 0.0,
+        "max_dd_pct": 7.1,
+        "verdict": "SUITABLE"
+      },
+      "1.25pct_equity": {
+        "total_months": 295,
+        "total_breaches": 240,
+        "breach_rate_pct": 81.36,
+        "max_dd_pct": 8.88,
+        "verdict": "UNSUITABLE"
+      },
+      "1.50pct_equity": {
+        "total_months": 295,
+        "total_breaches": 360,
+        "breach_rate_pct": 122.03,
+        "max_dd_pct": 10.65,
+        "verdict": "UNSUITABLE"
+      }
+    },
+    "comparison": {
+      "best_risk_for_10pct_target": "1.25pct_equity",
+      "safest_risk": "fixed_0.01_lot",
+      "too_aggressive": "1.50pct_equity",
+      "1.00pct_remains_best": false,
+      "1.25pct_improves": true,
+      "1.50pct_marginal": false
+    }
+  },
+  "best_broker_1pct_risk": "fundednext",
+  "worst_broker_1pct_risk": "canonical",
+  "recommendations": {
+    "funded_challenge_risk": "1.00pct_equity",
+    "institutional_risk": "0.50pct_equity",
+    "retail_safe_risk": "0.25pct_equity",
+    "monthly_10pct_realistic": false,
+    "weekly_10pct_realistic": false,
+    "fixed_0.01_too_conservative": true,
+    "monday_demo_should_remain_0.01": true
+  },
+  "auto_lot_simulation": {
+    "formula": "Lot Size = (Equity \u00d7 Risk%) / SL Loss Per Lot",
+    "safety_caps": [
+      "broker_min_lot 0.01",
+      "broker_max_lot 1.0",
+      "lot_step 0.01",
+      "max_open_positions 1",
+      "max_daily_DD 5%",
+      "max_total_DD 10%",
+      "governance risk multiplier",
+      "block if SL cannot be estimated"
+    ],
+    "wired_into_live": false
+  },
+  "safety": {
+    "demo_micro_execute_run": false,
+    "mt5_order_send_called": false,
+    "live_demo_path_changed": false,
+    "dynamic_lot_wired": false,
+    "governance_wired": false,
+    "strategy_changed": false,
+    "retraining_done": false,
+    "config_changed": false,
+    "no_martingale_grid_averaging": true,
+    "working_tree_clean": true
+  }
+}
