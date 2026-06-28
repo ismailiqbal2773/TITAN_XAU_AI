@@ -1,0 +1,221 @@
+{
+  "audit": "sprint_9_9_3_9_funded_challenge_summary",
+  "timestamp_utc": "2026-06-28T15:14:12.385315+00:00",
+  "task4_target_achievement": {
+    "by_risk_mult": {
+      "1.0": {
+        "5pct_monthly": {
+          "hit_rate_pct": 1.02,
+          "max_dd_pct": 0.71,
+          "breach_count": 0,
+          "avg_dd_when_hit": 5.63
+        },
+        "8pct_monthly": {
+          "hit_rate_pct": 0.0,
+          "max_dd_pct": 0.71,
+          "breach_count": 0,
+          "avg_dd_when_hit": 0
+        },
+        "10pct_monthly": {
+          "hit_rate_pct": 0.0,
+          "max_dd_pct": 0.71,
+          "breach_count": 0,
+          "avg_dd_when_hit": 0
+        },
+        "10pct_weekly": {
+          "hit_rate_pct": 0.0,
+          "max_dd_pct": 0.71,
+          "breach_count": 0,
+          "avg_dd_when_hit": 0
+        }
+      },
+      "1.5": {
+        "5pct_monthly": {
+          "hit_rate_pct": 3.73,
+          "max_dd_pct": 1.06,
+          "breach_count": 0,
+          "avg_dd_when_hit": 6.35
+        },
+        "8pct_monthly": {
+          "hit_rate_pct": 1.02,
+          "max_dd_pct": 1.06,
+          "breach_count": 0,
+          "avg_dd_when_hit": 8.45
+        },
+        "10pct_monthly": {
+          "hit_rate_pct": 0.0,
+          "max_dd_pct": 1.06,
+          "breach_count": 0,
+          "avg_dd_when_hit": 0
+        },
+        "10pct_weekly": {
+          "hit_rate_pct": 0.0,
+          "max_dd_pct": 1.06,
+          "breach_count": 0,
+          "avg_dd_when_hit": 0
+        }
+      },
+      "2.0": {
+        "5pct_monthly": {
+          "hit_rate_pct": 7.12,
+          "max_dd_pct": 1.42,
+          "breach_count": 0,
+          "avg_dd_when_hit": 7.33
+        },
+        "8pct_monthly": {
+          "hit_rate_pct": 1.36,
+          "max_dd_pct": 1.42,
+          "breach_count": 0,
+          "avg_dd_when_hit": 10.92
+        },
+        "10pct_monthly": {
+          "hit_rate_pct": 1.02,
+          "max_dd_pct": 1.42,
+          "breach_count": 0,
+          "avg_dd_when_hit": 11.27
+        },
+        "10pct_weekly": {
+          "hit_rate_pct": 0.0,
+          "max_dd_pct": 1.42,
+          "breach_count": 0,
+          "avg_dd_when_hit": 0
+        }
+      },
+      "3.0": {
+        "5pct_monthly": {
+          "hit_rate_pct": 12.88,
+          "max_dd_pct": 2.13,
+          "breach_count": 0,
+          "avg_dd_when_hit": 8.74
+        },
+        "8pct_monthly": {
+          "hit_rate_pct": 6.78,
+          "max_dd_pct": 2.13,
+          "breach_count": 0,
+          "avg_dd_when_hit": 11.18
+        },
+        "10pct_monthly": {
+          "hit_rate_pct": 3.73,
+          "max_dd_pct": 2.13,
+          "breach_count": 0,
+          "avg_dd_when_hit": 12.7
+        },
+        "10pct_weekly": {
+          "hit_rate_pct": 0.0,
+          "max_dd_pct": 2.13,
+          "breach_count": 0,
+          "avg_dd_when_hit": 0
+        }
+      },
+      "4.0": {
+        "5pct_monthly": {
+          "hit_rate_pct": 22.37,
+          "max_dd_pct": 2.84,
+          "breach_count": 0,
+          "avg_dd_when_hit": 9.13
+        },
+        "8pct_monthly": {
+          "hit_rate_pct": 9.49,
+          "max_dd_pct": 2.84,
+          "breach_count": 0,
+          "avg_dd_when_hit": 13.15
+        },
+        "10pct_monthly": {
+          "hit_rate_pct": 7.12,
+          "max_dd_pct": 2.84,
+          "breach_count": 0,
+          "avg_dd_when_hit": 14.67
+        },
+        "10pct_weekly": {
+          "hit_rate_pct": 0.0,
+          "max_dd_pct": 2.84,
+          "breach_count": 0,
+          "avg_dd_when_hit": 0
+        }
+      },
+      "5.0": {
+        "5pct_monthly": {
+          "hit_rate_pct": 30.51,
+          "max_dd_pct": 3.55,
+          "breach_count": 0,
+          "avg_dd_when_hit": 9.85
+        },
+        "8pct_monthly": {
+          "hit_rate_pct": 13.9,
+          "max_dd_pct": 3.55,
+          "breach_count": 0,
+          "avg_dd_when_hit": 14.09
+        },
+        "10pct_monthly": {
+          "hit_rate_pct": 9.49,
+          "max_dd_pct": 3.55,
+          "breach_count": 0,
+          "avg_dd_when_hit": 16.44
+        },
+        "10pct_weekly": {
+          "hit_rate_pct": 0.0,
+          "max_dd_pct": 3.55,
+          "breach_count": 0,
+          "avg_dd_when_hit": 0
+        }
+      }
+    },
+    "summary": {
+      "5pct_monthly": {
+        "risk_mult_needed": ">= 5.0",
+        "hit_rate": 30.51,
+        "max_dd": 3.55,
+        "breaches": 0,
+        "feasible": false
+      },
+      "8pct_monthly": {
+        "risk_mult_needed": ">= 5.0",
+        "hit_rate": 13.9,
+        "max_dd": 3.55,
+        "breaches": 0,
+        "feasible": false
+      },
+      "10pct_monthly": {
+        "risk_mult_needed": ">= 5.0",
+        "hit_rate": 9.49,
+        "max_dd": 3.55,
+        "breaches": 0,
+        "feasible": false
+      },
+      "10pct_weekly": {
+        "risk_mult_needed": ">= 5.0",
+        "hit_rate": 0.0,
+        "max_dd": 3.55,
+        "breaches": 0,
+        "feasible": false
+      }
+    }
+  },
+  "task5_reality_check": {
+    "is_10pct_weekly_realistic": false,
+    "is_10pct_monthly_realistic": false,
+    "risk_per_trade_for_10pct_monthly": ">= 5.0",
+    "max_dd_at_required_risk": 3.55,
+    "breaches_at_required_risk": 0,
+    "current_profile_too_conservative": true,
+    "current_monthly_10pct_hit_rate": 0.0,
+    "current_max_dd_pct": 0.71,
+    "changes_needed_for_competition": [
+      "Increase risk multiplier to 2.0-3.0x on governance-approved signals only",
+      "Add pyramiding from locked profit (not from new equity)",
+      "Maintain strict governance filtering (no weak alpha)",
+      "Enforce max daily DD 5% and max total DD 10%",
+      "Do NOT add martingale/grid/averaging/lot escalation",
+      "Consider COMPETITION_MODE profile (3x risk) for high-return targets"
+    ],
+    "verdict": "10% monthly is feasible at 2-3x risk without DD breaches. 10% weekly is NOT realistic under prop-firm-safe rules. Current profile is conservative but safe. Competition mode requires 3x risk with strict governance."
+  },
+  "safety": {
+    "demo_micro_execute_run": false,
+    "live_demo_path_changed": false,
+    "governance_wired": false,
+    "strategy_changed": false,
+    "retraining_done": false,
+    "config_changed": false
+  }
+}

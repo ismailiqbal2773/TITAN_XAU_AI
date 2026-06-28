@@ -1,0 +1,84 @@
+{
+  "audit": "sprint_9_9_3_9_high_return_profile_feasibility",
+  "timestamp_utc": "2026-06-28T15:14:12.385158+00:00",
+  "profiles": {
+    "PROP_FIRM_STRICT": {
+      "description": "current baseline",
+      "risk_mult": 1.0,
+      "max_lot": 0.01,
+      "total_months": 295,
+      "months_target_10pct": 0,
+      "monthly_10pct_hit_rate_pct": 0.0,
+      "dd_breach_count": 0,
+      "max_dd_pct": 0.71,
+      "avg_monthly_pct": 0.94,
+      "best_month_pct": 5.71,
+      "worst_month_pct": -0.33,
+      "verdict": "FEASIBLE",
+      "rules_enforced": [
+        "no martingale",
+        "no grid",
+        "no averaging down",
+        "no lot escalation after loss",
+        "increased risk only on governance-approved signals",
+        "pyramiding only from locked profit (simulated)",
+        "max daily DD enforced",
+        "max total DD enforced",
+        "max open positions enforced",
+        "capital protection enforced"
+      ]
+    },
+    "PROP_FIRM_CHALLENGE_AGGRESSIVE": {
+      "description": "double risk on governance-approved signals only",
+      "risk_mult": 2.0,
+      "max_lot": 0.02,
+      "total_months": 295,
+      "months_target_10pct": 3,
+      "monthly_10pct_hit_rate_pct": 1.02,
+      "dd_breach_count": 0,
+      "max_dd_pct": 1.42,
+      "avg_monthly_pct": 1.88,
+      "best_month_pct": 11.43,
+      "worst_month_pct": -0.67,
+      "verdict": "FEASIBLE",
+      "rules_enforced": [
+        "no martingale",
+        "no grid",
+        "no averaging down",
+        "no lot escalation after loss",
+        "increased risk only on governance-approved signals",
+        "pyramiding only from locked profit (simulated)",
+        "max daily DD enforced",
+        "max total DD enforced",
+        "max open positions enforced",
+        "capital protection enforced"
+      ]
+    },
+    "COMPETITION_MODE": {
+      "description": "triple risk, strict governance + pyramiding from locked profit",
+      "risk_mult": 3.0,
+      "max_lot": 0.03,
+      "total_months": 295,
+      "months_target_10pct": 11,
+      "monthly_10pct_hit_rate_pct": 3.73,
+      "dd_breach_count": 0,
+      "max_dd_pct": 2.13,
+      "avg_monthly_pct": 2.82,
+      "best_month_pct": 17.14,
+      "worst_month_pct": -1.0,
+      "verdict": "FEASIBLE",
+      "rules_enforced": [
+        "no martingale",
+        "no grid",
+        "no averaging down",
+        "no lot escalation after loss",
+        "increased risk only on governance-approved signals",
+        "pyramiding only from locked profit (simulated)",
+        "max daily DD enforced",
+        "max total DD enforced",
+        "max open positions enforced",
+        "capital protection enforced"
+      ]
+    }
+  }
+}
