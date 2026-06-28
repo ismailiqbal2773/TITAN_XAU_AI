@@ -1,0 +1,162 @@
+{
+  "datasets": [
+    {
+      "source": "canonical",
+      "timeframe": "M30",
+      "available": true,
+      "total_rows": 76069,
+      "start": "2020-01-02",
+      "end": "2026-06-19",
+      "rows_2025": 11860,
+      "data_quality": "GOOD"
+    },
+    {
+      "source": "canonical",
+      "timeframe": "M15",
+      "available": true,
+      "total_rows": 100645,
+      "start": "2022-03-22",
+      "end": "2026-06-19",
+      "rows_2025": 23718,
+      "data_quality": "GOOD"
+    },
+    {
+      "source": "canonical",
+      "timeframe": "M5",
+      "available": true,
+      "total_rows": 101092,
+      "start": "2025-01-17",
+      "end": "2026-06-19",
+      "rows_2025": 68091,
+      "data_quality": "GOOD"
+    },
+    {
+      "source": "exness",
+      "timeframe": "M30",
+      "available": true,
+      "total_rows": 76389,
+      "start": "2020-01-02",
+      "end": "2026-06-19",
+      "rows_2025": 11816,
+      "data_quality": "GOOD"
+    },
+    {
+      "source": "exness",
+      "timeframe": "M15",
+      "available": true,
+      "total_rows": 100341,
+      "start": "2022-03-22",
+      "end": "2026-06-19",
+      "rows_2025": 23620,
+      "data_quality": "GOOD"
+    },
+    {
+      "source": "exness",
+      "timeframe": "M5",
+      "available": true,
+      "total_rows": 100000,
+      "start": "2025-01-21",
+      "end": "2026-06-19",
+      "rows_2025": 67029,
+      "data_quality": "GOOD"
+    },
+    {
+      "source": "fundednext",
+      "timeframe": "M30",
+      "available": true,
+      "total_rows": 28909,
+      "start": "2024-01-01",
+      "end": "2026-06-19",
+      "rows_2025": 11825,
+      "data_quality": "FAIR"
+    },
+    {
+      "source": "fundednext",
+      "timeframe": "M15",
+      "available": true,
+      "total_rows": 57768,
+      "start": "2024-01-01",
+      "end": "2026-06-19",
+      "rows_2025": 23636,
+      "data_quality": "GOOD"
+    },
+    {
+      "source": "fundednext",
+      "timeframe": "M5",
+      "available": true,
+      "total_rows": 100863,
+      "start": "2025-01-17",
+      "end": "2026-06-19",
+      "rows_2025": 67856,
+      "data_quality": "GOOD"
+    },
+    {
+      "source": "icmarkets",
+      "timeframe": "M30",
+      "available": true,
+      "total_rows": 76453,
+      "start": "2019-12-31",
+      "end": "2026-06-19",
+      "rows_2025": 11820,
+      "data_quality": "GOOD"
+    },
+    {
+      "source": "icmarkets",
+      "timeframe": "M15",
+      "available": true,
+      "total_rows": 100000,
+      "start": "2022-03-28",
+      "end": "2026-06-19",
+      "rows_2025": 23638,
+      "data_quality": "GOOD"
+    },
+    {
+      "source": "icmarkets",
+      "timeframe": "M5",
+      "available": true,
+      "total_rows": 100000,
+      "start": "2025-01-22",
+      "end": "2026-06-19",
+      "rows_2025": 67051,
+      "data_quality": "GOOD"
+    },
+    {
+      "source": "fbs",
+      "timeframe": "M30",
+      "available": true,
+      "total_rows": 67639,
+      "start": "2020-09-28",
+      "end": "2026-06-19",
+      "rows_2025": 11808,
+      "data_quality": "GOOD"
+    },
+    {
+      "source": "fbs",
+      "timeframe": "M15",
+      "available": true,
+      "total_rows": 100723,
+      "start": "2022-03-15",
+      "end": "2026-06-19",
+      "rows_2025": 23612,
+      "data_quality": "GOOD"
+    },
+    {
+      "source": "fbs",
+      "timeframe": "M5",
+      "available": true,
+      "total_rows": 100000,
+      "start": "2024-07-30",
+      "end": "2025-12-31",
+      "rows_2025": 70311,
+      "data_quality": "GOOD"
+    }
+  ],
+  "totals": {
+    "M30": 325459,
+    "M15": 459477,
+    "M5": 501955
+  },
+  "mtf_refinement_testable": true,
+  "data_quality_acceptable": true,
+  "recommendation": "MTF entry refinement can be tested with existing M5/M15 data. Full M5 backtest deferred to next sprint."
+}

@@ -1,0 +1,11 @@
+rank,blocker,estimated_impact_pct,description,evidence
+1,Insufficient trade frequency,3.5,Governance blocks ~60% of signals. Months with <10 trades rarely hit 10%.,avg trade count at 1.25% risk is ~12/month; need ~20+ for consistent 10%
+2,Winners closed too early (BE/partial),2.8,MOVE_BE at +0.5R and PARTIAL_CLOSE at +1R cap upside on A+ winners,MFE capture estimated at ~60%; improving to 80% could add 2.8% monthly
+3,TP too conservative,2.0,Fixed TP at 2R limits profit in strong trend regimes,Dynamic TP expansion in clean trend could add 2% monthly
+4,Risk multiplier too aggressive in throttle zones,1.5,0.25x risk in ATR 90-95 zone reduces position on high-vol opportunities,Throttle zone has best MFE but lowest position size
+5,Lack of locked-profit pyramiding,1.2,No add-on from locked profit limits compound growth in winning months,Pyramiding from locked profit could add 1.2% monthly without new risk
+6,High-volatility trades blocked,1.0,"ATR > 95 hard-blocks all trades, missing extreme trend opportunities",HV_STRONG_ALPHA synthetic scenario was profitable but blocked
+7,Session filter too restrictive,0.8,OFF session trades blocked; some Asia session trends missed,Session filter reduces trade count by ~15%
+8,No MTF entry refinement,0.7,H1-only entry misses M15/M5 precision entries with tighter SL,"MTF entry could improve R:R by 30%, adding 0.7% monthly"
+9,Trailing stop too tight,0.5,TIGHT_TRAIL at +1.5R with 0.5R trail cuts winners in strong trends,Wider trail in strong trend could add 0.5% monthly
+10,Range opportunities missed,0.3,Mean-reversion signals in RANGE regime not fully captured,RANGE regime has lower trade count than TREND

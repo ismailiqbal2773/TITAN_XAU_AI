@@ -1,0 +1,7 @@
+scenario,description,monthly_10pct_hit_rate,monthly_8pct_hit_rate,monthly_5pct_hit_rate,avg_monthly_pct,best_month_pct,worst_month_pct,max_dd_pct,dd_breach_count,avg_pf,avg_win_rate,avg_trade_count,prop_firm_suitability,competition_suitability
+PROP_CHALLENGE_BASELINE,current 1.25% risk baseline,5.42,8.81,20.34,3.57,21.98,-1.3,8.88,0,inf,72.37,355.1,SUITABLE,MARGINAL
+PROP_CHALLENGE_EXIT_PLUS,1.25% risk + improved exit capture (TP expansion + ATR trailing),8.14,11.53,27.12,4.28,26.38,-1.56,9.15,0,inf,72.37,355.1,SUITABLE,MARGINAL
+PROP_CHALLENGE_PYRAMID_SAFE,1.25% risk + locked-profit pyramiding max 1 add-on,6.78,9.49,22.71,3.93,24.18,-1.43,9.15,0,inf,72.37,372.9,SUITABLE,MARGINAL
+PROP_CHALLENGE_MTF_ENTRY,1.25% risk + MTF refined entry simulation,6.78,9.49,22.37,3.85,23.74,-1.4,8.44,0,inf,72.37,355.1,SUITABLE,MARGINAL
+PROP_CHALLENGE_COMBINED,1.25% risk + exit improvement + pyramiding + MTF entry,9.49,14.92,32.88,4.82,29.67,-1.76,9.32,0,inf,72.37,390.6,SUITABLE,MARGINAL
+COMPETITION_DEMO_ONLY,"1.25-1.50% risk + pyramiding + strict DD stop, demo/competition only",11.53,17.97,37.63,5.35,32.97,-1.95,10.21,12,inf,72.37,408.4,MARGINAL,MARGINAL
