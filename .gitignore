@@ -30,3 +30,4 @@ data/audit/demo_micro/demo_micro_repeatability_journal.jsonl
 data/audit/demo_micro/incident_report_*.json
 data/audit/demo_micro/incident_report_*.md
 data/audit/broker_compatibility/
+data/audit/regime/
