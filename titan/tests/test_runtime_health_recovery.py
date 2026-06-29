@@ -261,13 +261,17 @@ class TestRuntimeChecks:
         assert len(events) >= 1
         assert events[0].action == RecoveryAction.RETRY
 
-    def test_15_order_send_market_closed_stops_all(self):
-        """MARKET_CLOSED (10018) produces STOP_ALL action."""
+    def test_15_order_send_market_closed_stops_cycle(self):
+        """Sprint 9.9.3.27 — MARKET_CLOSED (10018) on open with no position
+        produces WARNING + STOP_CYCLE (not CRITICAL STOP_ALL).
+        This is a normal weekend/market-closed scenario, not a system failure."""
         mt5 = MockMT5()
         monitor = RuntimeHealthMonitor(mt5=mt5, magic=20261993, symbol="XAUUSD")
-        events = monitor.check_order_send_result(10018, operation="open")
+        events = monitor.check_order_send_result(10018, operation="open",
+                                                   has_open_position=False)
         assert len(events) >= 1
-        assert events[0].action == RecoveryAction.STOP_ALL
+        assert events[0].action == RecoveryAction.STOP_CYCLE
+        assert events[0].severity == HealthStatus.WARNING
         assert events[0].event_type == "MARKET_CLOSED"
 
     def test_16_close_reject_escalates_to_force_close(self):

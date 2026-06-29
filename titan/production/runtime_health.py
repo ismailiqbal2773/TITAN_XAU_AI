@@ -407,8 +407,14 @@ class RuntimeHealthMonitor:
         return []
 
     def check_order_send_result(self, retcode: Optional[int],
-                                  operation: str = "open") -> list[HealthEvent]:
-        """Check order_send result retcode."""
+                                  operation: str = "open",
+                                  has_open_position: bool = False) -> list[HealthEvent]:
+        """Check order_send result retcode.
+
+        Sprint 9.9.3.27 patch — market-closed 10018 classification:
+        - On OPEN with no open position: WARNING + WAIT_RETRY (normal weekend)
+        - On CLOSE with open position: CRITICAL + MANUAL_REVIEW (stuck until reopen)
+        """
         if retcode is None:
             return [HealthEvent(
                 "ORDER_SEND_NONE", HealthStatus.WARNING,
@@ -419,12 +425,27 @@ class RuntimeHealthMonitor:
         if retcode in _SUCCESS_RETCODES:
             return []
         if retcode == 10018:
-            return [HealthEvent(
-                "MARKET_CLOSED", HealthStatus.CRITICAL,
-                RecoveryAction.STOP_ALL,
-                f"order_send ({operation}) retcode=10018 — MARKET_CLOSED",
-                {"operation": operation, "retcode": retcode},
-            )]
+            # Sprint 9.9.3.27 — context-aware MARKET_CLOSED classification
+            if operation == "close" or has_open_position:
+                # Closing with market closed = position stuck = CRITICAL
+                return [HealthEvent(
+                    "MARKET_CLOSED", HealthStatus.CRITICAL,
+                    RecoveryAction.MANUAL_REVIEW,
+                    f"order_send ({operation}) retcode=10018 — MARKET_CLOSED "
+                    f"with open position — position stuck until market reopens",
+                    {"operation": operation, "retcode": retcode,
+                     "has_open_position": has_open_position},
+                )]
+            else:
+                # Opening with market closed = normal weekend = WARNING
+                return [HealthEvent(
+                    "MARKET_CLOSED", HealthStatus.WARNING,
+                    RecoveryAction.STOP_CYCLE,
+                    f"order_send ({operation}) retcode=10018 — MARKET_CLOSED "
+                    f"(market/session closed, not a system failure)",
+                    {"operation": operation, "retcode": retcode,
+                     "has_open_position": has_open_position},
+                )]
         if retcode in _RETRYABLE_RETCODES:
             return [HealthEvent(
                 "ORDER_SEND_REJECT", HealthStatus.WARNING,
@@ -612,3 +633,112 @@ def write_incident_report(events: list[HealthEvent],
             f.write(f"- **Timestamp:** {e.timestamp_utc}\n\n")
 
     return {"json_path": str(json_path), "md_path": str(md_path)}
+
+
+# ─── Sprint 9.9.3.27: classify_trade_retcode helper ──────────────────────────
+
+def classify_trade_retcode(retcode: Optional[int],
+                            context: dict = None) -> dict:
+    """Sprint 9.9.3.27 — classify a trade retcode with context.
+
+    Context-aware classification that handles market-closed (10018)
+    differently based on whether a position is open and what phase
+    the operation is in.
+
+    Args:
+        retcode: MT5 order_send retcode (int or None).
+        context: dict with optional keys:
+            - phase: "open" or "close" (default: "open")
+            - has_open_position: bool (default: False)
+            - symbol: str
+            - broker: str
+
+    Returns:
+        dict with keys:
+            - event_type (str)
+            - severity (str)
+            - recovery_action (str)
+            - message (str)
+            - is_market_closed (bool)
+            - is_system_failure (bool)
+    """
+    context = context or {}
+    phase = context.get("phase", "open")
+    has_open_position = context.get("has_open_position", False)
+
+    # Success
+    if retcode in _SUCCESS_RETCODES:
+        return {
+            "event_type": "ORDER_SUCCESS",
+            "severity": HealthStatus.HEALTHY.value,
+            "recovery_action": RecoveryAction.CONTINUE.value,
+            "message": f"order_send ({phase}) succeeded: retcode={retcode}",
+            "is_market_closed": False,
+            "is_system_failure": False,
+        }
+
+    # None result
+    if retcode is None:
+        return {
+            "event_type": "ORDER_SEND_NONE",
+            "severity": HealthStatus.WARNING.value,
+            "recovery_action": RecoveryAction.RETRY.value,
+            "message": f"order_send ({phase}) returned None — MT5 internal error",
+            "is_market_closed": False,
+            "is_system_failure": True,
+        }
+
+    # Market closed (10018) — context-aware
+    if retcode == 10018:
+        if phase == "close" or has_open_position:
+            return {
+                "event_type": "MARKET_CLOSED",
+                "severity": HealthStatus.CRITICAL.value,
+                "recovery_action": RecoveryAction.MANUAL_REVIEW.value,
+                "message": (f"order_send ({phase}) retcode=10018 — MARKET_CLOSED "
+                            f"with open position — position stuck until market reopens"),
+                "is_market_closed": True,
+                "is_system_failure": False,
+            }
+        else:
+            return {
+                "event_type": "MARKET_CLOSED",
+                "severity": HealthStatus.WARNING.value,
+                "recovery_action": RecoveryAction.STOP_CYCLE.value,
+                "message": (f"order_send ({phase}) retcode=10018 — MARKET_CLOSED "
+                            f"(market/session closed, not a system failure)"),
+                "is_market_closed": True,
+                "is_system_failure": False,
+            }
+
+    # Retryable rejects
+    if retcode in _RETRYABLE_RETCODES:
+        return {
+            "event_type": "ORDER_SEND_REJECT",
+            "severity": HealthStatus.WARNING.value,
+            "recovery_action": RecoveryAction.RETRY.value,
+            "message": f"order_send ({phase}) rejected: retcode={retcode}",
+            "is_market_closed": False,
+            "is_system_failure": False,
+        }
+
+    # Non-retryable rejects
+    if retcode in _NON_RETRYABLE_RETCODES:
+        return {
+            "event_type": "ORDER_SEND_REJECT",
+            "severity": HealthStatus.CRITICAL.value,
+            "recovery_action": RecoveryAction.STOP_CYCLE.value,
+            "message": f"order_send ({phase}) non-retryable reject: retcode={retcode}",
+            "is_market_closed": False,
+            "is_system_failure": True,
+        }
+
+    # Unknown retcode
+    return {
+        "event_type": "ORDER_SEND_REJECT",
+        "severity": HealthStatus.WARNING.value,
+        "recovery_action": RecoveryAction.STOP_CYCLE.value,
+        "message": f"order_send ({phase}) unknown retcode={retcode}",
+        "is_market_closed": False,
+        "is_system_failure": False,
+    }

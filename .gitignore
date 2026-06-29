@@ -27,3 +27,6 @@ data/audit/demo_micro/raw_mt5_working_profile.json
 data/audit/demo_micro/demo_micro_repeatability_report.json
 data/audit/demo_micro/demo_micro_repeatability_report.md
 data/audit/demo_micro/demo_micro_repeatability_journal.jsonl
+data/audit/demo_micro/incident_report_*.json
+data/audit/demo_micro/incident_report_*.md
+data/audit/broker_compatibility/
