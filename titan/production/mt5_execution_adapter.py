@@ -578,10 +578,63 @@ class MT5ExecutionAdapter:
                     "error": str(e), **tick_diag,
                 })
 
+            # Sprint 9.9.3.18 patch — initialize None-result tracking vars
+            # before the if/else so they're available for attempt_diag
+            # regardless of which branch executes.
+            mt5_last_error_code = None
+            mt5_last_error_message = ""
+            order_send_returned_none = False
+
             if send_result is None:
+                # Sprint 9.9.3.18 patch — order_send returned None.
+                # This happens when MT5 encounters an internal error (e.g.,
+                # request malformed, terminal not connected, or broker
+                # rejected before processing). We must:
+                #   1. Call mt5.last_error() to get the actual error
+                #   2. Log DEMO_MICRO_ORDER_SEND_NONE with full diagnostics
+                #   3. Check positions_get — a position may have been
+                #      placed despite the None result (MT5 race condition)
+                #   4. If no position: treat as retryable, try next mode
+                #   5. If position exists: emergency_close_required
+                order_send_returned_none = True
                 send_retcode = None
                 send_comment = ""
                 send_ok = False
+                # Call mt5.last_error() — returns (code, message) tuple
+                try:
+                    last_err = self.mt5.last_error()
+                    if last_err is not None:
+                        # mt5.last_error() returns a tuple (code, message)
+                        # in newer MT5 Python builds, or an int in older ones.
+                        if isinstance(last_err, (tuple, list)) and len(last_err) >= 2:
+                            mt5_last_error_code = last_err[0]
+                            mt5_last_error_message = str(last_err[1])
+                        elif isinstance(last_err, int):
+                            mt5_last_error_code = last_err
+                            mt5_last_error_message = f"MT5 error code {last_err}"
+                        else:
+                            mt5_last_error_code = str(last_err)
+                            mt5_last_error_message = str(last_err)
+                except Exception as le_exc:
+                    mt5_last_error_message = f"mt5.last_error() raised: {le_exc}"
+
+                self._log("DEMO_MICRO_ORDER_SEND_NONE", {
+                    "label": label,
+                    "symbol": symbol,
+                    "filling_name": mode["filling_name"],
+                    "filling_type": mode["filling_type"],
+                    "price": req["price"],
+                    "volume": req["volume"],
+                    "request": _safe_request(req),
+                    "mt5_last_error_code": mt5_last_error_code,
+                    "mt5_last_error_message": mt5_last_error_message,
+                    "bid": tick_diag.get("bid"),
+                    "ask": tick_diag.get("ask"),
+                    "spread": tick_diag.get("spread"),
+                    "tick_time": tick_diag.get("tick_time"),
+                    "reason": ("mt5.order_send() returned None — internal "
+                               "MT5 error, no trade result available"),
+                })
             else:
                 send_retcode = _safe(send_result, "retcode", None)
                 send_comment = _safe(send_result, "comment", "")
@@ -595,6 +648,10 @@ class MT5ExecutionAdapter:
                 "send_retcode_meaning": lookup_retcode_meaning(send_retcode),
                 "send_ok": send_ok,
                 "price": req["price"],
+                # Sprint 9.9.3.18 patch — None-result diagnostics
+                "order_send_returned_none": order_send_returned_none,
+                "mt5_last_error_code": mt5_last_error_code,
+                "mt5_last_error_message": mt5_last_error_message,
                 **tick_diag,
             }
             send_attempts.append(attempt_diag)
@@ -684,7 +741,13 @@ class MT5ExecutionAdapter:
                 }
 
             # Send failed but no position opened — decide if retryable.
-            if send_retcode not in _RETRYABLE_RETCODES:
+            # Sprint 9.9.3.18 patch — order_send returning None (send_retcode
+            # is None) is treated as RETRYABLE: the broker didn't process
+            # the request (internal error), so no position was created by
+            # this attempt. It's safe to try the next filling mode.
+            is_none_result = send_retcode is None
+            is_retryable = is_none_result or (send_retcode in _RETRYABLE_RETCODES)
+            if not is_retryable:
                 # Non-retryable — fail closed immediately.
                 self._log("ADAPTER_NON_RETRYABLE_FAILURE", {
                     "label": label, "symbol": symbol,
@@ -709,12 +772,23 @@ class MT5ExecutionAdapter:
                     "emergency_close_required": False,
                 }
             # Retryable — fall through to next mode.
-            self._log("ADAPTER_RETRYABLE_FAILURE", {
-                "label": label, "symbol": symbol,
-                "filling_name": mode["filling_name"],
-                "send_retcode": send_retcode,
-                "reason": "retryable retcode — trying next filling mode",
-            })
+            if is_none_result:
+                self._log("ADAPTER_RETRYABLE_FAILURE", {
+                    "label": label, "symbol": symbol,
+                    "filling_name": mode["filling_name"],
+                    "send_retcode": send_retcode,
+                    "order_send_returned_none": True,
+                    "mt5_last_error_code": mt5_last_error_code,
+                    "reason": ("order_send returned None — treating as "
+                               "retryable, trying next filling mode"),
+                })
+            else:
+                self._log("ADAPTER_RETRYABLE_FAILURE", {
+                    "label": label, "symbol": symbol,
+                    "filling_name": mode["filling_name"],
+                    "send_retcode": send_retcode,
+                    "reason": "retryable retcode — trying next filling mode",
+                })
 
         # ── All modes exhausted ──
         self._log("ADAPTER_ALL_MODES_EXHAUSTED", {
@@ -917,6 +991,21 @@ class MT5ExecutionAdapter:
 
     # ─── Broker execution profile ───────────────────────────────────────────
 
+    def _extract_last_error_from_attempts(self, send_attempts: list) -> Optional[dict]:
+        """Sprint 9.9.3.18 patch — extract mt5.last_error from the first
+        send attempt that returned None.
+
+        Returns a dict with code + message, or None if no None-result
+        attempt occurred.
+        """
+        for a in send_attempts:
+            if a.get("order_send_returned_none"):
+                return {
+                    "code": a.get("mt5_last_error_code"),
+                    "message": a.get("mt5_last_error_message"),
+                }
+        return None
+
     def write_broker_profile(self, snapshot: dict, label: str,
                               verdict: str, result: Optional[dict] = None) -> None:
         """Write broker_execution_profile.json for operator review.
@@ -963,6 +1052,14 @@ class MT5ExecutionAdapter:
                 "filling_source": (result or {}).get("filling_source"),
                 "emergency_close_required": (result or {}).get("emergency_close_required", False),
                 "retcode": (result or {}).get("retcode"),
+                # Sprint 9.9.3.18 patch — None-result diagnostics in profile
+                "order_send_returned_none": any(
+                    a.get("order_send_returned_none", False)
+                    for a in (result or {}).get("send_attempts", [])
+                ),
+                "mt5_last_error": self._extract_last_error_from_attempts(
+                    (result or {}).get("send_attempts", [])
+                ),
             }
             # Ensure dir exists
             Path(self._profile_path).parent.mkdir(parents=True, exist_ok=True)

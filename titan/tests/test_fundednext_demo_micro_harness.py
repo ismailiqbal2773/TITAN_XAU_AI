@@ -437,7 +437,10 @@ class MockMT5:
                  # Sprint 9.9.3.17 patch — send-level fallback knobs:
                  order_send_retcode_per_mode=None,
                  position_appears_after_send_failure=False,
-                 terminal_info_obj=None):
+                 terminal_info_obj=None,
+                 # Sprint 9.9.3.18 patch — None-result simulation:
+                 order_send_returns_none_per_mode=None,
+                 mt5_last_error=None):
         self._initialized = False
         self._account = _MockAccount(account_trade_mode, account_balance)
         # Sprint 9.9.3.14 patch — allow tests to simulate disabled
@@ -474,11 +477,21 @@ class MockMT5:
         self._send_failure_count = 0   # tracks how many failed sends have happened
         # Sprint 9.9.3.17 patch — terminal_info mock.
         self._terminal_info = terminal_info_obj or _MockTerminalInfo()
+        # Sprint 9.9.3.18 patch — None-result simulation.
+        # order_send_returns_none_per_mode is a set of filling_type ints
+        # for which order_send should return None (simulating MT5 internal
+        # error). E.g. {1} means "FOK send returns None, IOC send works".
+        self._order_send_returns_none_per_mode = set(order_send_returns_none_per_mode or [])
+        # mt5_last_error is what mt5.last_error() returns when called.
+        # Real MT5 returns a (code, message) tuple. Default simulates
+        # a generic internal error.
+        self._mt5_last_error = mt5_last_error or (-1, "MT5 internal error: request not processed")
         # Tracking
         self.order_send_calls = []
         self.last_order_request = None
         self.order_check_calls = []   # Sprint 9.9.3.16 patch
         self.symbol_info_tick_calls = []   # Sprint 9.9.3.17 patch — tick refresh tracking
+        self.last_error_calls = 0   # Sprint 9.9.3.18 patch — track last_error() calls
 
     def initialize(self, *a, **kw):
         self._initialized = True
@@ -505,6 +518,15 @@ class MockMT5:
 
     def symbol_select(self, symbol, visible=True):
         return True
+
+    def last_error(self):
+        """Sprint 9.9.3.18 patch — mock for mt5.last_error().
+
+        Real MT5 returns a (code, message) tuple. This mock returns
+        whatever was set via the mt5_last_error kwarg.
+        """
+        self.last_error_calls += 1
+        return self._mt5_last_error
 
     def order_check(self, request):
         """Sprint 9.9.3.16 patch — mock for mt5.order_check().
@@ -557,6 +579,29 @@ class MockMT5:
         # Determine if this is open or close based on "position" field
         is_close = "position" in request and request.get("position")
         filling_type = request.get("type_filling")
+
+        # Sprint 9.9.3.18 patch — simulate order_send returning None.
+        # If this filling mode is in the None-return set, return None
+        # immediately (simulating MT5 internal error). But first, if
+        # position_appears_after_send_failure is True, inject a ghost
+        # position so the adapter can detect it via positions_get.
+        if filling_type in self._order_send_returns_none_per_mode:
+            if (self._position_appears_after_send_failure
+                    and self._send_failure_count == 0
+                    and not is_close):
+                self._send_failure_count += 1
+                side_type = 0 if request.get("type") == 0 else 1
+                ghost_pos = _MockPosition(
+                    ticket=77777,
+                    position_type=side_type,
+                    volume=request.get("volume", 0.01),
+                    price_open=request.get("price", 2000.10),
+                    magic=request.get("magic", 20261993),
+                    symbol=request.get("symbol", "XAUUSD"),
+                    profit=0.0,
+                )
+                self._open_positions = [ghost_pos]
+            return None
 
         # Sprint 9.9.3.17 patch — determine retcode with per-mode override.
         # Priority: order_send_retcode_per_mode[filling_type] >
@@ -2487,3 +2532,246 @@ class TestMT5ExecutionAdapter:
         open_pos_checks = [e for e in pos_check_events if not e.get("is_close_order")]
         assert len(open_pos_checks) >= 1
         assert open_pos_checks[-1]["position_appeared"] is False
+
+
+# ─── Sprint 9.9.3.18 patch — order_send None result tests ─────────────────────
+
+class TestOrderSendNoneResult:
+    """Sprint 9.9.3.18 — handle mt5.order_send() returning None safely.
+
+    When order_send returns None (MT5 internal error), the adapter must:
+      1. Call mt5.last_error() to get the actual error code/message
+      2. Log DEMO_MICRO_ORDER_SEND_NONE with full diagnostics
+      3. Check positions_get(symbol)+magic immediately
+      4. If no position: treat as retryable, try next filling mode
+      5. If position exists: trigger emergency_close_required
+      6. Never show retcode=None without mt5.last_error diagnostics
+    """
+
+    def test_151_none_result_calls_last_error(self):
+        """When order_send returns None, adapter calls mt5.last_error()."""
+        from titan.production.mt5_execution_adapter import MT5ExecutionAdapter
+        mt5 = MockMT5(symbol_filling_mode=1,
+                      order_check_default_retcode=0,
+                      order_send_returns_none_per_mode={1},  # FOK returns None
+                      mt5_last_error=(-1, "MT5 internal error: request not processed"))
+        mt5.initialize()
+        adapter = MT5ExecutionAdapter(mt5, journal_event=lambda e, p: None)
+        result = adapter.send_open_order(
+            symbol="XAUUSD", side="BUY", lot=0.01, magic=20261993,
+        )
+        # Adapter must have called last_error at least once
+        assert mt5.last_error_calls >= 1
+        # The send attempt must record the None result + last_error
+        send_attempts = result.get("send_attempts", [])
+        assert len(send_attempts) >= 1
+        attempt = send_attempts[0]
+        assert attempt["order_send_returned_none"] is True
+        assert attempt["send_retcode"] is None
+        assert attempt["mt5_last_error_code"] == -1
+        assert "internal error" in attempt["mt5_last_error_message"].lower()
+
+    def test_152_none_result_logs_diagnostics_event(self):
+        """DEMO_MICRO_ORDER_SEND_NONE journal event is emitted with full diagnostics."""
+        from titan.production.mt5_execution_adapter import MT5ExecutionAdapter
+        journal_events = []
+        def capture(event_type, payload):
+            journal_events.append({"event": event_type, **payload})
+        mt5 = MockMT5(symbol_filling_mode=1,
+                      order_check_default_retcode=0,
+                      order_send_returns_none_per_mode={1},
+                      mt5_last_error=(-1, "Request not processed"))
+        mt5.initialize()
+        adapter = MT5ExecutionAdapter(mt5, journal_event=capture)
+        adapter.send_open_order(
+            symbol="XAUUSD", side="BUY", lot=0.01, magic=20261993,
+        )
+        none_events = [e for e in journal_events
+                       if e.get("event") == "DEMO_MICRO_ORDER_SEND_NONE"]
+        assert len(none_events) >= 1
+        ev = none_events[-1]
+        # Required fields per operator spec
+        assert ev["mt5_last_error_code"] == -1
+        assert "request not processed" in ev["mt5_last_error_message"].lower()
+        assert ev["filling_name"] == "FOK"
+        assert ev["price"] is not None
+        assert "bid" in ev
+        assert "ask" in ev
+        assert "spread" in ev
+        assert "request" in ev  # sanitized request
+
+    def test_153_none_result_falls_back_to_next_mode(self):
+        """FOK returns None → adapter falls back to IOC which succeeds."""
+        from titan.production.mt5_execution_adapter import MT5ExecutionAdapter
+        mt5 = MockMT5(symbol_filling_mode=1 | 2,
+                      order_check_default_retcode=0,
+                      order_send_returns_none_per_mode={1},  # FOK returns None
+                      mt5_last_error=(-1, "FOK not processed"))
+        mt5.initialize()
+        adapter = MT5ExecutionAdapter(mt5, journal_event=lambda e, p: None)
+        result = adapter.send_open_order(
+            symbol="XAUUSD", side="BUY", lot=0.01, magic=20261993,
+        )
+        # IOC fallback should succeed
+        assert result["ok"] is True
+        assert result["filling_mode_selected"] == "IOC"
+        # Two send attempts: FOK (None) + IOC (success)
+        send_attempts = result.get("send_attempts", [])
+        assert len(send_attempts) == 2
+        assert send_attempts[0]["filling_name"] == "FOK"
+        assert send_attempts[0]["order_send_returned_none"] is True
+        assert send_attempts[1]["filling_name"] == "IOC"
+        assert send_attempts[1]["send_ok"] is True
+
+    def test_154_none_result_all_modes_fail_closed(self):
+        """All modes return None → fail closed, no duplicate orders."""
+        from titan.production.mt5_execution_adapter import MT5ExecutionAdapter
+        mt5 = MockMT5(symbol_filling_mode=1 | 2,
+                      order_check_default_retcode=0,
+                      order_send_returns_none_per_mode={1, 2},  # Both return None
+                      mt5_last_error=(-1, "No modes processed"))
+        mt5.initialize()
+        adapter = MT5ExecutionAdapter(mt5, journal_event=lambda e, p: None)
+        result = adapter.send_open_order(
+            symbol="XAUUSD", side="BUY", lot=0.01, magic=20261993,
+        )
+        assert result["ok"] is False
+        assert result["emergency_close_required"] is False
+        # Two send attempts, both None
+        send_attempts = result.get("send_attempts", [])
+        assert len(send_attempts) == 2
+        for a in send_attempts:
+            assert a["order_send_returned_none"] is True
+            assert a["send_retcode"] is None
+            assert a["mt5_last_error_code"] == -1
+
+    def test_155_none_result_with_ghost_position_triggers_emergency_close(self):
+        """FOK returns None AND ghost position appears → emergency_close_required."""
+        from titan.production.mt5_execution_adapter import MT5ExecutionAdapter
+        mt5 = MockMT5(symbol_filling_mode=1 | 2,
+                      order_check_default_retcode=0,
+                      order_send_returns_none_per_mode={1},  # FOK returns None
+                      position_appears_after_send_failure=True,
+                      mt5_last_error=(-1, "None but position placed"))
+        mt5.initialize()
+        adapter = MT5ExecutionAdapter(mt5, journal_event=lambda e, p: None)
+        result = adapter.send_open_order(
+            symbol="XAUUSD", side="BUY", lot=0.01, magic=20261993,
+        )
+        # Emergency close must be triggered
+        assert result["ok"] is False
+        assert result["emergency_close_required"] is True
+        assert len(result.get("emergency_close_tickets", [])) >= 1
+        # Only ONE send attempt (adapter stops after detecting ghost position)
+        assert len(result.get("send_attempts", [])) == 1
+        assert result["send_attempts"][0]["order_send_returned_none"] is True
+
+    def test_156_none_result_never_shows_retcode_none_without_last_error(self):
+        """When retcode is None, mt5_last_error must always be populated."""
+        from titan.production.mt5_execution_adapter import MT5ExecutionAdapter
+        mt5 = MockMT5(symbol_filling_mode=1,
+                      order_check_default_retcode=0,
+                      order_send_returns_none_per_mode={1},
+                      mt5_last_error=(4753, "No prices for symbol"))
+        mt5.initialize()
+        adapter = MT5ExecutionAdapter(mt5, journal_event=lambda e, p: None)
+        result = adapter.send_open_order(
+            symbol="XAUUSD", side="BUY", lot=0.01, magic=20261993,
+        )
+        # Every send attempt with retcode=None must have mt5_last_error populated
+        for a in result.get("send_attempts", []):
+            if a["send_retcode"] is None:
+                assert a["mt5_last_error_code"] is not None, \
+                    "retcode=None without mt5_last_error_code"
+                assert a["mt5_last_error_message"], \
+                    "retcode=None without mt5_last_error_message"
+
+    def test_157_none_result_in_broker_profile(self):
+        """broker_execution_profile.json includes order_send_returned_none + mt5_last_error."""
+        import json
+        from pathlib import Path
+        from titan.production.mt5_execution_adapter import MT5ExecutionAdapter
+        profile_path = str(REPO_ROOT / "data" / "audit" / "demo_micro" / "broker_execution_profile.json")
+        mt5 = MockMT5(symbol_filling_mode=1 | 2,
+                      order_check_default_retcode=0,
+                      order_send_returns_none_per_mode={1},  # FOK returns None
+                      mt5_last_error=(-1, "FOK not processed"))
+        mt5.initialize()
+        adapter = MT5ExecutionAdapter(mt5, journal_event=lambda e, p: None,
+                                       profile_path=profile_path)
+        adapter.send_open_order(
+            symbol="XAUUSD", side="BUY", lot=0.01, magic=20261993,
+        )
+        assert Path(profile_path).exists()
+        with open(profile_path) as f:
+            profile = json.load(f)
+        # Profile must include None-result fields
+        assert "order_send_returned_none" in profile
+        assert profile["order_send_returned_none"] is True
+        assert "mt5_last_error" in profile
+        assert profile["mt5_last_error"] is not None
+        assert profile["mt5_last_error"]["code"] == -1
+        assert "FOK not processed" in profile["mt5_last_error"]["message"]
+
+    def test_158_none_result_harness_integration_fallback(self, monkeypatch):
+        """Full harness: FOK returns None → IOC fallback → cycle PASS."""
+        from scripts.audit import fundednext_demo_micro_full_cycle as harness
+        mt5 = MockMT5(symbol_filling_mode=1 | 2,
+                      order_check_default_retcode=0,
+                      order_send_returns_none_per_mode={1},  # FOK returns None
+                      mt5_last_error=(-1, "FOK not processed"))
+        monkeypatch.setattr(harness, "_get_mt5", lambda: mt5)
+        monkeypatch.setattr(harness, "hard_gate_evaluate",
+                            lambda config_path=None: {"verdict": "DEMO_MICRO_ARMED",
+                                                       "reasons": [],
+                                                       "checks": {}})
+        monkeypatch.setenv("TITAN_DEMO_MICRO_ARMED", "1")
+        r = _run_execute_with_mock(mt5, side="BUY", max_hold_seconds=1)
+        # IOC fallback should succeed → full cycle PASS
+        assert r["final_verdict"] == "DEMO_FULL_CYCLE_PASS"
+        assert r.get("filling_mode_selected") == "IOC"
+
+    def test_159_none_result_harness_emergency_close(self, monkeypatch):
+        """Full harness: FOK returns None + ghost position → emergency close path."""
+        from scripts.audit import fundednext_demo_micro_full_cycle as harness
+        mt5 = MockMT5(symbol_filling_mode=1 | 2,
+                      order_check_default_retcode=0,
+                      order_send_returns_none_per_mode={1},
+                      position_appears_after_send_failure=True,
+                      mt5_last_error=(-1, "None but ghost"))
+        monkeypatch.setattr(harness, "_get_mt5", lambda: mt5)
+        monkeypatch.setattr(harness, "hard_gate_evaluate",
+                            lambda config_path=None: {"verdict": "DEMO_MICRO_ARMED",
+                                                       "reasons": [],
+                                                       "checks": {}})
+        monkeypatch.setenv("TITAN_DEMO_MICRO_ARMED", "1")
+        r = _run_execute_with_mock(mt5, side="BUY", max_hold_seconds=1)
+        # Emergency close must be triggered
+        assert r.get("emergency_close_required") is True
+        assert r.get("emergency_close_attempted") is True
+
+    def test_160_none_result_journal_event_in_harness(self, monkeypatch):
+        """DEMO_MICRO_ORDER_SEND_NONE event appears in journal from harness run."""
+        from scripts.audit import fundednext_demo_micro_full_cycle as harness
+        # Clear journal
+        journal_path = REPO_ROOT / "data" / "audit" / "demo_micro" / "demo_micro_journal.jsonl"
+        if journal_path.exists():
+            journal_path.unlink()
+        mt5 = MockMT5(symbol_filling_mode=1 | 2,
+                      order_check_default_retcode=0,
+                      order_send_returns_none_per_mode={1},
+                      mt5_last_error=(-1, "FOK not processed"))
+        monkeypatch.setattr(harness, "_get_mt5", lambda: mt5)
+        monkeypatch.setattr(harness, "hard_gate_evaluate",
+                            lambda config_path=None: {"verdict": "DEMO_MICRO_ARMED",
+                                                       "reasons": [],
+                                                       "checks": {}})
+        monkeypatch.setenv("TITAN_DEMO_MICRO_ARMED", "1")
+        _run_execute_with_mock(mt5, side="BUY", max_hold_seconds=1)
+        events = _read_journal_events()
+        none_events = [e for e in events
+                       if e.get("event") == "DEMO_MICRO_ORDER_SEND_NONE"]
+        assert len(none_events) >= 1
+        ev = none_events[-1]
+        assert ev["mt5_last_error_code"] == -1
+        assert ev["filling_name"] == "FOK"
