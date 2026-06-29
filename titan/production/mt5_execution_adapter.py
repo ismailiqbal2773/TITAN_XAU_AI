@@ -60,33 +60,89 @@ _ORDER_TYPE_BUY = 0
 _ORDER_TYPE_SELL = 1
 _TRADE_RETCODE_DONE = 10009
 
-# MQL5 ORDER_TYPE_FILLING enum values
-ORDER_FILLING_FOK = 1
-ORDER_FILLING_IOC = 2
-ORDER_FILLING_BOC = 3
-ORDER_FILLING_RETURN = 4
+# MQL5 ORDER_TYPE_FILLING enum values (for MqlTradeRequest.type_filling).
+# These are the DEFAULT values used when the mt5 Python module is not
+# available (e.g. on Linux). At runtime, the adapter reads the actual
+# constants from mt5.ORDER_FILLING_* to ensure correctness across MT5
+# builds. NEVER use SYMBOL_FILLING bitmask flag values here — they are
+# a different enum space even though FOK/IOC happen to share values.
+#
+# Reference (MQL5 ORDER_TYPE_FILLING enum):
+#   ORDER_FILLING_FOK    = 1  (Fill or Kill)
+#   ORDER_FILLING_IOC    = 2  (Immediate or Cancel)
+#   ORDER_FILLING_BOC    = 3  (Book or Cancel — MT5 build 3500+)
+#   ORDER_FILLING_RETURN = 4  (Return — requotes allowed)
+ORDER_FILLING_FOK_DEFAULT = 1
+ORDER_FILLING_IOC_DEFAULT = 2
+ORDER_FILLING_BOC_DEFAULT = 3
+ORDER_FILLING_RETURN_DEFAULT = 4
 
-# symbol_info.filling_mode bitmask bit positions
-_SYMBOL_FILLING_FOK_BIT = 1
-_SYMBOL_FILLING_IOC_BIT = 2
-_SYMBOL_FILLING_BOC_BIT = 4
-_SYMBOL_FILLING_RETURN_BIT = 8
+# Sprint 9.9.3.20 backward-compat aliases — the old names (ORDER_FILLING_FOK
+# etc.) are kept for tests and callers that import them directly. They equal
+# the DEFAULT values, which match the standard MQL5 enum. At runtime, the
+# adapter reads the actual values from the mt5 module via
+# _get_order_filling_constants() — these aliases are only for static imports.
+ORDER_FILLING_FOK = ORDER_FILLING_FOK_DEFAULT
+ORDER_FILLING_IOC = ORDER_FILLING_IOC_DEFAULT
+ORDER_FILLING_BOC = ORDER_FILLING_BOC_DEFAULT
+ORDER_FILLING_RETURN = ORDER_FILLING_RETURN_DEFAULT
 
+# Sprint 9.9.3.20 patch — SYMBOL_FILLING bitmask flags.
+# These are bit positions in symbol_info.filling_mode used to DETECT
+# which filling modes the symbol supports. They are NOT the same as
+# ORDER_FILLING enum values and must NEVER be used directly as
+# request["type_filling"].
+#
+# Reference (MQL5 SYMBOL_FILLING_* constants):
+#   SYMBOL_FILLING_FOK = 1  (bit 0 — FOK supported)
+#   SYMBOL_FILLING_IOC = 2  (bit 1 — IOC supported)
+#   SYMBOL_FILLING_BOC = 4  (bit 2 — BOC supported, build 3500+)
+#
+# NOTE: There is NO SYMBOL_FILLING_RETURN flag. RETURN mode is NOT
+# detected from the bitmask — it is allowed when trade_exemode is
+# INSTANT (0) or REQUEST (1). The old _SYMBOL_FILLING_RETURN_BIT=8
+# was wrong and has been removed.
+_SYMBOL_FILLING_FOK_FLAG = 1   # bit 0
+_SYMBOL_FILLING_IOC_FLAG = 2   # bit 1
+_SYMBOL_FILLING_BOC_FLAG = 4   # bit 2
+
+# Sprint 9.9.3.20 patch — filling mode descriptor list.
+# Each entry maps a human-readable filling name to:
+#   - symbol_flag: the SYMBOL_FILLING bitmask bit used to detect support
+#     (None for RETURN, which is not flag-based)
+#   - order_enum_key: the key used to look up the ORDER_FILLING enum
+#     value from the mt5 module at runtime
+#
 # Preference order for market orders: FOK → IOC → RETURN.
-# BOC excluded — only valid for pending orders in market depth,
+# BOC is excluded — only valid for pending orders in market depth,
 # not for TRADE_ACTION_DEAL (market) orders.
-_FILLING_PREFERENCE = [
-    (ORDER_FILLING_FOK,    "FOK",    _SYMBOL_FILLING_FOK_BIT),
-    (ORDER_FILLING_IOC,    "IOC",    _SYMBOL_FILLING_IOC_BIT),
-    (ORDER_FILLING_RETURN, "RETURN", _SYMBOL_FILLING_RETURN_BIT),
+_FILLING_MODES = [
+    {
+        "name": "FOK",
+        "symbol_flag": _SYMBOL_FILLING_FOK_FLAG,    # 1
+        "order_enum_key": "ORDER_FILLING_FOK",
+        "order_enum_default": ORDER_FILLING_FOK_DEFAULT,
+    },
+    {
+        "name": "IOC",
+        "symbol_flag": _SYMBOL_FILLING_IOC_FLAG,    # 2
+        "order_enum_key": "ORDER_FILLING_IOC",
+        "order_enum_default": ORDER_FILLING_IOC_DEFAULT,
+    },
+    {
+        "name": "RETURN",
+        "symbol_flag": None,   # NOT flag-based — determined by trade_exemode
+        "order_enum_key": "ORDER_FILLING_RETURN",
+        "order_enum_default": ORDER_FILLING_RETURN_DEFAULT,
+    },
 ]
 
 # Default bitmask when symbol_info.filling_mode is missing or 0
-# (older MT5 builds / permissive fallback).
+# (older MT5 builds / permissive fallback). Only FOK + IOC flags —
+# RETURN is not a flag, it's determined by trade_exemode.
 _DEFAULT_FILLING_MASK = (
-    _SYMBOL_FILLING_FOK_BIT
-    | _SYMBOL_FILLING_IOC_BIT
-    | _SYMBOL_FILLING_RETURN_BIT
+    _SYMBOL_FILLING_FOK_FLAG
+    | _SYMBOL_FILLING_IOC_FLAG
 )
 
 # SYMBOL_TRADE_EXECUTION enum (MQL5)
@@ -221,6 +277,53 @@ class MT5ExecutionAdapter:
         # Cached snapshot (built once per adapter instance — assumes the
         # caller creates a fresh adapter per execution attempt).
         self._snapshot: Optional[dict] = None
+        # Sprint 9.9.3.20 patch — cache ORDER_FILLING enum constants read
+        # from the mt5 module at runtime. This ensures we use the broker's
+        # actual enum values, not hard-coded defaults.
+        self._order_filling_constants: Optional[dict] = None
+
+    # ─── Sprint 9.9.3.20: ORDER_FILLING enum resolution ──────────────────────
+
+    def _get_order_filling_constants(self) -> dict:
+        """Sprint 9.9.3.20 — read ORDER_FILLING_* constants from the mt5
+        module at runtime.
+
+        The mt5 Python module exposes ORDER_FILLING_FOK, ORDER_FILLING_IOC,
+        ORDER_FILLING_RETURN (and optionally ORDER_FILLING_BOC) as module-
+        level integers. We read them at runtime to ensure we use the correct
+        enum values for request["type_filling"], regardless of MT5 build.
+
+        Falls back to standard MQL5 default values if the mt5 module doesn't
+        expose a particular constant (e.g. on Linux without MT5 installed,
+        or older MT5 builds that lack ORDER_FILLING_BOC).
+
+        Returns a dict:
+            {"FOK": int, "IOC": int, "BOC": int|None, "RETURN": int}
+        """
+        if self._order_filling_constants is not None:
+            return self._order_filling_constants
+        result = {}
+        for mode in _FILLING_MODES:
+            key = mode["order_enum_key"]   # e.g. "ORDER_FILLING_FOK"
+            name = mode["name"]            # e.g. "FOK"
+            default = mode["order_enum_default"]
+            # Try to read from the mt5 module at runtime
+            val = None
+            try:
+                val = getattr(self.mt5, key, None)
+            except Exception:
+                val = None
+            if val is None:
+                val = default
+            result[name] = val
+        # BOC is special — may not exist in older MT5 builds
+        try:
+            boc_val = getattr(self.mt5, "ORDER_FILLING_BOC", None)
+        except Exception:
+            boc_val = None
+        result["BOC"] = boc_val if boc_val is not None else ORDER_FILLING_BOC_DEFAULT
+        self._order_filling_constants = result
+        return result
 
     # ─── Journal helper ──────────────────────────────────────────────────────
 
@@ -294,6 +397,10 @@ class MT5ExecutionAdapter:
             "volume_step": _safe(info, "volume_step"),
             "trade_contract_size": _safe(info, "trade_contract_size"),
         } if info else {}
+        # Sprint 9.9.3.20 — log ORDER_FILLING enum constants resolved from
+        # the mt5 module at runtime, so operators can verify the adapter
+        # is using the correct enum values (not bitmask flags).
+        snap["order_filling_constants"] = self._get_order_filling_constants()
         # Tick
         try:
             tick = self.mt5.symbol_info_tick(symbol)
@@ -322,14 +429,26 @@ class MT5ExecutionAdapter:
     # ─── Filling mode selection ──────────────────────────────────────────────
 
     def _list_supported_filling_modes(self, symbol: str) -> list:
-        """Return ordered list of supported filling modes for a symbol.
+        """Sprint 9.9.3.20 — return ordered list of supported filling modes.
 
-        Filters by:
-          - symbol_info.filling_mode bitmask (or default if missing)
-          - trade_execution mode (RETURN excluded for MARKET execution)
+        Clearly separates SYMBOL_FILLING bitmask flags (used to detect
+        support) from ORDER_FILLING enum values (used in request["type_filling"]).
 
-        Returns list of dicts: {filling_type, filling_name, filling_mask,
-        filling_source}. Empty list if no mode is supported.
+        For each mode, returns:
+          - filling_name: human-readable name ("FOK", "IOC", "RETURN")
+          - symbol_filling_flag: the SYMBOL_FILLING bitmask bit (1, 2, or None for RETURN)
+          - order_filling_type: the ORDER_FILLING enum value from mt5 module
+            (read at runtime via _get_order_filling_constants)
+          - filling_mask: the raw bitmask from symbol_info (or default)
+          - filling_source: "symbol_info" or "default"
+
+        Filters:
+          - FOK: included if bitmask has SYMBOL_FILLING_FOK flag (bit 0)
+          - IOC: included if bitmask has SYMBOL_FILLING_IOC flag (bit 1)
+          - RETURN: included if trade_exemode allows it (INSTANT/REQUEST),
+            NOT based on bitmask (there is no SYMBOL_FILLING_RETURN flag)
+
+        Returns empty list if no mode is supported.
         """
         try:
             info = self.mt5.symbol_info(symbol)
@@ -345,21 +464,33 @@ class MT5ExecutionAdapter:
             filling_source = "default"
 
         trade_exec = _safe(info, "trade_exemode", None)
+        # Sprint 9.9.3.20 — read ORDER_FILLING enum values from mt5 module
+        order_consts = self._get_order_filling_constants()
+
         modes = []
-        for filling_type, filling_name, bit in _FILLING_PREFERENCE:
-            if not (mask & bit):
-                continue
-            # Sprint 9.9.3.17 patch — exclude RETURN for MARKET execution.
-            # The filling_mode bitmask lies on some brokers; trade_execution
-            # is authoritative about whether requotes (RETURN) are allowed.
-            if (filling_name == "RETURN"
-                    and trade_exec is not None
-                    and trade_exec not in _TRADE_EXECUTIONS_THAT_ALLOW_RETURN):
-                # Skip RETURN — broker would reject with 10006 or 10030.
-                continue
+        for mode_desc in _FILLING_MODES:
+            name = mode_desc["name"]
+            symbol_flag = mode_desc["symbol_flag"]
+            order_enum = order_consts.get(name, mode_desc["order_enum_default"])
+
+            # Determine if this mode is supported
+            if symbol_flag is not None:
+                # FOK / IOC — check bitmask flag
+                if not (mask & symbol_flag):
+                    continue
+            else:
+                # RETURN — not flag-based. Include only if trade_exemode
+                # allows requotes (INSTANT or REQUEST execution).
+                if trade_exec is not None and trade_exec not in _TRADE_EXECUTIONS_THAT_ALLOW_RETURN:
+                    continue
+                # If trade_exec is None (unknown), we include RETURN as a
+                # last-resort fallback — order_check will catch it if invalid.
+
             modes.append({
-                "filling_type": filling_type,
-                "filling_name": filling_name,
+                "filling_name": name,
+                # Sprint 9.9.3.20 — clearly separate flag from enum
+                "symbol_filling_flag": symbol_flag,
+                "order_filling_type": order_enum,
                 "filling_mask": mask,
                 "filling_source": filling_source,
             })
@@ -529,7 +660,7 @@ class MT5ExecutionAdapter:
                 else:
                     req["price"] = float(_safe(tick, "bid", 0.0) or 0.0)
 
-            req["type_filling"] = mode["filling_type"]
+            req["type_filling"] = mode["order_filling_type"]
 
             # ── order_check ──
             try:
@@ -538,7 +669,9 @@ class MT5ExecutionAdapter:
                 check_result = None
                 check_attempts.append({
                     "filling_name": mode["filling_name"],
-                    "filling_type": mode["filling_type"],
+                    "filling_type": mode["order_filling_type"],
+                    "symbol_filling_flag": mode.get("symbol_filling_flag"),
+                    "order_filling_type": mode["order_filling_type"],
                     "check_retcode": None,
                     "check_comment": f"order_check raised: {e}",
                     "passed": False,
@@ -557,7 +690,9 @@ class MT5ExecutionAdapter:
 
             check_attempts.append({
                 "filling_name": mode["filling_name"],
-                "filling_type": mode["filling_type"],
+                "filling_type": mode["order_filling_type"],
+                    "symbol_filling_flag": mode.get("symbol_filling_flag"),
+                    "order_filling_type": mode["order_filling_type"],
                 "check_retcode": check_retcode,
                 "check_comment": check_comment,
                 "check_retcode_meaning": lookup_retcode_meaning(check_retcode),
@@ -567,7 +702,9 @@ class MT5ExecutionAdapter:
             self._log("ADAPTER_ORDER_CHECK_ATTEMPTED", {
                 "label": label, "symbol": symbol,
                 "filling_name": mode["filling_name"],
-                "filling_type": mode["filling_type"],
+                "filling_type": mode["order_filling_type"],
+                    "symbol_filling_flag": mode.get("symbol_filling_flag"),
+                    "order_filling_type": mode["order_filling_type"],
                 "check_retcode": check_retcode,
                 "check_comment": check_comment,
                 "check_retcode_meaning": lookup_retcode_meaning(check_retcode),
@@ -583,7 +720,9 @@ class MT5ExecutionAdapter:
             self._log("ADAPTER_ORDER_SEND_ATTEMPTED", {
                 "label": label, "symbol": symbol,
                 "filling_name": mode["filling_name"],
-                "filling_type": mode["filling_type"],
+                "filling_type": mode["order_filling_type"],
+                    "symbol_filling_flag": mode.get("symbol_filling_flag"),
+                    "order_filling_type": mode["order_filling_type"],
                 "price": req["price"],
                 "volume": req["volume"],
                 "type_time": req.get("type_time"),
@@ -643,7 +782,9 @@ class MT5ExecutionAdapter:
                     "label": label,
                     "symbol": symbol,
                     "filling_name": mode["filling_name"],
-                    "filling_type": mode["filling_type"],
+                    "filling_type": mode["order_filling_type"],
+                    "symbol_filling_flag": mode.get("symbol_filling_flag"),
+                    "order_filling_type": mode["order_filling_type"],
                     "price": req["price"],
                     "volume": req["volume"],
                     "request": _safe_request(req),
@@ -663,7 +804,9 @@ class MT5ExecutionAdapter:
 
             attempt_diag = {
                 "filling_name": mode["filling_name"],
-                "filling_type": mode["filling_type"],
+                "filling_type": mode["order_filling_type"],
+                    "symbol_filling_flag": mode.get("symbol_filling_flag"),
+                    "order_filling_type": mode["order_filling_type"],
                 "send_retcode": send_retcode,
                 "send_comment": send_comment,
                 "send_retcode_meaning": lookup_retcode_meaning(send_retcode),
@@ -680,7 +823,9 @@ class MT5ExecutionAdapter:
             self._log("ADAPTER_ORDER_SEND_RESULT", {
                 "label": label, "symbol": symbol,
                 "filling_name": mode["filling_name"],
-                "filling_type": mode["filling_type"],
+                "filling_type": mode["order_filling_type"],
+                    "symbol_filling_flag": mode.get("symbol_filling_flag"),
+                    "order_filling_type": mode["order_filling_type"],
                 "send_retcode": send_retcode,
                 "send_comment": send_comment,
                 "send_retcode_meaning": lookup_retcode_meaning(send_retcode),
@@ -703,7 +848,7 @@ class MT5ExecutionAdapter:
                     "comment": send_comment,
                     "request": _safe_request(req),
                     "filling_mode_selected": mode["filling_name"],
-                    "filling_type_used": mode["filling_type"],
+                    "filling_type_used": mode["order_filling_type"],
                     "filling_source": mode["filling_source"],
                     "filling_mask": mode["filling_mask"],
                     "check_attempts": check_attempts,
@@ -751,7 +896,7 @@ class MT5ExecutionAdapter:
                               "emergency close required"),
                     "request": _safe_request(req),
                     "filling_mode_selected": mode["filling_name"],
-                    "filling_type_used": mode["filling_type"],
+                    "filling_type_used": mode["order_filling_type"],
                     "filling_source": mode["filling_source"],
                     "filling_mask": mode["filling_mask"],
                     "check_attempts": check_attempts,
@@ -784,7 +929,7 @@ class MT5ExecutionAdapter:
                               f"({lookup_retcode_meaning(send_retcode) or 'unknown'})"),
                     "request": _safe_request(req),
                     "filling_mode_selected": mode["filling_name"],
-                    "filling_type_used": mode["filling_type"],
+                    "filling_type_used": mode["order_filling_type"],
                     "filling_source": mode["filling_source"],
                     "filling_mask": mode["filling_mask"],
                     "check_attempts": check_attempts,
@@ -1336,25 +1481,39 @@ class MT5ExecutionAdapter:
             trade_exec = snapshot.get("symbol_info", {}).get("trade_exemode")
             modes_in_snapshot = []
             if mask is not None:
-                for filling_type, filling_name, bit in _FILLING_PREFERENCE:
-                    if mask & bit:
-                        if (filling_name == "RETURN"
-                                and trade_exec is not None
-                                and trade_exec not in _TRADE_EXECUTIONS_THAT_ALLOW_RETURN):
-                            modes_in_snapshot.append({
-                                "filling_name": filling_name,
-                                "filling_type": filling_type,
-                                "in_bitmask": True,
-                                "filtered_out_by_trade_execution": True,
-                                "trade_execution": trade_exec,
-                            })
-                        else:
-                            modes_in_snapshot.append({
-                                "filling_name": filling_name,
-                                "filling_type": filling_type,
-                                "in_bitmask": True,
-                                "filtered_out_by_trade_execution": False,
-                            })
+                # Sprint 9.9.3.20 — use _FILLING_MODES (dict-based) not
+                # the old _FILLING_PREFERENCE (tuple-based, removed).
+                order_consts = self._get_order_filling_constants()
+                for mode_desc in _FILLING_MODES:
+                    name = mode_desc["name"]
+                    symbol_flag = mode_desc["symbol_flag"]
+                    order_enum = order_consts.get(name, mode_desc["order_enum_default"])
+                    if symbol_flag is not None:
+                        # FOK / IOC — check bitmask flag
+                        if not (mask & symbol_flag):
+                            continue
+                    else:
+                        # RETURN — not flag-based
+                        pass
+                    if (name == "RETURN"
+                            and trade_exec is not None
+                            and trade_exec not in _TRADE_EXECUTIONS_THAT_ALLOW_RETURN):
+                        modes_in_snapshot.append({
+                            "filling_name": name,
+                            "symbol_filling_flag": symbol_flag,
+                            "order_filling_type": order_enum,
+                            "in_bitmask": symbol_flag is not None,
+                            "filtered_out_by_trade_execution": True,
+                            "trade_execution": trade_exec,
+                        })
+                    else:
+                        modes_in_snapshot.append({
+                            "filling_name": name,
+                            "symbol_filling_flag": symbol_flag,
+                            "order_filling_type": order_enum,
+                            "in_bitmask": symbol_flag is not None and bool(mask & symbol_flag),
+                            "filtered_out_by_trade_execution": False,
+                        })
 
             profile = {
                 "timestamp_utc": datetime.now(timezone.utc).isoformat(),

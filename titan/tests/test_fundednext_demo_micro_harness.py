@@ -415,6 +415,13 @@ class MockMT5:
     ORDER_TYPE_SELL = 1
     TRADE_ACTION_DEAL = 1
     TRADE_RETCODE_DONE = 10009
+    # Sprint 9.9.3.20 patch — expose ORDER_FILLING_* constants so the
+    # adapter can read them at runtime via getattr(mt5, "ORDER_FILLING_*").
+    # These match the real MetaTrader5 Python module's constant values.
+    ORDER_FILLING_FOK = 1
+    ORDER_FILLING_IOC = 2
+    ORDER_FILLING_BOC = 3
+    ORDER_FILLING_RETURN = 4
 
     def __init__(self,
                  account_trade_mode=0,
@@ -1321,24 +1328,25 @@ class TestFillingModeAutoDetect:
     """
 
     def test_93_filling_mode_constants(self):
-        """MT5 filling mode constants are exported with correct values."""
+        """Sprint 9.9.3.20 — MT5 filling mode constants correctly separate
+        SYMBOL_FILLING flags from ORDER_FILLING enum values."""
         from scripts.audit.fundednext_demo_micro_full_cycle import (
             ORDER_FILLING_FOK, ORDER_FILLING_IOC,
             ORDER_FILLING_BOC, ORDER_FILLING_RETURN,
             _SYMBOL_FILLING_FOK_BIT, _SYMBOL_FILLING_IOC_BIT,
-            _SYMBOL_FILLING_BOC_BIT, _SYMBOL_FILLING_RETURN_BIT,
+            _SYMBOL_FILLING_BOC_BIT,
             _TRADE_RETCODE_INVALID_FILL, _RETCODE_10030_MEANING,
         )
-        # MQL5 ORDER_TYPE_FILLING enum values
+        # MQL5 ORDER_TYPE_FILLING enum values (for request["type_filling"])
         assert ORDER_FILLING_FOK == 1
         assert ORDER_FILLING_IOC == 2
         assert ORDER_FILLING_BOC == 3
         assert ORDER_FILLING_RETURN == 4
-        # symbol_info.filling_mode bitmask bit positions (powers of 2)
+        # symbol_info.filling_mode bitmask flags (for detecting support)
+        # NOTE: There is NO _SYMBOL_FILLING_RETURN_BIT — RETURN is not a flag.
         assert _SYMBOL_FILLING_FOK_BIT == 1
         assert _SYMBOL_FILLING_IOC_BIT == 2
         assert _SYMBOL_FILLING_BOC_BIT == 4
-        assert _SYMBOL_FILLING_RETURN_BIT == 8
         # retcode 10030 = invalid fill type
         assert _TRADE_RETCODE_INVALID_FILL == 10030
         assert _RETCODE_10030_MEANING == \
@@ -1380,9 +1388,13 @@ class TestFillingModeAutoDetect:
         assert r["filling_type"] == 2
 
     def test_97_helper_selects_return_when_only_return_supported(self):
-        """If symbol_info.filling_mode = RETURN bit only, helper selects RETURN."""
+        """Sprint 9.9.3.20 — RETURN is not flag-based. When trade_exemode=INSTANT
+        and no FOK/IOC flags are set, helper selects RETURN."""
         from scripts.audit.fundednext_demo_micro_full_cycle import _select_filling_mode
-        mt5 = MockMT5(symbol_filling_mode=8)   # RETURN bit only
+        # filling_mode=4 (BOC only, non-zero so default mask isn't applied)
+        # + trade_exemode=INSTANT → RETURN (FOK/IOC not in bitmask)
+        mt5 = MockMT5(symbol_filling_mode=4)   # BOC only — no FOK/IOC
+        mt5._symbol_info.trade_exemode = 0   # INSTANT — allows RETURN
         mt5.initialize()
         r = _select_filling_mode(mt5, "XAUUSD")
         assert r is not None
@@ -1413,9 +1425,11 @@ class TestFillingModeAutoDetect:
         assert r["filling_name"] == "IOC"
 
     def test_100_helper_falls_back_to_return_when_fok_and_ioc_unsupported(self):
-        """When only RETURN is supported, helper selects RETURN."""
+        """Sprint 9.9.3.20 — RETURN is not flag-based. When no FOK/IOC flags
+        are set and trade_exemode=INSTANT, helper falls back to RETURN."""
         from scripts.audit.fundednext_demo_micro_full_cycle import _select_filling_mode
-        mt5 = MockMT5(symbol_filling_mode=8)
+        mt5 = MockMT5(symbol_filling_mode=4)   # BOC only — no FOK/IOC
+        mt5._symbol_info.trade_exemode = 0      # INSTANT — allows RETURN
         mt5.initialize()
         r = _select_filling_mode(mt5, "XAUUSD")
         assert r["filling_name"] == "RETURN"
@@ -1496,18 +1510,11 @@ class TestFillingModeAutoDetect:
         assert r.get("filling_mode_selected") == "FOK"
 
     def test_107_open_order_uses_return_when_only_return_supported(self, monkeypatch):
-        """When only RETURN is supported, _send_open_order uses type_filling=4.
-
-        Sprint 9.9.3.17 update: the universal adapter filters out RETURN
-        when trade_exemode=MARKET (2), because RETURN requires requote
-        support which MARKET execution doesn't provide. To test RETURN
-        usage, we must set trade_exemode=INSTANT (0) so the adapter
-        allows RETURN.
-        """
+        """Sprint 9.9.3.20 — RETURN is not flag-based. When no FOK/IOC flags
+        are set and trade_exemode=INSTANT, adapter uses ORDER_FILLING_RETURN."""
         from scripts.audit import fundednext_demo_micro_full_cycle as harness
-        mt5 = MockMT5(symbol_filling_mode=8)   # RETURN only
-        # Sprint 9.9.3.17 — set trade_exemode=INSTANT so RETURN is allowed
-        mt5._symbol_info.trade_exemode = 0   # INSTANT
+        mt5 = MockMT5(symbol_filling_mode=4)   # BOC only — no FOK/IOC
+        mt5._symbol_info.trade_exemode = 0      # INSTANT — allows RETURN
         monkeypatch.setattr(harness, "_get_mt5", lambda: mt5)
         monkeypatch.setattr(harness, "hard_gate_evaluate",
                             lambda config_path=None: {"verdict": "DEMO_MICRO_ARMED",
@@ -1744,9 +1751,14 @@ class TestOrderCheckAndFillingFallback:
                "invalid order filling type (TRADE_RETCODE_INVALID_FILL)"
 
     def test_116_list_supported_filling_modes_returns_ordered_list(self):
-        """_list_supported_filling_modes returns ordered list (FOK→IOC→RETURN)."""
+        """Sprint 9.9.3.20 — returns ordered list (FOK→IOC→RETURN).
+
+        RETURN is not flag-based — it's included when trade_exemode=INSTANT.
+        So filling_mode=1|2 (FOK+IOC flags) + trade_exemode=INSTANT gives 3 modes.
+        """
         from scripts.audit.fundednext_demo_micro_full_cycle import _list_supported_filling_modes
-        mt5 = MockMT5(symbol_filling_mode=1 | 2 | 8)   # FOK+IOC+RETURN
+        mt5 = MockMT5(symbol_filling_mode=1 | 2)   # FOK+IOC flags
+        mt5._symbol_info.trade_exemode = 0   # INSTANT — allows RETURN
         mt5.initialize()
         modes = _list_supported_filling_modes(mt5, "XAUUSD")
         assert len(modes) == 3

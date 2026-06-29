@@ -92,29 +92,28 @@ ORDER_FILLING_RETURN = 4  # Return — requotes allowed, older default
 # Bitmask bit positions in symbol_info.filling_mode (each bit = supported mode).
 # These are different from the ORDER_FILLING_* enum values above — they are
 # powers of two used as flags in the symbol's filling_mode attribute.
+# Sprint 9.9.3.20 patch — SYMBOL_FILLING bitmask flags.
+# NOTE: There is NO _SYMBOL_FILLING_RETURN_BIT. RETURN is NOT a flag —
+# it is determined by trade_exemode (INSTANT/REQUEST), not the bitmask.
 _SYMBOL_FILLING_FOK_BIT = 1     # bit 0
 _SYMBOL_FILLING_IOC_BIT = 2     # bit 1
 _SYMBOL_FILLING_BOC_BIT = 4     # bit 2
-_SYMBOL_FILLING_RETURN_BIT = 8  # bit 3
 
 # Preference order for market orders: FOK → IOC → RETURN.
-# BOC is excluded because it is only valid for pending orders in market depth,
-# not for TRADE_ACTION_DEAL (market) orders used by DEMO_MICRO_EXECUTE.
+# BOC is excluded — only valid for pending orders in market depth,
+# not for TRADE_ACTION_DEAL (market) orders.
+# RETURN has symbol_filling_flag=None (not flag-based).
 _FILLING_PREFERENCE = [
     (ORDER_FILLING_FOK,    "FOK",    _SYMBOL_FILLING_FOK_BIT),
     (ORDER_FILLING_IOC,    "IOC",    _SYMBOL_FILLING_IOC_BIT),
-    (ORDER_FILLING_RETURN, "RETURN", _SYMBOL_FILLING_RETURN_BIT),
+    (ORDER_FILLING_RETURN, "RETURN", None),   # not flag-based
 ]
 
-# Default bitmask to use when symbol_info.filling_mode is missing or 0.
-# Older MT5 builds or some brokers may not populate this attribute. We treat
-# all three market-order-valid modes as supported in that case (legacy
-# behavior — broker must accept at least one, and the harness will probe
-# via the actual order_send result if our first guess is wrong).
+# Default bitmask when symbol_info.filling_mode is missing or 0.
+# Only FOK + IOC flags — RETURN is not a flag.
 _DEFAULT_FILLING_MASK = (
     _SYMBOL_FILLING_FOK_BIT
     | _SYMBOL_FILLING_IOC_BIT
-    | _SYMBOL_FILLING_RETURN_BIT
 )
 
 # Canonical retcode → meaning mapping table. Used by both _send_open_order
@@ -182,6 +181,18 @@ def _select_filling_mode(mt5, symbol: str) -> Optional[dict]:
         filling_source = "default"
 
     for filling_type, filling_name, bit in _FILLING_PREFERENCE:
+        # Sprint 9.9.3.20 — RETURN has bit=None (not flag-based).
+        if bit is None:
+            # RETURN — check trade_exemode, not bitmask
+            trade_exec = getattr(info, "trade_exemode", None)
+            if trade_exec is not None and trade_exec not in (0, 1):
+                continue   # MARKET/EXCHANGE — skip RETURN
+            return {
+                "filling_type": filling_type,
+                "filling_name": filling_name,
+                "filling_mask": mask,
+                "filling_source": filling_source,
+            }
         if mask & bit:
             return {
                 "filling_type": filling_type,
@@ -221,6 +232,19 @@ def _list_supported_filling_modes(mt5, symbol: str) -> list:
 
     modes = []
     for filling_type, filling_name, bit in _FILLING_PREFERENCE:
+        # Sprint 9.9.3.20 — RETURN has bit=None (not flag-based).
+        if bit is None:
+            # RETURN — check trade_exemode, not bitmask
+            trade_exec = getattr(info, "trade_exemode", None)
+            if trade_exec is not None and trade_exec not in (0, 1):
+                continue   # MARKET/EXCHANGE — skip RETURN
+            modes.append({
+                "filling_type": filling_type,
+                "filling_name": filling_name,
+                "filling_mask": mask,
+                "filling_source": filling_source,
+            })
+            continue
         if mask & bit:
             modes.append({
                 "filling_type": filling_type,

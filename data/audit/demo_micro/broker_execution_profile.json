@@ -1,11 +1,11 @@
 {
-  "timestamp_utc": "2026-06-29T10:13:16.781420+00:00",
+  "timestamp_utc": "2026-06-29T10:59:36.492981+00:00",
   "label": "close",
   "verdict": "SUCCESS",
   "broker_snapshot": {
     "symbol": "XAUUSD",
     "magic": 20261993,
-    "timestamp_utc": "2026-06-29T10:13:16.781090+00:00",
+    "timestamp_utc": "2026-06-29T10:59:36.492641+00:00",
     "account": {
       "login": null,
       "name": null,
@@ -40,10 +40,16 @@
       "volume_step": 0.01,
       "trade_contract_size": 100
     },
+    "order_filling_constants": {
+      "FOK": 1,
+      "IOC": 2,
+      "RETURN": 4,
+      "BOC": 3
+    },
     "tick": {
       "bid": 2000.0,
       "ask": 2000.1,
-      "time": 1782727995,
+      "time": 1782730775,
       "spread": 0.09999999999990905
     },
     "open_positions": {
@@ -56,15 +62,26 @@
   "filling_modes_in_bitmask": [
     {
       "filling_name": "FOK",
-      "filling_type": 1,
+      "symbol_filling_flag": 1,
+      "order_filling_type": 1,
       "in_bitmask": true,
       "filtered_out_by_trade_execution": false
+    },
+    {
+      "filling_name": "RETURN",
+      "symbol_filling_flag": null,
+      "order_filling_type": 4,
+      "in_bitmask": false,
+      "filtered_out_by_trade_execution": true,
+      "trade_execution": 2
     }
   ],
   "check_attempts": [
     {
       "filling_name": "FOK",
       "filling_type": 1,
+      "symbol_filling_flag": 1,
+      "order_filling_type": 1,
       "check_retcode": 0,
       "check_comment": "",
       "check_retcode_meaning": "order_check passed (request is valid)",
@@ -72,13 +89,15 @@
       "bid": 2000.0,
       "ask": 2000.1,
       "spread": 0.09999999999990905,
-      "tick_time": 1782727995
+      "tick_time": 1782730775
     }
   ],
   "send_attempts": [
     {
       "filling_name": "FOK",
       "filling_type": 1,
+      "symbol_filling_flag": 1,
+      "order_filling_type": 1,
       "send_retcode": 10009,
       "send_comment": "NAKED_CLOSE",
       "send_retcode_meaning": "request completed (TRADE_RETCODE_DONE)",
@@ -90,7 +109,7 @@
       "bid": 2000.0,
       "ask": 2000.1,
       "spread": 0.09999999999990905,
-      "tick_time": 1782727995
+      "tick_time": 1782730775
     }
   ],
   "filling_mode_selected": "FOK",
