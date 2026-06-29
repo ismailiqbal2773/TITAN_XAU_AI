@@ -1,0 +1,985 @@
+"""
+TITAN XAU AI — MT5ExecutionAdapter (Sprint 9.9.3.17)
+=====================================================
+
+Universal, production-grade MT5 broker execution adapter for DEMO micro
+execution. Stops the per-retcode patch cycle by centralizing ALL
+broker-interaction logic in one reusable class.
+
+Responsibilities:
+  1. Pre-send broker state snapshot (account_info, terminal_info,
+     symbol_info, symbol tick, spread, volume_min/step/max, trade_mode,
+     trade_execution, filling_mode).
+  2. Build a valid market order request dynamically from the snapshot.
+  3. Run mt5.order_check() before mt5.order_send().
+  4. Send-level filling fallback (FOK → IOC → RETURN, RETURN only if
+     the symbol's trade_execution mode permits requotes).
+  5. Refresh tick before every order_send attempt (BUY price = latest
+     ask, SELL price = latest bid). Log bid/ask/spread per attempt.
+  6. Never send duplicate orders — after every failed send, immediately
+     query positions_get(symbol) filtered by magic to detect whether
+     a position actually opened despite the failure retcode.
+  7. If a position appears after a failed send, return an
+     emergency_close_required signal so the caller can close it.
+  8. Apply the same logic to close_position (close uses opposite side
+     + position ticket in the request).
+  9. Log every attempt with retcode, comment, price, bid, ask, spread,
+     filling mode, broker response.
+ 10. Build a broker_execution_profile.json snapshot for operator review.
+ 11. Fail closed if the adapter cannot prove a safe valid request.
+
+This module is broker-agnostic. It does NOT contain any strategy logic,
+risk logic, or lot-sizing logic. It only knows how to safely send ONE
+market order to MT5 with full fallback + diagnostics.
+
+Safety invariants (NEVER violated):
+  - Never sends more than ONE order per call (no duplicate sends).
+  - Never sends with a filling mode that the symbol does not support.
+  - Never sends with a filling mode that failed order_check (unless
+    no filling modes passed check, in which case fail closed).
+  - Always checks positions_get after a failed send.
+  - Always returns emergency_close_required=True if a position is
+    detected after a failed send.
+  - Never raises — always returns a result dict.
+"""
+from __future__ import annotations
+import json
+import os
+import sys
+import time
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Optional
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(REPO_ROOT))
+
+# MT5 constants (defined locally to avoid importing MT5 at module load on Linux)
+_TRADE_ACTION_DEAL = 1
+_ORDER_TYPE_BUY = 0
+_ORDER_TYPE_SELL = 1
+_TRADE_RETCODE_DONE = 10009
+
+# MQL5 ORDER_TYPE_FILLING enum values
+ORDER_FILLING_FOK = 1
+ORDER_FILLING_IOC = 2
+ORDER_FILLING_BOC = 3
+ORDER_FILLING_RETURN = 4
+
+# symbol_info.filling_mode bitmask bit positions
+_SYMBOL_FILLING_FOK_BIT = 1
+_SYMBOL_FILLING_IOC_BIT = 2
+_SYMBOL_FILLING_BOC_BIT = 4
+_SYMBOL_FILLING_RETURN_BIT = 8
+
+# Preference order for market orders: FOK → IOC → RETURN.
+# BOC excluded — only valid for pending orders in market depth,
+# not for TRADE_ACTION_DEAL (market) orders.
+_FILLING_PREFERENCE = [
+    (ORDER_FILLING_FOK,    "FOK",    _SYMBOL_FILLING_FOK_BIT),
+    (ORDER_FILLING_IOC,    "IOC",    _SYMBOL_FILLING_IOC_BIT),
+    (ORDER_FILLING_RETURN, "RETURN", _SYMBOL_FILLING_RETURN_BIT),
+]
+
+# Default bitmask when symbol_info.filling_mode is missing or 0
+# (older MT5 builds / permissive fallback).
+_DEFAULT_FILLING_MASK = (
+    _SYMBOL_FILLING_FOK_BIT
+    | _SYMBOL_FILLING_IOC_BIT
+    | _SYMBOL_FILLING_RETURN_BIT
+)
+
+# SYMBOL_TRADE_EXECUTION enum (MQL5)
+# 0 = INSTANT  — requotes allowed, RETURN may be valid
+# 1 = REQUEST  — requotes allowed, RETURN may be valid
+# 2 = MARKET   — no requotes, only FOK/IOC valid (RETURN is NOT valid)
+# 3 = EXCHANGE — exchange execution
+# When trade_execution is MARKET (2), we must NOT send RETURN even if
+# the filling_mode bitmask claims it is supported (the bitmask lies on
+# some brokers, but trade_execution is authoritative).
+_TRADE_EXECUTION_INSTANT = 0
+_TRADE_EXECUTION_REQUEST = 1
+_TRADE_EXECUTION_MARKET = 2
+_TRADE_EXECUTION_EXCHANGE = 3
+_TRADE_EXECUTIONS_THAT_ALLOW_RETURN = frozenset({
+    _TRADE_EXECUTION_INSTANT,
+    _TRADE_EXECUTION_REQUEST,
+})
+
+# Canonical retcode → meaning mapping (universal — covers all common codes).
+_RETCODE_MEANINGS = {
+    0: "order_check passed (request is valid)",
+    10004: "requote (TRADE_RETCODE_REQUOTE)",
+    10006: "request rejected (TRADE_RETCODE_REJECT)",
+    10009: "request completed (TRADE_RETCODE_DONE)",
+    10010: "request completed partially (TRADE_RETCODE_DONE_PARTIAL)",
+    10013: "invalid request (TRADE_RETCODE_INVALID_REQUEST)",
+    10014: "invalid volume (TRADE_RETCODE_INVALID_VOLUME)",
+    10015: "invalid price (TRADE_RETCODE_INVALID_PRICE)",
+    10016: "invalid stops (TRADE_RETCODE_INVALID_STOPS)",
+    10018: "market closed (TRADE_RETCODE_MARKET_CLOSED)",
+    10019: "not enough money (TRADE_RETCODE_NO_MONEY)",
+    10020: "price changed (TRADE_RETCODE_PRICE_CHANGED)",
+    10021: "no quotes / price off (TRADE_RETCODE_PRICE_OFF)",
+    10027: "client terminal autotrading disabled",
+    10030: "invalid order filling type (TRADE_RETCODE_INVALID_FILL)",
+}
+
+# Success retcodes — order was placed (fully or partially).
+_SUCCESS_RETCODES = frozenset({10009, 10010})
+
+# Retryable retcodes — broker rejected, but we can try the next filling
+# mode (filling-related) or refresh tick + retry (price-related).
+_RETRYABLE_RETCODES = frozenset({
+    10004,   # REQUOTE — price moved
+    10006,   # REJECT — broker rejected filling mode
+    10020,   # PRICE_CHANGED
+    10021,   # PRICE_OFF
+    10030,   # INVALID_FILL — filling mode not supported
+})
+
+
+def lookup_retcode_meaning(retcode) -> Optional[str]:
+    """Return the canonical English meaning for a known MT5 retcode, else None."""
+    if retcode is None:
+        return None
+    try:
+        return _RETCODE_MEANINGS.get(int(retcode))
+    except (TypeError, ValueError):
+        return None
+
+
+def _safe(obj, attr, default=None):
+    """getattr that swallows exceptions and returns default."""
+    try:
+        return getattr(obj, attr, default)
+    except Exception:
+        return default
+
+
+def _to_jsonable(v):
+    """Convert any value to something json.dumps can serialize."""
+    try:
+        json.dumps(v)
+        return v
+    except (TypeError, ValueError):
+        return str(v)
+
+
+class MT5ExecutionAdapter:
+    """Universal MT5 broker execution adapter.
+
+    One instance per execution attempt. Construct with an mt5 module
+    (real or mock) and a journal_event callable (so the adapter can
+    write to whatever journal the caller uses).
+
+    Usage:
+        adapter = MT5ExecutionAdapter(mt5, journal_event=_journal_event)
+        result = adapter.send_open_order(
+            symbol="XAUUSD", side="BUY", lot=0.01, magic=20261993,
+        )
+        if result["emergency_close_required"]:
+            # caller must immediately close the detected position
+            ...
+    """
+
+    def __init__(self, mt5, journal_event=None, profile_path: Optional[str] = None):
+        """Initialize adapter.
+
+        Args:
+            mt5: MetaTrader5 module (or mock). Must expose:
+                - account_info(), terminal_info(), symbol_info(symbol),
+                  symbol_info_tick(symbol), symbol_select(symbol, visible),
+                  positions_get(symbol=, ticket=), order_check(request),
+                  order_send(request), initialize(), shutdown()
+            journal_event: callable(event_type: str, payload: dict) -> None.
+                If None, journaling is skipped (silent mode for unit tests).
+            profile_path: optional path to write broker_execution_profile.json.
+                If None, uses default data/audit/demo_micro/broker_execution_profile.json.
+        """
+        self.mt5 = mt5
+        self._journal = journal_event or (lambda event_type, payload: None)
+        if profile_path is None:
+            profile_path = str(
+                REPO_ROOT / "data" / "audit" / "demo_micro" / "broker_execution_profile.json"
+            )
+        self._profile_path = profile_path
+        # Cached snapshot (built once per adapter instance — assumes the
+        # caller creates a fresh adapter per execution attempt).
+        self._snapshot: Optional[dict] = None
+
+    # ─── Journal helper ──────────────────────────────────────────────────────
+
+    def _log(self, event_type: str, payload: dict) -> None:
+        """Emit a journal event with timestamp."""
+        enriched = {"timestamp_utc": datetime.now(timezone.utc).isoformat(), **payload}
+        self._journal(event_type, enriched)
+
+    # ─── Broker state snapshot ───────────────────────────────────────────────
+
+    def snapshot_broker_state(self, symbol: str, magic: int) -> dict:
+        """Capture full pre-send broker state for diagnostics + profile.
+
+        Reads: account_info, terminal_info, symbol_info, symbol tick,
+        spread, volume_min/step/max, trade_mode, trade_execution,
+        filling_mode, open positions for this symbol+magic.
+
+        Returns a dict. Never raises — all fields default to None on error.
+        """
+        snap = {
+            "symbol": symbol,
+            "magic": magic,
+            "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+        }
+        # Account info
+        try:
+            acc = self.mt5.account_info()
+        except Exception:
+            acc = None
+        snap["account"] = {
+            "login": _safe(acc, "login"),
+            "name": _safe(acc, "name"),
+            "server": _safe(acc, "server"),
+            "currency": _safe(acc, "currency"),
+            "leverage": _safe(acc, "leverage"),
+            "balance": _safe(acc, "balance"),
+            "equity": _safe(acc, "equity"),
+            "trade_mode": _safe(acc, "trade_mode"),
+            "trade_allowed": _safe(acc, "trade_allowed"),
+            "trade_expert": _safe(acc, "trade_expert"),
+        } if acc else {}
+        # Terminal info
+        try:
+            term = self.mt5.terminal_info()
+        except Exception:
+            term = None
+        snap["terminal"] = {
+            "name": _safe(term, "name"),
+            "company": _safe(term, "company"),
+            "trade_allowed": _safe(term, "trade_allowed"),
+            "tradeapi_disabled": _safe(term, "tradeapi_disabled"),
+            "community_account": _safe(term, "community_account"),
+            "connected": _safe(term, "connected"),
+        } if term else {}
+        # Symbol info
+        try:
+            info = self.mt5.symbol_info(symbol)
+        except Exception:
+            info = None
+        snap["symbol_info"] = {
+            "name": _safe(info, "name"),
+            "visible": _safe(info, "visible"),
+            "digits": _safe(info, "digits"),
+            "point": _safe(info, "point"),
+            "spread": _safe(info, "spread"),
+            "trade_mode": _safe(info, "trade_mode"),
+            "trade_exemode": _safe(info, "trade_exemode"),
+            "filling_mode": _safe(info, "filling_mode"),
+            "volume_min": _safe(info, "volume_min"),
+            "volume_max": _safe(info, "volume_max"),
+            "volume_step": _safe(info, "volume_step"),
+            "trade_contract_size": _safe(info, "trade_contract_size"),
+        } if info else {}
+        # Tick
+        try:
+            tick = self.mt5.symbol_info_tick(symbol)
+        except Exception:
+            tick = None
+        snap["tick"] = {
+            "bid": _safe(tick, "bid"),
+            "ask": _safe(tick, "ask"),
+            "time": _safe(tick, "time"),
+            "spread": (float(_safe(tick, "ask", 0) or 0)
+                       - float(_safe(tick, "bid", 0) or 0)) if tick else None,
+        } if tick else {}
+        # Open positions for this symbol + magic
+        try:
+            positions = self.mt5.positions_get(symbol=symbol) or []
+        except Exception:
+            positions = []
+        matching = [p for p in positions if _safe(p, "magic") == magic]
+        snap["open_positions"] = {
+            "count": len(matching),
+            "tickets": [_safe(p, "ticket") for p in matching],
+        }
+        self._snapshot = snap
+        return snap
+
+    # ─── Filling mode selection ──────────────────────────────────────────────
+
+    def _list_supported_filling_modes(self, symbol: str) -> list:
+        """Return ordered list of supported filling modes for a symbol.
+
+        Filters by:
+          - symbol_info.filling_mode bitmask (or default if missing)
+          - trade_execution mode (RETURN excluded for MARKET execution)
+
+        Returns list of dicts: {filling_type, filling_name, filling_mask,
+        filling_source}. Empty list if no mode is supported.
+        """
+        try:
+            info = self.mt5.symbol_info(symbol)
+        except Exception:
+            info = None
+        if info is None:
+            return []
+
+        mask = _safe(info, "filling_mode", None)
+        filling_source = "symbol_info"
+        if mask is None or mask == 0:
+            mask = _DEFAULT_FILLING_MASK
+            filling_source = "default"
+
+        trade_exec = _safe(info, "trade_exemode", None)
+        modes = []
+        for filling_type, filling_name, bit in _FILLING_PREFERENCE:
+            if not (mask & bit):
+                continue
+            # Sprint 9.9.3.17 patch — exclude RETURN for MARKET execution.
+            # The filling_mode bitmask lies on some brokers; trade_execution
+            # is authoritative about whether requotes (RETURN) are allowed.
+            if (filling_name == "RETURN"
+                    and trade_exec is not None
+                    and trade_exec not in _TRADE_EXECUTIONS_THAT_ALLOW_RETURN):
+                # Skip RETURN — broker would reject with 10006 or 10030.
+                continue
+            modes.append({
+                "filling_type": filling_type,
+                "filling_name": filling_name,
+                "filling_mask": mask,
+                "filling_source": filling_source,
+            })
+        return modes
+
+    # ─── Request builder ────────────────────────────────────────────────────
+
+    def _build_open_request(self, symbol: str, side: str, lot: float,
+                             magic: int, deviation: int,
+                             comment: str, tick) -> dict:
+        """Build a market open-order request (WITHOUT type_filling)."""
+        if side == "BUY":
+            price = float(_safe(tick, "ask", 0.0) or 0.0)
+            order_type = _ORDER_TYPE_BUY
+            sl = price - 5.0
+            tp = price + 10.0
+        else:
+            price = float(_safe(tick, "bid", 0.0) or 0.0)
+            order_type = _ORDER_TYPE_SELL
+            sl = price + 5.0
+            tp = price - 10.0
+        return {
+            "action": _TRADE_ACTION_DEAL,
+            "symbol": symbol,
+            "volume": float(lot),
+            "type": order_type,
+            "price": price,
+            "sl": float(sl),
+            "tp": float(tp),
+            "deviation": deviation,
+            "magic": magic,
+            "comment": comment,
+            "type_time": 0,   # ORDER_TIME_GTC
+            # type_filling is set per-attempt by send_with_fallback
+        }
+
+    def _build_close_request(self, position: dict, magic: int,
+                              deviation: int, comment: str, tick) -> dict:
+        """Build a market close-order request (WITHOUT type_filling)."""
+        symbol = position["symbol"]
+        pos_type = position["type"]
+        if pos_type == "BUY":
+            close_type = _ORDER_TYPE_SELL
+            price = float(_safe(tick, "bid", 0.0) or 0.0)
+        else:
+            close_type = _ORDER_TYPE_BUY
+            price = float(_safe(tick, "ask", 0.0) or 0.0)
+        return {
+            "action": _TRADE_ACTION_DEAL,
+            "symbol": symbol,
+            "volume": float(position["volume"]),
+            "type": close_type,
+            "position": int(position["ticket"]),
+            "price": price,
+            "deviation": deviation,
+            "magic": magic,
+            "comment": comment,
+            "type_time": 0,
+            # type_filling is set per-attempt
+        }
+
+    def _refresh_tick(self, symbol: str):
+        """Fetch the latest tick. Returns tick object or None."""
+        try:
+            return self.mt5.symbol_info_tick(symbol)
+        except Exception:
+            return None
+
+    def _tick_diag(self, tick) -> dict:
+        """Extract diagnostic fields from a tick."""
+        if tick is None:
+            return {"bid": None, "ask": None, "spread": None, "tick_time": None}
+        bid = _safe(tick, "bid")
+        ask = _safe(tick, "ask")
+        spread = None
+        try:
+            spread = float(ask or 0) - float(bid or 0)
+        except Exception:
+            pass
+        return {"bid": bid, "ask": ask, "spread": spread, "tick_time": _safe(tick, "time")}
+
+    # ─── Duplicate order protection ─────────────────────────────────────────
+
+    def _check_position_appeared(self, symbol: str, magic: int) -> dict:
+        """After a failed send, check if a position actually opened.
+
+        Returns dict: {appeared: bool, tickets: list, count: int}.
+        Filters by both symbol AND magic — never matches positions from
+        other EAs or manual trades.
+        """
+        try:
+            positions = self.mt5.positions_get(symbol=symbol) or []
+        except Exception:
+            positions = []
+        matching = [p for p in positions if _safe(p, "magic") == magic]
+        return {
+            "appeared": len(matching) > 0,
+            "tickets": [_safe(p, "ticket") for p in matching],
+            "count": len(matching),
+        }
+
+    # ─── Core send with fallback ────────────────────────────────────────────
+
+    def _send_with_fallback(self, base_request: dict, supported_modes: list,
+                             label: str = "open") -> dict:
+        """Send an order with full filling-mode fallback.
+
+        For each supported filling mode (FOK → IOC → RETURN, filtered):
+          1. Refresh tick (latest bid/ask)
+          2. Update request price + sl/tp based on fresh tick
+          3. Set request['type_filling'] = mode.filling_type
+          4. Call mt5.order_check(request) — log result
+          5. If check passes, call mt5.order_send(request) — log result
+          6. If send succeeds → return success
+          7. If send fails with retryable retcode → check positions_get
+             for duplicate, then try next mode
+          8. If send fails with non-retryable retcode → fail closed
+          9. If a position appeared after a failed send → set
+             emergency_close_required=True and stop
+
+        Returns a result dict. Never raises.
+        """
+        symbol = base_request["symbol"]
+        magic = base_request["magic"]
+        side_str = ("BUY" if base_request.get("type") == _ORDER_TYPE_BUY
+                    else "SELL" if base_request.get("type") == _ORDER_TYPE_SELL
+                    else None)
+        is_close = "position" in base_request and base_request.get("position")
+
+        send_attempts = []
+        check_attempts = []
+
+        for mode in supported_modes:
+            # ── Refresh tick before each attempt ──
+            tick = self._refresh_tick(symbol)
+            tick_diag = self._tick_diag(tick)
+            if tick is None:
+                self._log("ADAPTER_TICK_REFRESH_FAILED", {
+                    "label": label, "symbol": symbol,
+                    "filling_name": mode["filling_name"],
+                })
+                # Cannot refresh tick — skip this mode
+                continue
+
+            # ── Rebuild request with fresh price ──
+            req = dict(base_request)
+            if side_str == "BUY":
+                req["price"] = float(_safe(tick, "ask", 0.0) or 0.0)
+                # Adjust SL/TP around fresh price
+                req["sl"] = req["price"] - 5.0
+                req["tp"] = req["price"] + 10.0
+            elif side_str == "SELL":
+                req["price"] = float(_safe(tick, "bid", 0.0) or 0.0)
+                req["sl"] = req["price"] + 5.0
+                req["tp"] = req["price"] - 10.0
+            # For close orders, don't override SL/TP (close has no SL/TP)
+            if is_close:
+                if side_str == "BUY":
+                    req["price"] = float(_safe(tick, "ask", 0.0) or 0.0)
+                else:
+                    req["price"] = float(_safe(tick, "bid", 0.0) or 0.0)
+
+            req["type_filling"] = mode["filling_type"]
+
+            # ── order_check ──
+            try:
+                check_result = self.mt5.order_check(req)
+            except Exception as e:
+                check_result = None
+                check_attempts.append({
+                    "filling_name": mode["filling_name"],
+                    "filling_type": mode["filling_type"],
+                    "check_retcode": None,
+                    "check_comment": f"order_check raised: {e}",
+                    "passed": False,
+                    **tick_diag,
+                })
+                self._log("ADAPTER_ORDER_CHECK_RAISED", {
+                    "label": label, "symbol": symbol,
+                    "filling_name": mode["filling_name"],
+                    "error": str(e), **tick_diag,
+                })
+                continue
+
+            check_retcode = _safe(check_result, "retcode", None) if check_result else None
+            check_comment = _safe(check_result, "comment", "") if check_result else ""
+            check_passed = (check_retcode == 0)
+
+            check_attempts.append({
+                "filling_name": mode["filling_name"],
+                "filling_type": mode["filling_type"],
+                "check_retcode": check_retcode,
+                "check_comment": check_comment,
+                "check_retcode_meaning": lookup_retcode_meaning(check_retcode),
+                "passed": check_passed,
+                **tick_diag,
+            })
+            self._log("ADAPTER_ORDER_CHECK_ATTEMPTED", {
+                "label": label, "symbol": symbol,
+                "filling_name": mode["filling_name"],
+                "filling_type": mode["filling_type"],
+                "check_retcode": check_retcode,
+                "check_comment": check_comment,
+                "check_retcode_meaning": lookup_retcode_meaning(check_retcode),
+                "passed": check_passed,
+                **tick_diag,
+            })
+
+            if not check_passed:
+                # Check failed — try next mode (do NOT call order_send)
+                continue
+
+            # ── order_send ──
+            self._log("ADAPTER_ORDER_SEND_ATTEMPTED", {
+                "label": label, "symbol": symbol,
+                "filling_name": mode["filling_name"],
+                "filling_type": mode["filling_type"],
+                "price": req["price"],
+                "volume": req["volume"],
+                "type_time": req.get("type_time"),
+                **tick_diag,
+            })
+            try:
+                send_result = self.mt5.order_send(req)
+            except Exception as e:
+                send_result = None
+                self._log("ADAPTER_ORDER_SEND_RAISED", {
+                    "label": label, "symbol": symbol,
+                    "filling_name": mode["filling_name"],
+                    "error": str(e), **tick_diag,
+                })
+
+            if send_result is None:
+                send_retcode = None
+                send_comment = ""
+                send_ok = False
+            else:
+                send_retcode = _safe(send_result, "retcode", None)
+                send_comment = _safe(send_result, "comment", "")
+                send_ok = send_retcode in _SUCCESS_RETCODES
+
+            attempt_diag = {
+                "filling_name": mode["filling_name"],
+                "filling_type": mode["filling_type"],
+                "send_retcode": send_retcode,
+                "send_comment": send_comment,
+                "send_retcode_meaning": lookup_retcode_meaning(send_retcode),
+                "send_ok": send_ok,
+                "price": req["price"],
+                **tick_diag,
+            }
+            send_attempts.append(attempt_diag)
+
+            self._log("ADAPTER_ORDER_SEND_RESULT", {
+                "label": label, "symbol": symbol,
+                "filling_name": mode["filling_name"],
+                "filling_type": mode["filling_type"],
+                "send_retcode": send_retcode,
+                "send_comment": send_comment,
+                "send_retcode_meaning": lookup_retcode_meaning(send_retcode),
+                "send_ok": send_ok,
+                "price": req["price"],
+                **tick_diag,
+            })
+
+            if send_ok:
+                # SUCCESS — order placed.
+                # Verify a position actually opened (defense in depth).
+                pos_check = self._check_position_appeared(symbol, magic)
+                return {
+                    "ok": True,
+                    "retcode": send_retcode,
+                    "order": _safe(send_result, "order"),
+                    "deal": _safe(send_result, "deal"),
+                    "volume": _safe(send_result, "volume"),
+                    "price": _safe(send_result, "price"),
+                    "comment": send_comment,
+                    "request": _safe_request(req),
+                    "filling_mode_selected": mode["filling_name"],
+                    "filling_type_used": mode["filling_type"],
+                    "filling_source": mode["filling_source"],
+                    "filling_mask": mode["filling_mask"],
+                    "check_attempts": check_attempts,
+                    "send_attempts": send_attempts,
+                    "position_detected_after_send": pos_check,
+                    "emergency_close_required": False,
+                }
+
+            # ── Send failed — check for duplicate position immediately ──
+            # Sprint 9.9.3.17 patch — only check for "ghost position" on OPEN
+            # orders. For CLOSE orders, the position we're trying to close is
+            # expected to still be open after a failure — that's normal, not
+            # an emergency. Ghost position detection is only relevant when
+            # we're opening a NEW position and the broker might have placed
+            # it despite returning a failure retcode.
+            pos_check = self._check_position_appeared(symbol, magic)
+            self._log("ADAPTER_POSITION_CHECK_AFTER_FAILURE", {
+                "label": label, "symbol": symbol,
+                "filling_name": mode["filling_name"],
+                "send_retcode": send_retcode,
+                "position_appeared": pos_check["appeared"],
+                "position_count": pos_check["count"],
+                "position_tickets": pos_check["tickets"],
+                "is_close_order": is_close,
+            })
+
+            if pos_check["appeared"] and not is_close:
+                # CRITICAL (OPEN orders only): broker placed the position
+                # DESPITE returning a failure retcode. This is a known MT5
+                # race condition. Set emergency_close_required and STOP
+                # trying more modes (we don't want to open a duplicate).
+                self._log("ADAPTER_EMERGENCY_CLOSE_REQUIRED", {
+                    "label": label, "symbol": symbol,
+                    "filling_name": mode["filling_name"],
+                    "send_retcode": send_retcode,
+                    "position_tickets": pos_check["tickets"],
+                    "severity": "HIGH",
+                    "reason": ("broker returned failure retcode but a position "
+                               "with our magic is open — immediate close required"),
+                })
+                return {
+                    "ok": False,
+                    "retcode": send_retcode,
+                    "error": ("position appeared after failed send — "
+                              "emergency close required"),
+                    "request": _safe_request(req),
+                    "filling_mode_selected": mode["filling_name"],
+                    "filling_type_used": mode["filling_type"],
+                    "filling_source": mode["filling_source"],
+                    "filling_mask": mode["filling_mask"],
+                    "check_attempts": check_attempts,
+                    "send_attempts": send_attempts,
+                    "position_detected_after_failure": pos_check,
+                    "emergency_close_required": True,
+                    "emergency_close_tickets": pos_check["tickets"],
+                }
+
+            # Send failed but no position opened — decide if retryable.
+            if send_retcode not in _RETRYABLE_RETCODES:
+                # Non-retryable — fail closed immediately.
+                self._log("ADAPTER_NON_RETRYABLE_FAILURE", {
+                    "label": label, "symbol": symbol,
+                    "filling_name": mode["filling_name"],
+                    "send_retcode": send_retcode,
+                    "send_retcode_meaning": lookup_retcode_meaning(send_retcode),
+                    "reason": "non-retryable retcode — failing closed",
+                })
+                return {
+                    "ok": False,
+                    "retcode": send_retcode,
+                    "error": (f"non-retryable failure: retcode={send_retcode} "
+                              f"({lookup_retcode_meaning(send_retcode) or 'unknown'})"),
+                    "request": _safe_request(req),
+                    "filling_mode_selected": mode["filling_name"],
+                    "filling_type_used": mode["filling_type"],
+                    "filling_source": mode["filling_source"],
+                    "filling_mask": mode["filling_mask"],
+                    "check_attempts": check_attempts,
+                    "send_attempts": send_attempts,
+                    "position_detected_after_failure": pos_check,
+                    "emergency_close_required": False,
+                }
+            # Retryable — fall through to next mode.
+            self._log("ADAPTER_RETRYABLE_FAILURE", {
+                "label": label, "symbol": symbol,
+                "filling_name": mode["filling_name"],
+                "send_retcode": send_retcode,
+                "reason": "retryable retcode — trying next filling mode",
+            })
+
+        # ── All modes exhausted ──
+        self._log("ADAPTER_ALL_MODES_EXHAUSTED", {
+            "label": label, "symbol": symbol,
+            "check_attempts_count": len(check_attempts),
+            "send_attempts_count": len(send_attempts),
+            "reason": "all order_send filling attempts rejected",
+        })
+        # Final position check — defense in depth.
+        final_pos_check = self._check_position_appeared(symbol, magic)
+        return {
+            "ok": False,
+            "retcode": None,
+            "error": ("all order_send filling attempts rejected — "
+                      f"{len(send_attempts)} send attempts, "
+                      f"{len(check_attempts)} check attempts"),
+            "request": None,
+            "filling_mode_selected": None,
+            "filling_type_used": None,
+            "filling_source": None,
+            "filling_mask": None,
+            "check_attempts": check_attempts,
+            "send_attempts": send_attempts,
+            "position_detected_after_failure": final_pos_check,
+            "emergency_close_required": final_pos_check["appeared"],
+            "emergency_close_tickets": final_pos_check.get("tickets", []),
+        }
+
+    # ─── Public API ─────────────────────────────────────────────────────────
+
+    def send_open_order(self, symbol: str, side: str, lot: float,
+                        magic: int, deviation: int = 20,
+                        comment: str = "TITAN_DEMO_MICRO") -> dict:
+        """Send ONE market open order with full fallback + diagnostics.
+
+        Returns result dict (see _send_with_fallback for shape).
+        Never raises. Never sends more than ONE order per call.
+        """
+        # Build broker state snapshot for diagnostics + profile.
+        snapshot = self.snapshot_broker_state(symbol, magic)
+        self._log("ADAPTER_BROKER_STATE_SNAPSHOT", {"label": "open", **snapshot})
+
+        # Pre-check: no existing position for this symbol+magic.
+        # (Duplicate order protection — caller should also check, but
+        # adapter enforces it too.)
+        if snapshot["open_positions"]["count"] > 0:
+            self._log("ADAPTER_DUPLICATE_BLOCKED", {
+                "label": "open", "symbol": symbol,
+                "existing_tickets": snapshot["open_positions"]["tickets"],
+                "reason": "position already open for this symbol+magic",
+            })
+            return {
+                "ok": False,
+                "retcode": None,
+                "error": "duplicate order blocked — position already open",
+                "filling_mode_selected": None,
+                "filling_type_used": None,
+                "filling_source": None,
+                "check_attempts": [],
+                "send_attempts": [],
+                "position_detected_after_failure": snapshot["open_positions"],
+                "emergency_close_required": False,
+                "broker_snapshot": snapshot,
+            }
+
+        # Get list of supported filling modes (filtered by trade_execution).
+        supported_modes = self._list_supported_filling_modes(symbol)
+        if not supported_modes:
+            self._log("ADAPTER_NO_SUPPORTED_FILLING_MODE", {
+                "label": "open", "symbol": symbol,
+                "filling_mode_raw": snapshot["symbol_info"].get("filling_mode"),
+                "trade_execution": snapshot["symbol_info"].get("trade_exemode"),
+            })
+            self.write_broker_profile(snapshot, label="open",
+                                       verdict="FAIL_NO_FILLING_MODE")
+            return {
+                "ok": False,
+                "retcode": None,
+                "error": "no supported filling mode detected",
+                "filling_mode_selected": None,
+                "filling_type_used": None,
+                "filling_source": None,
+                "check_attempts": [],
+                "send_attempts": [],
+                "position_detected_after_failure": snapshot["open_positions"],
+                "emergency_close_required": False,
+                "broker_snapshot": snapshot,
+            }
+
+        # Initial tick (will be refreshed per attempt in _send_with_fallback).
+        tick = self._refresh_tick(symbol)
+        if tick is None:
+            self._log("ADAPTER_NO_TICK", {"label": "open", "symbol": symbol})
+            self.write_broker_profile(snapshot, label="open", verdict="FAIL_NO_TICK")
+            return {
+                "ok": False,
+                "retcode": None,
+                "error": "no tick available for symbol",
+                "filling_mode_selected": None,
+                "filling_type_used": None,
+                "filling_source": None,
+                "check_attempts": [],
+                "send_attempts": [],
+                "position_detected_after_failure": snapshot["open_positions"],
+                "emergency_close_required": False,
+                "broker_snapshot": snapshot,
+            }
+
+        # Build base request (type_filling set per-attempt).
+        base_request = self._build_open_request(
+            symbol, side, lot, magic, deviation, comment, tick,
+        )
+
+        # Emit pre-send diagnostics.
+        self._log("ADAPTER_PRE_SEND_DIAGNOSTICS", {
+            "label": "open",
+            "symbol": symbol,
+            "side": side,
+            "lot": lot,
+            "magic": magic,
+            "supported_filling_modes": [m["filling_name"] for m in supported_modes],
+            "base_request": _safe_request(base_request),
+            "broker_snapshot": snapshot,
+        })
+
+        # Send with fallback.
+        result = self._send_with_fallback(base_request, supported_modes, label="open")
+        result["broker_snapshot"] = snapshot
+
+        # Write broker execution profile.
+        verdict = ("SUCCESS" if result.get("ok")
+                   else "EMERGENCY_CLOSE_REQUIRED" if result.get("emergency_close_required")
+                   else "FAIL")
+        self.write_broker_profile(snapshot, label="open", verdict=verdict,
+                                   result=result)
+        return result
+
+    def send_close_order(self, position: dict, magic: int,
+                         deviation: int = 20,
+                         comment: str = "TITAN_DEMO_MICRO_CLOSE") -> dict:
+        """Close an open position with opposite-side market order.
+
+        Same fallback logic as send_open_order, but the request includes
+        a 'position' field (the ticket to close).
+        """
+        symbol = position["symbol"]
+        snapshot = self.snapshot_broker_state(symbol, magic)
+        self._log("ADAPTER_BROKER_STATE_SNAPSHOT", {"label": "close", **snapshot})
+
+        supported_modes = self._list_supported_filling_modes(symbol)
+        if not supported_modes:
+            self.write_broker_profile(snapshot, label="close",
+                                       verdict="FAIL_NO_FILLING_MODE")
+            return {
+                "ok": False,
+                "retcode": None,
+                "error": "no supported filling mode detected (close)",
+                "filling_mode_selected": None,
+                "check_attempts": [],
+                "send_attempts": [],
+                "emergency_close_required": False,
+                "broker_snapshot": snapshot,
+            }
+
+        tick = self._refresh_tick(symbol)
+        if tick is None:
+            self.write_broker_profile(snapshot, label="close", verdict="FAIL_NO_TICK")
+            return {
+                "ok": False,
+                "retcode": None,
+                "error": "no tick available for symbol (close)",
+                "filling_mode_selected": None,
+                "check_attempts": [],
+                "send_attempts": [],
+                "emergency_close_required": False,
+                "broker_snapshot": snapshot,
+            }
+
+        base_request = self._build_close_request(
+            position, magic, deviation, comment, tick,
+        )
+
+        self._log("ADAPTER_PRE_SEND_DIAGNOSTICS", {
+            "label": "close",
+            "symbol": symbol,
+            "position_ticket": position["ticket"],
+            "supported_filling_modes": [m["filling_name"] for m in supported_modes],
+            "base_request": _safe_request(base_request),
+            "broker_snapshot": snapshot,
+        })
+
+        result = self._send_with_fallback(base_request, supported_modes, label="close")
+        result["broker_snapshot"] = snapshot
+        verdict = ("SUCCESS" if result.get("ok")
+                   else "EMERGENCY_CLOSE_REQUIRED" if result.get("emergency_close_required")
+                   else "FAIL")
+        self.write_broker_profile(snapshot, label="close", verdict=verdict,
+                                   result=result)
+        return result
+
+    # ─── Broker execution profile ───────────────────────────────────────────
+
+    def write_broker_profile(self, snapshot: dict, label: str,
+                              verdict: str, result: Optional[dict] = None) -> None:
+        """Write broker_execution_profile.json for operator review.
+
+        Overwrites the file with the latest execution attempt's profile.
+        Includes: broker snapshot, supported filling modes, all check/send
+        attempts, final verdict, and selected filling mode.
+        """
+        try:
+            # Re-derive supported modes from snapshot (for the profile).
+            mask = snapshot.get("symbol_info", {}).get("filling_mode")
+            trade_exec = snapshot.get("symbol_info", {}).get("trade_exemode")
+            modes_in_snapshot = []
+            if mask is not None:
+                for filling_type, filling_name, bit in _FILLING_PREFERENCE:
+                    if mask & bit:
+                        if (filling_name == "RETURN"
+                                and trade_exec is not None
+                                and trade_exec not in _TRADE_EXECUTIONS_THAT_ALLOW_RETURN):
+                            modes_in_snapshot.append({
+                                "filling_name": filling_name,
+                                "filling_type": filling_type,
+                                "in_bitmask": True,
+                                "filtered_out_by_trade_execution": True,
+                                "trade_execution": trade_exec,
+                            })
+                        else:
+                            modes_in_snapshot.append({
+                                "filling_name": filling_name,
+                                "filling_type": filling_type,
+                                "in_bitmask": True,
+                                "filtered_out_by_trade_execution": False,
+                            })
+
+            profile = {
+                "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+                "label": label,
+                "verdict": verdict,
+                "broker_snapshot": snapshot,
+                "filling_modes_in_bitmask": modes_in_snapshot,
+                "check_attempts": (result or {}).get("check_attempts", []),
+                "send_attempts": (result or {}).get("send_attempts", []),
+                "filling_mode_selected": (result or {}).get("filling_mode_selected"),
+                "filling_source": (result or {}).get("filling_source"),
+                "emergency_close_required": (result or {}).get("emergency_close_required", False),
+                "retcode": (result or {}).get("retcode"),
+            }
+            # Ensure dir exists
+            Path(self._profile_path).parent.mkdir(parents=True, exist_ok=True)
+            with open(self._profile_path, "w", encoding="utf-8") as f:
+                json.dump(profile, f, indent=2, default=_to_jsonable)
+        except Exception as e:
+            # Profile write failure is non-fatal — log and continue.
+            self._log("ADAPTER_PROFILE_WRITE_FAILED", {
+                "error": str(e), "profile_path": self._profile_path,
+            })
+
+
+# ─── Module-level helpers (re-exported for backward compat) ──────────────────
+
+def _safe_request(req: dict) -> dict:
+    """Make request JSON-serializable."""
+    safe = {}
+    for k, v in req.items():
+        safe[k] = _to_jsonable(v)
+    return safe

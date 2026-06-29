@@ -524,139 +524,43 @@ def _send_open_order(mt5, symbol: str, side: str, lot: float, magic: int,
                      deviation: int = 20, comment: str = "TITAN_DEMO_MICRO") -> dict:
     """Send ONE market order. Returns dict with result info.
 
-    Sprint 9.9.3.15 patch — filling mode is now auto-detected via
-    _select_filling_mode() rather than hard-coded. If no supported
-    filling mode is found, returns an error dict WITHOUT calling
-    order_send (fail-closed before any broker interaction).
-
-    Sprint 9.9.3.16 patch — before order_send, calls mt5.order_check()
-    for each supported filling mode (FOK → IOC → RETURN) and only sends
-    with the first mode that passes. If all fail order_check, returns
-    ok=False WITHOUT calling order_send. This prevents retcode=10006
-    (REJECT) and retcode=10030 (INVALID_FILL) from ever reaching the
-    broker's execution engine.
+    Sprint 9.9.3.15 patch — filling mode auto-detected via _select_filling_mode.
+    Sprint 9.9.3.16 patch — order_check + filling fallback before order_send.
+    Sprint 9.9.3.17 patch — delegates to the universal MT5ExecutionAdapter,
+        which provides send-level fallback (FOK→IOC→RETURN), tick refresh
+        per attempt, duplicate position detection, and emergency close
+        signaling. The adapter writes broker_execution_profile.json.
     """
-    tick = mt5.symbol_info_tick(symbol)
-    if tick is None:
-        return {"ok": False, "error": "symbol_info_tick returned None", "retcode": None}
+    from titan.production.mt5_execution_adapter import MT5ExecutionAdapter
 
-    # Sprint 9.9.3.15 patch — auto-detect preferred filling mode
-    filling = _select_filling_mode(mt5, symbol)
-    if filling is None:
-        # Fail closed BEFORE order_send — do not attempt to send with an
-        # unsupported filling type (would return retcode=10030).
-        return {
-            "ok": False,
-            "error": "no supported filling mode detected for symbol "
-                     f"(symbol_info.filling_mode has no FOK/IOC/RETURN bit set)",
-            "retcode": None,
-            "filling_mode_selected": None,
-            "filling_type_used": None,
-            "filling_source": None,
-        }
-
-    # Entry price based on side
-    if side == "BUY":
-        price = float(getattr(tick, "ask", 0.0) or 0.0)
-    else:
-        price = float(getattr(tick, "bid", 0.0) or 0.0)
-
-    # DEMO safety: small fixed SL/TP around current price (prevents runaway)
-    sl_distance = 5.0   # $5 SL
-    tp_distance = 10.0  # $10 TP
-    if side == "BUY":
-        sl = price - sl_distance
-        tp = price + tp_distance
-    else:
-        sl = price + sl_distance
-        tp = price - tp_distance
-
-    # Sprint 9.9.3.16 patch — build the request WITHOUT type_filling first.
-    # _attempt_filling_modes will set type_filling per attempt.
-    base_request = {
-        "action": _TRADE_ACTION_DEAL,
-        "symbol": symbol,
-        "volume": float(lot),
-        "type": _ORDER_TYPE_BUY if side == "BUY" else _ORDER_TYPE_SELL,
-        "price": price,
-        "sl": float(sl),
-        "tp": float(tp),
-        "deviation": deviation,
-        "magic": magic,
-        "comment": comment,
-        "type_time": 0,        # ORDER_TIME_GTC
-        # type_filling is set per-attempt by _attempt_filling_modes
-    }
-
-    # Sprint 9.9.3.16 patch — emit pre-send diagnostics for operator visibility.
-    # This fires BEFORE any order_check / order_send call, capturing the exact
-    # state of the symbol/tick/request at the moment we attempted to send.
-    pre_send_diag = _build_order_diagnostics(mt5, symbol, base_request, filling)
-    _journal_event("DEMO_MICRO_ORDER_PRE_SEND_DIAGNOSTICS", {
-        "label": "open",
-        **pre_send_diag,
-    })
-
-    # Sprint 9.9.3.16 patch — try each supported filling mode via order_check.
-    # Only call order_send with a request that passed order_check.
-    supported_modes = _list_supported_filling_modes(mt5, symbol)
-    if not supported_modes:
-        # Should not happen (we already checked _select_filling_mode above),
-        # but defense in depth.
-        return {
-            "ok": False,
-            "error": "no supported filling modes available for order_check",
-            "retcode": None,
-            "filling_mode_selected": None,
-            "filling_type_used": None,
-            "filling_source": None,
-            "pre_send_diagnostics": pre_send_diag,
-        }
-
-    fallback = _attempt_filling_modes(mt5, base_request, supported_modes, label="open")
-    if not fallback["ok"]:
-        # All filling modes failed order_check — fail closed.
-        return {
-            "ok": False,
-            "error": fallback["error"],
-            "retcode": None,
-            "filling_mode_selected": None,
-            "filling_type_used": None,
-            "filling_source": None,
-            "check_attempts": fallback["check_attempts"],
-            "pre_send_diagnostics": pre_send_diag,
-            "order_send_called": False,
-        }
-
-    # order_check passed for this filling mode — safe to call order_send.
-    request = fallback["request"]
-    winning_filling = fallback["filling"]
-
-    result = mt5.order_send(request)
-    if result is None:
-        return {"ok": False, "error": "order_send returned None", "retcode": None,
-                "request": _safe_request(request),
-                "filling_mode_selected": winning_filling["filling_name"],
-                "filling_type_used": winning_filling["filling_type"],
-                "filling_source": winning_filling["filling_source"],
-                "filling_mask": winning_filling["filling_mask"],
-                "check_attempts": fallback["check_attempts"],
-                "pre_send_diagnostics": pre_send_diag}
+    adapter = MT5ExecutionAdapter(mt5, journal_event=_journal_event)
+    result = adapter.send_open_order(
+        symbol=symbol, side=side, lot=lot, magic=magic,
+        deviation=deviation, comment=comment,
+    )
+    # Translate adapter result to the legacy return-dict shape so existing
+    # callers (and existing tests) keep working.
     return {
-        "ok": getattr(result, "retcode", 0) == _TRADE_RETCODE_DONE,
-        "retcode": getattr(result, "retcode", None),
-        "order": getattr(result, "order", None),
-        "deal": getattr(result, "deal", None),
-        "volume": getattr(result, "volume", None),
-        "price": getattr(result, "price", None),
-        "comment": getattr(result, "comment", ""),
-        "request": _safe_request(request),
-        "filling_mode_selected": winning_filling["filling_name"],
-        "filling_type_used": winning_filling["filling_type"],
-        "filling_source": winning_filling["filling_source"],
-        "filling_mask": winning_filling["filling_mask"],
-        "check_attempts": fallback["check_attempts"],
-        "pre_send_diagnostics": pre_send_diag,
+        "ok": result.get("ok", False),
+        "retcode": result.get("retcode"),
+        "order": result.get("order"),
+        "deal": result.get("deal"),
+        "volume": result.get("volume"),
+        "price": result.get("price"),
+        "comment": result.get("comment", ""),
+        "request": result.get("request", {}),
+        "filling_mode_selected": result.get("filling_mode_selected"),
+        "filling_type_used": result.get("filling_type_used"),
+        "filling_source": result.get("filling_source"),
+        "filling_mask": result.get("filling_mask"),
+        "check_attempts": result.get("check_attempts", []),
+        # Sprint 9.9.3.17 patch — new fields from send-level fallback
+        "send_attempts": result.get("send_attempts", []),
+        "pre_send_diagnostics": result.get("broker_snapshot"),
+        "position_detected_after_failure": result.get("position_detected_after_failure"),
+        "emergency_close_required": result.get("emergency_close_required", False),
+        "emergency_close_tickets": result.get("emergency_close_tickets", []),
+        "order_send_called": bool(result.get("send_attempts")),
     }
 
 
@@ -699,111 +603,42 @@ def _close_position(mt5, position: dict, magic: int,
 
     Sprint 9.9.3.15 patch — filling mode auto-detected via _select_filling_mode.
     Sprint 9.9.3.16 patch — order_check + filling fallback (same as open).
+    Sprint 9.9.3.17 patch — delegates to MT5ExecutionAdapter.send_close_order
+        (same send-level fallback, tick refresh, position detection as open).
     """
-    symbol = position["symbol"]
-    tick = mt5.symbol_info_tick(symbol)
-    if tick is None:
-        return {"ok": False, "error": "symbol_info_tick returned None"}
+    from titan.production.mt5_execution_adapter import MT5ExecutionAdapter
 
-    # Sprint 9.9.3.15 patch — auto-detect filling mode (same logic as open)
-    filling = _select_filling_mode(mt5, symbol)
-    if filling is None:
-        return {
-            "ok": False,
-            "error": "no supported filling mode detected for symbol "
-                     f"(symbol_info.filling_mode has no FOK/IOC/RETURN bit set)",
-            "retcode": None,
-            "filling_mode_selected": None,
-            "filling_type_used": None,
-            "filling_source": None,
-        }
-
-    pos_type = position["type"]
-    # Close BUY with SELL, close SELL with BUY
-    if pos_type == "BUY":
-        close_type = _ORDER_TYPE_SELL
-        price = float(getattr(tick, "bid", 0.0) or 0.0)
-    else:
-        close_type = _ORDER_TYPE_BUY
-        price = float(getattr(tick, "ask", 0.0) or 0.0)
-
-    # Sprint 9.9.3.16 patch — build base request without type_filling.
-    base_request = {
-        "action": _TRADE_ACTION_DEAL,
-        "symbol": symbol,
-        "volume": float(position["volume"]),
-        "type": close_type,
-        "position": int(position["ticket"]),
-        "price": price,
-        "deviation": deviation,
-        "magic": magic,
-        "comment": comment,
-        "type_time": 0,
-        # type_filling is set per-attempt by _attempt_filling_modes
-    }
-
-    # Sprint 9.9.3.16 patch — pre-send diagnostics for close order.
-    pre_send_diag = _build_order_diagnostics(mt5, symbol, base_request, filling)
-    _journal_event("DEMO_MICRO_ORDER_PRE_SEND_DIAGNOSTICS", {
-        "label": "close",
-        **pre_send_diag,
-    })
-
-    # Sprint 9.9.3.16 patch — order_check + filling fallback for close.
-    supported_modes = _list_supported_filling_modes(mt5, symbol)
-    if not supported_modes:
-        return {
-            "ok": False,
-            "error": "no supported filling modes available for order_check (close)",
-            "retcode": None,
-            "filling_mode_selected": None,
-            "filling_type_used": None,
-            "filling_source": None,
-            "pre_send_diagnostics": pre_send_diag,
-        }
-
-    fallback = _attempt_filling_modes(mt5, base_request, supported_modes, label="close")
-    if not fallback["ok"]:
-        return {
-            "ok": False,
-            "error": fallback["error"],
-            "retcode": None,
-            "filling_mode_selected": None,
-            "filling_type_used": None,
-            "filling_source": None,
-            "check_attempts": fallback["check_attempts"],
-            "pre_send_diagnostics": pre_send_diag,
-            "order_send_called": False,
-        }
-
-    request = fallback["request"]
-    winning_filling = fallback["filling"]
-    result = mt5.order_send(request)
-    if result is None:
-        return {"ok": False, "error": "order_send returned None",
-                "request": _safe_request(request),
-                "filling_mode_selected": winning_filling["filling_name"],
-                "filling_type_used": winning_filling["filling_type"],
-                "filling_source": winning_filling["filling_source"],
-                "filling_mask": winning_filling["filling_mask"],
-                "check_attempts": fallback["check_attempts"],
-                "pre_send_diagnostics": pre_send_diag}
+    adapter = MT5ExecutionAdapter(mt5, journal_event=_journal_event)
+    result = adapter.send_close_order(
+        position=position, magic=magic,
+        deviation=deviation, comment=comment,
+    )
+    # Determine close_side from the request type (if available)
+    req = result.get("request") or {}
+    close_side = ("SELL" if req.get("type") == _ORDER_TYPE_SELL
+                  else "BUY" if req.get("type") == _ORDER_TYPE_BUY
+                  else None)
     return {
-        "ok": getattr(result, "retcode", 0) == _TRADE_RETCODE_DONE,
-        "retcode": getattr(result, "retcode", None),
-        "order": getattr(result, "order", None),
-        "deal": getattr(result, "deal", None),
-        "volume": getattr(result, "volume", None),
-        "price": getattr(result, "price", None),
-        "comment": getattr(result, "comment", ""),
-        "request": _safe_request(request),
-        "close_side": "SELL" if close_type == _ORDER_TYPE_SELL else "BUY",
-        "filling_mode_selected": winning_filling["filling_name"],
-        "filling_type_used": winning_filling["filling_type"],
-        "filling_source": winning_filling["filling_source"],
-        "filling_mask": winning_filling["filling_mask"],
-        "check_attempts": fallback["check_attempts"],
-        "pre_send_diagnostics": pre_send_diag,
+        "ok": result.get("ok", False),
+        "retcode": result.get("retcode"),
+        "order": result.get("order"),
+        "deal": result.get("deal"),
+        "volume": result.get("volume"),
+        "price": result.get("price"),
+        "comment": result.get("comment", ""),
+        "request": result.get("request", {}),
+        "close_side": close_side,
+        "filling_mode_selected": result.get("filling_mode_selected"),
+        "filling_type_used": result.get("filling_type_used"),
+        "filling_source": result.get("filling_source"),
+        "filling_mask": result.get("filling_mask"),
+        "check_attempts": result.get("check_attempts", []),
+        "send_attempts": result.get("send_attempts", []),
+        "pre_send_diagnostics": result.get("broker_snapshot"),
+        "position_detected_after_failure": result.get("position_detected_after_failure"),
+        "emergency_close_required": result.get("emergency_close_required", False),
+        "emergency_close_tickets": result.get("emergency_close_tickets", []),
+        "order_send_called": bool(result.get("send_attempts")),
     }
 
 
@@ -1019,6 +854,7 @@ async def _run_execute(args, gate, cfg) -> dict:
         if not open_result["ok"]:
             # Sprint 9.9.3.15 patch — unified retcode diagnostic lookup.
             # Sprint 9.9.3.16 patch — now covers 10006 (REJECT) too.
+            # Sprint 9.9.3.17 patch — handles emergency_close_required from adapter.
             retcode = open_result.get("retcode")
             retcode_diagnostic = _lookup_retcode_meaning(retcode)
             _journal_event("DEMO_MICRO_ORDER_FAILED", {
@@ -1029,12 +865,64 @@ async def _run_execute(args, gate, cfg) -> dict:
                 "filling_mode_selected": open_result.get("filling_mode_selected"),
                 "filling_type_used": open_result.get("filling_type_used"),
                 "filling_source": open_result.get("filling_source"),
-                # Sprint 9.9.3.16 patch — surface order_check attempts + pre-send diag
                 "check_attempts": open_result.get("check_attempts"),
                 "pre_send_diagnostics": open_result.get("pre_send_diagnostics"),
+                # Sprint 9.9.3.17 patch — send_attempts + emergency signal
+                "send_attempts": open_result.get("send_attempts"),
+                "emergency_close_required": open_result.get("emergency_close_required", False),
+                "emergency_close_tickets": open_result.get("emergency_close_tickets", []),
             })
+
+            # ── Sprint 9.9.3.17 patch — Emergency close path ──────────────
+            # If the adapter detected a position appearing after a failed
+            # send (MT5 race condition), immediately close it.
+            emergency_closed = False
+            emergency_close_result = None
+            if open_result.get("emergency_close_required"):
+                ghost_tickets = open_result.get("emergency_close_tickets", [])
+                _journal_event("DEMO_MICRO_EMERGENCY_CLOSE_TRIGGERED", {
+                    "severity": "HIGH",
+                    "ghost_tickets": ghost_tickets,
+                    "reason": ("broker returned failure retcode but a position "
+                               "with our magic is open — attempting immediate close"),
+                })
+                # Build a position dict for the ghost position and close it.
+                # We need to fetch the actual position to get volume/type.
+                try:
+                    positions = mt5.positions_get(symbol=args.symbol) or []
+                except Exception:
+                    positions = []
+                matching = [p for p in positions
+                            if getattr(p, "magic", 0) == DEMO_MICRO_MAGIC]
+                if matching:
+                    ghost_pos = matching[0]
+                    ghost_position_dict = {
+                        "ticket": getattr(ghost_pos, "ticket", ghost_tickets[0] if ghost_tickets else 0),
+                        "position_id": getattr(ghost_pos, "identifier", None),
+                        "type": "BUY" if getattr(ghost_pos, "type", 1) == 0 else "SELL",
+                        "volume": getattr(ghost_pos, "volume", 0.01),
+                        "price_open": getattr(ghost_pos, "price_open", None),
+                        "sl": getattr(ghost_pos, "sl", None),
+                        "tp": getattr(ghost_pos, "tp", None),
+                        "time": getattr(ghost_pos, "time", None),
+                        "magic": getattr(ghost_pos, "magic", DEMO_MICRO_MAGIC),
+                        "symbol": getattr(ghost_pos, "symbol", args.symbol),
+                    }
+                    emergency_close_result = _close_position(
+                        mt5, ghost_position_dict, magic=DEMO_MICRO_MAGIC,
+                    )
+                    emergency_closed = emergency_close_result.get("ok", False)
+                    _journal_event("DEMO_MICRO_EMERGENCY_CLOSE_RESULT", {
+                        "ok": emergency_closed,
+                        "retcode": emergency_close_result.get("retcode"),
+                        "filling_mode_selected": emergency_close_result.get("filling_mode_selected"),
+                    })
+                else:
+                    _journal_event("DEMO_MICRO_EMERGENCY_CLOSE_NO_POSITION", {
+                        "reason": "ghost position no longer in positions_get — may have been closed externally",
+                    })
+
             if retcode_diagnostic is not None:
-                # Tailor the manual-review hint to the specific retcode.
                 if retcode == _TRADE_RETCODE_AUTOTRADING_DISABLED:
                     hint = "enable Algo Trading in MT5 terminal"
                 elif retcode == _TRADE_RETCODE_INVALID_FILL:
@@ -1042,8 +930,8 @@ async def _run_execute(args, gate, cfg) -> dict:
                             "symbol_info.filling_mode for this broker/symbol")
                 elif retcode == _TRADE_RETCODE_REJECT:
                     hint = ("broker rejected the request — check "
-                            "DEMO_MICRO_ORDER_CHECK_ATTEMPTED journal events "
-                            "for which filling modes were tried")
+                            "ADAPTER_ORDER_CHECK_ATTEMPTED / ADAPTER_ORDER_SEND_RESULT "
+                            "journal events for which filling modes were tried")
                 else:
                     hint = "see retcode_meaning in journal"
                 _journal_event("DEMO_MICRO_MANUAL_REVIEW_REQUIRED", {
@@ -1057,30 +945,48 @@ async def _run_execute(args, gate, cfg) -> dict:
                 })
             # Sprint 9.9.3.16 patch — _send_open_order now explicitly tells
             # us whether order_send was called via the "order_send_called"
-            # key in the result dict (set to False when all order_checks
-            # failed). Fall back to the old heuristic for older callers.
+            # key in the result dict.
             if "order_send_called" in open_result:
                 order_send_was_called = bool(open_result["order_send_called"])
             else:
-                # Legacy heuristic: if filling_mode_selected is None, no
-                # order_send was attempted (fail-closed before send).
                 order_send_was_called = open_result.get("filling_mode_selected") is not None
+            # Sprint 9.9.3.17 patch — count actual send attempts from adapter
+            send_attempts_list = open_result.get("send_attempts") or []
+            order_send_attempts_count = len(send_attempts_list) if order_send_was_called else 0
+
+            # Final verdict: FAIL if not emergency-closed, otherwise
+            # MANUAL_REVIEW (the ghost was closed but the cycle didn't pass).
+            if open_result.get("emergency_close_required"):
+                final_verdict = ("DEMO_MANUAL_REVIEW_REQUIRED"
+                                 if emergency_closed
+                                 else "DEMO_FULL_CYCLE_FAIL")
+                reason_suffix = (f" [EMERGENCY_CLOSE {'SUCCESS' if emergency_closed else 'FAILED'}: "
+                                 f"ghost position {'closed' if emergency_closed else 'still open'}]")
+            else:
+                final_verdict = "DEMO_FULL_CYCLE_FAIL"
+                reason_suffix = ""
+
             return {**base_result,
-                    "final_verdict": "DEMO_FULL_CYCLE_FAIL",
+                    "final_verdict": final_verdict,
                     "reason": f"order_send failed: {open_result.get('error', '')} "
                               f"retcode={retcode}"
-                              + (f" ({retcode_diagnostic})" if retcode_diagnostic else ""),
+                              + (f" ({retcode_diagnostic})" if retcode_diagnostic else "")
+                              + reason_suffix,
                     "order_send_called": order_send_was_called,
-                    "order_send_attempts": 1 if order_send_was_called else 0,
+                    "order_send_attempts": order_send_attempts_count,
                     "order_send_success": 0,
                     "filling_mode_selected": open_result.get("filling_mode_selected"),
                     "filling_type_used": open_result.get("filling_type_used"),
-                    # Sprint 9.9.3.16 patch — fix filling_source "unknown" bug
-                    # by propagating it in the failure path too.
                     "filling_source": open_result.get("filling_source"),
                     "filling_mask": open_result.get("filling_mask"),
                     "check_attempts": open_result.get("check_attempts"),
+                    "send_attempts": open_result.get("send_attempts"),
                     "pre_send_diagnostics": open_result.get("pre_send_diagnostics"),
+                    # Sprint 9.9.3.17 patch — emergency close fields
+                    "emergency_close_required": open_result.get("emergency_close_required", False),
+                    "emergency_close_attempted": bool(open_result.get("emergency_close_required")),
+                    "emergency_close_success": emergency_closed,
+                    "emergency_close_result": emergency_close_result,
                     "open_order": open_result}
 
         _journal_event("DEMO_MICRO_ORDER_SENT", {
