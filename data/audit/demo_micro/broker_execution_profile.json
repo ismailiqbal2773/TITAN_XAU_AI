@@ -1,11 +1,11 @@
 {
-  "timestamp_utc": "2026-06-29T09:44:54.256459+00:00",
+  "timestamp_utc": "2026-06-29T10:13:16.781420+00:00",
   "label": "close",
   "verdict": "SUCCESS",
   "broker_snapshot": {
     "symbol": "XAUUSD",
     "magic": 20261993,
-    "timestamp_utc": "2026-06-29T09:44:54.255916+00:00",
+    "timestamp_utc": "2026-06-29T10:13:16.781090+00:00",
     "account": {
       "login": null,
       "name": null,
@@ -34,7 +34,7 @@
       "spread": 10,
       "trade_mode": 4,
       "trade_exemode": 2,
-      "filling_mode": 3,
+      "filling_mode": 1,
       "volume_min": 0.01,
       "volume_max": 100.0,
       "volume_step": 0.01,
@@ -43,13 +43,13 @@
     "tick": {
       "bid": 2000.0,
       "ask": 2000.1,
-      "time": 1782726293,
+      "time": 1782727995,
       "spread": 0.09999999999990905
     },
     "open_positions": {
       "count": 1,
       "tickets": [
-        99999
+        66666
       ]
     }
   },
@@ -57,12 +57,6 @@
     {
       "filling_name": "FOK",
       "filling_type": 1,
-      "in_bitmask": true,
-      "filtered_out_by_trade_execution": false
-    },
-    {
-      "filling_name": "IOC",
-      "filling_type": 2,
       "in_bitmask": true,
       "filtered_out_by_trade_execution": false
     }
@@ -78,43 +72,15 @@
       "bid": 2000.0,
       "ask": 2000.1,
       "spread": 0.09999999999990905,
-      "tick_time": 1782726293
-    },
-    {
-      "filling_name": "IOC",
-      "filling_type": 2,
-      "check_retcode": 0,
-      "check_comment": "",
-      "check_retcode_meaning": "order_check passed (request is valid)",
-      "passed": true,
-      "bid": 2000.0,
-      "ask": 2000.1,
-      "spread": 0.09999999999990905,
-      "tick_time": 1782726293
+      "tick_time": 1782727995
     }
   ],
   "send_attempts": [
     {
       "filling_name": "FOK",
       "filling_type": 1,
-      "send_retcode": null,
-      "send_comment": "",
-      "send_retcode_meaning": null,
-      "send_ok": false,
-      "price": 2000.0,
-      "order_send_returned_none": true,
-      "mt5_last_error_code": -1,
-      "mt5_last_error_message": "FOK not processed",
-      "bid": 2000.0,
-      "ask": 2000.1,
-      "spread": 0.09999999999990905,
-      "tick_time": 1782726293
-    },
-    {
-      "filling_name": "IOC",
-      "filling_type": 2,
       "send_retcode": 10009,
-      "send_comment": "CLOSE",
+      "send_comment": "NAKED_CLOSE",
       "send_retcode_meaning": "request completed (TRADE_RETCODE_DONE)",
       "send_ok": true,
       "price": 2000.0,
@@ -124,16 +90,13 @@
       "bid": 2000.0,
       "ask": 2000.1,
       "spread": 0.09999999999990905,
-      "tick_time": 1782726293
+      "tick_time": 1782727995
     }
   ],
-  "filling_mode_selected": "IOC",
+  "filling_mode_selected": "FOK",
   "filling_source": "symbol_info",
   "emergency_close_required": false,
   "retcode": 10009,
-  "order_send_returned_none": true,
-  "mt5_last_error": {
-    "code": -1,
-    "message": "FOK not processed"
-  }
+  "order_send_returned_none": false,
+  "mt5_last_error": null
 }

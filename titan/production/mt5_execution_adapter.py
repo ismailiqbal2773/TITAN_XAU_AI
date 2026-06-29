@@ -138,6 +138,20 @@ _RETRYABLE_RETCODES = frozenset({
     10030,   # INVALID_FILL — filling mode not supported
 })
 
+# Sprint 9.9.3.19 patch — TRADE_ACTION_SLTP for modifying position SL/TP.
+# Used by the broker compatibility fallback when a protected market order
+# (with SL/TP attached) is rejected by a MARKET-execution broker but a
+# naked market order (sl=0, tp=0) would succeed.
+_TRADE_ACTION_SLTP = 2
+
+# Sprint 9.9.3.19 patch — retcodes that indicate the broker rejected the
+# PROTECTED order (SL/TP attached) but might accept a naked order.
+# These trigger the two-step fallback: naked open → SLTP modify.
+_PROTECTED_ORDER_REJECT_RETCODES = frozenset({
+    10006,   # REJECT
+    10016,   # INVALID_STOPS
+})
+
 
 def lookup_retcode_meaning(retcode) -> Optional[str]:
     """Return the canonical English meaning for a known MT5 retcode, else None."""
@@ -494,13 +508,20 @@ class MT5ExecutionAdapter:
             req = dict(base_request)
             if side_str == "BUY":
                 req["price"] = float(_safe(tick, "ask", 0.0) or 0.0)
-                # Adjust SL/TP around fresh price
-                req["sl"] = req["price"] - 5.0
-                req["tp"] = req["price"] + 10.0
+                # Adjust SL/TP around fresh price — but ONLY if the
+                # base_request had non-zero SL/TP (i.e. protected order).
+                # Sprint 9.9.3.19: naked orders (sl=0, tp=0) must stay naked
+                # so the broker compatibility fallback works.
+                if req.get("sl"):
+                    req["sl"] = req["price"] - 5.0
+                if req.get("tp"):
+                    req["tp"] = req["price"] + 10.0
             elif side_str == "SELL":
                 req["price"] = float(_safe(tick, "bid", 0.0) or 0.0)
-                req["sl"] = req["price"] + 5.0
-                req["tp"] = req["price"] - 10.0
+                if req.get("sl"):
+                    req["sl"] = req["price"] + 5.0
+                if req.get("tp"):
+                    req["tp"] = req["price"] - 10.0
             # For close orders, don't override SL/TP (close has no SL/TP)
             if is_close:
                 if side_str == "BUY":
@@ -817,12 +838,292 @@ class MT5ExecutionAdapter:
             "emergency_close_tickets": final_pos_check.get("tickets", []),
         }
 
+    # ─── Sprint 9.9.3.19: Broker compatibility fallback ──────────────────────
+
+    def _should_try_naked_fallback(self, fallback_result: dict,
+                                     snapshot: dict) -> bool:
+        """Sprint 9.9.3.19 — decide if the two-step naked order fallback
+        should be attempted after the protected order was rejected.
+
+        Conditions:
+          1. demo_micro mode only (caller passes demo_micro=True)
+          2. Protected order send failed with a retryable reject code
+             (10006 REJECT or 10016 INVALID_STOPS)
+          3. Symbol uses MARKET execution (trade_exemode == 2)
+          4. No position appeared after the failed send (no ghost)
+          5. At least one send attempt was made (order_send was called)
+
+        Returns True if the naked fallback should be tried.
+        """
+        if fallback_result.get("ok"):
+            return False   # Already succeeded — no need
+        if fallback_result.get("emergency_close_required"):
+            return False   # Ghost position — don't try naked
+        # Check trade_execution mode
+        trade_exec = snapshot.get("symbol_info", {}).get("trade_exemode")
+        if trade_exec != _TRADE_EXECUTION_MARKET:
+            return False   # Only for MARKET execution symbols
+        # Check send attempts for a protected-order reject
+        send_attempts = fallback_result.get("send_attempts") or []
+        if not send_attempts:
+            return False   # No send was attempted
+        # At least one send attempt must have a protected-order reject retcode
+        for a in send_attempts:
+            if a.get("send_retcode") in _PROTECTED_ORDER_REJECT_RETCODES:
+                return True
+        return False
+
+    def _modify_position_sltp(self, position_ticket: int, symbol: str,
+                               sl: float, tp: float) -> dict:
+        """Sprint 9.9.3.19 — modify a position's SL/TP via TRADE_ACTION_SLTP.
+
+        Returns dict with ok/retcode/comment. Never raises.
+        """
+        request = {
+            "action": _TRADE_ACTION_SLTP,
+            "symbol": symbol,
+            "position": int(position_ticket),
+            "sl": float(sl),
+            "tp": float(tp),
+        }
+        self._log("ADAPTER_SLTP_MODIFY_ATTEMPTED", {
+            "symbol": symbol,
+            "position_ticket": position_ticket,
+            "sl": sl,
+            "tp": tp,
+            "request": _safe_request(request),
+        })
+        try:
+            result = self.mt5.order_send(request)
+        except Exception as e:
+            self._log("ADAPTER_SLTP_MODIFY_RAISED", {
+                "position_ticket": position_ticket, "error": str(e),
+            })
+            return {"ok": False, "retcode": None, "comment": str(e),
+                    "request": _safe_request(request)}
+        if result is None:
+            # Sprint 9.9.3.18 — get last_error on None
+            mt5_last_error_code = None
+            mt5_last_error_message = ""
+            try:
+                last_err = self.mt5.last_error()
+                if isinstance(last_err, (tuple, list)) and len(last_err) >= 2:
+                    mt5_last_error_code = last_err[0]
+                    mt5_last_error_message = str(last_err[1])
+                elif isinstance(last_err, int):
+                    mt5_last_error_code = last_err
+                    mt5_last_error_message = f"MT5 error code {last_err}"
+            except Exception:
+                pass
+            self._log("ADAPTER_SLTP_MODIFY_NONE", {
+                "position_ticket": position_ticket,
+                "mt5_last_error_code": mt5_last_error_code,
+                "mt5_last_error_message": mt5_last_error_message,
+            })
+            return {"ok": False, "retcode": None, "comment": "",
+                    "mt5_last_error_code": mt5_last_error_code,
+                    "mt5_last_error_message": mt5_last_error_message,
+                    "request": _safe_request(request)}
+        retcode = _safe(result, "retcode", None)
+        comment = _safe(result, "comment", "")
+        ok = retcode in _SUCCESS_RETCODES
+        self._log("ADAPTER_SLTP_MODIFY_RESULT", {
+            "position_ticket": position_ticket,
+            "retcode": retcode,
+            "comment": comment,
+            "retcode_meaning": lookup_retcode_meaning(retcode),
+            "ok": ok,
+        })
+        return {"ok": ok, "retcode": retcode, "comment": comment,
+                "request": _safe_request(request)}
+
+    def _try_naked_order_fallback(self, base_request: dict,
+                                    supported_modes: list,
+                                    snapshot: dict,
+                                    protected_fallback_result: dict) -> dict:
+        """Sprint 9.9.3.19 — two-step broker compatibility fallback.
+
+        When a protected market order (SL/TP attached) is rejected by a
+        MARKET-execution broker (FBS scenario), try:
+          a) Send naked market order (sl=0, tp=0)
+          b) If opened, immediately apply SL/TP via TRADE_ACTION_SLTP
+          c) If SL/TP modify fails, immediately close the position
+
+        This method is ONLY called when _should_try_naked_fallback() is True.
+        Returns a result dict with the same shape as _send_with_fallback.
+        """
+        symbol = base_request["symbol"]
+        magic = base_request["magic"]
+        side_str = ("BUY" if base_request.get("type") == _ORDER_TYPE_BUY
+                    else "SELL")
+
+        # Log that protected order was rejected
+        protected_reject_retcode = None
+        for a in reversed(protected_fallback_result.get("send_attempts") or []):
+            if a.get("send_retcode") in _PROTECTED_ORDER_REJECT_RETCODES:
+                protected_reject_retcode = a.get("send_retcode")
+                break
+        self._log("ADAPTER_PROTECTED_ORDER_REJECTED", {
+            "symbol": symbol,
+            "protected_reject_retcode": protected_reject_retcode,
+            "protected_reject_meaning": lookup_retcode_meaning(protected_reject_retcode),
+            "reason": ("protected market order (SL/TP attached) rejected by "
+                       "MARKET-execution broker — trying naked order fallback"),
+            "trade_execution": snapshot.get("symbol_info", {}).get("trade_exemode"),
+        })
+
+        # Build naked request (sl=0, tp=0)
+        naked_request = dict(base_request)
+        naked_request["sl"] = 0.0
+        naked_request["tp"] = 0.0
+
+        self._log("ADAPTER_NAKED_ORDER_ATTEMPTED", {
+            "symbol": symbol,
+            "side": side_str,
+            "naked_request": _safe_request(naked_request),
+            "reason": "sending market order with sl=0, tp=0",
+        })
+
+        # Try naked order with the same filling-mode fallback
+        naked_result = self._send_with_fallback(naked_request, supported_modes,
+                                                  label="open_naked")
+
+        if not naked_result["ok"]:
+            # Naked order also failed — return the naked failure
+            self._log("ADAPTER_NAKED_ORDER_FAILED", {
+                "symbol": symbol,
+                "error": naked_result.get("error"),
+                "send_attempts": naked_result.get("send_attempts"),
+            })
+            # Merge send_attempts from both protected and naked attempts
+            merged_attempts = (protected_fallback_result.get("send_attempts") or []
+                               + naked_result.get("send_attempts") or [])
+            return {
+                **naked_result,
+                "send_attempts": (protected_fallback_result.get("send_attempts") or [])
+                                  + (naked_result.get("send_attempts") or []),
+                "broker_compatibility_fallback_tried": True,
+                "broker_compatibility_fallback_succeeded": False,
+            }
+
+        # Naked order succeeded! Now apply SL/TP via TRADE_ACTION_SLTP.
+        # Find the position that was just opened.
+        pos_check = self._check_position_appeared(symbol, magic)
+        if not pos_check["appeared"]:
+            # Position didn't appear despite naked success — unusual but
+            # treat as failure. The naked order's retcode was success but
+            # no position to modify.
+            self._log("ADAPTER_NAKED_SUCCESS_NO_POSITION", {
+                "symbol": symbol,
+                "naked_retcode": naked_result.get("retcode"),
+                "reason": "naked order reported success but no position found",
+            })
+            return {
+                **naked_result,
+                "ok": False,
+                "error": "naked order succeeded but no position appeared for SLTP modify",
+                "broker_compatibility_fallback_tried": True,
+                "broker_compatibility_fallback_succeeded": False,
+            }
+
+        position_ticket = pos_check["tickets"][0] if pos_check["tickets"] else None
+        # Reconstruct the intended SL/TP from the original base_request
+        original_sl = base_request.get("sl", 0.0)
+        original_tp = base_request.get("tp", 0.0)
+
+        self._log("ADAPTER_SLTP_MODIFY_REQUESTED", {
+            "symbol": symbol,
+            "position_ticket": position_ticket,
+            "intended_sl": original_sl,
+            "intended_tp": original_tp,
+        })
+
+        sltp_result = self._modify_position_sltp(
+            position_ticket, symbol, original_sl, original_tp,
+        )
+
+        if sltp_result["ok"]:
+            # SLTP modify succeeded — full success!
+            self._log("ADAPTER_SLTP_MODIFY_SUCCESS", {
+                "symbol": symbol,
+                "position_ticket": position_ticket,
+                "sl": original_sl,
+                "tp": original_tp,
+            })
+            return {
+                **naked_result,
+                "ok": True,
+                "filling_mode_selected": naked_result.get("filling_mode_selected"),
+                "filling_type_used": naked_result.get("filling_type_used"),
+                "filling_source": naked_result.get("filling_source"),
+                "filling_mask": naked_result.get("filling_mask"),
+                "check_attempts": (protected_fallback_result.get("check_attempts") or [])
+                                   + (naked_result.get("check_attempts") or []),
+                "send_attempts": (protected_fallback_result.get("send_attempts") or [])
+                                  + (naked_result.get("send_attempts") or []),
+                "sltp_modify_result": sltp_result,
+                "broker_compatibility_fallback_tried": True,
+                "broker_compatibility_fallback_succeeded": True,
+                "position_ticket": position_ticket,
+            }
+
+        # SLTP modify FAILED — must emergency close the naked position.
+        self._log("ADAPTER_EMERGENCY_CLOSE_IF_SLTP_FAILED", {
+            "symbol": symbol,
+            "position_ticket": position_ticket,
+            "sltp_modify_retcode": sltp_result.get("retcode"),
+            "sltp_modify_comment": sltp_result.get("comment"),
+            "severity": "HIGH",
+            "reason": ("SLTP modify failed after naked order succeeded — "
+                       "closing position to avoid unprotected exposure"),
+        })
+        # Build a position dict for closing
+        # Determine position type from the naked request
+        pos_type = "BUY" if naked_request.get("type") == _ORDER_TYPE_BUY else "SELL"
+        ghost_position_dict = {
+            "ticket": position_ticket,
+            "type": pos_type,
+            "volume": naked_request.get("volume", 0.01),
+            "symbol": symbol,
+            "price_open": naked_result.get("price"),
+        }
+        close_result = self.send_close_order(
+            position=ghost_position_dict, magic=magic,
+        )
+        self._log("ADAPTER_EMERGENCY_CLOSE_AFTER_SLTP_FAIL_RESULT", {
+            "position_ticket": position_ticket,
+            "close_ok": close_result.get("ok"),
+            "close_retcode": close_result.get("retcode"),
+        })
+        return {
+            **naked_result,
+            "ok": False,
+            "retcode": naked_result.get("retcode"),
+            "error": ("SLTP modify failed after naked order succeeded — "
+                      "emergency close attempted"),
+            "emergency_close_required": True,
+            "emergency_close_tickets": [position_ticket] if position_ticket else [],
+            "emergency_close_attempted": True,
+            "emergency_close_success": close_result.get("ok", False),
+            "emergency_close_result": close_result,
+            "sltp_modify_result": sltp_result,
+            "broker_compatibility_fallback_tried": True,
+            "broker_compatibility_fallback_succeeded": False,
+            "position_ticket": position_ticket,
+        }
+
     # ─── Public API ─────────────────────────────────────────────────────────
 
     def send_open_order(self, symbol: str, side: str, lot: float,
                         magic: int, deviation: int = 20,
-                        comment: str = "TITAN_DEMO_MICRO") -> dict:
+                        comment: str = "TITAN_DEMO_MICRO",
+                        demo_micro: bool = False) -> dict:
         """Send ONE market open order with full fallback + diagnostics.
+
+        Sprint 9.9.3.19 patch — adds demo_micro kwarg. When True and the
+        protected order (SL/TP attached) is rejected by a MARKET-execution
+        broker, the adapter tries the two-step naked order fallback:
+        naked open → SLTP modify → emergency close on SLTP failure.
 
         Returns result dict (see _send_with_fallback for shape).
         Never raises. Never sends more than ONE order per call.
@@ -917,6 +1218,21 @@ class MT5ExecutionAdapter:
         # Send with fallback.
         result = self._send_with_fallback(base_request, supported_modes, label="open")
         result["broker_snapshot"] = snapshot
+
+        # Sprint 9.9.3.19 patch — broker compatibility fallback.
+        # If the protected order was rejected by a MARKET-execution broker
+        # and we're in demo_micro mode, try the two-step naked order approach.
+        if (not result.get("ok") and demo_micro
+                and self._should_try_naked_fallback(result, snapshot)):
+            self._log("ADAPTER_BROKER_COMPATIBILITY_FALLBACK_TRIGGERED", {
+                "symbol": symbol,
+                "reason": ("protected order rejected by MARKET-execution broker — "
+                           "attempting naked order + SLTP modify fallback"),
+            })
+            result = self._try_naked_order_fallback(
+                base_request, supported_modes, snapshot, result,
+            )
+            result["broker_snapshot"] = snapshot
 
         # Write broker execution profile.
         verdict = ("SUCCESS" if result.get("ok")

@@ -440,7 +440,11 @@ class MockMT5:
                  terminal_info_obj=None,
                  # Sprint 9.9.3.18 patch — None-result simulation:
                  order_send_returns_none_per_mode=None,
-                 mt5_last_error=None):
+                 mt5_last_error=None,
+                 # Sprint 9.9.3.19 patch — broker compatibility fallback knobs:
+                 protected_order_retcode=None,    # retcode for SL/TP-attached orders
+                 naked_order_retcode=None,        # retcode for sl=0/tp=0 orders
+                 sltp_modify_retcode=10009):      # retcode for TRADE_ACTION_SLTP
         self._initialized = False
         self._account = _MockAccount(account_trade_mode, account_balance)
         # Sprint 9.9.3.14 patch — allow tests to simulate disabled
@@ -486,6 +490,16 @@ class MockMT5:
         # Real MT5 returns a (code, message) tuple. Default simulates
         # a generic internal error.
         self._mt5_last_error = mt5_last_error or (-1, "MT5 internal error: request not processed")
+        # Sprint 9.9.3.19 patch — broker compatibility fallback knobs.
+        # protected_order_retcode: if set, order_send returns this retcode
+        #   when the request has SL/TP attached (sl != 0 or tp != 0).
+        # naked_order_retcode: if set, order_send returns this retcode
+        #   when the request has sl=0 AND tp=0 (naked market order).
+        # sltp_modify_retcode: retcode for TRADE_ACTION_SLTP requests.
+        self._protected_order_retcode = protected_order_retcode
+        self._naked_order_retcode = naked_order_retcode
+        self._sltp_modify_retcode = sltp_modify_retcode
+        self._sltp_modify_calls = 0
         # Tracking
         self.order_send_calls = []
         self.last_order_request = None
@@ -579,6 +593,57 @@ class MockMT5:
         # Determine if this is open or close based on "position" field
         is_close = "position" in request and request.get("position")
         filling_type = request.get("type_filling")
+        # Sprint 9.9.3.19 patch — detect TRADE_ACTION_SLTP requests (action=2).
+        # These are SL/TP modify requests, not market orders. Handle separately.
+        is_sltp_modify = request.get("action") == 2
+        if is_sltp_modify:
+            retcode = getattr(self, "_sltp_modify_retcode", 10009)
+            self._sltp_modify_calls = getattr(self, "_sltp_modify_calls", 0) + 1
+            return _MockOrderResult(retcode=retcode, order=0, deal=0,
+                                    price=request.get("price", 0),
+                                    volume=0, comment="SLTP_MODIFY")
+
+        # Sprint 9.9.3.19 patch — broker compatibility fallback.
+        # If protected_order_retcode is set and this request has SL/TP
+        # attached (sl != 0 or tp != 0), return the protected retcode.
+        # If naked_order_retcode is set and this request has sl=0 AND tp=0,
+        # return the naked retcode. This lets tests simulate FBS-style
+        # brokers that reject protected market orders but accept naked ones.
+        sl_val = request.get("sl", 0) or 0
+        tp_val = request.get("tp", 0) or 0
+        is_protected_order = (sl_val != 0 or tp_val != 0)
+        if is_protected_order and self._protected_order_retcode is not None:
+            # Protected order rejected — don't create a position
+            return _MockOrderResult(retcode=self._protected_order_retcode,
+                                    order=0, deal=0,
+                                    price=request.get("price", 2000.0),
+                                    volume=request.get("volume", 0.01),
+                                    comment="PROTECTED_REJECTED")
+        if not is_protected_order and self._naked_order_retcode is not None:
+            retcode = self._naked_order_retcode
+            is_success = retcode in (10009, 10010)
+            if is_success and not is_close and self._auto_create_position_on_open:
+                side_type = 0 if request.get("type") == 0 else 1
+                new_pos = _MockPosition(
+                    ticket=66666,
+                    position_type=side_type,
+                    volume=request.get("volume", 0.01),
+                    price_open=request.get("price", 2000.10),
+                    magic=request.get("magic", 20261993),
+                    symbol=request.get("symbol", "XAUUSD"),
+                    profit=0.0,
+                )
+                self._open_positions = [new_pos]
+            elif is_success and is_close:
+                # Close order — remove the position being closed
+                self._open_positions = [
+                    p for p in self._open_positions
+                    if p.ticket != request.get("position")
+                ]
+            return _MockOrderResult(retcode=retcode, order=66666, deal=66666,
+                                    price=request.get("price", 2000.10),
+                                    volume=request.get("volume", 0.01),
+                                    comment="NAKED_OPEN" if not is_close else "NAKED_CLOSE")
 
         # Sprint 9.9.3.18 patch — simulate order_send returning None.
         # If this filling mode is in the None-return set, return None
@@ -2775,3 +2840,211 @@ class TestOrderSendNoneResult:
         ev = none_events[-1]
         assert ev["mt5_last_error_code"] == -1
         assert ev["filling_name"] == "FOK"
+
+
+# ─── Sprint 9.9.3.19 patch — broker compatibility fallback tests ──────────────
+
+class TestBrokerCompatibilityFallback:
+    """Sprint 9.9.3.19 — two-step broker compatibility fallback.
+
+    When a protected market order (SL/TP attached) is rejected by a
+    MARKET-execution broker (FBS scenario), the adapter tries:
+      a) naked market order (sl=0, tp=0)
+      b) SLTP modify via TRADE_ACTION_SLTP
+      c) emergency close if SLTP modify fails
+    """
+
+    def test_161_protected_reject_naked_success_sltp_success(self):
+        """Protected FOK rejected (10006) → naked FOK succeeds → SLTP modify succeeds."""
+        from titan.production.mt5_execution_adapter import MT5ExecutionAdapter
+        mt5 = MockMT5(symbol_filling_mode=1,   # FOK only
+                      order_check_default_retcode=0,
+                      protected_order_retcode=10006,  # protected rejected
+                      naked_order_retcode=10009,      # naked succeeds
+                      sltp_modify_retcode=10009)      # SLTP modify succeeds
+        mt5._symbol_info.trade_exemode = 2   # MARKET execution
+        mt5.initialize()
+        adapter = MT5ExecutionAdapter(mt5, journal_event=lambda e, p: None)
+        result = adapter.send_open_order(
+            symbol="XAUUSD", side="BUY", lot=0.01, magic=20261993,
+            demo_micro=True,
+        )
+        assert result["ok"] is True
+        assert result.get("broker_compatibility_fallback_tried") is True
+        assert result.get("broker_compatibility_fallback_succeeded") is True
+        assert result.get("sltp_modify_result", {}).get("ok") is True
+        assert mt5._sltp_modify_calls >= 1
+
+    def test_162_protected_reject_naked_success_sltp_fail_emergency_close(self):
+        """Protected reject → naked success → SLTP modify FAILS → emergency close."""
+        from titan.production.mt5_execution_adapter import MT5ExecutionAdapter
+        mt5 = MockMT5(symbol_filling_mode=1,
+                      order_check_default_retcode=0,
+                      protected_order_retcode=10006,
+                      naked_order_retcode=10009,
+                      sltp_modify_retcode=10013)  # SLTP modify fails
+        mt5._symbol_info.trade_exemode = 2
+        mt5.initialize()
+        adapter = MT5ExecutionAdapter(mt5, journal_event=lambda e, p: None)
+        result = adapter.send_open_order(
+            symbol="XAUUSD", side="BUY", lot=0.01, magic=20261993,
+            demo_micro=True,
+        )
+        assert result["ok"] is False
+        assert result.get("emergency_close_required") is True
+        assert result.get("emergency_close_attempted") is True
+        assert result.get("broker_compatibility_fallback_succeeded") is False
+        assert result.get("sltp_modify_result", {}).get("ok") is False
+
+    def test_163_naked_order_also_fails_fail_closed(self):
+        """Protected reject → naked also fails → fail closed, no SLTP modify."""
+        from titan.production.mt5_execution_adapter import MT5ExecutionAdapter
+        mt5 = MockMT5(symbol_filling_mode=1,
+                      order_check_default_retcode=0,
+                      protected_order_retcode=10006,
+                      naked_order_retcode=10006,   # naked also rejected
+                      sltp_modify_retcode=10009)
+        mt5._symbol_info.trade_exemode = 2
+        mt5.initialize()
+        adapter = MT5ExecutionAdapter(mt5, journal_event=lambda e, p: None)
+        result = adapter.send_open_order(
+            symbol="XAUUSD", side="BUY", lot=0.01, magic=20261993,
+            demo_micro=True,
+        )
+        assert result["ok"] is False
+        assert result.get("broker_compatibility_fallback_tried") is True
+        assert result.get("broker_compatibility_fallback_succeeded") is False
+        # SLTP modify should NOT have been called (naked order failed first)
+        assert mt5._sltp_modify_calls == 0
+        # No emergency close (no position was opened)
+        assert result.get("emergency_close_required") is False
+
+    def test_164_result_propagation_shows_real_retcode_not_none(self, monkeypatch):
+        """Sprint 9.9.3.19 — console/report must show real adapter retcode
+        (10006) instead of retcode=None when adapter has send_attempts."""
+        from scripts.audit import fundednext_demo_micro_full_cycle as harness
+        # Protected FOK rejected with 10006, naked also rejected with 10006
+        mt5 = MockMT5(symbol_filling_mode=1,
+                      order_check_default_retcode=0,
+                      protected_order_retcode=10006,
+                      naked_order_retcode=10006)
+        mt5._symbol_info.trade_exemode = 2
+        monkeypatch.setattr(harness, "_get_mt5", lambda: mt5)
+        monkeypatch.setattr(harness, "hard_gate_evaluate",
+                            lambda config_path=None: {"verdict": "DEMO_MICRO_ARMED",
+                                                       "reasons": [],
+                                                       "checks": {}})
+        monkeypatch.setenv("TITAN_DEMO_MICRO_ARMED", "1")
+        r = _run_execute_with_mock(mt5, side="BUY", max_hold_seconds=1)
+        # The result must show retcode=10006 (from last send attempt),
+        # NOT retcode=None (which was the old bug).
+        assert r.get("retcode") == 10006
+        assert r.get("last_send_retcode") == 10006
+        assert "10006" in r.get("reason", "")
+        # retcode_meaning must be populated
+        assert r.get("retcode_meaning") is not None
+        assert "reject" in r.get("retcode_meaning", "").lower()
+
+    def test_165_broker_compat_journal_events_emitted(self):
+        """All required broker compat journal events are emitted."""
+        from titan.production.mt5_execution_adapter import MT5ExecutionAdapter
+        journal_events = []
+        def capture(event_type, payload):
+            journal_events.append({"event": event_type, **payload})
+        mt5 = MockMT5(symbol_filling_mode=1,
+                      order_check_default_retcode=0,
+                      protected_order_retcode=10006,
+                      naked_order_retcode=10009,
+                      sltp_modify_retcode=10009)
+        mt5._symbol_info.trade_exemode = 2
+        mt5.initialize()
+        adapter = MT5ExecutionAdapter(mt5, journal_event=capture)
+        adapter.send_open_order(
+            symbol="XAUUSD", side="BUY", lot=0.01, magic=20261993,
+            demo_micro=True,
+        )
+        event_types = [e.get("event") for e in journal_events]
+        assert "ADAPTER_PROTECTED_ORDER_REJECTED" in event_types
+        assert "ADAPTER_NAKED_ORDER_ATTEMPTED" in event_types
+        assert "ADAPTER_SLTP_MODIFY_ATTEMPTED" in event_types
+        assert "ADAPTER_SLTP_MODIFY_SUCCESS" in event_types
+
+    def test_166_emergency_close_if_sltp_failed_event(self):
+        """ADAPTER_EMERGENCY_CLOSE_IF_SLTP_FAILED event emitted on SLTP failure."""
+        from titan.production.mt5_execution_adapter import MT5ExecutionAdapter
+        journal_events = []
+        def capture(event_type, payload):
+            journal_events.append({"event": event_type, **payload})
+        mt5 = MockMT5(symbol_filling_mode=1,
+                      order_check_default_retcode=0,
+                      protected_order_retcode=10006,
+                      naked_order_retcode=10009,
+                      sltp_modify_retcode=10013)  # SLTP fails
+        mt5._symbol_info.trade_exemode = 2
+        mt5.initialize()
+        adapter = MT5ExecutionAdapter(mt5, journal_event=capture)
+        adapter.send_open_order(
+            symbol="XAUUSD", side="BUY", lot=0.01, magic=20261993,
+            demo_micro=True,
+        )
+        event_types = [e.get("event") for e in journal_events]
+        assert "ADAPTER_EMERGENCY_CLOSE_IF_SLTP_FAILED" in event_types
+
+    def test_167_broker_compat_only_in_demo_micro_mode(self):
+        """Broker compatibility fallback only runs when demo_micro=True."""
+        from titan.production.mt5_execution_adapter import MT5ExecutionAdapter
+        mt5 = MockMT5(symbol_filling_mode=1,
+                      order_check_default_retcode=0,
+                      protected_order_retcode=10006,
+                      naked_order_retcode=10009,
+                      sltp_modify_retcode=10009)
+        mt5._symbol_info.trade_exemode = 2
+        mt5.initialize()
+        adapter = MT5ExecutionAdapter(mt5, journal_event=lambda e, p: None)
+        # demo_micro=False (default) — fallback should NOT run
+        result = adapter.send_open_order(
+            symbol="XAUUSD", side="BUY", lot=0.01, magic=20261993,
+            demo_micro=False,
+        )
+        assert result["ok"] is False
+        assert result.get("broker_compatibility_fallback_tried") is not True
+        # SLTP modify should NOT have been called
+        assert mt5._sltp_modify_calls == 0
+
+    def test_168_broker_compat_not_triggered_for_non_market_execution(self):
+        """Fallback not triggered when trade_exemode != MARKET (e.g. INSTANT)."""
+        from titan.production.mt5_execution_adapter import MT5ExecutionAdapter
+        mt5 = MockMT5(symbol_filling_mode=1,
+                      order_check_default_retcode=0,
+                      protected_order_retcode=10006,
+                      naked_order_retcode=10009,
+                      sltp_modify_retcode=10009)
+        mt5._symbol_info.trade_exemode = 0   # INSTANT, not MARKET
+        mt5.initialize()
+        adapter = MT5ExecutionAdapter(mt5, journal_event=lambda e, p: None)
+        result = adapter.send_open_order(
+            symbol="XAUUSD", side="BUY", lot=0.01, magic=20261993,
+            demo_micro=True,
+        )
+        # Fallback should NOT run (trade_exemode is not MARKET)
+        assert result.get("broker_compatibility_fallback_tried") is not True
+
+    def test_169_broker_compat_harness_integration_success(self, monkeypatch):
+        """Full harness: protected reject → naked success → SLTP success → PASS."""
+        from scripts.audit import fundednext_demo_micro_full_cycle as harness
+        mt5 = MockMT5(symbol_filling_mode=1,
+                      order_check_default_retcode=0,
+                      protected_order_retcode=10006,
+                      naked_order_retcode=10009,
+                      sltp_modify_retcode=10009)
+        mt5._symbol_info.trade_exemode = 2
+        monkeypatch.setattr(harness, "_get_mt5", lambda: mt5)
+        monkeypatch.setattr(harness, "hard_gate_evaluate",
+                            lambda config_path=None: {"verdict": "DEMO_MICRO_ARMED",
+                                                       "reasons": [],
+                                                       "checks": {}})
+        monkeypatch.setenv("TITAN_DEMO_MICRO_ARMED", "1")
+        r = _run_execute_with_mock(mt5, side="BUY", max_hold_seconds=1)
+        # Full cycle should PASS via broker compat fallback
+        assert r["final_verdict"] == "DEMO_FULL_CYCLE_PASS"
+        assert r.get("filling_mode_selected") is not None

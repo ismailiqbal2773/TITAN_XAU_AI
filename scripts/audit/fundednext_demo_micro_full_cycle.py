@@ -534,9 +534,13 @@ def _send_open_order(mt5, symbol: str, side: str, lot: float, magic: int,
     from titan.production.mt5_execution_adapter import MT5ExecutionAdapter
 
     adapter = MT5ExecutionAdapter(mt5, journal_event=_journal_event)
+    # Sprint 9.9.3.19 patch — pass demo_micro=True so the adapter tries
+    # the naked order + SLTP modify fallback when the protected order is
+    # rejected by a MARKET-execution broker (FBS scenario).
     result = adapter.send_open_order(
         symbol=symbol, side=side, lot=lot, magic=magic,
         deviation=deviation, comment=comment,
+        demo_micro=True,
     )
     # Translate adapter result to the legacy return-dict shape so existing
     # callers (and existing tests) keep working.
@@ -855,7 +859,28 @@ async def _run_execute(args, gate, cfg) -> dict:
             # Sprint 9.9.3.15 patch — unified retcode diagnostic lookup.
             # Sprint 9.9.3.16 patch — now covers 10006 (REJECT) too.
             # Sprint 9.9.3.17 patch — handles emergency_close_required from adapter.
+            # Sprint 9.9.3.19 patch — fix result propagation: when adapter
+            # returns retcode=None (all modes exhausted), extract the real
+            # retcode from the last send_attempt so the console/report shows
+            # the actual broker rejection (e.g., 10006) instead of None.
             retcode = open_result.get("retcode")
+            # Sprint 9.9.3.19 — if retcode is None but we have send_attempts,
+            # use the last send attempt's retcode (the actual broker response).
+            if retcode is None:
+                send_attempts_list_for_retcode = open_result.get("send_attempts") or []
+                if send_attempts_list_for_retcode:
+                    last_attempt = send_attempts_list_for_retcode[-1]
+                    retcode = last_attempt.get("send_retcode")
+                    # Also surface the last attempt's comment for diagnostics
+                    _last_send_comment = last_attempt.get("send_comment", "")
+                    _last_send_filling = last_attempt.get("filling_name")
+                else:
+                    _last_send_comment = ""
+                    _last_send_filling = None
+            else:
+                _last_send_comment = ""
+                _last_send_filling = None
+
             retcode_diagnostic = _lookup_retcode_meaning(retcode)
             _journal_event("DEMO_MICRO_ORDER_FAILED", {
                 "retcode": retcode,
@@ -871,6 +896,10 @@ async def _run_execute(args, gate, cfg) -> dict:
                 "send_attempts": open_result.get("send_attempts"),
                 "emergency_close_required": open_result.get("emergency_close_required", False),
                 "emergency_close_tickets": open_result.get("emergency_close_tickets", []),
+                # Sprint 9.9.3.19 patch — surface last send attempt details
+                "last_send_retcode": retcode,
+                "last_send_comment": _last_send_comment,
+                "last_send_filling": _last_send_filling,
             })
 
             # ── Sprint 9.9.3.17 patch — Emergency close path ──────────────
@@ -972,6 +1001,13 @@ async def _run_execute(args, gate, cfg) -> dict:
                               f"retcode={retcode}"
                               + (f" ({retcode_diagnostic})" if retcode_diagnostic else "")
                               + reason_suffix,
+                    # Sprint 9.9.3.19 patch — propagate the REAL retcode (from
+                    # last send_attempt) instead of adapter's top-level None.
+                    "retcode": retcode,
+                    "retcode_meaning": retcode_diagnostic,
+                    "last_send_retcode": retcode,
+                    "last_send_comment": _last_send_comment,
+                    "last_send_filling": _last_send_filling,
                     "order_send_called": order_send_was_called,
                     "order_send_attempts": order_send_attempts_count,
                     "order_send_success": 0,
