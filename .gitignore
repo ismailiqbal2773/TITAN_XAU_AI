@@ -24,3 +24,6 @@ data/audit/demo_micro/demo_micro_hard_gate_report.json
 data/audit/demo_micro/demo_micro_hard_gate_report.md
 data/audit/demo_micro/broker_execution_profile.json
 data/audit/demo_micro/raw_mt5_working_profile.json
+data/audit/demo_micro/demo_micro_repeatability_report.json
+data/audit/demo_micro/demo_micro_repeatability_report.md
+data/audit/demo_micro/demo_micro_repeatability_journal.jsonl
