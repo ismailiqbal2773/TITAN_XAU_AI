@@ -318,7 +318,7 @@ class _MockTick:
 
 
 class _MockSymbolInfo:
-    def __init__(self, name="XAUUSD", visible=True):
+    def __init__(self, name="XAUUSD", visible=True, filling_mode=None):
         self.name = name
         self.digits = 2
         self.point = 0.01
@@ -329,6 +329,14 @@ class _MockSymbolInfo:
         self.volume_step = 0.01
         self.trade_mode = 4
         self.visible = visible
+        # Sprint 9.9.3.15 patch — expose filling_mode bitmask so tests
+        # can simulate brokers that only support FOK / IOC / RETURN /
+        # BOC / or none of the above. Default None means "attribute
+        # missing" — the helper will fall back to its permissive default
+        # mask (FOK+IOC+RETURN). Pass an int (1/2/4/8 or any OR-combo)
+        # to simulate a real broker's symbol_info.filling_mode value.
+        if filling_mode is not None:
+            self.filling_mode = filling_mode
 
 
 class _MockOrderResult:
@@ -386,14 +394,18 @@ class MockMT5:
                  floating_pnl_sequence=None,
                  never_visible_position=False,
                  auto_create_position_on_open=True,
-                 account_trade_expert=True):
+                 account_trade_expert=True,
+                 symbol_filling_mode=None):
         self._initialized = False
         self._account = _MockAccount(account_trade_mode, account_balance)
         # Sprint 9.9.3.14 patch — allow tests to simulate disabled
         # Algo Trading by overriding trade_expert on the mock account.
         self._account.trade_expert = account_trade_expert
         self._tick = _MockTick(tick_bid, tick_ask)
-        self._symbol_info = _MockSymbolInfo("XAUUSD", symbol_visible)
+        # Sprint 9.9.3.15 patch — allow tests to simulate brokers that
+        # support specific filling modes (FBS=IOC, FundedNext=FOK+IOC, etc.)
+        self._symbol_info = _MockSymbolInfo("XAUUSD", symbol_visible,
+                                             filling_mode=symbol_filling_mode)
         self._open_positions = list(open_positions or [])
         self._open_order_retcode = open_order_retcode
         self._close_order_retcode = close_order_retcode
@@ -1042,3 +1054,370 @@ class TestExecuteProductionSafety:
         assert order_failed_events[-1].get("retcode") == 10027
         assert order_failed_events[-1].get("retcode_meaning") == \
                "client terminal autotrading disabled"
+
+
+# ─── Sprint 9.9.3.15 patch — auto-detect MT5 filling mode tests ────────────────
+
+class TestFillingModeAutoDetect:
+    """Sprint 9.9.3.15 — auto-detect supported MT5 filling mode.
+
+    Background: FBS DEMO XAUUSD returned retcode=10030
+    (TRADE_RETCODE_INVALID_FILL) because the harness was hard-coding
+    type_filling=2 (IOC, but commented as RETURN). FBS XAUUSD's
+    symbol_info.filling_mode bitmask doesn't include the IOC bit, so
+    order_send was rejected. The fix reads the bitmask and selects
+    the most preferred supported mode (FOK → IOC → RETURN).
+    """
+
+    def test_93_filling_mode_constants(self):
+        """MT5 filling mode constants are exported with correct values."""
+        from scripts.audit.fundednext_demo_micro_full_cycle import (
+            ORDER_FILLING_FOK, ORDER_FILLING_IOC,
+            ORDER_FILLING_BOC, ORDER_FILLING_RETURN,
+            _SYMBOL_FILLING_FOK_BIT, _SYMBOL_FILLING_IOC_BIT,
+            _SYMBOL_FILLING_BOC_BIT, _SYMBOL_FILLING_RETURN_BIT,
+            _TRADE_RETCODE_INVALID_FILL, _RETCODE_10030_MEANING,
+        )
+        # MQL5 ORDER_TYPE_FILLING enum values
+        assert ORDER_FILLING_FOK == 1
+        assert ORDER_FILLING_IOC == 2
+        assert ORDER_FILLING_BOC == 3
+        assert ORDER_FILLING_RETURN == 4
+        # symbol_info.filling_mode bitmask bit positions (powers of 2)
+        assert _SYMBOL_FILLING_FOK_BIT == 1
+        assert _SYMBOL_FILLING_IOC_BIT == 2
+        assert _SYMBOL_FILLING_BOC_BIT == 4
+        assert _SYMBOL_FILLING_RETURN_BIT == 8
+        # retcode 10030 = invalid fill type
+        assert _TRADE_RETCODE_INVALID_FILL == 10030
+        assert _RETCODE_10030_MEANING == \
+               "invalid order filling type (TRADE_RETCODE_INVALID_FILL)"
+
+    def test_94_retcode_10030_lookup(self):
+        """_lookup_retcode_meaning returns canonical string for 10030."""
+        from scripts.audit.fundednext_demo_micro_full_cycle import _lookup_retcode_meaning
+        assert _lookup_retcode_meaning(10030) == \
+               "invalid order filling type (TRADE_RETCODE_INVALID_FILL)"
+        # Backward compat — 10027 still mapped
+        assert _lookup_retcode_meaning(10027) == \
+               "client terminal autotrading disabled"
+        # Unknown retcode returns None
+        assert _lookup_retcode_meaning(99999) is None
+        assert _lookup_retcode_meaning(None) is None
+
+    def test_95_helper_selects_fok_when_only_fok_supported(self):
+        """If symbol_info.filling_mode = FOK bit only, helper selects FOK."""
+        from scripts.audit.fundednext_demo_micro_full_cycle import _select_filling_mode
+        mt5 = MockMT5(symbol_filling_mode=1)   # FOK bit only
+        mt5.initialize()   # required so symbol_info() returns the mock
+        r = _select_filling_mode(mt5, "XAUUSD")
+        assert r is not None
+        assert r["filling_name"] == "FOK"
+        assert r["filling_type"] == 1
+        assert r["filling_source"] == "symbol_info"
+        assert r["filling_mask"] == 1
+
+    def test_96_helper_selects_ioc_when_only_ioc_supported(self):
+        """If symbol_info.filling_mode = IOC bit only, helper selects IOC.
+        This is the FBS XAUUSD scenario that triggered retcode=10030."""
+        from scripts.audit.fundednext_demo_micro_full_cycle import _select_filling_mode
+        mt5 = MockMT5(symbol_filling_mode=2)   # IOC bit only
+        mt5.initialize()
+        r = _select_filling_mode(mt5, "XAUUSD")
+        assert r is not None
+        assert r["filling_name"] == "IOC"
+        assert r["filling_type"] == 2
+
+    def test_97_helper_selects_return_when_only_return_supported(self):
+        """If symbol_info.filling_mode = RETURN bit only, helper selects RETURN."""
+        from scripts.audit.fundednext_demo_micro_full_cycle import _select_filling_mode
+        mt5 = MockMT5(symbol_filling_mode=8)   # RETURN bit only
+        mt5.initialize()
+        r = _select_filling_mode(mt5, "XAUUSD")
+        assert r is not None
+        assert r["filling_name"] == "RETURN"
+        assert r["filling_type"] == 4
+
+    def test_98_helper_prefers_fok_over_ioc_and_return(self):
+        """When multiple modes supported, FOK is preferred (market order best practice)."""
+        from scripts.audit.fundednext_demo_micro_full_cycle import _select_filling_mode
+        # FOK + IOC + RETURN all supported
+        mt5 = MockMT5(symbol_filling_mode=1 | 2 | 8)
+        mt5.initialize()
+        r = _select_filling_mode(mt5, "XAUUSD")
+        assert r["filling_name"] == "FOK"
+        # FOK + IOC only
+        mt5 = MockMT5(symbol_filling_mode=1 | 2)
+        mt5.initialize()
+        r = _select_filling_mode(mt5, "XAUUSD")
+        assert r["filling_name"] == "FOK"
+
+    def test_99_helper_falls_back_to_ioc_when_fok_unsupported(self):
+        """When FOK not supported but IOC is, helper selects IOC."""
+        from scripts.audit.fundednext_demo_micro_full_cycle import _select_filling_mode
+        # IOC + RETURN only (no FOK)
+        mt5 = MockMT5(symbol_filling_mode=2 | 8)
+        mt5.initialize()
+        r = _select_filling_mode(mt5, "XAUUSD")
+        assert r["filling_name"] == "IOC"
+
+    def test_100_helper_falls_back_to_return_when_fok_and_ioc_unsupported(self):
+        """When only RETURN is supported, helper selects RETURN."""
+        from scripts.audit.fundednext_demo_micro_full_cycle import _select_filling_mode
+        mt5 = MockMT5(symbol_filling_mode=8)
+        mt5.initialize()
+        r = _select_filling_mode(mt5, "XAUUSD")
+        assert r["filling_name"] == "RETURN"
+
+    def test_101_helper_returns_none_when_only_boc_supported(self):
+        """BOC is invalid for market orders — helper returns None (fail closed)."""
+        from scripts.audit.fundednext_demo_micro_full_cycle import _select_filling_mode
+        mt5 = MockMT5(symbol_filling_mode=4)   # BOC bit only
+        mt5.initialize()
+        r = _select_filling_mode(mt5, "XAUUSD")
+        assert r is None
+
+    def test_102_helper_returns_none_when_symbol_info_is_none(self):
+        """If mt5.symbol_info() returns None, helper returns None."""
+        from scripts.audit.fundednext_demo_micro_full_cycle import _select_filling_mode
+
+        class _MT5None:
+            def symbol_info(self, sym):
+                return None
+        r = _select_filling_mode(_MT5None(), "XAUUSD")
+        assert r is None
+
+    def test_103_helper_falls_back_to_default_when_filling_mode_missing(self):
+        """If symbol_info lacks filling_mode attribute, helper uses default mask."""
+        from scripts.audit.fundednext_demo_micro_full_cycle import _select_filling_mode
+        # Default MockMT5 with no filling_mode kwarg → attribute missing
+        mt5 = MockMT5()
+        mt5.initialize()
+        r = _select_filling_mode(mt5, "XAUUSD")
+        assert r is not None
+        assert r["filling_name"] == "FOK"
+        assert r["filling_source"] == "default"
+
+    def test_104_helper_falls_back_to_default_when_filling_mode_zero(self):
+        """If symbol_info.filling_mode == 0, helper uses default mask."""
+        from scripts.audit.fundednext_demo_micro_full_cycle import _select_filling_mode
+        mt5 = MockMT5(symbol_filling_mode=0)
+        mt5.initialize()
+        r = _select_filling_mode(mt5, "XAUUSD")
+        assert r is not None
+        assert r["filling_source"] == "default"
+
+    def test_105_open_order_uses_detected_filling_mode(self, monkeypatch):
+        """_send_open_order puts the detected filling type into the request."""
+        from scripts.audit import fundednext_demo_micro_full_cycle as harness
+        # FBS-like: only IOC supported (bit 2)
+        mt5 = MockMT5(symbol_filling_mode=2)
+        monkeypatch.setattr(harness, "_get_mt5", lambda: mt5)
+        monkeypatch.setattr(harness, "hard_gate_evaluate",
+                            lambda config_path=None: {"verdict": "DEMO_MICRO_ARMED",
+                                                       "reasons": [],
+                                                       "checks": {}})
+        monkeypatch.setenv("TITAN_DEMO_MICRO_ARMED", "1")
+        r = _run_execute_with_mock(mt5, side="BUY", max_hold_seconds=1)
+
+        # The order_send request must have used type_filling=2 (IOC)
+        # rather than the old hard-coded value.
+        assert len(mt5.order_send_calls) >= 1
+        req = mt5.order_send_calls[0]
+        assert req["type_filling"] == 2   # IOC for FBS
+        # Result must surface the selected filling mode
+        assert r.get("filling_mode_selected") == "IOC"
+        assert r.get("filling_type_used") == 2
+
+    def test_106_open_order_uses_fok_when_supported(self, monkeypatch):
+        """When FOK is supported, _send_open_order uses type_filling=1 (FOK)."""
+        from scripts.audit import fundednext_demo_micro_full_cycle as harness
+        mt5 = MockMT5(symbol_filling_mode=1)   # FOK only
+        monkeypatch.setattr(harness, "_get_mt5", lambda: mt5)
+        monkeypatch.setattr(harness, "hard_gate_evaluate",
+                            lambda config_path=None: {"verdict": "DEMO_MICRO_ARMED",
+                                                       "reasons": [],
+                                                       "checks": {}})
+        monkeypatch.setenv("TITAN_DEMO_MICRO_ARMED", "1")
+        r = _run_execute_with_mock(mt5, side="BUY", max_hold_seconds=1)
+        assert len(mt5.order_send_calls) >= 1
+        assert mt5.order_send_calls[0]["type_filling"] == 1   # FOK
+        assert r.get("filling_mode_selected") == "FOK"
+
+    def test_107_open_order_uses_return_when_only_return_supported(self, monkeypatch):
+        """When only RETURN is supported, _send_open_order uses type_filling=4."""
+        from scripts.audit import fundednext_demo_micro_full_cycle as harness
+        mt5 = MockMT5(symbol_filling_mode=8)   # RETURN only
+        monkeypatch.setattr(harness, "_get_mt5", lambda: mt5)
+        monkeypatch.setattr(harness, "hard_gate_evaluate",
+                            lambda config_path=None: {"verdict": "DEMO_MICRO_ARMED",
+                                                       "reasons": [],
+                                                       "checks": {}})
+        monkeypatch.setenv("TITAN_DEMO_MICRO_ARMED", "1")
+        r = _run_execute_with_mock(mt5, side="BUY", max_hold_seconds=1)
+        assert len(mt5.order_send_calls) >= 1
+        assert mt5.order_send_calls[0]["type_filling"] == 4   # RETURN
+        assert r.get("filling_mode_selected") == "RETURN"
+
+    def test_108_fail_closed_when_no_supported_filling_mode(self, monkeypatch):
+        """Sprint 9.9.3.15 — if no FOK/IOC/RETURN bit is set, harness must
+        fail closed BEFORE order_send. order_send_called must be False."""
+        from scripts.audit import fundednext_demo_micro_full_cycle as harness
+        # Only BOC supported (bit 4) — invalid for market orders
+        mt5 = MockMT5(symbol_filling_mode=4)
+        monkeypatch.setattr(harness, "_get_mt5", lambda: mt5)
+        monkeypatch.setattr(harness, "hard_gate_evaluate",
+                            lambda config_path=None: {"verdict": "DEMO_MICRO_ARMED",
+                                                       "reasons": [],
+                                                       "checks": {}})
+        monkeypatch.setenv("TITAN_DEMO_MICRO_ARMED", "1")
+        r = _run_execute_with_mock(mt5, side="BUY", max_hold_seconds=1)
+
+        # Fail closed — verdict FAIL, order_send NEVER called
+        assert r["final_verdict"] == "DEMO_FULL_CYCLE_FAIL"
+        assert r["order_send_called"] is False
+        assert r["order_send_attempts"] == 0
+        assert len(mt5.order_send_calls) == 0
+        # Reason must mention filling mode and retcode 10030
+        assert "filling mode" in r["reason"].lower()
+        assert "10030" in r["reason"]
+        # Filling mode selected must be None
+        assert r.get("filling_mode_selected") is None
+
+    def test_109_fail_closed_journal_event(self, monkeypatch):
+        """When fail-closed fires, journal must record DEMO_MICRO_EXECUTE_BLOCKED
+        with the canonical retcode_10030_meaning."""
+        from scripts.audit import fundednext_demo_micro_full_cycle as harness
+        mt5 = MockMT5(symbol_filling_mode=4)   # BOC only — fail closed
+        monkeypatch.setattr(harness, "_get_mt5", lambda: mt5)
+        monkeypatch.setattr(harness, "hard_gate_evaluate",
+                            lambda config_path=None: {"verdict": "DEMO_MICRO_ARMED",
+                                                       "reasons": [],
+                                                       "checks": {}})
+        monkeypatch.setenv("TITAN_DEMO_MICRO_ARMED", "1")
+        _run_execute_with_mock(mt5, side="BUY", max_hold_seconds=1)
+
+        events = _read_journal_events()
+        blocked_events = [e for e in events
+                          if e.get("event") == "DEMO_MICRO_EXECUTE_BLOCKED"
+                          and "filling mode" in (e.get("reason") or "").lower()]
+        assert len(blocked_events) >= 1
+        assert blocked_events[-1].get("retcode_10030_meaning") == \
+               "invalid order filling type (TRADE_RETCODE_INVALID_FILL)"
+        assert blocked_events[-1].get("filling_mode_raw") == 4
+
+    def test_110_filling_mode_selected_journal_event(self, monkeypatch):
+        """When filling mode IS selected, journal records
+        DEMO_MICRO_FILLING_MODE_SELECTED with the chosen mode."""
+        from scripts.audit import fundednext_demo_micro_full_cycle as harness
+        mt5 = MockMT5(symbol_filling_mode=2)   # IOC
+        monkeypatch.setattr(harness, "_get_mt5", lambda: mt5)
+        monkeypatch.setattr(harness, "hard_gate_evaluate",
+                            lambda config_path=None: {"verdict": "DEMO_MICRO_ARMED",
+                                                       "reasons": [],
+                                                       "checks": {}})
+        monkeypatch.setenv("TITAN_DEMO_MICRO_ARMED", "1")
+        _run_execute_with_mock(mt5, side="BUY", max_hold_seconds=1)
+
+        events = _read_journal_events()
+        selected_events = [e for e in events
+                           if e.get("event") == "DEMO_MICRO_FILLING_MODE_SELECTED"]
+        assert len(selected_events) >= 1
+        ev = selected_events[-1]
+        assert ev["filling_mode_selected"] == "IOC"
+        assert ev["filling_type_used"] == 2
+        assert ev["filling_source"] == "symbol_info"
+        assert ev["filling_mask"] == 2
+
+    def test_111_retcode_10030_diagnostic_on_order_failure(self, monkeypatch):
+        """Sprint 9.9.3.15 — if order_send somehow returns retcode=10030
+        (e.g., broker changed filling support between gate and send),
+        the journal entry must include the canonical 10030 meaning."""
+        from scripts.audit import fundednext_demo_micro_full_cycle as harness
+        # Mock: FOK+IOC supported (helper selects FOK), but order_send
+        # returns retcode=10030 (simulating broker-side rejection)
+        mt5 = MockMT5(symbol_filling_mode=1 | 2,
+                      open_order_retcode=10030)
+        monkeypatch.setattr(harness, "_get_mt5", lambda: mt5)
+        monkeypatch.setattr(harness, "hard_gate_evaluate",
+                            lambda config_path=None: {"verdict": "DEMO_MICRO_ARMED",
+                                                       "reasons": [],
+                                                       "checks": {}})
+        monkeypatch.setenv("TITAN_DEMO_MICRO_ARMED", "1")
+        r = _run_execute_with_mock(mt5, side="BUY", max_hold_seconds=1)
+
+        # order_send was called but failed with 10030
+        assert r["order_send_called"] is True
+        assert r["order_send_success"] == 0
+        assert r["final_verdict"] == "DEMO_FULL_CYCLE_FAIL"
+        assert "10030" in r["reason"]
+        # Selected filling mode still surfaced in the failure result
+        assert r.get("filling_mode_selected") == "FOK"
+
+        # Journal must include the canonical meaning
+        events = _read_journal_events()
+        order_failed_events = [e for e in events
+                               if e.get("event") == "DEMO_MICRO_ORDER_FAILED"]
+        assert len(order_failed_events) >= 1
+        assert order_failed_events[-1].get("retcode") == 10030
+        assert order_failed_events[-1].get("retcode_meaning") == \
+               "invalid order filling type (TRADE_RETCODE_INVALID_FILL)"
+        # Filling mode must also be in the failure journal entry
+        assert order_failed_events[-1].get("filling_mode_selected") == "FOK"
+
+    def test_112_close_position_also_uses_detected_filling_mode(self, monkeypatch):
+        """Sprint 9.9.3.15 — _close_position must ALSO use the detected
+        filling mode (not the old hard-coded value).
+
+        Uses the same pattern as test_68_buy_close_uses_sell: harness
+        opens a BUY position, then max_hold_seconds=1 triggers a close.
+        Both open and close requests must use the auto-detected IOC mode.
+        """
+        from scripts.audit import fundednext_demo_micro_full_cycle as harness
+        # Only IOC supported (bit 2) — FBS-like
+        mt5 = MockMT5(symbol_filling_mode=2)
+        monkeypatch.setattr(harness, "_get_mt5", lambda: mt5)
+        monkeypatch.setattr(harness, "hard_gate_evaluate",
+                            lambda config_path=None: {"verdict": "DEMO_MICRO_ARMED",
+                                                       "reasons": [],
+                                                       "checks": {}})
+        monkeypatch.setenv("TITAN_DEMO_MICRO_ARMED", "1")
+        r = _run_execute_with_mock(mt5, side="BUY", max_hold_seconds=1)
+
+        # Position should have opened AND closed successfully
+        assert r["final_verdict"] == "DEMO_FULL_CYCLE_PASS", \
+            f"Expected PASS, got {r['final_verdict']}: {r.get('reason')}"
+
+        # Find the close order request (has "position" field)
+        close_calls = [c for c in mt5.order_send_calls if c.get("position")]
+        assert len(close_calls) >= 1, \
+            f"No close order call found in {len(mt5.order_send_calls)} total calls"
+        # Close order must use type_filling=2 (IOC) from auto-detect
+        assert close_calls[-1]["type_filling"] == 2   # IOC
+        # Also verify the open order used IOC
+        open_calls = [c for c in mt5.order_send_calls if not c.get("position")]
+        assert len(open_calls) >= 1
+        assert open_calls[0]["type_filling"] == 2   # IOC
+
+    def test_113_no_hardcoded_filling_in_source(self):
+        """Sprint 9.9.3.15 — source inspection: no remaining hard-coded
+        `type_filling: 2` or `type_filling: 4` literal in the harness.
+        All filling type values must flow through _select_filling_mode().
+        """
+        import inspect, re
+        from scripts.audit import fundednext_demo_micro_full_cycle as harness
+        src = inspect.getsource(harness)
+        # Find every occurrence of type_filling in the source
+        # and verify each one references filling["filling_type"].
+        # Pattern: "type_filling": <value>
+        matches = re.findall(r'"type_filling"\s*:\s*([^,\n]+)', src)
+        assert len(matches) >= 2, \
+            f"Expected at least 2 type_filling assignments (open+close), got {len(matches)}"
+        for m in matches:
+            # Strip whitespace and check it's NOT a bare integer literal
+            val = m.strip()
+            assert not re.match(r'^\d+$', val), \
+                f"Hard-coded type_filling literal found: {val!r} — must use filling['filling_type']"
+            # Must reference the filling dict
+            assert "filling" in val, \
+                f"type_filling assignment does not reference filling dict: {val!r}"

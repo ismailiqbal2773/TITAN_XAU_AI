@@ -57,6 +57,122 @@ _TRADE_RETCODE_DONE = 10009
 _TRADE_RETCODE_AUTOTRADING_DISABLED = 10027
 _RETCODE_10027_MEANING = "client terminal autotrading disabled"
 
+# Sprint 9.9.3.15 patch — retcode 10030 means the order filling type is
+# not supported by the symbol/broker (TRADE_RETCODE_INVALID_FILL).
+# FBS XAUUSD returns this when type_filling=ORDER_FILLING_RETURN (4)
+# is sent blindly — we must auto-detect supported modes instead.
+_TRADE_RETCODE_INVALID_FILL = 10030
+_RETCODE_10030_MEANING = "invalid order filling type (TRADE_RETCODE_INVALID_FILL)"
+
+# Sprint 9.9.3.15 patch — MT5 order filling modes (MQL5 ORDER_TYPE_FILLING enum).
+# Reference: https://www.mql5.com/en/docs/constants/tradingconstants/orderproperties
+# Used as values for the `type_filling` field in mt5.order_send() request dicts.
+ORDER_FILLING_FOK = 1     # Fill or Kill — entire volume or none
+ORDER_FILLING_IOC = 2     # Immediate or Cancel — partial fills allowed
+ORDER_FILLING_BOC = 3     # Book or Cancel — market depth only, NOT for market orders
+ORDER_FILLING_RETURN = 4  # Return — requotes allowed, older default
+
+# Bitmask bit positions in symbol_info.filling_mode (each bit = supported mode).
+# These are different from the ORDER_FILLING_* enum values above — they are
+# powers of two used as flags in the symbol's filling_mode attribute.
+_SYMBOL_FILLING_FOK_BIT = 1     # bit 0
+_SYMBOL_FILLING_IOC_BIT = 2     # bit 1
+_SYMBOL_FILLING_BOC_BIT = 4     # bit 2
+_SYMBOL_FILLING_RETURN_BIT = 8  # bit 3
+
+# Preference order for market orders: FOK → IOC → RETURN.
+# BOC is excluded because it is only valid for pending orders in market depth,
+# not for TRADE_ACTION_DEAL (market) orders used by DEMO_MICRO_EXECUTE.
+_FILLING_PREFERENCE = [
+    (ORDER_FILLING_FOK,    "FOK",    _SYMBOL_FILLING_FOK_BIT),
+    (ORDER_FILLING_IOC,    "IOC",    _SYMBOL_FILLING_IOC_BIT),
+    (ORDER_FILLING_RETURN, "RETURN", _SYMBOL_FILLING_RETURN_BIT),
+]
+
+# Default bitmask to use when symbol_info.filling_mode is missing or 0.
+# Older MT5 builds or some brokers may not populate this attribute. We treat
+# all three market-order-valid modes as supported in that case (legacy
+# behavior — broker must accept at least one, and the harness will probe
+# via the actual order_send result if our first guess is wrong).
+_DEFAULT_FILLING_MASK = (
+    _SYMBOL_FILLING_FOK_BIT
+    | _SYMBOL_FILLING_IOC_BIT
+    | _SYMBOL_FILLING_RETURN_BIT
+)
+
+# Canonical retcode → meaning mapping table. Used by both _send_open_order
+# and _close_position failure paths to enrich journal entries.
+_RETCODE_MEANINGS = {
+    _TRADE_RETCODE_DONE: "request completed",
+    _TRADE_RETCODE_AUTOTRADING_DISABLED: _RETCODE_10027_MEANING,
+    _TRADE_RETCODE_INVALID_FILL: _RETCODE_10030_MEANING,
+}
+
+
+def _lookup_retcode_meaning(retcode) -> Optional[str]:
+    """Return the canonical English meaning for a known MT5 retcode, else None."""
+    if retcode is None:
+        return None
+    try:
+        return _RETCODE_MEANINGS.get(int(retcode))
+    except (TypeError, ValueError):
+        return None
+
+
+def _select_filling_mode(mt5, symbol: str) -> Optional[dict]:
+    """Sprint 9.9.3.15 patch — auto-detect supported MT5 filling mode.
+
+    Reads symbol_info.filling_mode bitmask and selects the most preferred
+    filling mode that is supported for this symbol. Falls back to a
+    permissive default if filling_mode is missing (older MT5 builds).
+
+    Preference order for market orders:
+        1. FOK   (strictest, best for market orders — entire volume or none)
+        2. IOC   (partial fills allowed)
+        3. RETURN (requotes — older brokers)
+    BOC is excluded because it is only valid for pending orders in market
+    depth, not for TRADE_ACTION_DEAL (market) orders used by DEMO_MICRO_EXECUTE.
+
+    Args:
+        mt5: MetaTrader5 module (or mock) — must expose symbol_info().
+        symbol: e.g. "XAUUSD"
+
+    Returns:
+        dict with keys:
+            - filling_type (int): value for `type_filling` in order_send request
+            - filling_name (str): "FOK" | "IOC" | "RETURN"
+            - filling_mask (int): the raw bitmask from symbol_info (or default)
+            - filling_source (str): "symbol_info" | "default"
+        OR None if no supported filling mode is available (fail-closed case).
+    """
+    try:
+        info = mt5.symbol_info(symbol)
+    except Exception:
+        info = None
+    if info is None:
+        # Cannot query symbol info at all — caller should fail closed.
+        return None
+
+    mask = getattr(info, "filling_mode", None)
+    filling_source = "symbol_info"
+    if mask is None or mask == 0:
+        # Older MT5 builds may not expose filling_mode — assume all
+        # standard market-order modes are supported (legacy behavior).
+        mask = _DEFAULT_FILLING_MASK
+        filling_source = "default"
+
+    for filling_type, filling_name, bit in _FILLING_PREFERENCE:
+        if mask & bit:
+            return {
+                "filling_type": filling_type,
+                "filling_name": filling_name,
+                "filling_mask": mask,
+                "filling_source": filling_source,
+            }
+    # Bitmask is set but no supported mode matches our preference
+    # (e.g., only BOC is set, which is invalid for market orders).
+    return None
+
 
 # ─── Journal helper ────────────────────────────────────────────────────────────
 
@@ -196,10 +312,30 @@ def _safe_position(p) -> dict:
 
 def _send_open_order(mt5, symbol: str, side: str, lot: float, magic: int,
                      deviation: int = 20, comment: str = "TITAN_DEMO_MICRO") -> dict:
-    """Send ONE market order. Returns dict with result info."""
+    """Send ONE market order. Returns dict with result info.
+
+    Sprint 9.9.3.15 patch — filling mode is now auto-detected via
+    _select_filling_mode() rather than hard-coded. If no supported
+    filling mode is found, returns an error dict WITHOUT calling
+    order_send (fail-closed before any broker interaction).
+    """
     tick = mt5.symbol_info_tick(symbol)
     if tick is None:
         return {"ok": False, "error": "symbol_info_tick returned None", "retcode": None}
+
+    # Sprint 9.9.3.15 patch — auto-detect supported filling mode
+    filling = _select_filling_mode(mt5, symbol)
+    if filling is None:
+        # Fail closed BEFORE order_send — do not attempt to send with an
+        # unsupported filling type (would return retcode=10030).
+        return {
+            "ok": False,
+            "error": "no supported filling mode detected for symbol "
+                     f"(symbol_info.filling_mode has no FOK/IOC/RETURN bit set)",
+            "retcode": None,
+            "filling_mode_selected": None,
+            "filling_type_used": None,
+        }
 
     # Entry price based on side
     if side == "BUY":
@@ -229,13 +365,15 @@ def _send_open_order(mt5, symbol: str, side: str, lot: float, magic: int,
         "magic": magic,
         "comment": comment,
         "type_time": 0,        # ORDER_TIME_GTC
-        "type_filling": 2,     # ORDER_FILLING_RETURN (commonly supported)
+        "type_filling": filling["filling_type"],   # auto-detected (Sprint 9.9.3.15)
     }
 
     result = mt5.order_send(request)
     if result is None:
         return {"ok": False, "error": "order_send returned None", "retcode": None,
-                "request": _safe_request(request)}
+                "request": _safe_request(request),
+                "filling_mode_selected": filling["filling_name"],
+                "filling_type_used": filling["filling_type"]}
     return {
         "ok": getattr(result, "retcode", 0) == _TRADE_RETCODE_DONE,
         "retcode": getattr(result, "retcode", None),
@@ -245,6 +383,10 @@ def _send_open_order(mt5, symbol: str, side: str, lot: float, magic: int,
         "price": getattr(result, "price", None),
         "comment": getattr(result, "comment", ""),
         "request": _safe_request(request),
+        "filling_mode_selected": filling["filling_name"],
+        "filling_type_used": filling["filling_type"],
+        "filling_source": filling["filling_source"],
+        "filling_mask": filling["filling_mask"],
     }
 
 
@@ -283,11 +425,26 @@ def _sync_position(mt5, symbol: str, magic: int, timeout_s: float = 5.0) -> Opti
 def _close_position(mt5, position: dict, magic: int,
                     deviation: int = 20,
                     comment: str = "TITAN_DEMO_MICRO_CLOSE") -> dict:
-    """Close an open position with opposite-side market order."""
+    """Close an open position with opposite-side market order.
+
+    Sprint 9.9.3.15 patch — filling mode auto-detected via _select_filling_mode.
+    """
     symbol = position["symbol"]
     tick = mt5.symbol_info_tick(symbol)
     if tick is None:
         return {"ok": False, "error": "symbol_info_tick returned None"}
+
+    # Sprint 9.9.3.15 patch — auto-detect filling mode (same logic as open)
+    filling = _select_filling_mode(mt5, symbol)
+    if filling is None:
+        return {
+            "ok": False,
+            "error": "no supported filling mode detected for symbol "
+                     f"(symbol_info.filling_mode has no FOK/IOC/RETURN bit set)",
+            "retcode": None,
+            "filling_mode_selected": None,
+            "filling_type_used": None,
+        }
 
     pos_type = position["type"]
     # Close BUY with SELL, close SELL with BUY
@@ -309,12 +466,14 @@ def _close_position(mt5, position: dict, magic: int,
         "magic": magic,
         "comment": comment,
         "type_time": 0,
-        "type_filling": 2,
+        "type_filling": filling["filling_type"],   # auto-detected (Sprint 9.9.3.15)
     }
     result = mt5.order_send(request)
     if result is None:
         return {"ok": False, "error": "order_send returned None",
-                "request": _safe_request(request)}
+                "request": _safe_request(request),
+                "filling_mode_selected": filling["filling_name"],
+                "filling_type_used": filling["filling_type"]}
     return {
         "ok": getattr(result, "retcode", 0) == _TRADE_RETCODE_DONE,
         "retcode": getattr(result, "retcode", None),
@@ -325,6 +484,10 @@ def _close_position(mt5, position: dict, magic: int,
         "comment": getattr(result, "comment", ""),
         "request": _safe_request(request),
         "close_side": "SELL" if close_type == _ORDER_TYPE_SELL else "BUY",
+        "filling_mode_selected": filling["filling_name"],
+        "filling_type_used": filling["filling_type"],
+        "filling_source": filling["filling_source"],
+        "filling_mask": filling["filling_mask"],
     }
 
 
@@ -343,6 +506,9 @@ async def _run_execute(args, gate, cfg) -> dict:
         "close_success": 0,
         "open_positions_remaining": 0,
         "net_pnl": 0,
+        # Sprint 9.9.3.15 patch — track filling mode selection in the report
+        "filling_mode_selected": None,
+        "filling_type_used": None,
     }
 
     # SAFETY: Z AI must never run this. Block unless explicitly armed.
@@ -485,12 +651,48 @@ async def _run_execute(args, gate, cfg) -> dict:
                     "reason": "Existing open position — refusing to send duplicate",
                     "open_positions_remaining": 1}
 
+        # Sprint 9.9.3.15 patch — pre-check supported filling mode BEFORE
+        # sending the order. Fail closed if no FOK/IOC/RETURN bit is set
+        # in symbol_info.filling_mode. This prevents the retcode=10030
+        # failure mode entirely (order_send is never called).
+        filling = _select_filling_mode(mt5, args.symbol)
+        if filling is None:
+            _journal_event("DEMO_MICRO_EXECUTE_BLOCKED", {
+                "reason": "no supported filling mode detected for symbol "
+                          "(symbol_info.filling_mode has no FOK/IOC/RETURN bit set)",
+                "symbol": args.symbol,
+                "filling_mode_raw": getattr(info, "filling_mode", None),
+                "retcode_10030_meaning": _RETCODE_10030_MEANING,
+            })
+            return {**base_result,
+                    "final_verdict": "DEMO_FULL_CYCLE_FAIL",
+                    "reason": ("no supported filling mode detected for symbol "
+                               f"{args.symbol} — symbol_info.filling_mode="
+                               f"{getattr(info, 'filling_mode', None)} "
+                               f"(would return retcode={_TRADE_RETCODE_INVALID_FILL} "
+                               f"({_RETCODE_10030_MEANING}) if order_send attempted)"),
+                    "order_send_called": False,
+                    "order_send_attempts": 0,
+                    "order_send_success": 0,
+                    "filling_mode_selected": None}
+
+        # Log selected filling mode for operator visibility.
+        _journal_event("DEMO_MICRO_FILLING_MODE_SELECTED", {
+            "symbol": args.symbol,
+            "filling_mode_selected": filling["filling_name"],
+            "filling_type_used": filling["filling_type"],
+            "filling_source": filling["filling_source"],
+            "filling_mask": filling["filling_mask"],
+        })
+
         # ── Send ONE order ──
         _journal_event("DEMO_MICRO_ORDER_REQUESTED", {
             "symbol": args.symbol,
             "side": side,
             "lot": args.lot,
             "magic": DEMO_MICRO_MAGIC,
+            "filling_mode_selected": filling["filling_name"],
+            "filling_type_used": filling["filling_type"],
         })
 
         open_result = _send_open_order(
@@ -499,34 +701,51 @@ async def _run_execute(args, gate, cfg) -> dict:
         )
 
         if not open_result["ok"]:
-            # Sprint 9.9.3.14 patch — surface retcode=10027 diagnostic explicitly.
+            # Sprint 9.9.3.15 patch — unified retcode diagnostic lookup.
+            # Covers both retcode=10027 (autotrading disabled) and
+            # retcode=10030 (invalid fill type), plus any future codes
+            # added to _RETCODE_MEANINGS.
             retcode = open_result.get("retcode")
-            retcode_diagnostic = None
-            if retcode == _TRADE_RETCODE_AUTOTRADING_DISABLED:
-                retcode_diagnostic = _RETCODE_10027_MEANING
+            retcode_diagnostic = _lookup_retcode_meaning(retcode)
             _journal_event("DEMO_MICRO_ORDER_FAILED", {
                 "retcode": retcode,
                 "retcode_meaning": retcode_diagnostic,
                 "error": open_result.get("error", ""),
                 "request": open_result.get("request", {}),
+                "filling_mode_selected": open_result.get("filling_mode_selected"),
+                "filling_type_used": open_result.get("filling_type_used"),
             })
             if retcode_diagnostic is not None:
+                # Tailor the manual-review hint to the specific retcode.
+                if retcode == _TRADE_RETCODE_AUTOTRADING_DISABLED:
+                    hint = "enable Algo Trading in MT5 terminal"
+                elif retcode == _TRADE_RETCODE_INVALID_FILL:
+                    hint = ("filling mode auto-detect failed — check "
+                            "symbol_info.filling_mode for this broker/symbol")
+                else:
+                    hint = "see retcode_meaning in journal"
                 _journal_event("DEMO_MICRO_MANUAL_REVIEW_REQUIRED", {
                     "reason": (f"order_send failed: retcode={retcode} "
-                               f"({retcode_diagnostic}) — enable Algo Trading in MT5 terminal"),
+                               f"({retcode_diagnostic}) — {hint}"),
                 })
             else:
                 _journal_event("DEMO_MICRO_MANUAL_REVIEW_REQUIRED", {
                     "reason": "order_send failed",
                 })
+            # Did order_send actually get called? If filling mode was
+            # unsupported, _send_open_order returns ok=False WITHOUT
+            # calling order_send (filling_mode_selected is None).
+            order_send_was_called = open_result.get("filling_mode_selected") is not None
             return {**base_result,
                     "final_verdict": "DEMO_FULL_CYCLE_FAIL",
                     "reason": f"order_send failed: {open_result.get('error', '')} "
                               f"retcode={retcode}"
                               + (f" ({retcode_diagnostic})" if retcode_diagnostic else ""),
-                    "order_send_called": True,
-                    "order_send_attempts": 1,
+                    "order_send_called": order_send_was_called,
+                    "order_send_attempts": 1 if order_send_was_called else 0,
                     "order_send_success": 0,
+                    "filling_mode_selected": open_result.get("filling_mode_selected"),
+                    "filling_type_used": open_result.get("filling_type_used"),
                     "open_order": open_result}
 
         _journal_event("DEMO_MICRO_ORDER_SENT", {
@@ -535,6 +754,8 @@ async def _run_execute(args, gate, cfg) -> dict:
             "price": open_result.get("price"),
             "volume": open_result.get("volume"),
             "retcode": open_result.get("retcode"),
+            "filling_mode_selected": open_result.get("filling_mode_selected"),
+            "filling_type_used": open_result.get("filling_type_used"),
         })
 
         # ── Sync position ──
@@ -752,7 +973,12 @@ async def _run_execute(args, gate, cfg) -> dict:
                 "close_price": close_price,
                 "max_floating_dd": max_floating_dd,
                 "close_reason": close_reason,
-                "emergency_stop": emergency_stop}
+                "emergency_stop": emergency_stop,
+                # Sprint 9.9.3.15 patch — surface filling mode in success report
+                "filling_mode_selected": open_result.get("filling_mode_selected"),
+                "filling_type_used": open_result.get("filling_type_used"),
+                "filling_source": open_result.get("filling_source"),
+                "filling_mask": open_result.get("filling_mask")}
 
     finally:
         try:
@@ -822,6 +1048,13 @@ async def run(args):
         print(f"\n  >>> DEMO_MICRO_EXECUTE result: {result['final_verdict']}")
         if result.get("reason"):
             print(f"  >>> Reason: {result['reason']}")
+        # Sprint 9.9.3.15 patch — surface filling mode in console output
+        if result.get("filling_mode_selected") is not None:
+            print(f"  >>> Filling mode selected: {result['filling_mode_selected']} "
+                  f"(type={result.get('filling_type_used')}, "
+                  f"source={result.get('filling_source', 'unknown')})")
+        elif result.get("order_send_called") is False:
+            print(f"  >>> Filling mode selected: None (no supported mode — order_send not called)")
         if result.get("net_pnl") is not None and result.get("order_send_called"):
             print(f"  >>> Net PnL: {result.get('net_pnl')}")
         if result.get("open_positions_remaining") is not None:
@@ -844,6 +1077,14 @@ def _save_report(result, suffix):
         f.write(f"**Close attempts: {result.get('close_attempts', 0)}**\n\n")
         f.write(f"**Close success: {result.get('close_success', 0)}**\n\n")
         f.write(f"**Open positions remaining: {result.get('open_positions_remaining', 0)}**\n\n")
+        # Sprint 9.9.3.15 patch — filling mode diagnostics in MD report
+        f.write(f"**Filling mode selected: {result.get('filling_mode_selected', 'N/A')}**\n\n")
+        if result.get("filling_type_used") is not None:
+            f.write(f"**Filling type used: {result.get('filling_type_used')}**\n\n")
+        if result.get("filling_source") is not None:
+            f.write(f"**Filling source: {result.get('filling_source')}**\n\n")
+        if result.get("filling_mask") is not None:
+            f.write(f"**Filling mask: {result.get('filling_mask')}**\n\n")
         if "net_pnl" in result:
             f.write(f"**Net PnL: {result.get('net_pnl', 0)}**\n\n")
         if "gross_pnl" in result:
