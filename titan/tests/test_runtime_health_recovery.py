@@ -209,12 +209,23 @@ class TestStartupChecks:
         journal_events = [e for e in events if e.event_type == "JOURNAL_WRITE_FAILURE"]
         assert len(journal_events) == 0
 
-    def test_10_journal_writable_check_fails(self):
-        """Journal writable check fails for invalid path."""
+    def test_10_journal_writable_check_fails(self, tmp_path):
+        """Journal writable check fails for invalid path.
+
+        Sprint 9.9.3.30.1 hotfix — replaced hardcoded '/nonexistent_root/...'
+        with a deterministic cross-platform invalid path: create a FILE at
+        tmp_path / 'not_a_directory', then set journal_path to
+        tmp_path / 'not_a_directory' / 'journal.jsonl'. The parent is a
+        file (not a directory), so mkdir/write must fail on all platforms.
+        """
+        blocker = tmp_path / "not_a_directory"
+        blocker.write_text("I am a file, not a directory", encoding="utf-8")
+        invalid_journal = blocker / "journal.jsonl"
+
         mt5 = MockMT5()
         monitor = RuntimeHealthMonitor(
             mt5=mt5, magic=20261993, symbol="XAUUSD",
-            journal_path="/nonexistent_root/path/journal.jsonl",
+            journal_path=str(invalid_journal),
         )
         events = monitor.check_startup()
         journal_events = [e for e in events if e.event_type == "JOURNAL_WRITE_FAILURE"]
