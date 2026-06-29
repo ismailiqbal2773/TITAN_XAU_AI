@@ -33,3 +33,4 @@ data/audit/broker_compatibility/
 data/audit/regime/
 data/audit/signal_bridge/
 data/audit/exit_engine/
+data/audit/exit_intent/
