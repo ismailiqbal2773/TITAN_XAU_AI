@@ -120,6 +120,17 @@ def run_checks(cli_mode: bool = True) -> list[CheckResult]:
         results.append(CheckResult("TITAN_LIVE_TRADING env", "PASS",
                                     "Not set (dry_run only)"))
 
+    # Sprint 9.9.3.24 — Security module availability (non-blocking in dev mode)
+    try:
+        from titan.security.security_gate import SecurityGate
+        from titan.security.license_guard import _get_security_mode
+        sec_mode = _get_security_mode()
+        results.append(CheckResult("Security modules", "PASS",
+                                    f"available (mode={sec_mode})"))
+    except ImportError:
+        results.append(CheckResult("Security modules", "WARN",
+                                    "titan.security not installed — non-blocking in dev mode"))
+
     return results
 
 
