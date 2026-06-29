@@ -299,6 +299,12 @@ class _MockAccount:
         self.equity = balance
         self.currency = "USD"
         self.leverage = 500
+        # Sprint 9.9.3.14 patch — trade_expert must be True for the
+        # harness to proceed past the new defense-in-depth check in
+        # _run_execute. Tests that specifically want to verify the
+        # block behavior can override this via MockMT5(account_trade_expert=False).
+        self.trade_expert = True
+        self.trade_allowed = True
 
 
 class _MockTick:
@@ -379,9 +385,13 @@ class MockMT5:
                  sync_position_obj=None,
                  floating_pnl_sequence=None,
                  never_visible_position=False,
-                 auto_create_position_on_open=True):
+                 auto_create_position_on_open=True,
+                 account_trade_expert=True):
         self._initialized = False
         self._account = _MockAccount(account_trade_mode, account_balance)
+        # Sprint 9.9.3.14 patch — allow tests to simulate disabled
+        # Algo Trading by overriding trade_expert on the mock account.
+        self._account.trade_expert = account_trade_expert
         self._tick = _MockTick(tick_bid, tick_ask)
         self._symbol_info = _MockSymbolInfo("XAUUSD", symbol_visible)
         self._open_positions = list(open_positions or [])
@@ -951,3 +961,84 @@ class TestExecuteProductionSafety:
         # Also verify the harness guards against missing MT5
         from scripts.audit.fundednext_demo_micro_full_cycle import _get_mt5
         assert _get_mt5() is None  # Returns None on Z AI / Linux
+
+    def test_90_blocks_when_trade_expert_false(self, monkeypatch):
+        """Sprint 9.9.3.14 — _run_execute must BLOCK (no order_send)
+        when account_info.trade_expert=False, even if the hard gate
+        verdict is DEMO_MICRO_ARMED.
+
+        Defense in depth: operator may have toggled MT5 Algo Trading
+        button between the hard-gate run and the execute run.
+        """
+        from scripts.audit import fundednext_demo_micro_full_cycle as harness
+        # Mock MT5 with DEMO account but trade_expert=False
+        mt5 = MockMT5(account_trade_mode=0, account_trade_expert=False)
+        monkeypatch.setattr(harness, "_get_mt5", lambda: mt5)
+        # Hard gate says ARMED (simulating a race / stale gate verdict)
+        monkeypatch.setattr(harness, "hard_gate_evaluate",
+                            lambda config_path=None: {"verdict": "DEMO_MICRO_ARMED",
+                                                       "reasons": [],
+                                                       "checks": {}})
+        monkeypatch.setenv("TITAN_DEMO_MICRO_ARMED", "1")
+        r = _run_execute_with_mock(mt5, side="BUY")
+
+        assert r["final_verdict"] == "DEMO_MICRO_BLOCKED"
+        assert "expert" in r["reason"].lower()
+        assert "retcode=10027" in r["reason"]
+        assert r["order_send_called"] is False
+        assert r["order_send_attempts"] == 0
+        assert len(mt5.order_send_calls) == 0
+
+    def test_91_proceeds_when_trade_expert_true(self, monkeypatch):
+        """Sprint 9.9.3.14 — when trade_expert=True, the new check
+        must NOT block, and execution must proceed normally (verified
+        by order_send being attempted)."""
+        from scripts.audit import fundednext_demo_micro_full_cycle as harness
+        mt5 = MockMT5(account_trade_mode=0, account_trade_expert=True)
+        monkeypatch.setattr(harness, "_get_mt5", lambda: mt5)
+        monkeypatch.setattr(harness, "hard_gate_evaluate",
+                            lambda config_path=None: {"verdict": "DEMO_MICRO_ARMED",
+                                                       "reasons": [],
+                                                       "checks": {}})
+        monkeypatch.setenv("TITAN_DEMO_MICRO_ARMED", "1")
+        r = _run_execute_with_mock(mt5, side="BUY", max_hold_seconds=1)
+
+        # Should NOT be blocked on trade_expert grounds — order_send was called.
+        # (It may still fail later in the cycle for other mock reasons, but
+        # the trade_expert check itself passed.)
+        assert r["final_verdict"] != "DEMO_MICRO_BLOCKED" or \
+               "expert" not in r.get("reason", "").lower(), \
+               f"Blocked on trade_expert unexpectedly: {r['reason']}"
+        assert r["order_send_called"] is True
+        assert len(mt5.order_send_calls) >= 1
+
+    def test_92_retcode_10027_diagnostic_on_order_failure(self, monkeypatch):
+        """Sprint 9.9.3.14 — if order_send somehow returns retcode=10027
+        (e.g., terminal autotrading disabled AFTER the gate check),
+        the journal entry must include the canonical meaning string."""
+        from scripts.audit import fundednext_demo_micro_full_cycle as harness
+        # Mock MT5 where trade_expert=True at gate time but order_send
+        # returns retcode=10027 (simulating terminal toggle after gate)
+        mt5 = MockMT5(account_trade_mode=0,
+                      account_trade_expert=True,
+                      open_order_retcode=10027)
+        monkeypatch.setattr(harness, "_get_mt5", lambda: mt5)
+        monkeypatch.setattr(harness, "hard_gate_evaluate",
+                            lambda config_path=None: {"verdict": "DEMO_MICRO_ARMED",
+                                                       "reasons": [],
+                                                       "checks": {}})
+        monkeypatch.setenv("TITAN_DEMO_MICRO_ARMED", "1")
+        r = _run_execute_with_mock(mt5, side="BUY", max_hold_seconds=1)
+
+        # order_send was called but failed
+        assert r["order_send_called"] is True
+        assert r["order_send_success"] == 0
+        assert r["final_verdict"] == "DEMO_FULL_CYCLE_FAIL"
+        assert "10027" in r["reason"]
+        # The canonical meaning must appear in the journal
+        events = _read_journal_events()
+        order_failed_events = [e for e in events if e.get("event") == "DEMO_MICRO_ORDER_FAILED"]
+        assert len(order_failed_events) >= 1
+        assert order_failed_events[-1].get("retcode") == 10027
+        assert order_failed_events[-1].get("retcode_meaning") == \
+               "client terminal autotrading disabled"

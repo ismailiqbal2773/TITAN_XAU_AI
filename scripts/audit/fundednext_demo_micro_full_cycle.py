@@ -51,6 +51,12 @@ _ORDER_TYPE_BUY = 0
 _ORDER_TYPE_SELL = 1
 _TRADE_RETCODE_DONE = 10009
 
+# Sprint 9.9.3.14 patch — retcode 10027 means client terminal autotrading
+# is disabled (account_info.trade_expert=False). Hard gate must block before
+# order_send is ever attempted in this state.
+_TRADE_RETCODE_AUTOTRADING_DISABLED = 10027
+_RETCODE_10027_MEANING = "client terminal autotrading disabled"
+
 
 # ─── Journal helper ────────────────────────────────────────────────────────────
 
@@ -406,6 +412,27 @@ async def _run_execute(args, gate, cfg) -> dict:
                     "final_verdict": "DEMO_MICRO_BLOCKED",
                     "reason": "Account is NOT DEMO — BLOCKED for safety"}
 
+        # Sprint 9.9.3.14 patch — verify MT5 expert/algo trading is enabled.
+        # account_info.trade_expert must be True, otherwise order_send returns
+        # retcode=10027 ("client terminal autotrading disabled"). Even though
+        # the hard gate already checks this, we re-check here as defense in
+        # depth because the operator may have toggled the "Algo Trading"
+        # button between the hard-gate run and the execute run.
+        trade_expert = getattr(account_info, "trade_expert", None) if account_info else None
+        if trade_expert is not True:
+            _journal_event("DEMO_MICRO_EXECUTE_BLOCKED", {
+                "reason": "MT5 expert/algo trading disabled at account or terminal level",
+                "account_trade_expert": trade_expert,
+                "account_trade_allowed": getattr(account_info, "trade_allowed", None) if account_info else None,
+                "retcode_10027_meaning": _RETCODE_10027_MEANING,
+            })
+            return {**base_result,
+                    "final_verdict": "DEMO_MICRO_BLOCKED",
+                    "reason": ("MT5 expert/algo trading disabled at account or terminal level "
+                               f"(account_trade_expert={trade_expert}) — "
+                               f"order_send would return retcode={_TRADE_RETCODE_AUTOTRADING_DISABLED} "
+                               f"({_RETCODE_10027_MEANING})")}
+
         # Symbol must be visible and selected
         info = mt5.symbol_info(args.symbol)
         if info is None:
@@ -472,18 +499,31 @@ async def _run_execute(args, gate, cfg) -> dict:
         )
 
         if not open_result["ok"]:
+            # Sprint 9.9.3.14 patch — surface retcode=10027 diagnostic explicitly.
+            retcode = open_result.get("retcode")
+            retcode_diagnostic = None
+            if retcode == _TRADE_RETCODE_AUTOTRADING_DISABLED:
+                retcode_diagnostic = _RETCODE_10027_MEANING
             _journal_event("DEMO_MICRO_ORDER_FAILED", {
-                "retcode": open_result.get("retcode"),
+                "retcode": retcode,
+                "retcode_meaning": retcode_diagnostic,
                 "error": open_result.get("error", ""),
                 "request": open_result.get("request", {}),
             })
-            _journal_event("DEMO_MICRO_MANUAL_REVIEW_REQUIRED", {
-                "reason": "order_send failed",
-            })
+            if retcode_diagnostic is not None:
+                _journal_event("DEMO_MICRO_MANUAL_REVIEW_REQUIRED", {
+                    "reason": (f"order_send failed: retcode={retcode} "
+                               f"({retcode_diagnostic}) — enable Algo Trading in MT5 terminal"),
+                })
+            else:
+                _journal_event("DEMO_MICRO_MANUAL_REVIEW_REQUIRED", {
+                    "reason": "order_send failed",
+                })
             return {**base_result,
                     "final_verdict": "DEMO_FULL_CYCLE_FAIL",
                     "reason": f"order_send failed: {open_result.get('error', '')} "
-                              f"retcode={open_result.get('retcode')}",
+                              f"retcode={retcode}"
+                              + (f" ({retcode_diagnostic})" if retcode_diagnostic else ""),
                     "order_send_called": True,
                     "order_send_attempts": 1,
                     "order_send_success": 0,
