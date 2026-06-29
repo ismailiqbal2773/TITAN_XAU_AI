@@ -96,9 +96,9 @@ def write_report() -> dict:
             "Production trading behavior is NOT changed — exit engines are non-blocking foundation.",
         ],
     }
-    with open(JSON_PATH, "w") as f:
-        json.dump(report, f, indent=2, default=str)
-    with open(MD_PATH, "w") as f:
+    with open(JSON_PATH, "w", encoding="utf-8") as f:
+        json.dump(report, f, indent=2, default=str, ensure_ascii=False)
+    with open(MD_PATH, "w", encoding="utf-8") as f:
         f.write("# TITAN XAU AI — Exit Engine Architecture Report\n\n")
         f.write(f"**Generated:** {ts}\n\n")
         f.write("## SL Defense Rules\n\n")
