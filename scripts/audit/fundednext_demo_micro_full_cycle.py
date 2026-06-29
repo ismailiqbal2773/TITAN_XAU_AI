@@ -438,6 +438,14 @@ def parse_args():
                    help="If set, close position after N seconds (operator test mode).")
     p.add_argument("--force-close-on-end", choices=["true", "false"], default="true",
                    help="Force-close any remaining position on exit (default true).")
+    # Sprint 9.9.3.21 patch — raw working profile support
+    p.add_argument("--use-raw-working-profile", action="store_true", default=False,
+                   help="Load raw_mt5_working_profile.json and mirror the exact "
+                        "request shape that succeeded on this broker "
+                        "(naked IOC + SLTP modify after open).")
+    p.add_argument("--raw-profile-path", type=str, default=None,
+                   help="Custom path to raw_mt5_working_profile.json "
+                        "(default: data/audit/demo_micro/raw_mt5_working_profile.json)")
     return p.parse_args()
 
 
@@ -545,15 +553,17 @@ def _safe_position(p) -> dict:
 
 
 def _send_open_order(mt5, symbol: str, side: str, lot: float, magic: int,
-                     deviation: int = 20, comment: str = "TITAN_DEMO_MICRO") -> dict:
+                     deviation: int = 20, comment: str = "TITAN_DEMO_MICRO",
+                     use_raw_working_profile: bool = False,
+                     raw_profile_path: Optional[str] = None) -> dict:
     """Send ONE market order. Returns dict with result info.
 
     Sprint 9.9.3.15 patch — filling mode auto-detected via _select_filling_mode.
     Sprint 9.9.3.16 patch — order_check + filling fallback before order_send.
-    Sprint 9.9.3.17 patch — delegates to the universal MT5ExecutionAdapter,
-        which provides send-level fallback (FOK→IOC→RETURN), tick refresh
-        per attempt, duplicate position detection, and emergency close
-        signaling. The adapter writes broker_execution_profile.json.
+    Sprint 9.9.3.17 patch — delegates to the universal MT5ExecutionAdapter.
+    Sprint 9.9.3.21 patch — adds use_raw_working_profile kwarg. When True,
+        the adapter loads raw_mt5_working_profile.json and mirrors the exact
+        request shape (naked IOC + SLTP modify after open).
     """
     from titan.production.mt5_execution_adapter import MT5ExecutionAdapter
 
@@ -561,10 +571,14 @@ def _send_open_order(mt5, symbol: str, side: str, lot: float, magic: int,
     # Sprint 9.9.3.19 patch — pass demo_micro=True so the adapter tries
     # the naked order + SLTP modify fallback when the protected order is
     # rejected by a MARKET-execution broker (FBS scenario).
+    # Sprint 9.9.3.21 patch — pass use_raw_working_profile so the adapter
+    # uses the raw-compatible path when a raw profile exists.
     result = adapter.send_open_order(
         symbol=symbol, side=side, lot=lot, magic=magic,
         deviation=deviation, comment=comment,
         demo_micro=True,
+        use_raw_working_profile=use_raw_working_profile,
+        raw_profile_path=raw_profile_path,
     )
     # Translate adapter result to the legacy return-dict shape so existing
     # callers (and existing tests) keep working.
@@ -877,6 +891,9 @@ async def _run_execute(args, gate, cfg) -> dict:
         open_result = _send_open_order(
             mt5, symbol=args.symbol, side=side, lot=args.lot,
             magic=DEMO_MICRO_MAGIC,
+            # Sprint 9.9.3.21 — pass raw working profile flags from CLI args
+            use_raw_working_profile=getattr(args, "use_raw_working_profile", False),
+            raw_profile_path=getattr(args, "raw_profile_path", None),
         )
 
         if not open_result["ok"]:

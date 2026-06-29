@@ -3060,3 +3060,248 @@ class TestBrokerCompatibilityFallback:
         # Full cycle should PASS via broker compat fallback
         assert r["final_verdict"] == "DEMO_FULL_CYCLE_PASS"
         assert r.get("filling_mode_selected") is not None
+
+
+# ─── Sprint 9.9.3.21 patch — raw working profile tests ────────────────────────
+
+class TestRawWorkingProfile:
+    """Sprint 9.9.3.21 — raw MT5 working profile support.
+
+    When use_raw_working_profile=True and raw_mt5_working_profile.json
+    exists, the adapter mirrors the exact request shape that succeeded
+    on this broker: naked IOC order (sl=0, tp=0) + SLTP modify after open.
+    """
+
+    def _create_temp_raw_profile(self, tmp_path, **overrides):
+        """Helper: create a temp raw_mt5_working_profile.json."""
+        import json
+        profile = {
+            "server": "MetaQuotes-Demo",
+            "symbol": "XAUUSD",
+            "type_filling": 2,  # IOC
+            "type_filling_name": "IOC",
+            "deviation": 50,
+            "sl": 0.0,
+            "tp": 0.0,
+            "sl_tp_mode": "naked_then_sltp_modify",
+            "type_time": 0,
+            "type_time_name": "ORDER_TIME_GTC",
+            "magic": 20261993,
+        }
+        profile.update(overrides)
+        profile_path = tmp_path / "raw_mt5_working_profile.json"
+        profile_path.write_text(json.dumps(profile))
+        return str(profile_path)
+
+    def test_170_raw_profile_ioc_naked_succeeds(self, tmp_path):
+        """Raw profile IOC naked order succeeds + SLTP modify succeeds."""
+        from titan.production.mt5_execution_adapter import MT5ExecutionAdapter
+        profile_path = self._create_temp_raw_profile(tmp_path)
+        mt5 = MockMT5(symbol_filling_mode=1 | 2,
+                      order_check_default_retcode=0,
+                      naked_order_retcode=10009,
+                      sltp_modify_retcode=10009)
+        mt5._symbol_info.trade_exemode = 2
+        mt5.initialize()
+        adapter = MT5ExecutionAdapter(mt5, journal_event=lambda e, p: None)
+        result = adapter.send_open_order(
+            symbol="XAUUSD", side="BUY", lot=0.01, magic=20261993,
+            use_raw_working_profile=True, raw_profile_path=profile_path,
+        )
+        assert result["ok"] is True
+        assert result.get("raw_working_profile_used") is True
+        assert result.get("raw_naked_open_then_sltp") is True
+        assert result.get("filling_mode_selected") == "IOC"
+        assert result.get("filling_source") == "raw_working_profile"
+        assert result.get("sltp_modify_result", {}).get("ok") is True
+        assert mt5._sltp_modify_calls >= 1
+
+    def test_171_adapter_uses_ioc_first_from_raw_profile(self, tmp_path):
+        """Adapter uses IOC filling type from raw profile (not FOK)."""
+        from titan.production.mt5_execution_adapter import MT5ExecutionAdapter
+        profile_path = self._create_temp_raw_profile(tmp_path, type_filling=2)
+        mt5 = MockMT5(symbol_filling_mode=1 | 2,
+                      order_check_default_retcode=0,
+                      naked_order_retcode=10009,
+                      sltp_modify_retcode=10009)
+        mt5.initialize()
+        adapter = MT5ExecutionAdapter(mt5, journal_event=lambda e, p: None)
+        adapter.send_open_order(
+            symbol="XAUUSD", side="BUY", lot=0.01, magic=20261993,
+            use_raw_working_profile=True, raw_profile_path=profile_path,
+        )
+        # The open order request must use type_filling=2 (IOC)
+        open_calls = [c for c in mt5.order_send_calls
+                      if not c.get("position") and c.get("action") == 1]
+        assert len(open_calls) >= 1
+        assert open_calls[0]["type_filling"] == 2   # IOC from raw profile
+
+    def test_172_adapter_sends_naked_sl_zero_tp_zero(self, tmp_path):
+        """Adapter sends sl=0 and tp=0 (naked order) when using raw profile."""
+        from titan.production.mt5_execution_adapter import MT5ExecutionAdapter
+        profile_path = self._create_temp_raw_profile(tmp_path)
+        mt5 = MockMT5(symbol_filling_mode=1 | 2,
+                      order_check_default_retcode=0,
+                      naked_order_retcode=10009,
+                      sltp_modify_retcode=10009)
+        mt5.initialize()
+        adapter = MT5ExecutionAdapter(mt5, journal_event=lambda e, p: None)
+        adapter.send_open_order(
+            symbol="XAUUSD", side="BUY", lot=0.01, magic=20261993,
+            use_raw_working_profile=True, raw_profile_path=profile_path,
+        )
+        open_calls = [c for c in mt5.order_send_calls
+                      if not c.get("position") and c.get("action") == 1]
+        assert len(open_calls) >= 1
+        assert open_calls[0]["sl"] == 0.0
+        assert open_calls[0]["tp"] == 0.0
+
+    def test_173_sltp_modify_attempted_after_open(self, tmp_path):
+        """SLTP modify (TRADE_ACTION_SLTP) is attempted after naked open."""
+        from titan.production.mt5_execution_adapter import MT5ExecutionAdapter
+        profile_path = self._create_temp_raw_profile(tmp_path)
+        mt5 = MockMT5(symbol_filling_mode=1 | 2,
+                      order_check_default_retcode=0,
+                      naked_order_retcode=10009,
+                      sltp_modify_retcode=10009)
+        mt5.initialize()
+        adapter = MT5ExecutionAdapter(mt5, journal_event=lambda e, p: None)
+        adapter.send_open_order(
+            symbol="XAUUSD", side="BUY", lot=0.01, magic=20261993,
+            use_raw_working_profile=True, raw_profile_path=profile_path,
+        )
+        # SLTP modify must have been called (action=2)
+        sltp_calls = [c for c in mt5.order_send_calls if c.get("action") == 2]
+        assert len(sltp_calls) >= 1
+        # SLTP request must have non-zero SL/TP
+        sltp_req = sltp_calls[0]
+        assert sltp_req["sl"] != 0.0
+        assert sltp_req["tp"] != 0.0
+
+    def test_174_sltp_modify_fails_emergency_close(self, tmp_path):
+        """If SLTP modify fails after raw naked open, position is emergency-closed."""
+        from titan.production.mt5_execution_adapter import MT5ExecutionAdapter
+        profile_path = self._create_temp_raw_profile(tmp_path)
+        mt5 = MockMT5(symbol_filling_mode=1 | 2,
+                      order_check_default_retcode=0,
+                      naked_order_retcode=10009,
+                      sltp_modify_retcode=10013)  # SLTP fails
+        mt5._symbol_info.trade_exemode = 2
+        mt5.initialize()
+        adapter = MT5ExecutionAdapter(mt5, journal_event=lambda e, p: None)
+        result = adapter.send_open_order(
+            symbol="XAUUSD", side="BUY", lot=0.01, magic=20261993,
+            use_raw_working_profile=True, raw_profile_path=profile_path,
+        )
+        assert result["ok"] is False
+        assert result.get("emergency_close_required") is True
+        assert result.get("emergency_close_attempted") is True
+        assert result.get("raw_working_profile_used") is True
+        # Close order must have been sent (has "position" field)
+        close_calls = [c for c in mt5.order_send_calls if c.get("position")]
+        assert len(close_calls) >= 1
+
+    def test_175_raw_profile_not_found_falls_back(self, tmp_path):
+        """When use_raw_working_profile=True but no profile exists, falls
+        back to normal filling-mode fallback."""
+        from titan.production.mt5_execution_adapter import MT5ExecutionAdapter
+        # Point to a non-existent path
+        missing_path = str(tmp_path / "does_not_exist.json")
+        mt5 = MockMT5(symbol_filling_mode=1,
+                      order_check_default_retcode=0)
+        mt5.initialize()
+        adapter = MT5ExecutionAdapter(mt5, journal_event=lambda e, p: None)
+        result = adapter.send_open_order(
+            symbol="XAUUSD", side="BUY", lot=0.01, magic=20261993,
+            use_raw_working_profile=True, raw_profile_path=missing_path,
+        )
+        # Should fall back to normal path (not raw)
+        assert result.get("raw_working_profile_used") is not True
+        # Should still work via normal filling-mode fallback
+        assert result["ok"] is True
+
+    def test_176_raw_profile_deviation_mirrored(self, tmp_path):
+        """Adapter uses deviation from raw profile (50, not default 20)."""
+        from titan.production.mt5_execution_adapter import MT5ExecutionAdapter
+        profile_path = self._create_temp_raw_profile(tmp_path, deviation=50)
+        mt5 = MockMT5(symbol_filling_mode=1 | 2,
+                      order_check_default_retcode=0,
+                      naked_order_retcode=10009,
+                      sltp_modify_retcode=10009)
+        mt5.initialize()
+        adapter = MT5ExecutionAdapter(mt5, journal_event=lambda e, p: None)
+        adapter.send_open_order(
+            symbol="XAUUSD", side="BUY", lot=0.01, magic=20261993,
+            deviation=20,   # caller passes 20, but raw profile says 50
+            use_raw_working_profile=True, raw_profile_path=profile_path,
+        )
+        open_calls = [c for c in mt5.order_send_calls
+                      if not c.get("position") and c.get("action") == 1]
+        assert len(open_calls) >= 1
+        # Deviation must be 50 (from raw profile), not 20 (from caller)
+        assert open_calls[0]["deviation"] == 50
+
+    def test_177_raw_profile_journal_events(self, tmp_path):
+        """Required raw profile journal events are emitted."""
+        from titan.production.mt5_execution_adapter import MT5ExecutionAdapter
+        profile_path = self._create_temp_raw_profile(tmp_path)
+        journal_events = []
+        def capture(event_type, payload):
+            journal_events.append({"event": event_type, **payload})
+        mt5 = MockMT5(symbol_filling_mode=1 | 2,
+                      order_check_default_retcode=0,
+                      naked_order_retcode=10009,
+                      sltp_modify_retcode=10009)
+        mt5.initialize()
+        adapter = MT5ExecutionAdapter(mt5, journal_event=capture)
+        adapter.send_open_order(
+            symbol="XAUUSD", side="BUY", lot=0.01, magic=20261993,
+            use_raw_working_profile=True, raw_profile_path=profile_path,
+        )
+        event_types = [e.get("event") for e in journal_events]
+        assert "ADAPTER_RAW_WORKING_PROFILE_MODE" in event_types
+        assert "ADAPTER_RAW_PROFILE_LOADED" in event_types
+        assert "ADAPTER_RAW_NAKED_ORDER_ATTEMPTED" in event_types
+        assert "ADAPTER_RAW_SLTP_MODIFY_SUCCESS" in event_types
+
+    def test_178_raw_probe_script_exists(self):
+        """scripts/audit/raw_mt5_probe.py exists and is importable."""
+        from pathlib import Path
+        probe_path = REPO_ROOT / "scripts" / "audit" / "raw_mt5_probe.py"
+        assert probe_path.exists(), "raw_mt5_probe.py not found"
+        # Verify it has the required functions
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("raw_probe", str(probe_path))
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        assert hasattr(mod, "probe_raw_mt5")
+        assert hasattr(mod, "main")
+        assert mod.DEMO_MICRO_MAGIC == 20261993
+
+    def test_179_raw_profile_harness_integration(self, tmp_path, monkeypatch):
+        """Full harness: --use-raw-working-profile flag works end-to-end."""
+        from scripts.audit import fundednext_demo_micro_full_cycle as harness
+        profile_path = self._create_temp_raw_profile(tmp_path)
+        mt5 = MockMT5(symbol_filling_mode=1 | 2,
+                      order_check_default_retcode=0,
+                      naked_order_retcode=10009,
+                      sltp_modify_retcode=10009)
+        mt5._symbol_info.trade_exemode = 2
+        monkeypatch.setattr(harness, "_get_mt5", lambda: mt5)
+        monkeypatch.setattr(harness, "hard_gate_evaluate",
+                            lambda config_path=None: {"verdict": "DEMO_MICRO_ARMED",
+                                                       "reasons": [],
+                                                       "checks": {}})
+        monkeypatch.setenv("TITAN_DEMO_MICRO_ARMED", "1")
+        # Simulate --use-raw-working-profile --raw-profile-path=...
+        old_argv = sys.argv
+        sys.argv = ["harness", "--mode", "DEMO_MICRO_EXECUTE",
+                     "--side", "BUY", "--max-hold-seconds", "1",
+                     "--use-raw-working-profile",
+                     "--raw-profile-path", profile_path]
+        try:
+            args = harness.parse_args()
+            assert args.use_raw_working_profile is True
+            assert args.raw_profile_path == profile_path
+        finally:
+            sys.argv = old_argv
