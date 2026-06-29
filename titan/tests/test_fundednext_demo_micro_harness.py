@@ -15,7 +15,7 @@ import time
 import yaml
 import pytest
 from pathlib import Path
-from scripts.audit.fundednext_demo_micro_full_cycle import run
+from scripts.audit.demo_micro_full_cycle import run
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -28,7 +28,7 @@ def _run_harness(mode="DRY_ARM_CHECK_ONLY", **kwargs):
     for k, v in kwargs.items():
         argv.extend([f"--{k.replace('_', '-')}", str(v)])
     sys.argv = argv
-    from scripts.audit.fundednext_demo_micro_full_cycle import parse_args
+    from scripts.audit.demo_micro_full_cycle import parse_args
     args = parse_args()
     sys.argv = old
     asyncio.run(run(args))
@@ -115,7 +115,7 @@ class TestExecuteModeSafety:
         We instead verify there is no function/code path that implements them.
         """
         import inspect
-        from scripts.audit import fundednext_demo_micro_full_cycle as harness
+        from scripts.audit import demo_micro_full_cycle as harness
         src = inspect.getsource(harness)
         # No functions implementing these strategies
         assert "def _martingale" not in src
@@ -751,7 +751,7 @@ def mock_mt5(monkeypatch):
     """Create a MockMT5 and install it via _get_mt5 patch."""
     mt5 = MockMT5()
     # Patch _get_mt5 to return our mock
-    from scripts.audit import fundednext_demo_micro_full_cycle as harness
+    from scripts.audit import demo_micro_full_cycle as harness
     monkeypatch.setattr(harness, "_get_mt5", lambda: mt5)
     # Patch hard_gate_evaluate to return ARMED
     def fake_evaluate(config_path=None):
@@ -799,9 +799,17 @@ def _run_execute_with_mock(mock_mt5, **kwargs):
     old = sys.argv
     argv = ["harness", "--mode", "DEMO_MICRO_EXECUTE"]
     for k, v in kwargs.items():
-        argv.extend([f"--{k.replace('_', '-')}", str(v)])
+        flag = f"--{k.replace('_', '-')}"
+        if v is True:
+            # store_true flag — just add the flag without a value
+            argv.append(flag)
+        elif v is False or v is None:
+            # Skip False/None values
+            continue
+        else:
+            argv.extend([flag, str(v)])
     sys.argv = argv
-    from scripts.audit.fundednext_demo_micro_full_cycle import parse_args, run
+    from scripts.audit.demo_micro_full_cycle import parse_args, run
     args = parse_args()
     sys.argv = old
     asyncio.run(run(args))
@@ -835,7 +843,7 @@ class TestExecuteSideValidation:
         """execute blocks if no AI signal and no --side."""
         # Make sure no AI signal loads
         monkeypatch.setattr(
-            "scripts.audit.fundednext_demo_micro_full_cycle._load_latest_ai_signal",
+            "scripts.audit.demo_micro_full_cycle._load_latest_ai_signal",
             lambda: None,
         )
         r = _run_execute_with_mock(mock_mt5)
@@ -906,7 +914,7 @@ class TestExecuteSideValidation:
 
     def test_67_cli_side_validation(self):
         """CLI --side accepts only BUY or SELL."""
-        from scripts.audit.fundednext_demo_micro_full_cycle import parse_args
+        from scripts.audit.demo_micro_full_cycle import parse_args
         old = sys.argv
         # BUY valid
         sys.argv = ["h", "--mode", "DEMO_MICRO_EXECUTE", "--side", "BUY"]
@@ -988,7 +996,7 @@ class TestExecuteCloseLogic:
             # Close returns success but doesn't actually remove position
             if "position" in request and request.get("position"):
                 # Don't remove from _open_positions
-                from scripts.audit.fundednext_demo_micro_full_cycle import _TRADE_RETCODE_DONE
+                from scripts.audit.demo_micro_full_cycle import _TRADE_RETCODE_DONE
                 return _MockOrderResult(retcode=10009, order=99999, deal=99999,
                                         price=request.get("price", 2000.0),
                                         volume=request.get("volume", 0.01),
@@ -1152,7 +1160,7 @@ class TestExecuteSafetyBlocks:
 
     def test_84_no_order_send_without_hard_gate_armed(self, monkeypatch):
         """No order_send if hard gate verdict is not DEMO_MICRO_ARMED."""
-        from scripts.audit import fundednext_demo_micro_full_cycle as harness
+        from scripts.audit import demo_micro_full_cycle as harness
         mt5 = MockMT5()
         monkeypatch.setattr(harness, "_get_mt5", lambda: mt5)
         monkeypatch.setattr(harness, "hard_gate_evaluate",
@@ -1174,7 +1182,7 @@ class TestExecuteSafetyBlocks:
 
     def test_86_no_order_send_without_arm(self, monkeypatch):
         """No order_send if TITAN_DEMO_MICRO_ARMED is not set."""
-        from scripts.audit import fundednext_demo_micro_full_cycle as harness
+        from scripts.audit import demo_micro_full_cycle as harness
         mt5 = MockMT5()
         monkeypatch.setattr(harness, "_get_mt5", lambda: mt5)
         monkeypatch.setattr(harness, "hard_gate_evaluate",
@@ -1190,7 +1198,7 @@ class TestExecuteSafetyBlocks:
     def test_87_no_order_send_on_non_demo_account(self, monkeypatch):
         """No order_send if account is not DEMO."""
         mt5 = MockMT5(account_trade_mode=2)  # REAL
-        from scripts.audit import fundednext_demo_micro_full_cycle as harness
+        from scripts.audit import demo_micro_full_cycle as harness
         monkeypatch.setattr(harness, "_get_mt5", lambda: mt5)
         monkeypatch.setattr(harness, "hard_gate_evaluate",
                             lambda config_path=None: {"verdict": "DEMO_MICRO_ARMED",
@@ -1229,7 +1237,7 @@ class TestExecuteProductionSafety:
             pass
 
         # Also verify the harness guards against missing MT5
-        from scripts.audit.fundednext_demo_micro_full_cycle import _get_mt5
+        from scripts.audit.demo_micro_full_cycle import _get_mt5
         assert _get_mt5() is None  # Returns None on Z AI / Linux
 
     def test_90_blocks_when_trade_expert_false(self, monkeypatch):
@@ -1240,7 +1248,7 @@ class TestExecuteProductionSafety:
         Defense in depth: operator may have toggled MT5 Algo Trading
         button between the hard-gate run and the execute run.
         """
-        from scripts.audit import fundednext_demo_micro_full_cycle as harness
+        from scripts.audit import demo_micro_full_cycle as harness
         # Mock MT5 with DEMO account but trade_expert=False
         mt5 = MockMT5(account_trade_mode=0, account_trade_expert=False)
         monkeypatch.setattr(harness, "_get_mt5", lambda: mt5)
@@ -1263,7 +1271,7 @@ class TestExecuteProductionSafety:
         """Sprint 9.9.3.14 — when trade_expert=True, the new check
         must NOT block, and execution must proceed normally (verified
         by order_send being attempted)."""
-        from scripts.audit import fundednext_demo_micro_full_cycle as harness
+        from scripts.audit import demo_micro_full_cycle as harness
         mt5 = MockMT5(account_trade_mode=0, account_trade_expert=True)
         monkeypatch.setattr(harness, "_get_mt5", lambda: mt5)
         monkeypatch.setattr(harness, "hard_gate_evaluate",
@@ -1286,7 +1294,7 @@ class TestExecuteProductionSafety:
         """Sprint 9.9.3.14 — if order_send somehow returns retcode=10027
         (e.g., terminal autotrading disabled AFTER the gate check),
         the journal entry must include the canonical meaning string."""
-        from scripts.audit import fundednext_demo_micro_full_cycle as harness
+        from scripts.audit import demo_micro_full_cycle as harness
         # Mock MT5 where trade_expert=True at gate time but order_send
         # returns retcode=10027 (simulating terminal toggle after gate)
         mt5 = MockMT5(account_trade_mode=0,
@@ -1330,7 +1338,7 @@ class TestFillingModeAutoDetect:
     def test_93_filling_mode_constants(self):
         """Sprint 9.9.3.20 — MT5 filling mode constants correctly separate
         SYMBOL_FILLING flags from ORDER_FILLING enum values."""
-        from scripts.audit.fundednext_demo_micro_full_cycle import (
+        from scripts.audit.demo_micro_full_cycle import (
             ORDER_FILLING_FOK, ORDER_FILLING_IOC,
             ORDER_FILLING_BOC, ORDER_FILLING_RETURN,
             _SYMBOL_FILLING_FOK_BIT, _SYMBOL_FILLING_IOC_BIT,
@@ -1354,7 +1362,7 @@ class TestFillingModeAutoDetect:
 
     def test_94_retcode_10030_lookup(self):
         """_lookup_retcode_meaning returns canonical string for 10030."""
-        from scripts.audit.fundednext_demo_micro_full_cycle import _lookup_retcode_meaning
+        from scripts.audit.demo_micro_full_cycle import _lookup_retcode_meaning
         assert _lookup_retcode_meaning(10030) == \
                "invalid order filling type (TRADE_RETCODE_INVALID_FILL)"
         # Backward compat — 10027 still mapped
@@ -1366,7 +1374,7 @@ class TestFillingModeAutoDetect:
 
     def test_95_helper_selects_fok_when_only_fok_supported(self):
         """If symbol_info.filling_mode = FOK bit only, helper selects FOK."""
-        from scripts.audit.fundednext_demo_micro_full_cycle import _select_filling_mode
+        from scripts.audit.demo_micro_full_cycle import _select_filling_mode
         mt5 = MockMT5(symbol_filling_mode=1)   # FOK bit only
         mt5.initialize()   # required so symbol_info() returns the mock
         r = _select_filling_mode(mt5, "XAUUSD")
@@ -1379,7 +1387,7 @@ class TestFillingModeAutoDetect:
     def test_96_helper_selects_ioc_when_only_ioc_supported(self):
         """If symbol_info.filling_mode = IOC bit only, helper selects IOC.
         This is the FBS XAUUSD scenario that triggered retcode=10030."""
-        from scripts.audit.fundednext_demo_micro_full_cycle import _select_filling_mode
+        from scripts.audit.demo_micro_full_cycle import _select_filling_mode
         mt5 = MockMT5(symbol_filling_mode=2)   # IOC bit only
         mt5.initialize()
         r = _select_filling_mode(mt5, "XAUUSD")
@@ -1390,7 +1398,7 @@ class TestFillingModeAutoDetect:
     def test_97_helper_selects_return_when_only_return_supported(self):
         """Sprint 9.9.3.20 — RETURN is not flag-based. When trade_exemode=INSTANT
         and no FOK/IOC flags are set, helper selects RETURN."""
-        from scripts.audit.fundednext_demo_micro_full_cycle import _select_filling_mode
+        from scripts.audit.demo_micro_full_cycle import _select_filling_mode
         # filling_mode=4 (BOC only, non-zero so default mask isn't applied)
         # + trade_exemode=INSTANT → RETURN (FOK/IOC not in bitmask)
         mt5 = MockMT5(symbol_filling_mode=4)   # BOC only — no FOK/IOC
@@ -1403,7 +1411,7 @@ class TestFillingModeAutoDetect:
 
     def test_98_helper_prefers_fok_over_ioc_and_return(self):
         """When multiple modes supported, FOK is preferred (market order best practice)."""
-        from scripts.audit.fundednext_demo_micro_full_cycle import _select_filling_mode
+        from scripts.audit.demo_micro_full_cycle import _select_filling_mode
         # FOK + IOC + RETURN all supported
         mt5 = MockMT5(symbol_filling_mode=1 | 2 | 8)
         mt5.initialize()
@@ -1417,7 +1425,7 @@ class TestFillingModeAutoDetect:
 
     def test_99_helper_falls_back_to_ioc_when_fok_unsupported(self):
         """When FOK not supported but IOC is, helper selects IOC."""
-        from scripts.audit.fundednext_demo_micro_full_cycle import _select_filling_mode
+        from scripts.audit.demo_micro_full_cycle import _select_filling_mode
         # IOC + RETURN only (no FOK)
         mt5 = MockMT5(symbol_filling_mode=2 | 8)
         mt5.initialize()
@@ -1427,7 +1435,7 @@ class TestFillingModeAutoDetect:
     def test_100_helper_falls_back_to_return_when_fok_and_ioc_unsupported(self):
         """Sprint 9.9.3.20 — RETURN is not flag-based. When no FOK/IOC flags
         are set and trade_exemode=INSTANT, helper falls back to RETURN."""
-        from scripts.audit.fundednext_demo_micro_full_cycle import _select_filling_mode
+        from scripts.audit.demo_micro_full_cycle import _select_filling_mode
         mt5 = MockMT5(symbol_filling_mode=4)   # BOC only — no FOK/IOC
         mt5._symbol_info.trade_exemode = 0      # INSTANT — allows RETURN
         mt5.initialize()
@@ -1436,7 +1444,7 @@ class TestFillingModeAutoDetect:
 
     def test_101_helper_returns_none_when_only_boc_supported(self):
         """BOC is invalid for market orders — helper returns None (fail closed)."""
-        from scripts.audit.fundednext_demo_micro_full_cycle import _select_filling_mode
+        from scripts.audit.demo_micro_full_cycle import _select_filling_mode
         mt5 = MockMT5(symbol_filling_mode=4)   # BOC bit only
         mt5.initialize()
         r = _select_filling_mode(mt5, "XAUUSD")
@@ -1444,7 +1452,7 @@ class TestFillingModeAutoDetect:
 
     def test_102_helper_returns_none_when_symbol_info_is_none(self):
         """If mt5.symbol_info() returns None, helper returns None."""
-        from scripts.audit.fundednext_demo_micro_full_cycle import _select_filling_mode
+        from scripts.audit.demo_micro_full_cycle import _select_filling_mode
 
         class _MT5None:
             def symbol_info(self, sym):
@@ -1454,7 +1462,7 @@ class TestFillingModeAutoDetect:
 
     def test_103_helper_falls_back_to_default_when_filling_mode_missing(self):
         """If symbol_info lacks filling_mode attribute, helper uses default mask."""
-        from scripts.audit.fundednext_demo_micro_full_cycle import _select_filling_mode
+        from scripts.audit.demo_micro_full_cycle import _select_filling_mode
         # Default MockMT5 with no filling_mode kwarg → attribute missing
         mt5 = MockMT5()
         mt5.initialize()
@@ -1465,7 +1473,7 @@ class TestFillingModeAutoDetect:
 
     def test_104_helper_falls_back_to_default_when_filling_mode_zero(self):
         """If symbol_info.filling_mode == 0, helper uses default mask."""
-        from scripts.audit.fundednext_demo_micro_full_cycle import _select_filling_mode
+        from scripts.audit.demo_micro_full_cycle import _select_filling_mode
         mt5 = MockMT5(symbol_filling_mode=0)
         mt5.initialize()
         r = _select_filling_mode(mt5, "XAUUSD")
@@ -1474,7 +1482,7 @@ class TestFillingModeAutoDetect:
 
     def test_105_open_order_uses_detected_filling_mode(self, monkeypatch):
         """_send_open_order puts the detected filling type into the request."""
-        from scripts.audit import fundednext_demo_micro_full_cycle as harness
+        from scripts.audit import demo_micro_full_cycle as harness
         # FBS-like: only IOC supported (bit 2)
         mt5 = MockMT5(symbol_filling_mode=2)
         monkeypatch.setattr(harness, "_get_mt5", lambda: mt5)
@@ -1496,7 +1504,7 @@ class TestFillingModeAutoDetect:
 
     def test_106_open_order_uses_fok_when_supported(self, monkeypatch):
         """When FOK is supported, _send_open_order uses type_filling=1 (FOK)."""
-        from scripts.audit import fundednext_demo_micro_full_cycle as harness
+        from scripts.audit import demo_micro_full_cycle as harness
         mt5 = MockMT5(symbol_filling_mode=1)   # FOK only
         monkeypatch.setattr(harness, "_get_mt5", lambda: mt5)
         monkeypatch.setattr(harness, "hard_gate_evaluate",
@@ -1512,7 +1520,7 @@ class TestFillingModeAutoDetect:
     def test_107_open_order_uses_return_when_only_return_supported(self, monkeypatch):
         """Sprint 9.9.3.20 — RETURN is not flag-based. When no FOK/IOC flags
         are set and trade_exemode=INSTANT, adapter uses ORDER_FILLING_RETURN."""
-        from scripts.audit import fundednext_demo_micro_full_cycle as harness
+        from scripts.audit import demo_micro_full_cycle as harness
         mt5 = MockMT5(symbol_filling_mode=4)   # BOC only — no FOK/IOC
         mt5._symbol_info.trade_exemode = 0      # INSTANT — allows RETURN
         monkeypatch.setattr(harness, "_get_mt5", lambda: mt5)
@@ -1529,7 +1537,7 @@ class TestFillingModeAutoDetect:
     def test_108_fail_closed_when_no_supported_filling_mode(self, monkeypatch):
         """Sprint 9.9.3.15 — if no FOK/IOC/RETURN bit is set, harness must
         fail closed BEFORE order_send. order_send_called must be False."""
-        from scripts.audit import fundednext_demo_micro_full_cycle as harness
+        from scripts.audit import demo_micro_full_cycle as harness
         # Only BOC supported (bit 4) — invalid for market orders
         mt5 = MockMT5(symbol_filling_mode=4)
         monkeypatch.setattr(harness, "_get_mt5", lambda: mt5)
@@ -1554,7 +1562,7 @@ class TestFillingModeAutoDetect:
     def test_109_fail_closed_journal_event(self, monkeypatch):
         """When fail-closed fires, journal must record DEMO_MICRO_EXECUTE_BLOCKED
         with the canonical retcode_10030_meaning."""
-        from scripts.audit import fundednext_demo_micro_full_cycle as harness
+        from scripts.audit import demo_micro_full_cycle as harness
         mt5 = MockMT5(symbol_filling_mode=4)   # BOC only — fail closed
         monkeypatch.setattr(harness, "_get_mt5", lambda: mt5)
         monkeypatch.setattr(harness, "hard_gate_evaluate",
@@ -1576,7 +1584,7 @@ class TestFillingModeAutoDetect:
     def test_110_filling_mode_selected_journal_event(self, monkeypatch):
         """When filling mode IS selected, journal records
         DEMO_MICRO_FILLING_MODE_SELECTED with the chosen mode."""
-        from scripts.audit import fundednext_demo_micro_full_cycle as harness
+        from scripts.audit import demo_micro_full_cycle as harness
         mt5 = MockMT5(symbol_filling_mode=2)   # IOC
         monkeypatch.setattr(harness, "_get_mt5", lambda: mt5)
         monkeypatch.setattr(harness, "hard_gate_evaluate",
@@ -1606,7 +1614,7 @@ class TestFillingModeAutoDetect:
         both, then fails closed. The retcode=10030 appears in the
         send_attempts list and in ADAPTER_ORDER_SEND_RESULT journal events.
         """
-        from scripts.audit import fundednext_demo_micro_full_cycle as harness
+        from scripts.audit import demo_micro_full_cycle as harness
         # Mock: FOK+IOC supported, but order_send returns 10030 for both
         mt5 = MockMT5(symbol_filling_mode=1 | 2,
                       open_order_retcode=10030)
@@ -1648,7 +1656,7 @@ class TestFillingModeAutoDetect:
         opens a BUY position, then max_hold_seconds=1 triggers a close.
         Both open and close requests must use the auto-detected IOC mode.
         """
-        from scripts.audit import fundednext_demo_micro_full_cycle as harness
+        from scripts.audit import demo_micro_full_cycle as harness
         # Only IOC supported (bit 2) — FBS-like
         mt5 = MockMT5(symbol_filling_mode=2)
         monkeypatch.setattr(harness, "_get_mt5", lambda: mt5)
@@ -1690,7 +1698,7 @@ class TestFillingModeAutoDetect:
              from mode["filling_type"] (the auto-detected value).
         """
         import inspect, re
-        from scripts.audit import fundednext_demo_micro_full_cycle as harness
+        from scripts.audit import demo_micro_full_cycle as harness
         src = inspect.getsource(harness)
 
         # (1) No hard-coded "type_filling": <integer> in any dict literal.
@@ -1729,7 +1737,7 @@ class TestOrderCheckAndFillingFallback:
 
     def test_114_retcode_10006_constants(self):
         """retcode 10006 (TRADE_RETCODE_REJECT) is exported with correct meaning."""
-        from scripts.audit.fundednext_demo_micro_full_cycle import (
+        from scripts.audit.demo_micro_full_cycle import (
             _TRADE_RETCODE_REJECT, _RETCODE_10006_MEANING,
             _TRADE_RETCODE_CHECK_PASSED, _RETCODE_0_MEANING,
         )
@@ -1740,7 +1748,7 @@ class TestOrderCheckAndFillingFallback:
 
     def test_115_retcode_10006_lookup(self):
         """_lookup_retcode_meaning returns canonical string for 10006."""
-        from scripts.audit.fundednext_demo_micro_full_cycle import _lookup_retcode_meaning
+        from scripts.audit.demo_micro_full_cycle import _lookup_retcode_meaning
         assert _lookup_retcode_meaning(10006) == \
                "request rejected (TRADE_RETCODE_REJECT)"
         # All previously mapped codes still work
@@ -1756,7 +1764,7 @@ class TestOrderCheckAndFillingFallback:
         RETURN is not flag-based — it's included when trade_exemode=INSTANT.
         So filling_mode=1|2 (FOK+IOC flags) + trade_exemode=INSTANT gives 3 modes.
         """
-        from scripts.audit.fundednext_demo_micro_full_cycle import _list_supported_filling_modes
+        from scripts.audit.demo_micro_full_cycle import _list_supported_filling_modes
         mt5 = MockMT5(symbol_filling_mode=1 | 2)   # FOK+IOC flags
         mt5._symbol_info.trade_exemode = 0   # INSTANT — allows RETURN
         mt5.initialize()
@@ -1766,7 +1774,7 @@ class TestOrderCheckAndFillingFallback:
 
     def test_117_list_supported_filling_modes_empty_when_only_boc(self):
         """_list_supported_filling_modes returns [] when only BOC is set."""
-        from scripts.audit.fundednext_demo_micro_full_cycle import _list_supported_filling_modes
+        from scripts.audit.demo_micro_full_cycle import _list_supported_filling_modes
         mt5 = MockMT5(symbol_filling_mode=4)   # BOC only
         mt5.initialize()
         modes = _list_supported_filling_modes(mt5, "XAUUSD")
@@ -1774,7 +1782,7 @@ class TestOrderCheckAndFillingFallback:
 
     def test_118_attempt_filling_modes_picks_first_pass(self):
         """_attempt_filling_modes returns the first mode that passes order_check."""
-        from scripts.audit.fundednext_demo_micro_full_cycle import _attempt_filling_modes
+        from scripts.audit.demo_micro_full_cycle import _attempt_filling_modes
         # FOK+IOC+RETURN all supported, all pass — should pick FOK (first)
         mt5 = MockMT5(symbol_filling_mode=1 | 2 | 8,
                       order_check_default_retcode=0)
@@ -1794,7 +1802,7 @@ class TestOrderCheckAndFillingFallback:
     def test_119_attempt_filling_modes_falls_back_to_ioc_when_fok_rejected(self):
         """FOK rejected by order_check → fall back to IOC, which passes.
         This is the exact FBS scenario from the operator report."""
-        from scripts.audit.fundednext_demo_micro_full_cycle import _attempt_filling_modes
+        from scripts.audit.demo_micro_full_cycle import _attempt_filling_modes
         # FOK rejected (retcode 10006), IOC passes (retcode 0)
         mt5 = MockMT5(symbol_filling_mode=1 | 2,   # FOK+IOC supported
                       order_check_retcode_per_mode={1: 10006, 2: 0})
@@ -1818,7 +1826,7 @@ class TestOrderCheckAndFillingFallback:
 
     def test_120_attempt_filling_modes_falls_back_to_return(self):
         """FOK and IOC both rejected → fall back to RETURN, which passes."""
-        from scripts.audit.fundednext_demo_micro_full_cycle import _attempt_filling_modes
+        from scripts.audit.demo_micro_full_cycle import _attempt_filling_modes
         mt5 = MockMT5(symbol_filling_mode=1 | 2 | 8,
                       order_check_retcode_per_mode={1: 10006, 2: 10006, 4: 0})
         mt5.initialize()
@@ -1838,7 +1846,7 @@ class TestOrderCheckAndFillingFallback:
         """All supported filling modes rejected by order_check → fail closed.
         Returns ok=False with full check_attempts log; caller must NOT
         call order_send."""
-        from scripts.audit.fundednext_demo_micro_full_cycle import _attempt_filling_modes
+        from scripts.audit.demo_micro_full_cycle import _attempt_filling_modes
         mt5 = MockMT5(symbol_filling_mode=1 | 2 | 8,
                       order_check_default_retcode=10006)   # all reject
         mt5.initialize()
@@ -1863,7 +1871,7 @@ class TestOrderCheckAndFillingFallback:
 
     def test_122_attempt_filling_modes_journals_each_attempt(self):
         """Each order_check attempt is journaled as DEMO_MICRO_ORDER_CHECK_ATTEMPTED."""
-        from scripts.audit.fundednext_demo_micro_full_cycle import _attempt_filling_modes
+        from scripts.audit.demo_micro_full_cycle import _attempt_filling_modes
         # Clear journal
         journal_path = REPO_ROOT / "data" / "audit" / "demo_micro" / "demo_micro_journal.jsonl"
         if journal_path.exists():
@@ -1893,7 +1901,7 @@ class TestOrderCheckAndFillingFallback:
 
     def test_123_send_open_order_calls_order_check_before_order_send(self, monkeypatch):
         """_send_open_order calls mt5.order_check BEFORE mt5.order_send."""
-        from scripts.audit import fundednext_demo_micro_full_cycle as harness
+        from scripts.audit import demo_micro_full_cycle as harness
         # FOK+IOC supported, FOK passes — should send with FOK
         mt5 = MockMT5(symbol_filling_mode=1 | 2,
                       order_check_default_retcode=0)
@@ -1916,7 +1924,7 @@ class TestOrderCheckAndFillingFallback:
     def test_124_send_open_order_falls_back_when_preferred_rejected(self, monkeypatch):
         """Sprint 9.9.3.16 — FBS scenario: FOK rejected by order_check,
         harness falls back to IOC and sends with IOC."""
-        from scripts.audit import fundednext_demo_micro_full_cycle as harness
+        from scripts.audit import demo_micro_full_cycle as harness
         # FOK+IOC supported, FOK rejected (10006), IOC passes (0)
         mt5 = MockMT5(symbol_filling_mode=1 | 2,
                       order_check_retcode_per_mode={1: 10006, 2: 0})
@@ -1947,7 +1955,7 @@ class TestOrderCheckAndFillingFallback:
         trade_exemode=MARKET. To test all 3 modes, set trade_exemode=INSTANT
         so RETURN is also tried.
         """
-        from scripts.audit import fundednext_demo_micro_full_cycle as harness
+        from scripts.audit import demo_micro_full_cycle as harness
         # FOK+IOC+RETURN supported, ALL rejected by order_check
         mt5 = MockMT5(symbol_filling_mode=1 | 2 | 8,
                       order_check_default_retcode=10006)
@@ -1984,7 +1992,7 @@ class TestOrderCheckAndFillingFallback:
         ADAPTER_PRE_SEND_DIAGNOSTICS (not DEMO_MICRO_ORDER_PRE_SEND_DIAGNOSTICS).
         The adapter's snapshot includes all required fields.
         """
-        from scripts.audit import fundednext_demo_micro_full_cycle as harness
+        from scripts.audit import demo_micro_full_cycle as harness
         mt5 = MockMT5(symbol_filling_mode=1)   # FOK supported
         monkeypatch.setattr(harness, "_get_mt5", lambda: mt5)
         monkeypatch.setattr(harness, "hard_gate_evaluate",
@@ -2027,7 +2035,7 @@ class TestOrderCheckAndFillingFallback:
         back to 'unknown'. Now it always propagates (or shows 'N/A'
         if genuinely unset, e.g., when no supported mode exists at all).
         """
-        from scripts.audit import fundednext_demo_micro_full_cycle as harness
+        from scripts.audit import demo_micro_full_cycle as harness
         # FOK+IOC+RETURN supported but ALL rejected by order_check
         mt5 = MockMT5(symbol_filling_mode=1 | 2 | 8,
                       order_check_default_retcode=10006)
@@ -2053,7 +2061,7 @@ class TestOrderCheckAndFillingFallback:
     def test_128_filling_source_propagated_in_success_path(self, monkeypatch):
         """Sprint 9.9.3.16 — filling_source is propagated in the success
         path with the correct value ('symbol_info' or 'default')."""
-        from scripts.audit import fundednext_demo_micro_full_cycle as harness
+        from scripts.audit import demo_micro_full_cycle as harness
         # symbol_info.filling_mode=1 (FOK only) → source should be 'symbol_info'
         mt5 = MockMT5(symbol_filling_mode=1,
                       order_check_default_retcode=0)
@@ -2072,7 +2080,7 @@ class TestOrderCheckAndFillingFallback:
     def test_129_filling_source_default_when_attr_missing(self, monkeypatch):
         """Sprint 9.9.3.16 — filling_source='default' when symbol_info
         lacks the filling_mode attribute (older MT5 builds)."""
-        from scripts.audit import fundednext_demo_micro_full_cycle as harness
+        from scripts.audit import demo_micro_full_cycle as harness
         # No filling_mode kwarg → attribute missing → helper uses default mask
         mt5 = MockMT5()
         monkeypatch.setattr(harness, "_get_mt5", lambda: mt5)
@@ -2088,7 +2096,7 @@ class TestOrderCheckAndFillingFallback:
     def test_130_close_position_also_uses_order_check_fallback(self, monkeypatch):
         """Sprint 9.9.3.16 — _close_position also uses order_check fallback.
         When FOK is rejected for the close order, harness falls back to IOC."""
-        from scripts.audit import fundednext_demo_micro_full_cycle as harness
+        from scripts.audit import demo_micro_full_cycle as harness
         # FOK+IOC supported. For BOTH open and close, FOK rejected, IOC passes.
         mt5 = MockMT5(symbol_filling_mode=1 | 2,
                       order_check_retcode_per_mode={1: 10006, 2: 0})
@@ -2123,7 +2131,7 @@ class TestOrderCheckAndFillingFallback:
         → fail closed. The 10006 appears in send_attempts and
         ADAPTER_ORDER_SEND_RESULT journal events.
         """
-        from scripts.audit import fundednext_demo_micro_full_cycle as harness
+        from scripts.audit import demo_micro_full_cycle as harness
         # order_check passes for FOK, but order_send returns 10006
         mt5 = MockMT5(symbol_filling_mode=1,
                       order_check_default_retcode=0,        # check passes
@@ -2162,7 +2170,7 @@ class TestOrderCheckAndFillingFallback:
         Sprint 9.9.3.17 update: set trade_exemode=INSTANT so all 3 modes
         (FOK+IOC+RETURN) are tried by the adapter.
         """
-        from scripts.audit import fundednext_demo_micro_full_cycle as harness
+        from scripts.audit import demo_micro_full_cycle as harness
         # FOK+IOC+RETURN all rejected by order_check
         mt5 = MockMT5(symbol_filling_mode=1 | 2 | 8,
                       order_check_default_retcode=10006)
@@ -2529,7 +2537,7 @@ class TestMT5ExecutionAdapter:
         """Sprint 9.9.3.17 — full harness integration: when adapter signals
         emergency_close_required, the harness enters the emergency close
         path and attempts to close the ghost position."""
-        from scripts.audit import fundednext_demo_micro_full_cycle as harness
+        from scripts.audit import demo_micro_full_cycle as harness
         # FOK send fails with 10006 AND ghost position appears
         mt5 = MockMT5(symbol_filling_mode=1 | 2,
                       order_check_default_retcode=0,
@@ -2558,7 +2566,7 @@ class TestMT5ExecutionAdapter:
 
     def test_149_adapter_journal_events_emitted(self, monkeypatch):
         """Adapter emits all required journal events during a successful send."""
-        from scripts.audit import fundednext_demo_micro_full_cycle as harness
+        from scripts.audit import demo_micro_full_cycle as harness
         mt5 = MockMT5(symbol_filling_mode=1, order_check_default_retcode=0)
         monkeypatch.setattr(harness, "_get_mt5", lambda: mt5)
         monkeypatch.setattr(harness, "hard_gate_evaluate",
@@ -2579,7 +2587,7 @@ class TestMT5ExecutionAdapter:
 
     def test_150_adapter_position_check_after_failure_event(self, monkeypatch):
         """Adapter emits ADAPTER_POSITION_CHECK_AFTER_FAILURE after every failed send."""
-        from scripts.audit import fundednext_demo_micro_full_cycle as harness
+        from scripts.audit import demo_micro_full_cycle as harness
         # Clear journal so we only see events from this test
         journal_path = REPO_ROOT / "data" / "audit" / "demo_micro" / "demo_micro_journal.jsonl"
         if journal_path.exists():
@@ -2792,7 +2800,7 @@ class TestOrderSendNoneResult:
 
     def test_158_none_result_harness_integration_fallback(self, monkeypatch):
         """Full harness: FOK returns None → IOC fallback → cycle PASS."""
-        from scripts.audit import fundednext_demo_micro_full_cycle as harness
+        from scripts.audit import demo_micro_full_cycle as harness
         mt5 = MockMT5(symbol_filling_mode=1 | 2,
                       order_check_default_retcode=0,
                       order_send_returns_none_per_mode={1},  # FOK returns None
@@ -2810,7 +2818,7 @@ class TestOrderSendNoneResult:
 
     def test_159_none_result_harness_emergency_close(self, monkeypatch):
         """Full harness: FOK returns None + ghost position → emergency close path."""
-        from scripts.audit import fundednext_demo_micro_full_cycle as harness
+        from scripts.audit import demo_micro_full_cycle as harness
         mt5 = MockMT5(symbol_filling_mode=1 | 2,
                       order_check_default_retcode=0,
                       order_send_returns_none_per_mode={1},
@@ -2829,7 +2837,7 @@ class TestOrderSendNoneResult:
 
     def test_160_none_result_journal_event_in_harness(self, monkeypatch):
         """DEMO_MICRO_ORDER_SEND_NONE event appears in journal from harness run."""
-        from scripts.audit import fundednext_demo_micro_full_cycle as harness
+        from scripts.audit import demo_micro_full_cycle as harness
         # Clear journal
         journal_path = REPO_ROOT / "data" / "audit" / "demo_micro" / "demo_micro_journal.jsonl"
         if journal_path.exists():
@@ -2934,7 +2942,7 @@ class TestBrokerCompatibilityFallback:
     def test_164_result_propagation_shows_real_retcode_not_none(self, monkeypatch):
         """Sprint 9.9.3.19 — console/report must show real adapter retcode
         (10006) instead of retcode=None when adapter has send_attempts."""
-        from scripts.audit import fundednext_demo_micro_full_cycle as harness
+        from scripts.audit import demo_micro_full_cycle as harness
         # Protected FOK rejected with 10006, naked also rejected with 10006
         mt5 = MockMT5(symbol_filling_mode=1,
                       order_check_default_retcode=0,
@@ -3043,7 +3051,7 @@ class TestBrokerCompatibilityFallback:
 
     def test_169_broker_compat_harness_integration_success(self, monkeypatch):
         """Full harness: protected reject → naked success → SLTP success → PASS."""
-        from scripts.audit import fundednext_demo_micro_full_cycle as harness
+        from scripts.audit import demo_micro_full_cycle as harness
         mt5 = MockMT5(symbol_filling_mode=1,
                       order_check_default_retcode=0,
                       protected_order_retcode=10006,
@@ -3280,7 +3288,7 @@ class TestRawWorkingProfile:
 
     def test_179_raw_profile_harness_integration(self, tmp_path, monkeypatch):
         """Full harness: --use-raw-working-profile flag works end-to-end."""
-        from scripts.audit import fundednext_demo_micro_full_cycle as harness
+        from scripts.audit import demo_micro_full_cycle as harness
         profile_path = self._create_temp_raw_profile(tmp_path)
         mt5 = MockMT5(symbol_filling_mode=1 | 2,
                       order_check_default_retcode=0,
@@ -3305,3 +3313,191 @@ class TestRawWorkingProfile:
             assert args.raw_profile_path == profile_path
         finally:
             sys.argv = old_argv
+
+
+# ─── Sprint 9.9.3.22 patch — rename + pass evidence tests ─────────────────────
+
+class TestScriptRenameAndPassEvidence:
+    """Sprint 9.9.3.22 — script renamed + backward wrapper + pass evidence archiver."""
+
+    def test_180_new_script_imports_work(self):
+        """New module scripts.audit.demo_micro_full_cycle imports correctly."""
+        from scripts.audit.demo_micro_full_cycle import (
+            parse_args, run, main, _run_execute, _send_open_order,
+            _close_position, _get_mt5, DEMO_MICRO_MAGIC,
+        )
+        assert DEMO_MICRO_MAGIC == 20261993
+        assert callable(parse_args)
+        assert callable(run)
+        assert callable(main)
+
+    def test_181_old_wrapper_still_works(self):
+        """Old module scripts.audit.fundednext_demo_micro_full_cycle still imports
+        via backward-compatible wrapper and re-exports the same functions."""
+        import warnings
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            from scripts.audit.fundednext_demo_micro_full_cycle import (
+                parse_args as old_parse, run as old_run,
+                _send_open_order as old_send, DEMO_MICRO_MAGIC as old_magic,
+            )
+        from scripts.audit.demo_micro_full_cycle import parse_args as new_parse
+        # Old wrapper re-exports the SAME function objects
+        assert old_parse is new_parse
+        assert old_magic == 20261993
+
+    def test_182_old_wrapper_emits_deprecation_warning(self):
+        """Importing the old wrapper emits a DeprecationWarning."""
+        import warnings
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            # Force re-import by removing from cache
+            import importlib
+            if "scripts.audit.fundednext_demo_micro_full_cycle" in sys.modules:
+                old_mod = sys.modules.pop("scripts.audit.fundednext_demo_micro_full_cycle")
+            else:
+                old_mod = None
+            try:
+                import scripts.audit.fundednext_demo_micro_full_cycle  # noqa: F401
+            finally:
+                # Restore if needed
+                pass
+        # At least one DeprecationWarning should have been caught
+        dep_warnings = [w for w in caught if issubclass(w.category, DeprecationWarning)]
+        assert len(dep_warnings) >= 1
+
+    def test_183_pass_evidence_archiver_works(self, tmp_path):
+        """Pass evidence archiver copies files and generates PASS_SUMMARY.md."""
+        import json
+        from scripts.audit.archive_pass_evidence import archive_pass_evidence
+        # Create a minimal demo_micro_report.json in the source dir
+        source_dir = REPO_ROOT / "data" / "audit" / "demo_micro"
+        report_path = source_dir / "demo_micro_report.json"
+        # Save original if it exists
+        original_report = None
+        if report_path.exists():
+            original_report = report_path.read_text()
+        try:
+            test_report = {
+                "final_verdict": "DEMO_FULL_CYCLE_PASS",
+                "net_pnl": 2.40,
+                "open_positions_remaining": 0,
+                "filling_mode_selected": "IOC",
+                "filling_source": "raw_working_profile",
+                "raw_working_profile_used": True,
+                "open_order": {"retcode": 10009, "request": {"symbol": "XAUUSD",
+                                  "volume": 0.01, "type": 0}},
+                "close_result": {"retcode": 10009},
+                "pre_send_diagnostics": {"account": {"server": "MetaQuotes-Demo",
+                                     "login": 12345678}},
+            }
+            report_path.write_text(json.dumps(test_report))
+            # Also create minimal journal + profile files
+            (source_dir / "demo_micro_journal.jsonl").write_text('{"event":"test"}\n')
+            (source_dir / "broker_execution_profile.json").write_text('{"verdict":"SUCCESS"}')
+            (source_dir / "demo_micro_report.md").write_text("# Test Report")
+
+            result = archive_pass_evidence(server="MetaQuotes-Demo")
+            assert result["ok"] is True
+            assert "pass_evidence" in result["archive_path"]
+            assert "metaquotes-demo" in result["archive_path"] or "metaquotes_demo" in result["archive_path"]
+            assert "PASS_SUMMARY.md" in result["summary_path"]
+
+            # Verify files were copied
+            from pathlib import Path
+            archive_dir = Path(result["archive_path"])
+            assert (archive_dir / "demo_micro_report.json").exists()
+            assert (archive_dir / "demo_micro_journal.jsonl").exists()
+            assert (archive_dir / "broker_execution_profile.json").exists()
+            assert (archive_dir / "PASS_SUMMARY.md").exists()
+
+            # Verify PASS_SUMMARY.md content
+            summary = (archive_dir / "PASS_SUMMARY.md").read_text()
+            assert "DEMO_FULL_CYCLE_PASS" in summary
+            assert "MetaQuotes-Demo" in summary
+            assert "XAUUSD" in summary
+            assert "10009" in summary   # open retcode
+
+        finally:
+            # Restore original report
+            if original_report is not None:
+                report_path.write_text(original_report)
+            else:
+                report_path.unlink(missing_ok=True)
+
+    def test_184_pass_evidence_archiver_dry_run(self):
+        """Archiver --dry-run reports without copying."""
+        import json
+        from scripts.audit.archive_pass_evidence import archive_pass_evidence
+        # Ensure a report exists for the dry-run
+        source_dir = REPO_ROOT / "data" / "audit" / "demo_micro"
+        report_path = source_dir / "demo_micro_report.json"
+        original = None
+        if report_path.exists():
+            original = report_path.read_text()
+        if not report_path.exists():
+            report_path.write_text(json.dumps({"final_verdict": "DEMO_FULL_CYCLE_PASS"}))
+        try:
+            result = archive_pass_evidence(server="TestServer", dry_run=True)
+            assert result["ok"] is True
+            assert result.get("dry_run") is True
+            assert "files_to_archive" in result
+        finally:
+            if original is not None:
+                report_path.write_text(original)
+            elif report_path.exists():
+                report_path.unlink()
+
+    def test_185_pass_evidence_archiver_missing_report(self):
+        """Archiver fails gracefully if demo_micro_report.json doesn't exist."""
+        from scripts.audit.archive_pass_evidence import archive_pass_evidence
+        # Temporarily rename the report
+        source_dir = REPO_ROOT / "data" / "audit" / "demo_micro"
+        report_path = source_dir / "demo_micro_report.json"
+        original = None
+        if report_path.exists():
+            original = report_path.read_text()
+            report_path.unlink()
+        try:
+            result = archive_pass_evidence(server="TestServer")
+            assert result["ok"] is False
+            assert "not found" in result["error"].lower()
+        finally:
+            if original is not None:
+                report_path.write_text(original)
+
+    def test_186_pass_summary_masks_login(self, tmp_path):
+        """PASS_SUMMARY.md masks the login for privacy."""
+        from scripts.audit.archive_pass_evidence import _mask_login
+        assert _mask_login(12345678) == "12***78"
+        assert _mask_login(123) == "1***3"
+        assert _mask_login(None) == "N/A"
+
+    def test_187_raw_profile_path_still_works_after_rename(self, tmp_path, monkeypatch):
+        """Raw profile path still works after the script rename."""
+        import json
+        from scripts.audit import demo_micro_full_cycle as harness
+        profile_path = tmp_path / "raw_mt5_working_profile.json"
+        profile = {
+            "server": "MetaQuotes-Demo", "symbol": "XAUUSD",
+            "type_filling": 2, "type_filling_name": "IOC",
+            "deviation": 50, "sl": 0.0, "tp": 0.0,
+            "sl_tp_mode": "naked_then_sltp_modify", "type_time": 0,
+        }
+        profile_path.write_text(json.dumps(profile))
+        mt5 = MockMT5(symbol_filling_mode=1 | 2,
+                      order_check_default_retcode=0,
+                      naked_order_retcode=10009,
+                      sltp_modify_retcode=10009)
+        mt5._symbol_info.trade_exemode = 2
+        monkeypatch.setattr(harness, "_get_mt5", lambda: mt5)
+        monkeypatch.setattr(harness, "hard_gate_evaluate",
+                            lambda config_path=None: {"verdict": "DEMO_MICRO_ARMED",
+                                                       "reasons": [], "checks": {}})
+        monkeypatch.setenv("TITAN_DEMO_MICRO_ARMED", "1")
+        r = _run_execute_with_mock(mt5, side="BUY", max_hold_seconds=1,
+                                    use_raw_working_profile=True,
+                                    raw_profile_path=str(profile_path))
+        # Should PASS via raw profile
+        assert r["final_verdict"] == "DEMO_FULL_CYCLE_PASS"
+        assert r.get("filling_mode_selected") is not None

@@ -129,13 +129,13 @@ class TestConfigReading:
         source level by inspecting only the DRY_ARM_CHECK_ONLY branch.
         """
         import inspect
-        from scripts.audit import fundednext_demo_micro_full_cycle as harness
+        from scripts.audit import demo_micro_full_cycle as harness
 
         # Runtime check: running DRY_ARM_CHECK_ONLY must not call order_send.
         import asyncio
         old_argv = sys.argv
         sys.argv = ["harness", "--mode", "DRY_ARM_CHECK_ONLY"]
-        from scripts.audit.fundednext_demo_micro_full_cycle import parse_args, run
+        from scripts.audit.demo_micro_full_cycle import parse_args, run
         args = parse_args()
         sys.argv = old_argv
         asyncio.run(run(args))
@@ -426,7 +426,7 @@ class TestTradeExpertHardGate:
         greppable across both code paths.
         """
         from scripts.audit.demo_micro_hard_gate import RETCODE_10027_MEANING as m1
-        from scripts.audit.fundednext_demo_micro_full_cycle import (
+        from scripts.audit.demo_micro_full_cycle import (
             _RETCODE_10027_MEANING as m2,
             _TRADE_RETCODE_AUTOTRADING_DISABLED,
         )
@@ -474,7 +474,7 @@ class TestTradeExpertHardGate:
         monkeypatch.setenv("TITAN_DEMO_MICRO_ARMED", "1")
 
         try:
-            from scripts.audit.fundednext_demo_micro_full_cycle import _run_execute
+            from scripts.audit.demo_micro_full_cycle import _run_execute
             # Build a fake gate verdict (ARMED) and args
             gate = {"verdict": "DEMO_MICRO_ARMED"}
             cfg = {
