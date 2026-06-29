@@ -12,3 +12,15 @@ __pycache__/
 data/simulation/
 data/qualification/
 data/runtime/
+
+# Sprint 9.9.3.23 — runtime-generated demo micro audit artifacts.
+# These files are regenerated on every hard-gate / DRY_ARM / DEMO_MICRO
+# run and must NOT be tracked in git. Curated pass_evidence archives
+# (intentionally committed) are NOT ignored — only the live runtime files.
+data/audit/demo_micro/demo_micro_report.json
+data/audit/demo_micro/demo_micro_report.md
+data/audit/demo_micro/demo_micro_journal.jsonl
+data/audit/demo_micro/demo_micro_hard_gate_report.json
+data/audit/demo_micro/demo_micro_hard_gate_report.md
+data/audit/demo_micro/broker_execution_profile.json
+data/audit/demo_micro/raw_mt5_working_profile.json

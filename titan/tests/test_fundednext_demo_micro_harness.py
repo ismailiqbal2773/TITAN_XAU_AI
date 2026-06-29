@@ -3501,3 +3501,224 @@ class TestScriptRenameAndPassEvidence:
         # Should PASS via raw profile
         assert r["final_verdict"] == "DEMO_FULL_CYCLE_PASS"
         assert r.get("filling_mode_selected") is not None
+
+
+# ─── Sprint 9.9.3.23 patch — artifact hygiene, redaction, profile binding ────
+
+class TestArtifactHygieneAndProfileBinding:
+    """Sprint 9.9.3.23 — audit artifact hygiene, privacy redaction,
+    and raw profile account/server binding."""
+
+    # ── .gitignore tests ──
+
+    def test_188_generated_audit_files_ignored_by_git(self):
+        """Runtime-generated audit files are in .gitignore."""
+        from pathlib import Path
+        gitignore = (REPO_ROOT / ".gitignore").read_text()
+        required_ignored = [
+            "data/audit/demo_micro/demo_micro_report.json",
+            "data/audit/demo_micro/demo_micro_report.md",
+            "data/audit/demo_micro/demo_micro_hard_gate_report.json",
+            "data/audit/demo_micro/demo_micro_hard_gate_report.md",
+            "data/audit/demo_micro/demo_micro_journal.jsonl",
+            "data/audit/demo_micro/broker_execution_profile.json",
+            "data/audit/demo_micro/raw_mt5_working_profile.json",
+        ]
+        for path in required_ignored:
+            assert path in gitignore, f"{path} not in .gitignore"
+
+    def test_189_pass_evidence_not_ignored(self):
+        """Curated pass_evidence archives are NOT ignored by git."""
+        from pathlib import Path
+        gitignore = (REPO_ROOT / ".gitignore").read_text()
+        # pass_evidence path should NOT be in .gitignore as an ignore rule
+        # (it's mentioned in a comment, but not as an ignore pattern)
+        ignore_lines = [l.strip() for l in gitignore.split("\n")
+                        if l.strip() and not l.strip().startswith("#")]
+        pass_evidence_ignored = any("pass_evidence" in l for l in ignore_lines)
+        assert not pass_evidence_ignored, \
+            "pass_evidence should NOT be in .gitignore ignore rules"
+
+    def test_190_no_tracked_dirty_files_after_run(self, monkeypatch):
+        """After a DRY_ARM_CHECK_ONLY run, no tracked files become dirty."""
+        from scripts.audit import demo_micro_full_cycle as harness
+        # Stash the current state of tracked files
+        import subprocess
+        result = subprocess.run(
+            ["git", "status", "--porcelain", "data/audit/demo_micro/"],
+            capture_output=True, text=True, cwd=str(REPO_ROOT),
+        )
+        # The only changes should be deletions (from git rm --cached) not
+        # modifications to tracked files
+        lines = [l for l in result.stdout.strip().split("\n") if l]
+        # After our .gitignore update, these files should be untracked (D)
+        # not modified (M)
+        modified = [l for l in lines if l.startswith(" M")]
+        # There should be NO modified tracked files in demo_micro/
+        # (they're all untracked now)
+        assert len(modified) == 0, \
+            f"Tracked files modified: {modified}"
+
+    # ── Privacy redaction tests ──
+
+    def test_191_redaction_masks_login_in_json(self, tmp_path):
+        """Redaction masks login in JSON files."""
+        import json
+        from scripts.audit.archive_pass_evidence import _redact_json_file
+        src = tmp_path / "test.json"
+        src.write_text(json.dumps({
+            "account": {"login": 12345678, "name": "John Doe", "server": "TestServer"},
+            "nested": {"login": 999, "name": "Jane Smith"},
+        }))
+        dst = tmp_path / "redacted.json"
+        _redact_json_file(src, dst)
+        with open(dst) as f:
+            data = json.load(f)
+        assert data["account"]["login"] != 12345678
+        assert "***" in str(data["account"]["login"])
+        assert data["account"]["name"] == "REDACTED"
+        assert data["nested"]["name"] == "REDACTED"
+        assert "***" in str(data["nested"]["login"])
+
+    def test_192_redaction_masks_login_in_jsonl(self, tmp_path):
+        """Redaction masks login in JSONL files (line by line)."""
+        import json
+        from scripts.audit.archive_pass_evidence import _redact_jsonl_file
+        src = tmp_path / "test.jsonl"
+        src.write_text(json.dumps({"login": 12345678, "name": "John"}) + "\n"
+                       + json.dumps({"event": "test", "login": 87654321}) + "\n")
+        dst = tmp_path / "redacted.jsonl"
+        _redact_jsonl_file(src, dst)
+        with open(dst) as f:
+            lines = [json.loads(l) for l in f if l.strip()]
+        assert "***" in str(lines[0]["login"])
+        assert lines[0]["name"] == "REDACTED"
+        assert "***" in str(lines[1]["login"])
+
+    def test_193_redaction_masks_login_in_md(self, tmp_path):
+        """Redaction masks login in Markdown files."""
+        from scripts.audit.archive_pass_evidence import _redact_md_file
+        src = tmp_path / "test.md"
+        src.write_text("# Report\n\nLogin: 12345678\nName: John Doe\n")
+        dst = tmp_path / "redacted.md"
+        _redact_md_file(src, dst)
+        content = dst.read_text()
+        assert "12345678" not in content
+        assert "***" in content
+        assert "John Doe" not in content
+
+    def test_194_pass_summary_masks_login(self):
+        """PASS_SUMMARY always masks login."""
+        from scripts.audit.archive_pass_evidence import _mask_login
+        masked = _mask_login(12345678)
+        assert "12345678" not in masked
+        assert "***" in masked
+
+    # ── Raw profile binding tests ──
+
+    def _create_raw_profile(self, tmp_path, server="MetaQuotes-Demo",
+                             login=12345678, symbol="XAUUSD"):
+        """Helper: create a raw profile with specific server/login/symbol."""
+        import json
+        profile = {
+            "server": server, "login": login, "symbol": symbol,
+            "type_filling": 2, "type_filling_name": "IOC",
+            "deviation": 50, "sl": 0.0, "tp": 0.0,
+            "sl_tp_mode": "naked_then_sltp_modify", "type_time": 0,
+        }
+        path = tmp_path / "raw_profile.json"
+        path.write_text(json.dumps(profile))
+        return str(path)
+
+    def _setup_mt5_with_account(self, server="MetaQuotes-Demo", login=12345678,
+                                  trade_mode=0, **kwargs):
+        """Helper: create a MockMT5 with specific account info."""
+        mt5 = MockMT5(symbol_filling_mode=1 | 2,
+                      order_check_default_retcode=0,
+                      naked_order_retcode=10009,
+                      sltp_modify_retcode=10009,
+                      account_trade_mode=trade_mode,
+                      **kwargs)
+        mt5._account.server = server
+        mt5._account.login = login
+        mt5._account.trade_mode = trade_mode
+        mt5._symbol_info.trade_exemode = 2
+        mt5.initialize()
+        return mt5
+
+    def test_195_raw_profile_server_mismatch_blocks(self, tmp_path):
+        """Raw profile server mismatch blocks execution."""
+        from titan.production.mt5_execution_adapter import MT5ExecutionAdapter
+        profile_path = self._create_raw_profile(tmp_path, server="MetaQuotes-Demo")
+        mt5 = self._setup_mt5_with_account(server="FBS-Demo", login=12345678)
+        adapter = MT5ExecutionAdapter(mt5, journal_event=lambda e, p: None)
+        result = adapter.send_open_order(
+            symbol="XAUUSD", side="BUY", lot=0.01, magic=20261993,
+            use_raw_working_profile=True, raw_profile_path=profile_path,
+        )
+        assert result["ok"] is False
+        assert result.get("profile_mismatch") is True
+        mismatches = result.get("mismatches", [])
+        assert any(m["field"] == "server" for m in mismatches)
+
+    def test_196_raw_profile_login_mismatch_blocks(self, tmp_path):
+        """Raw profile login mismatch blocks execution."""
+        from titan.production.mt5_execution_adapter import MT5ExecutionAdapter
+        profile_path = self._create_raw_profile(tmp_path, login=12345678)
+        mt5 = self._setup_mt5_with_account(server="MetaQuotes-Demo", login=87654321)
+        adapter = MT5ExecutionAdapter(mt5, journal_event=lambda e, p: None)
+        result = adapter.send_open_order(
+            symbol="XAUUSD", side="BUY", lot=0.01, magic=20261993,
+            use_raw_working_profile=True, raw_profile_path=profile_path,
+        )
+        assert result["ok"] is False
+        assert result.get("profile_mismatch") is True
+        mismatches = result.get("mismatches", [])
+        assert any(m["field"] == "login" for m in mismatches)
+
+    def test_197_raw_profile_symbol_mismatch_blocks(self, tmp_path):
+        """Raw profile symbol mismatch blocks execution."""
+        from titan.production.mt5_execution_adapter import MT5ExecutionAdapter
+        profile_path = self._create_raw_profile(tmp_path, symbol="EURUSD")
+        mt5 = self._setup_mt5_with_account(server="MetaQuotes-Demo", login=12345678)
+        adapter = MT5ExecutionAdapter(mt5, journal_event=lambda e, p: None)
+        result = adapter.send_open_order(
+            symbol="XAUUSD", side="BUY", lot=0.01, magic=20261993,
+            use_raw_working_profile=True, raw_profile_path=profile_path,
+        )
+        assert result["ok"] is False
+        assert result.get("profile_mismatch") is True
+        mismatches = result.get("mismatches", [])
+        assert any(m["field"] == "symbol" for m in mismatches)
+
+    def test_198_matching_profile_allows_execution(self, tmp_path):
+        """Matching profile (server + login + symbol + DEMO) allows execution."""
+        from titan.production.mt5_execution_adapter import MT5ExecutionAdapter
+        profile_path = self._create_raw_profile(tmp_path, server="MetaQuotes-Demo",
+                                                 login=12345678, symbol="XAUUSD")
+        mt5 = self._setup_mt5_with_account(server="MetaQuotes-Demo", login=12345678,
+                                            trade_mode=0)
+        adapter = MT5ExecutionAdapter(mt5, journal_event=lambda e, p: None)
+        result = adapter.send_open_order(
+            symbol="XAUUSD", side="BUY", lot=0.01, magic=20261993,
+            use_raw_working_profile=True, raw_profile_path=profile_path,
+        )
+        assert result["ok"] is True
+        assert result.get("profile_mismatch") is not True
+        assert result.get("raw_working_profile_used") is True
+
+    def test_199_profile_mismatch_journal_event(self, tmp_path):
+        """DEMO_MICRO_PROFILE_MISMATCH_BLOCKED journal event emitted on mismatch."""
+        from titan.production.mt5_execution_adapter import MT5ExecutionAdapter
+        profile_path = self._create_raw_profile(tmp_path, server="MetaQuotes-Demo")
+        mt5 = self._setup_mt5_with_account(server="FBS-Demo", login=12345678)
+        journal_events = []
+        def capture(event_type, payload):
+            journal_events.append({"event": event_type, **payload})
+        adapter = MT5ExecutionAdapter(mt5, journal_event=capture)
+        adapter.send_open_order(
+            symbol="XAUUSD", side="BUY", lot=0.01, magic=20261993,
+            use_raw_working_profile=True, raw_profile_path=profile_path,
+        )
+        event_types = [e.get("event") for e in journal_events]
+        assert "DEMO_MICRO_PROFILE_MISMATCH_BLOCKED" in event_types

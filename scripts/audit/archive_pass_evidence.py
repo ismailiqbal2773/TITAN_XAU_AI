@@ -63,6 +63,86 @@ def _mask_login(login) -> str:
     return s[:2] + "***" + s[-2:]
 
 
+def _redact_json_file(src: Path, dst: Path) -> None:
+    """Sprint 9.9.3.23 — copy a JSON file with privacy redaction.
+
+    Redacts:
+      - account.login → masked (e.g. "12***78")
+      - account.name → "REDACTED"
+      - account_info.name → "REDACTED"
+      - Any key named "login" or "name" at any nesting level
+    """
+    try:
+        with open(src, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception:
+        # Not valid JSON — copy as-is (e.g. .md, .jsonl)
+        shutil.copy2(src, dst)
+        return
+    _redact_dict_recursive(data)
+    with open(dst, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, default=str)
+
+
+def _redact_jsonl_file(src: Path, dst: Path) -> None:
+    """Sprint 9.9.3.23 — copy a JSONL file with privacy redaction (line by line)."""
+    with open(src, "r", encoding="utf-8") as f_in, \
+         open(dst, "w", encoding="utf-8") as f_out:
+        for line in f_in:
+            line = line.strip()
+            if not line:
+                f_out.write("\n")
+                continue
+            try:
+                obj = json.loads(line)
+                _redact_dict_recursive(obj)
+                f_out.write(json.dumps(obj, default=str) + "\n")
+            except Exception:
+                # Not JSON — write as-is
+                f_out.write(line + "\n")
+
+
+def _redact_dict_recursive(obj) -> None:
+    """Recursively redact sensitive keys in a dict/list structure."""
+    if isinstance(obj, dict):
+        for key in list(obj.keys()):
+            val = obj[key]
+            if key in ("login", "name", "account_name") and isinstance(val, (str, int)):
+                if key == "login":
+                    obj[key] = _mask_login(val)
+                else:
+                    obj[key] = "REDACTED"
+            elif isinstance(val, (dict, list)):
+                _redact_dict_recursive(val)
+    elif isinstance(obj, list):
+        for item in obj:
+            _redact_dict_recursive(item)
+
+
+def _redact_md_file(src: Path, dst: Path) -> None:
+    """Sprint 9.9.3.23 — copy a Markdown file with privacy redaction.
+
+    Redacts lines containing login/name/account number patterns.
+    """
+    import re
+    with open(src, "r", encoding="utf-8") as f:
+        content = f.read()
+    # Redact "login: 12345678" → "login: 12***78"
+    content = re.sub(
+        r"(login[:\s]+)(\d{2,})",
+        lambda m: m.group(1) + _mask_login(int(m.group(2))),
+        content, flags=re.IGNORECASE,
+    )
+    # Redact "name: John Doe" → "name: REDACTED"
+    content = re.sub(
+        r"(name[:\s]+)([^\n|]+)",
+        lambda m: m.group(1) + "REDACTED" if len(m.group(2).strip()) > 2 else m.group(0),
+        content, flags=re.IGNORECASE,
+    )
+    with open(dst, "w", encoding="utf-8") as f:
+        f.write(content)
+
+
 def archive_pass_evidence(server: str = None, dry_run: bool = False) -> dict:
     """Archive current PASS evidence to a timestamped directory.
 
@@ -111,7 +191,15 @@ def archive_pass_evidence(server: str = None, dry_run: bool = False) -> dict:
         src = SOURCE_DIR / filename
         if src.exists():
             dst = archive_dir / filename
-            shutil.copy2(src, dst)
+            # Sprint 9.9.3.23 — redact sensitive data in archived copies
+            if filename.endswith(".json"):
+                _redact_json_file(src, dst)
+            elif filename.endswith(".jsonl"):
+                _redact_jsonl_file(src, dst)
+            elif filename.endswith(".md"):
+                _redact_md_file(src, dst)
+            else:
+                shutil.copy2(src, dst)
             files_archived.append(filename)
 
     # Generate PASS_SUMMARY.md

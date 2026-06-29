@@ -234,6 +234,16 @@ def _safe(obj, attr, default=None):
         return default
 
 
+def _mask_login(login) -> str:
+    """Sprint 9.9.3.23 — mask login for privacy: show first 2 and last 2 chars."""
+    if login is None:
+        return "N/A"
+    s = str(login)
+    if len(s) <= 4:
+        return s[:1] + "***" + s[-1:]
+    return s[:2] + "***" + s[-2:]
+
+
 def _to_jsonable(v):
     """Convert any value to something json.dumps can serialize."""
     try:
@@ -1289,6 +1299,92 @@ class MT5ExecutionAdapter:
             })
             return None
 
+    def _validate_raw_profile_binding(self, raw_profile: dict,
+                                        snapshot: dict, symbol: str) -> Optional[dict]:
+        """Sprint 9.9.3.23 — validate that the raw profile matches the
+        current MT5 broker/account.
+
+        Checks:
+          1. raw_profile.server == snapshot.account.server
+          2. raw_profile.login == snapshot.account.login
+          3. raw_profile.symbol == symbol
+          4. Account is DEMO (trade_mode == 0)
+
+        Returns None if all checks pass, or a fail-closed result dict if
+        any mismatch is found. The result dict includes a "mismatches"
+        list detailing which fields didn't match.
+        """
+        mismatches = []
+        snap_account = snapshot.get("account", {})
+        snap_server = snap_account.get("server")
+        snap_login = snap_account.get("login")
+        snap_trade_mode = snap_account.get("trade_mode")
+
+        raw_server = raw_profile.get("server")
+        raw_login = raw_profile.get("login")
+        raw_symbol = raw_profile.get("symbol")
+
+        # 1. Server match
+        if raw_server and snap_server and raw_server != snap_server:
+            mismatches.append({
+                "field": "server",
+                "raw_profile_value": raw_server,
+                "current_value": snap_server,
+            })
+
+        # 2. Login match
+        if raw_login is not None and snap_login is not None and str(raw_login) != str(snap_login):
+            mismatches.append({
+                "field": "login",
+                "raw_profile_value": _mask_login(raw_login),
+                "current_value": _mask_login(snap_login),
+            })
+
+        # 3. Symbol match
+        if raw_symbol and symbol and raw_symbol != symbol:
+            mismatches.append({
+                "field": "symbol",
+                "raw_profile_value": raw_symbol,
+                "current_value": symbol,
+            })
+
+        # 4. Account must be DEMO
+        if snap_trade_mode is not None and snap_trade_mode != 0:
+            mismatches.append({
+                "field": "trade_mode",
+                "raw_profile_value": "DEMO (0)",
+                "current_value": f"{snap_trade_mode} (not DEMO)",
+            })
+
+        if mismatches:
+            self._log("DEMO_MICRO_PROFILE_MISMATCH_BLOCKED", {
+                "mismatches": mismatches,
+                "raw_profile_server": raw_server,
+                "current_server": snap_server,
+                "symbol": symbol,
+                "severity": "HIGH",
+                "reason": ("raw working profile does not match current MT5 "
+                           "broker/account — execution blocked for safety"),
+            })
+            return {
+                "ok": False,
+                "retcode": None,
+                "error": ("raw profile mismatch — execution blocked: "
+                          + ", ".join(m["field"] for m in mismatches)),
+                "filling_mode_selected": None,
+                "filling_type_used": None,
+                "filling_source": None,
+                "check_attempts": [],
+                "send_attempts": [],
+                "position_detected_after_failure": snapshot.get("open_positions", {}),
+                "emergency_close_required": False,
+                "broker_snapshot": snapshot,
+                "raw_working_profile_used": True,
+                "profile_mismatch": True,
+                "mismatches": mismatches,
+            }
+        return None
+
     def _send_raw_compatible_open(self, symbol: str, side: str, lot: float,
                                     magic: int, deviation: int,
                                     comment: str, snapshot: dict,
@@ -1305,6 +1401,11 @@ class MT5ExecutionAdapter:
 
         Returns a result dict with the same shape as _send_with_fallback.
         """
+        # Sprint 9.9.3.23 — validate raw profile matches current broker/account
+        mismatch_result = self._validate_raw_profile_binding(raw_profile, snapshot, symbol)
+        if mismatch_result is not None:
+            return mismatch_result
+
         # Read filling mode from raw profile (prefer IOC)
         raw_filling_type = raw_profile.get("type_filling", 2)  # default IOC=2
         raw_deviation = raw_profile.get("deviation", deviation)
