@@ -202,10 +202,15 @@ _RETRYABLE_RETCODES = frozenset({
 })
 
 # Sprint 9.9.3.19 patch — TRADE_ACTION_SLTP for modifying position SL/TP.
-# Used by the broker compatibility fallback when a protected market order
-# (with SL/TP attached) is rejected by a MARKET-execution broker but a
-# naked market order (sl=0, tp=0) would succeed.
-_TRADE_ACTION_SLTP = 2
+# Sprint 9.9.3.25.1 hotfix — this is now a FALLBACK DEFAULT only.
+# At runtime, the adapter reads mt5.TRADE_ACTION_SLTP via
+# _get_trade_action_constants() to ensure the correct value is used
+# for the installed MT5 Python build. The hardcoded 2 was causing
+# retcode=10013 (Invalid request) on MetaQuotes-Demo.
+_TRADE_ACTION_SLTP_DEFAULT = 2
+
+# Sprint 9.9.3.25.1 — keep backward-compat alias
+_TRADE_ACTION_SLTP = _TRADE_ACTION_SLTP_DEFAULT
 
 # Sprint 9.9.3.19 patch — retcodes that indicate the broker rejected the
 # PROTECTED order (SL/TP attached) but might accept a naked order.
@@ -298,6 +303,8 @@ class MT5ExecutionAdapter:
         # from the mt5 module at runtime. This ensures we use the broker's
         # actual enum values, not hard-coded defaults.
         self._order_filling_constants: Optional[dict] = None
+        # Sprint 9.9.3.25.1 — cache for TRADE_ACTION_* constants
+        self._trade_action_constants: Optional[dict] = None
 
     # ─── Sprint 9.9.3.20: ORDER_FILLING enum resolution ──────────────────────
 
@@ -341,6 +348,48 @@ class MT5ExecutionAdapter:
         result["BOC"] = boc_val if boc_val is not None else ORDER_FILLING_BOC_DEFAULT
         self._order_filling_constants = result
         return result
+
+    # ─── Sprint 9.9.3.25.1: TRADE_ACTION constant resolution ─────────────────
+
+    def _get_trade_action_constants(self) -> dict:
+        """Sprint 9.9.3.25.1 — read TRADE_ACTION_* constants from the mt5
+        module at runtime.
+
+        The mt5 Python module exposes TRADE_ACTION_DEAL and TRADE_ACTION_SLTP
+        as module-level integers. We read them at runtime to ensure we use
+        the correct enum values for request["action"], regardless of MT5 build.
+
+        Falls back to documented MQL5 defaults if the mt5 module doesn't
+        expose a particular constant.
+
+        Returns a dict:
+            {"TRADE_ACTION_DEAL": int, "TRADE_ACTION_SLTP": int}
+        """
+        if self._trade_action_constants is not None:
+            return self._trade_action_constants
+        result = {}
+        # TRADE_ACTION_DEAL
+        try:
+            val = getattr(self.mt5, "TRADE_ACTION_DEAL", None)
+        except Exception:
+            val = None
+        result["TRADE_ACTION_DEAL"] = val if val is not None else _TRADE_ACTION_DEAL
+        # TRADE_ACTION_SLTP
+        try:
+            val = getattr(self.mt5, "TRADE_ACTION_SLTP", None)
+        except Exception:
+            val = None
+        result["TRADE_ACTION_SLTP"] = val if val is not None else _TRADE_ACTION_SLTP_DEFAULT
+        self._trade_action_constants = result
+        return result
+
+    def _get_trade_action_sltp(self) -> int:
+        """Convenience: return the runtime TRADE_ACTION_SLTP value."""
+        return self._get_trade_action_constants()["TRADE_ACTION_SLTP"]
+
+    def _get_trade_action_deal(self) -> int:
+        """Convenience: return the runtime TRADE_ACTION_DEAL value."""
+        return self._get_trade_action_constants()["TRADE_ACTION_DEAL"]
 
     # ─── Journal helper ──────────────────────────────────────────────────────
 
@@ -418,6 +467,8 @@ class MT5ExecutionAdapter:
         # the mt5 module at runtime, so operators can verify the adapter
         # is using the correct enum values (not bitmask flags).
         snap["order_filling_constants"] = self._get_order_filling_constants()
+        # Sprint 9.9.3.25.1 — log TRADE_ACTION constants for profile
+        snap["trade_action_constants"] = self._get_trade_action_constants()
         # Tick
         try:
             tick = self.mt5.symbol_info_tick(symbol)
@@ -1037,23 +1088,90 @@ class MT5ExecutionAdapter:
 
     def _modify_position_sltp(self, position_ticket: int, symbol: str,
                                sl: float, tp: float) -> dict:
-        """Sprint 9.9.3.19 — modify a position's SL/TP via TRADE_ACTION_SLTP.
+        """Sprint 9.9.3.19 / 9.9.3.25.1 — modify a position's SL/TP via
+        TRADE_ACTION_SLTP.
 
-        Returns dict with ok/retcode/comment. Never raises.
+        Sprint 9.9.3.25.1 hotfix:
+          - Uses runtime mt5.TRADE_ACTION_SLTP (not hardcoded 2)
+          - Rounds SL/TP to symbol digits
+          - Validates SL/TP are non-zero
+          - Validates position ticket exists
+          - Checks trade_stops_level and trade_freeze_level
+          - Returns detailed diagnostics on failure
+
+        Returns dict with ok/retcode/comment/retcode_meaning. Never raises.
         """
+        # Sprint 9.9.3.25.1 — resolve runtime TRADE_ACTION_SLTP
+        action_sltp = self._get_trade_action_sltp()
+
+        # Sprint 9.9.3.25.1 — validate inputs
+        if position_ticket is None or position_ticket <= 0:
+            return {"ok": False, "retcode": None, "comment": "Invalid position ticket",
+                    "request": {}, "reason": "position_ticket invalid"}
+        if sl == 0 or tp == 0:
+            return {"ok": False, "retcode": None, "comment": "SL/TP must not be zero",
+                    "request": {}, "reason": "sl_or_tp_zero"}
+
+        # Sprint 9.9.3.25.1 — round SL/TP to symbol digits
+        try:
+            info = self.mt5.symbol_info(symbol)
+            digits = _safe(info, "digits", 5) if info else 5
+            point = _safe(info, "point", 0.01) if info else 0.01
+        except Exception:
+            digits = 5
+            point = 0.01
+        sl_rounded = round(float(sl), digits)
+        tp_rounded = round(float(tp), digits)
+
+        # Sprint 9.9.3.25.1 — check trade_stops_level / trade_freeze_level
+        trade_stops_level = _safe(info, "trade_stops_level", 0) if info else 0
+        trade_freeze_level = _safe(info, "trade_freeze_level", 0) if info else 0
+        # Get current price for stop distance check
+        try:
+            tick = self.mt5.symbol_info_tick(symbol)
+            current_price = _safe(tick, "bid", 0) if tick else 0
+        except Exception:
+            current_price = 0
+
+        if current_price > 0 and trade_stops_level > 0 and point > 0:
+            min_stop_distance = trade_stops_level * point
+            sl_distance = abs(current_price - sl_rounded)
+            if sl_distance < min_stop_distance:
+                self._log("ADAPTER_SLTP_MODIFY_STOP_DISTANCE_VIOLATION", {
+                    "position_ticket": position_ticket,
+                    "sl_distance": sl_distance,
+                    "min_stop_distance": min_stop_distance,
+                    "trade_stops_level": trade_stops_level,
+                    "reason": "SL too close to current price — broker minimum stop level violated",
+                })
+                return {
+                    "ok": False, "retcode": None,
+                    "comment": f"SL distance {sl_distance} < min stop distance {min_stop_distance}",
+                    "request": {},
+                    "reason": "stop_distance_violation",
+                    "trade_stops_level": trade_stops_level,
+                    "sl_distance": sl_distance,
+                    "min_stop_distance": min_stop_distance,
+                }
+
         request = {
-            "action": _TRADE_ACTION_SLTP,
+            "action": action_sltp,   # Sprint 9.9.3.25.1 — runtime resolved
             "symbol": symbol,
             "position": int(position_ticket),
-            "sl": float(sl),
-            "tp": float(tp),
+            "sl": sl_rounded,
+            "tp": tp_rounded,
         }
         self._log("ADAPTER_SLTP_MODIFY_ATTEMPTED", {
             "symbol": symbol,
             "position_ticket": position_ticket,
-            "sl": sl,
-            "tp": tp,
+            "sl": sl_rounded,
+            "tp": tp_rounded,
+            "action": action_sltp,
+            "action_source": "runtime_mt5.TRADE_ACTION_SLTP",
             "request": _safe_request(request),
+            "digits": digits,
+            "trade_stops_level": trade_stops_level,
+            "trade_freeze_level": trade_freeze_level,
         })
         try:
             result = self.mt5.order_send(request)
@@ -1089,14 +1207,16 @@ class MT5ExecutionAdapter:
         retcode = _safe(result, "retcode", None)
         comment = _safe(result, "comment", "")
         ok = retcode in _SUCCESS_RETCODES
+        retcode_meaning = lookup_retcode_meaning(retcode)
         self._log("ADAPTER_SLTP_MODIFY_RESULT", {
             "position_ticket": position_ticket,
             "retcode": retcode,
             "comment": comment,
-            "retcode_meaning": lookup_retcode_meaning(retcode),
+            "retcode_meaning": retcode_meaning,
             "ok": ok,
         })
         return {"ok": ok, "retcode": retcode, "comment": comment,
+                "retcode_meaning": retcode_meaning,
                 "request": _safe_request(request)}
 
     def _try_naked_order_fallback(self, base_request: dict,
@@ -1261,8 +1381,17 @@ class MT5ExecutionAdapter:
             **naked_result,
             "ok": False,
             "retcode": naked_result.get("retcode"),
-            "error": ("SLTP modify failed after naked order succeeded — "
-                      "emergency close attempted"),
+            "error": "OPEN_SUCCEEDED_SLTP_MODIFY_FAILED_EMERGENCY_CLOSED",
+            "reason": ("Naked order opened successfully (retcode="
+                       f"{naked_result.get('retcode')}) but SLTP modify failed "
+                       f"(retcode={sltp_result.get('retcode')}, "
+                       f"comment={sltp_result.get('comment', '')}, "
+                       f"meaning={sltp_result.get('retcode_meaning', '')}) — "
+                       f"emergency close attempted (success={close_result.get('ok', False)})"),
+            "open_retcode": naked_result.get("retcode"),
+            "sltp_modify_retcode": sltp_result.get("retcode"),
+            "sltp_modify_comment": sltp_result.get("comment"),
+            "sltp_modify_retcode_meaning": sltp_result.get("retcode_meaning"),
             "emergency_close_required": True,
             "emergency_close_tickets": [position_ticket] if position_ticket else [],
             "emergency_close_attempted": True,
@@ -1652,7 +1781,17 @@ class MT5ExecutionAdapter:
         )
         return {
             "ok": False, "retcode": send_retcode,
-            "error": "SLTP modify failed after raw naked open — emergency close",
+            "error": "OPEN_SUCCEEDED_SLTP_MODIFY_FAILED_EMERGENCY_CLOSED",
+            "reason": ("Raw naked order opened successfully (retcode="
+                       f"{send_retcode}) but SLTP modify failed "
+                       f"(retcode={sltp_result.get('retcode')}, "
+                       f"comment={sltp_result.get('comment', '')}, "
+                       f"meaning={sltp_result.get('retcode_meaning', '')}) — "
+                       f"emergency close attempted (success={close_result.get('ok', False)})"),
+            "open_retcode": send_retcode,
+            "sltp_modify_retcode": sltp_result.get("retcode"),
+            "sltp_modify_comment": sltp_result.get("comment"),
+            "sltp_modify_retcode_meaning": sltp_result.get("retcode_meaning"),
             "filling_mode_selected": raw_mode["filling_name"],
             "filling_source": "raw_working_profile",
             "check_attempts": [{"filling_name": raw_mode["filling_name"],

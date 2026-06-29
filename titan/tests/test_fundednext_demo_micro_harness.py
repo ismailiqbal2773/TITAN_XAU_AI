@@ -422,6 +422,11 @@ class MockMT5:
     ORDER_FILLING_IOC = 2
     ORDER_FILLING_BOC = 3
     ORDER_FILLING_RETURN = 4
+    # Sprint 9.9.3.25.1 — expose TRADE_ACTION_* constants so the adapter
+    # can read them at runtime via getattr(mt5, "TRADE_ACTION_*").
+    # These match the real MetaTrader5 Python module's constant values.
+    TRADE_ACTION_DEAL = 1
+    TRADE_ACTION_SLTP = 2
 
     def __init__(self,
                  account_trade_mode=0,

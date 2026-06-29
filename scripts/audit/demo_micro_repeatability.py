@@ -153,6 +153,26 @@ def _check_pre_conditions(server: str, symbol: str, lot: float) -> dict:
         if raw_symbol and symbol != raw_symbol:
             return {"ok": False, "error": f"Symbol mismatch: raw_profile={raw_symbol}, requested={symbol}"}
 
+        # Sprint 9.9.3.25.1 — raw profile preflight validation
+        # Verify the raw profile has successful open/close retcodes
+        raw_open_retcode = raw_profile.get("open_retcode")
+        if raw_open_retcode is not None and raw_open_retcode != 10009:
+            return {"ok": False, "error": f"Raw profile open_retcode={raw_open_retcode} != 10009 — profile not valid for repeatability"}
+        raw_close_retcode = raw_profile.get("close_retcode")
+        if raw_close_retcode is not None and raw_close_retcode != 10009:
+            return {"ok": False, "error": f"Raw profile close_retcode={raw_close_retcode} != 10009 — profile not valid for repeatability"}
+        raw_type_filling = raw_profile.get("type_filling")
+        if raw_type_filling is None:
+            return {"ok": False, "error": "Raw profile missing type_filling — cannot use for repeatability"}
+
+        _journal("REPEATABILITY_RAW_PROFILE_PREFLIGHT_PASS", {
+            "server": raw_profile.get("server"),
+            "symbol": raw_symbol,
+            "open_retcode": raw_open_retcode,
+            "close_retcode": raw_close_retcode,
+            "type_filling": raw_type_filling,
+        })
+
         # 9. No existing open positions
         positions = mt5.positions_get(symbol=symbol) or []
         matching = [p for p in positions if getattr(p, "magic", 0) == DEMO_MICRO_MAGIC]
@@ -231,7 +251,51 @@ async def _run_single_cycle(mt5, cycle: dict, raw_profile: dict,
 
         if not open_result.get("ok"):
             result["verdict"] = "FAIL"
-            result["error"] = f"Open failed: {open_result.get('error', 'unknown')}"
+            # Sprint 9.9.3.25.1 — build detailed error from adapter diagnostics
+            # Never report "unknown" when adapter has diagnostics
+            error_parts = []
+            adapter_error = open_result.get("error") or open_result.get("reason")
+            if adapter_error:
+                error_parts.append(str(adapter_error))
+            else:
+                error_parts.append(f"Open failed (retcode={open_result.get('retcode')})")
+
+            # Add SLTP modify diagnostics if present
+            sltp_retcode = open_result.get("sltp_modify_retcode")
+            if sltp_retcode is not None:
+                error_parts.append(
+                    f"SLTP modify retcode={sltp_retcode} "
+                    f"({open_result.get('sltp_modify_retcode_meaning', 'unknown')}) "
+                    f"comment={open_result.get('sltp_modify_comment', '')}"
+                )
+
+            # Add emergency close info if present
+            if open_result.get("emergency_close_required"):
+                ec_result = open_result.get("emergency_close_result") or {}
+                error_parts.append(
+                    f"Emergency close: success={ec_result.get('ok', 'N/A')} "
+                    f"retcode={ec_result.get('retcode', 'N/A')}"
+                )
+
+            # Add MT5 last_error if present
+            mt5_err_code = open_result.get("mt5_last_error_code")
+            if mt5_err_code is not None:
+                error_parts.append(
+                    f"MT5 last_error: code={mt5_err_code} "
+                    f"msg={open_result.get('mt5_last_error_message', '')}"
+                )
+
+            result["error"] = " | ".join(error_parts)
+            # Propagate key diagnostic fields
+            result["open_retcode"] = open_result.get("open_retcode") or open_result.get("retcode")
+            result["sltp_modify_retcode"] = sltp_retcode
+            result["sltp_modify_comment"] = open_result.get("sltp_modify_comment")
+            result["sltp_modify_retcode_meaning"] = open_result.get("sltp_modify_retcode_meaning")
+            result["emergency_close_required"] = open_result.get("emergency_close_required", False)
+            result["emergency_close_success"] = open_result.get("emergency_close_result", {}).get("ok", False) if open_result.get("emergency_close_result") else False
+            result["mt5_last_error_code"] = mt5_err_code
+            result["adapter_error"] = open_result.get("error")
+            result["adapter_reason"] = open_result.get("reason")
             result["duration_seconds"] = time.time() - start_time
             _journal("REPEATABILITY_CYCLE_FAIL", result)
             return result

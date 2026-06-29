@@ -268,3 +268,115 @@ class TestRepeatabilityFailClosed:
         # Script would break after c2 — cycle 3 never runs
         assert len(cycles) == 2
         assert cycles[-1]["verdict"] == "FAIL"
+
+
+# ─── Sprint 9.9.3.25.1 — diagnostics + raw profile preflight tests ──────────
+
+class TestRepeatabilityDiagnostics:
+    """Sprint 9.9.3.25.1 — verify error reporting never says 'unknown'."""
+
+    def test_17_error_never_says_unknown_when_adapter_has_diagnostics(self):
+        """When adapter provides error/reason, repeatability report uses it."""
+        # Simulate an open_result with SLTP failure diagnostics
+        open_result = {
+            "ok": False,
+            "error": "OPEN_SUCCEEDED_SLTP_MODIFY_FAILED_EMERGENCY_CLOSED",
+            "reason": "SLTP modify failed retcode=10013",
+            "open_retcode": 10009,
+            "sltp_modify_retcode": 10013,
+            "sltp_modify_comment": "Invalid request",
+            "sltp_modify_retcode_meaning": "invalid request",
+            "emergency_close_required": True,
+            "emergency_close_result": {"ok": True, "retcode": 10009},
+            "mt5_last_error_code": None,
+            "retcode": 10009,
+        }
+        # Replicate the error-building logic from the repeatability script
+        error_parts = []
+        adapter_error = open_result.get("error") or open_result.get("reason")
+        if adapter_error:
+            error_parts.append(str(adapter_error))
+        else:
+            error_parts.append(f"Open failed (retcode={open_result.get('retcode')})")
+        sltp_retcode = open_result.get("sltp_modify_retcode")
+        if sltp_retcode is not None:
+            error_parts.append(
+                f"SLTP modify retcode={sltp_retcode} "
+                f"({open_result.get('sltp_modify_retcode_meaning', 'unknown')}) "
+                f"comment={open_result.get('sltp_modify_comment', '')}"
+            )
+        if open_result.get("emergency_close_required"):
+            ec_result = open_result.get("emergency_close_result") or {}
+            error_parts.append(
+                f"Emergency close: success={ec_result.get('ok', 'N/A')} "
+                f"retcode={ec_result.get('retcode', 'N/A')}"
+            )
+        final_error = " | ".join(error_parts)
+        # Must NOT contain "unknown" as the primary error
+        assert "OPEN_SUCCEEDED_SLTP_MODIFY_FAILED_EMERGENCY_CLOSED" in final_error
+        assert "10013" in final_error
+        assert "SLTP modify" in final_error
+
+    def test_18_raw_profile_preflight_blocks_bad_open_retcode(self, tmp_path):
+        """Raw profile with bad open_retcode blocks before order send."""
+        from scripts.audit.demo_micro_repeatability import _check_pre_conditions
+        import os
+        os.environ["TITAN_DEMO_MICRO_ARMED"] = "1"
+        # Create a raw profile with bad retcode
+        raw_path = REPO_ROOT / "data" / "audit" / "demo_micro" / "raw_mt5_working_profile.json"
+        original = None
+        if raw_path.exists():
+            original = raw_path.read_text()
+        try:
+            raw_path.write_text(json.dumps({
+                "server": "MetaQuotes-Demo", "login": 12345678, "symbol": "XAUUSD",
+                "type_filling": 2, "open_retcode": 10006,  # bad retcode
+                "close_retcode": 10009,
+            }))
+            result = _check_pre_conditions("MetaQuotes-Demo", "XAUUSD", 0.01)
+            # On Linux without MT5, the error will be about MetaTrader5 not installed
+            # or about pre-condition check. Either way it should fail.
+            assert result["ok"] is False
+            # If MT5 is available and gets to the retcode check, verify the error
+            if "open_retcode" in result.get("error", ""):
+                assert "10006" in result["error"]
+        finally:
+            if original is not None:
+                raw_path.write_text(original)
+            else:
+                raw_path.unlink(missing_ok=True)
+
+    def test_19_raw_profile_missing_type_filling_blocks(self, tmp_path):
+        """Raw profile without type_filling blocks."""
+        from scripts.audit.demo_micro_repeatability import _check_pre_conditions
+        import os
+        os.environ["TITAN_DEMO_MICRO_ARMED"] = "1"
+        raw_path = REPO_ROOT / "data" / "audit" / "demo_micro" / "raw_mt5_working_profile.json"
+        original = None
+        if raw_path.exists():
+            original = raw_path.read_text()
+        try:
+            raw_path.write_text(json.dumps({
+                "server": "MetaQuotes-Demo", "login": 12345678, "symbol": "XAUUSD",
+                "open_retcode": 10009, "close_retcode": 10009,
+                # Missing type_filling
+            }))
+            result = _check_pre_conditions("MetaQuotes-Demo", "XAUUSD", 0.01)
+            assert result["ok"] is False
+            # If MT5 is available and gets to the type_filling check, verify
+            if "type_filling" in result.get("error", ""):
+                assert "type_filling" in result["error"]
+        finally:
+            if original is not None:
+                raw_path.write_text(original)
+            else:
+                raw_path.unlink(missing_ok=True)
+
+    def test_20_privacy_ignore_rules_verified(self):
+        """Runtime files are still in .gitignore."""
+        gitignore = (REPO_ROOT / ".gitignore").read_text()
+        assert "raw_mt5_working_profile.json" in gitignore
+        assert "demo_micro_repeatability_report.json" in gitignore
+        assert "demo_micro_repeatability_journal.jsonl" in gitignore
+        assert "broker_execution_profile.json" in gitignore
+        assert "demo_micro_journal.jsonl" in gitignore

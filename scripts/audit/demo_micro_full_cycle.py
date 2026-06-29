@@ -603,6 +603,20 @@ def _send_open_order(mt5, symbol: str, side: str, lot: float, magic: int,
         "emergency_close_required": result.get("emergency_close_required", False),
         "emergency_close_tickets": result.get("emergency_close_tickets", []),
         "order_send_called": bool(result.get("send_attempts")),
+        # Sprint 9.9.3.25.1 — propagate adapter diagnostics
+        "error": result.get("error"),
+        "reason": result.get("reason"),
+        "retcode_meaning": result.get("retcode_meaning"),
+        "open_retcode": result.get("open_retcode"),
+        "sltp_modify_retcode": result.get("sltp_modify_retcode"),
+        "sltp_modify_comment": result.get("sltp_modify_comment"),
+        "sltp_modify_retcode_meaning": result.get("sltp_modify_retcode_meaning"),
+        "emergency_close_result": result.get("emergency_close_result"),
+        "mt5_last_error_code": result.get("mt5_last_error_code"),
+        "mt5_last_error_message": result.get("mt5_last_error_message"),
+        "raw_profile_used": result.get("raw_working_profile_used"),
+        "raw_profile_error": result.get("raw_profile_error"),
+        "broker_snapshot": result.get("broker_snapshot"),
     }
 
 
