@@ -2104,3 +2104,91 @@ Stage Summary:
 - Prop firm layer is OFF by default. Operators can enable by setting prop_firm.enabled=true and prop_firm.profile=<profile_id> in runtime.yaml.
 - Ready for FTMO/FundedNext/The5ers/MyFundedFX challenge deployment.
 
+
+---
+Task ID: 18
+Agent: Super Z (main, Sprint 9.9.3.35 implementation session 2026-06-30)
+Task: Add safe operator-facing command center (Sprint 9.9.3.35). Create titan/production/operator_control_console.py with OperatorCommand enum (STATUS, RC_CHECK, SAFETY_CHECK, BROKER_STATUS, OBSERVATION_REPORT, DAILY_SCORECARD, FULL_AUDIT, HELP), OperatorCommandResult dataclass, OperatorControlConsole class. Add scripts/operator/titan_operator.py CLI with --json option. Add run_titan_operator.bat Windows helper with menu. Add docs/operator/operator_control_console.md. Add tests. Run all required pytest suites + first_run_check.py + CLI commands + git status. Commit: feat(operator): add safe RC command console.
+
+Work Log:
+- Inspected repo state: Sprint 9.9.3.34 completed (commit ebf7d85, working tree clean, 16-component inventory loaded).
+- Created titan/production/operator_control_console.py:
+  * OperatorCommand enum: STATUS, RC_CHECK, SAFETY_CHECK, BROKER_STATUS, OBSERVATION_REPORT, DAILY_SCORECARD, FULL_AUDIT, HELP
+  * OperatorCommandResult dataclass: command, ok, verdict, message, reports_generated, blockers, warnings, next_steps, timestamp_utc
+  * OperatorControlConsole class with run_status(), run_rc_check(), run_safety_check(), run_broker_status(), run_observation_report(), run_daily_scorecard(), run_full_audit(), run_help(), execute()
+  * STATUS summarizes RC mode, live_blocked, dry_run, demo_only, broker registry, components loaded
+  * RC_CHECK uses ProductionRuntimeAssembly, returns RC_READY/RC_READY_WITH_WARNINGS/RC_BLOCKED
+  * SAFETY_CHECK confirms live_trading_enabled=False, mt5_order_send_allowed=False, max_lot<=0.01, max_open_positions<=1, FundedNext Free Trial blocked, raw evidence ignored
+  * BROKER_STATUS summarizes MetaQuotes verified, FBS rejected, FundedNext blocked, Exness/ICMarkets pending
+  * OBSERVATION_REPORT uses forward_observation_report writer; missing journals OK
+  * DAILY_SCORECARD uses daily_demo_observation_runner; returns INSUFFICIENT_DATA when no journals
+  * FULL_AUDIT runs safe report generation only (assembly report, forward observation report, daily scorecard, redacted registry presence check)
+  * HELP lists commands and safe workflow
+  * execute() dispatches by enum or string, writes operator_command_report.json/.md
+- Created scripts/operator/titan_operator.py CLI:
+  * Commands: status, rc-check, safety-check, broker-status, observation-report, daily-scorecard --since-hours 24, full-audit, help
+  * --json flag for JSON output
+  * Human-readable output by default with OK/Verdict/Message/Reports/Blockers/Warnings/Next Steps
+  * Writes operator_command_report.json/.md on every command
+- Created run_titan_operator.bat Windows helper:
+  * Activates venv/.venv/env if available
+  * Menu: 1 STATUS, 2 RC CHECK, 3 SAFETY CHECK, 4 BROKER STATUS, 5 FULL AUDIT, 6 HELP, 0 EXIT
+  * No live trading option, no DEMO_MICRO_EXECUTE option, no raw_mt5_probe, no repeatability
+- Created docs/operator/operator_control_console.md:
+  * Command list, Windows usage, what each command means, safe workflow before observation
+  * What NOT to run, privacy warning, raw runtime evidence warning
+  * Live trading remains BLOCKED, market execution NOT available
+- Created titan/tests/test_operator_control_console.py (30 tests):
+  * Status/rc-check/safety-check/broker-status/observation-report/daily-scorecard/full-audit/help command tests
+  * Execute dispatch tests, command report writer tests
+  * Safety invariants: no MT5 import, no order_send, no MT5ExecutionAdapter execution, no DEMO_MICRO_EXECUTE, no raw probe, no repeatability
+  * Batch file safety: no live trading command, no DEMO_MICRO_EXECUTE command, has menu
+  * Result dataclass tests
+- Created titan/tests/test_titan_operator_cli.py (26 tests):
+  * CLI command tests via subprocess for all 8 commands
+  * JSON output tests for status/rc-check/safety-check/broker-status/help
+  * Command report artifact tests
+  * CLI safety invariants: no MT5 import, no order_send, no DEMO_MICRO_EXECUTE, no raw probe, no repeatability
+  * Batch file tests: no live trading command, no DEMO_MICRO_EXECUTE command, calls titan_operator.py, activates venv
+- Updated .gitignore to add data/audit/operator/ (regenerated on each command)
+- Initial test run: 6 failures due to overly strict string matching (matching safety warning text instead of actual call sites)
+- Updated tests to use regex patterns for actual calls/imports (similar to existing test_20_no_order_send_calls pattern)
+- Reworded help text to not include "import MetaTrader5" literal
+- Final test results:
+  * titan/tests/test_operator_control_console.py: 30 passed
+  * titan/tests/test_titan_operator_cli.py: 26 passed
+  * titan/tests/test_production_runtime_assembly.py: 20 passed
+  * titan/tests/test_production_assembly_report.py: 4 passed
+  * titan/tests/test_observation_scorecard.py: 16 passed
+  * titan/tests/test_daily_demo_observation_runner.py: 7 passed
+  * Total: 103 passed
+- first_run_check.py: 13 PASS, 1 WARN (MT5 Linux), 0 FAIL
+- CLI verification:
+  * python scripts/operator/titan_operator.py status → OK=True, Verdict=RC_READY, components=16/16, brokers=5
+  * python scripts/operator/titan_operator.py rc-check → OK=True, Verdict=RC_READY, components_loaded=16
+  * python scripts/operator/titan_operator.py safety-check → OK=True, Verdict=SAFETY_OK, gates_ok=8, blockers=0
+  * python scripts/operator/titan_operator.py broker-status → OK=True, Verdict=BROKER_REGISTRY_OK, MetaQuotes VERIFIED_FOR_DEMO_MICRO
+  * python scripts/operator/titan_operator.py full-audit → OK=True, Verdict=FULL_AUDIT_OK, reports_generated=8
+  * python scripts/operator/titan_operator.py status --json → valid JSON output
+
+Safety verification:
+- No MetaTrader5 import in console or CLI
+- No mt5.order_send calls in console or CLI
+- No MT5ExecutionAdapter() instantiation in console or CLI
+- No DEMO_MICRO_EXECUTE function calls in console or CLI
+- No raw_mt5_probe imports/calls in console or CLI
+- No demo_micro_repeatability imports/calls in console or CLI
+- Batch file: no live trading option, no DEMO_MICRO_EXECUTE option, no raw probe, no repeatability
+- Live trading remains BLOCKED (hardcoded False in ProductionRuntimeAssembly)
+- Market execution NOT available from operator console
+- No lot changes, no model changes, no retraining, no champion replacement, no strategy change
+
+Stage Summary:
+- VERDICT: Sprint 9.9.3.35 complete and safe
+- Files created: 6 (titan/production/operator_control_console.py, scripts/operator/titan_operator.py, run_titan_operator.bat, docs/operator/operator_control_console.md, titan/tests/test_operator_control_console.py, titan/tests/test_titan_operator_cli.py)
+- Files modified: 1 (.gitignore)
+- Tests: 103 total passed across 6 test suites
+- All 4 CLI spot-checks (status, rc-check, safety-check, broker-status, full-audit) pass
+- first_run_check.py passes with 1 expected WARN (MT5 Linux stub)
+- Operator console is intentionally narrow: no live trading, no market execution, no MT5 import, no order_send
+- Ready to commit: feat(operator): add safe RC command console
