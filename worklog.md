@@ -2348,3 +2348,96 @@ Stage Summary:
 - Report script runs successfully: verdict=RETRAINING_PIPELINE_WARNINGS (expected with default empty metrics)
 - All safety invariants enforced by code and verified by tests
 - Ready to commit: feat(model): add offline retraining candidate pipeline
+
+---
+Task ID: 21
+Agent: Super Z (main, Sprint 9.9.3.38 master integration audit session 2026-06-30)
+Task: Perform master integration audit and runtime wiring gap report (Sprint 9.9.3.38). NOT a feature sprint. Audit launcher.py, autonomous_loops.py, production modules, operator console, config/runtime.yaml. Add scripts/audit/master_integration_audit.py, docs/audit/master_integration_gap_report.md, titan/tests/test_master_integration_audit.py. Run all required pytest suites + first_run_check + audit script + git status. Commit: audit(runtime): add master integration gap report.
+
+Work Log:
+- Verified starting state: HEAD at 48b48d4 (Sprint 9.9.3.37), working tree clean.
+- Audited titan/runtime/launcher.py (893 lines):
+  * Launcher does NOT import ProductionRuntimeAssembly.
+  * Launcher does NOT wire SignalExecutionBridge, RegimeDetection, BrokerCompatibilityMatrix, RuntimeHealthMonitor, SecurityGate, PositionLifecycleEngine, ExitIntentBridge, ForwardObservationEngine, ObservationScorecardEngine.
+  * Launcher DOES wire: InferenceEngine, TradeLoop, KillSwitchFSM, PositionSync, ColdStartReconciler, TradeJournal.
+  * Launcher DOES optionally wire (all default OFF): capital-protection engines, broker-intelligence engines, exit-intelligence engines.
+- Audited titan/runtime/autonomous_loops.py (1328 lines):
+  * AutonomousRuntime imports ONLY Sprint 5-8 components: InferenceEngine, TradeLoop, TradeJournal, KillSwitchFSM, H1FeatureStream, PositionSync, ExitManager, DriftMonitor, SlippageMonitor, NewsFilter, MetaCalibrationMonitor.
+  * AutonomousRuntime does NOT import any Sprint 9.9.3.x institutional modules.
+  * Critical finding: SignalExecutionBridge, ExecutionIntent, RegimeDetection, BrokerCompatibilityMatrix, RuntimeHealthMonitor, SecurityGate, PositionLifecycleEngine, ExitIntentBridge, ForwardObservationEngine, ObservationScorecardEngine are ALL ABSENT from autonomous_loops.py.
+- Audited production modules:
+  * signal_execution_bridge.py exists as standalone module, produces ExecutionIntent, but is NOT consumed by TradeLoop or AutonomousRuntime.
+  * exit_intent_bridge.py exists as standalone module, but is NOT wired into runtime.
+  * position_lifecycle.py exists as standalone module, but is NOT wired into runtime.
+  * forward_observation.py + observation_scorecard.py are invoked only by offline report scripts.
+  * model_lifecycle_governance.py + alpha_factory_governance.py + auto_calibration_governance.py + model_registry.py + offline_retraining_pipeline.py + retraining_trigger_monitor.py are all governance/report-only modules.
+- Created scripts/audit/master_integration_audit.py:
+  * Reads source files at rest (never imports runtime modules)
+  * _strip_strings_and_comments helper removes docstrings/string literals/comments so safety-invariant regex checks match actual CODE
+  * build_component_wiring_matrix() classifies 31 components into WIRED_IN_AUTONOMOUS_RUNTIME / WIRED_IN_LAUNCHER_ONLY / WIRED_IN_OPERATOR_CONSOLE_ONLY / WIRED_IN_REPORT_ONLY / MODULE_EXISTS_NOT_WIRED / MISSING / LEGACY_DUPLICATE
+  * build_executable_chain_matrix() classifies 17 chain links as PRESENT / PARTIAL / ABSENT / UNKNOWN
+  * answer_critical_questions() answers 14 critical YES/NO/PARTIAL questions with file evidence
+  * audit_safety() checks 17 safety invariants
+  * classify_product_readiness() classifies 14 readiness dimensions
+  * determine_verdict() returns INTEGRATION_READY / INTEGRATION_READY_WITH_WARNINGS / INTEGRATION_BLOCKED
+  * recommend_next_sprint() produces a specific recommendation based on findings
+  * Writes data/audit/master_integration/master_integration_audit.{json,md}
+- Created docs/audit/master_integration_gap_report.md:
+  * "What is truly complete" section
+  * "What is only module/report level" table (18 modules)
+  * "What is missing from actual runtime wiring" section with 7 critical gaps
+  * "RC_READY is not truthful" finding
+  * "What must be fixed before observation" section
+  * "What must be fixed before Windows RC package" section
+  * "What must be fixed before commercial release" section
+  * "What must remain blocked before live trading" section (15 items)
+  * Final verdict: INTEGRATION_BLOCKED
+- Created titan/tests/test_master_integration_audit.py (25 tests):
+  * TestReportWriter: 18 tests covering JSON/MD writes, HEAD commit, matrix, chain, launcher/autonomous/operator inspection, classifications, safety, verdict, next sprint, LIVE_TRADING_READY=NO
+  * TestSafetyInvariants: 7 tests covering no MT5 import, no order_send, no DEMO_MICRO_EXECUTE, no training, no runtime config modification, no runtime imports, source-at-rest inspection
+- Updated .gitignore to add data/audit/master_integration/
+- Initial test run: 2 failures (test_19 and test_23) due to overly strict string matching
+- Added _strip_strings_and_comments helper to test class
+- Final test results:
+  * titan/tests/test_master_integration_audit.py: 25 passed
+  * titan/tests/test_operator_control_console.py: 30 passed
+  * titan/tests/test_production_runtime_assembly.py: 20 passed
+  * titan/tests/test_signal_execution_bridge.py: 22 passed
+  * titan/tests/test_exit_intent_bridge.py: 22 passed
+  * Total: 119 passed
+- first_run_check.py: 13 PASS, 1 WARN (MT5 Linux stub), 0 FAIL
+- python scripts/audit/master_integration_audit.py: verdict=INTEGRATION_BLOCKED, HEAD=48b48d4
+
+KEY AUDIT FINDINGS:
+- VERDICT: INTEGRATION_BLOCKED
+- AUTONOMOUS_RUNTIME_WIRING_COMPLETE: NO
+- RC_ASSEMBLY_TRUTHFUL: NO (RC_READY reflects import presence, not runtime wiring)
+- 18 modules exist but are NOT wired into runtime
+- 9 critical modules not wired: SignalExecutionBridge, RegimeDetection, BrokerCompatibilityMatrix, RuntimeHealthMonitor, SecurityGate, PositionLifecycleEngine, ExitIntentBridge, ForwardObservationEngine, ObservationScorecardEngine
+- LIVE_TRADING_READY: NO (correct)
+- SAFETY_FOUNDATION_COMPLETE: YES
+- OPERATOR_CONSOLE_COMPLETE: YES
+- MODEL_LIFECYCLE_GOVERNANCE_COMPLETE: YES
+- OFFLINE_RETRAINING_GOVERNANCE_COMPLETE: YES
+- Recommended next sprint: 9.9.3.39 - Autonomous Runtime Wiring Integration
+
+Safety verification:
+- No MetaTrader5 import in audit module
+- No mt5.order_send calls in audit module
+- No DEMO_MICRO_EXECUTE calls in audit module
+- No model training execution (.fit/train_model/retrain/run_hpo) in audit module
+- No runtime config modification in audit module
+- Audit reads source files at rest only - does NOT import runtime modules
+- No live trading, no market execution, no champion replacement, no model artifact creation
+
+Stage Summary:
+- VERDICT: Sprint 9.9.3.38 complete. Master integration audit added.
+- Files created: 3 (audit script, gap report doc, test file)
+- Files modified: 1 (.gitignore)
+- Tests: 25 new tests pass; 94 regression tests pass; total 119 passed
+- first_run_check.py: PASS (1 expected MT5 Linux WARN)
+- Audit script runs successfully: verdict=INTEGRATION_BLOCKED, HEAD=48b48d4
+- The audit truthfully reports that TITAN is module-complete but NOT runtime-complete
+- RC_READY is not truthful - reflects import presence, not runtime wiring
+- Recommended next sprint: 9.9.3.39 - Autonomous Runtime Wiring Integration
+- Ready to commit: audit(runtime): add master integration gap report

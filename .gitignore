@@ -38,3 +38,4 @@ data/audit/forward_observation/
 data/audit/production_assembly/
 data/audit/operator/
 data/audit/model_lifecycle/
+data/audit/master_integration/
