@@ -1,4 +1,4 @@
-"""TITAN XAU AI - Sprint 9.9.3.45.1 MT5 History Diagnostic Tests"""
+"""TITAN XAU AI - Sprint 9.9.3.45.2 MT5 History Diagnostic Tests"""
 from __future__ import annotations
 import json, re, sys
 from pathlib import Path
@@ -41,3 +41,9 @@ class TestDiagnostic:
         code = re.sub(r'"(?:[^"\\]|\\.)*"','""',code)
         code = re.sub(r"'(?:[^'\\]|\\.)*'","''",code)
         assert not re.search(r"(?<!['\"])\b(DEMO_MICRO_EXECUTE|run_demo_micro)\s*\(", code)
+
+    def test_06_reports_magic_and_comment_counts(self):
+        """Diagnostic should report magic_202619_deals and titan_comment_deals."""
+        src = (REPO_ROOT / "scripts" / "operator" / "diagnose_mt5_history_access.py").read_text()
+        assert "magic_202619_deals" in src
+        assert "titan_comment_deals" in src

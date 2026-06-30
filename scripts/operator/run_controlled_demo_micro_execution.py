@@ -6,13 +6,31 @@ NEVER sends orders. NEVER calls mt5.order_send. NEVER runs DEMO_MICRO_EXECUTE.
 Z AI must NOT run --execute-once.
 """
 from __future__ import annotations
-import argparse, json, os, sys
+import argparse, hashlib, json, os, sys
 from datetime import datetime, timezone
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT))
 OUTPUT_DIR = REPO_ROOT / "data" / "audit" / "demo_micro_execution"
+RECEIPT_PATH = REPO_ROOT / "data" / "runtime" / "demo_micro_execution_receipt.json"
+
+
+def _git_head_short() -> str:
+    import subprocess
+    try:
+        r = subprocess.run(["git", "rev-parse", "--short", "HEAD"],
+                           cwd=str(REPO_ROOT), capture_output=True, text=True, timeout=10)
+        return r.stdout.strip() if r.returncode == 0 else "unknown"
+    except Exception:
+        return "unknown"
+
+
+def _write_receipt(receipt: dict) -> None:
+    """Write execution receipt. Gitignored. No raw login/secrets."""
+    RECEIPT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with open(RECEIPT_PATH, "w", encoding="utf-8") as f:
+        json.dump(receipt, f, indent=2, ensure_ascii=False)
 
 
 def run_check_only() -> dict:
@@ -243,6 +261,29 @@ def _attempt_gated_order_send(build_result: dict, args) -> dict:
 
         retcode = getattr(result, "retcode", 0)
         if retcode == 10009:  # TRADE_RETCODE_DONE
+            # Sprint 9.9.3.45.2: Write execution receipt
+            receipt = {
+                "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+                "git_commit": _git_head_short(),
+                "account_server": getattr(acc, "server", "unknown") if acc else "unknown",
+                "account_login_hash": hashlib.sha256(str(getattr(acc, "login", 0)).encode()).hexdigest()[:16] if acc else "unknown",
+                "symbol": "XAUUSD",
+                "volume": volume,
+                "side": direction,
+                "order_ticket": getattr(result, "order", 0) if result else 0,
+                "deal_ticket": getattr(result, "deal", 0) if result else 0,
+                "position_id": getattr(result, "position_id", 0) if result else 0,
+                "request_magic": 202619,
+                "request_comment": "TITAN_DEMO_MICRO",
+                "entry_price": getattr(result, "price", 0) if result else 0,
+                "sl": sl,
+                "tp": tp,
+                "retcode": retcode,
+                "retcode_comment": "TRADE_RETCODE_DONE",
+                "success": True,
+                "execution_mode": "execute_once",
+            }
+            _write_receipt(receipt)
             return {
                 "mode": "execute_once",
                 "verdict": "DEMO_MICRO_ORDER_SEND_SUCCEEDED",
@@ -250,10 +291,34 @@ def _attempt_gated_order_send(build_result: dict, args) -> dict:
                 "order_send_called": True,
                 "order_send_retcode": retcode,
                 "order_details": {"volume": volume, "sl": sl, "tp": tp, "direction": direction},
+                "receipt_written": True,
                 "next_action": "Run post-trade verification: python scripts/operator/verify_demo_micro_position.py",
                 "important_note": "Order was sent once and succeeded. No second order will be sent.",
             }
         else:
+            # Sprint 9.9.3.45.2: Write failed receipt
+            receipt = {
+                "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+                "git_commit": _git_head_short(),
+                "account_server": getattr(acc, "server", "unknown") if acc else "unknown",
+                "account_login_hash": hashlib.sha256(str(getattr(acc, "login", 0)).encode()).hexdigest()[:16] if acc else "unknown",
+                "symbol": "XAUUSD",
+                "volume": volume,
+                "side": direction,
+                "order_ticket": 0,
+                "deal_ticket": 0,
+                "position_id": 0,
+                "request_magic": 202619,
+                "request_comment": "TITAN_DEMO_MICRO",
+                "entry_price": 0,
+                "sl": sl,
+                "tp": tp,
+                "retcode": retcode,
+                "retcode_comment": "FAILED",
+                "success": False,
+                "execution_mode": "execute_once",
+            }
+            _write_receipt(receipt)
             return {
                 "mode": "execute_once",
                 "verdict": "DEMO_MICRO_ORDER_SEND_FAILED",

@@ -1,4 +1,4 @@
-"""TITAN XAU AI - Sprint 9.9.3.45.1 Managed Demo Micro Trade Operator Tests"""
+"""TITAN XAU AI - Sprint 9.9.3.45.2 Managed Demo Micro Trade Operator Tests"""
 from __future__ import annotations
 import re, sys
 from pathlib import Path
@@ -34,7 +34,7 @@ class TestManagedOperator:
             confirm_environment_locked = True
             confirm_model_parity_pass = True
             confirm_local_operator = True
-            confirm_managed_trailing = False  # Missing!
+            confirm_managed_trailing = False
         result = mt.run_execute_and_monitor(FakeArgs())
         assert result["verdict"] == "MANAGED_DEMO_MICRO_BLOCKED"
         assert any("confirmation" in b.lower() for b in result["blockers"])
@@ -68,3 +68,10 @@ class TestManagedOperator:
         code = re.sub(r'"(?:[^"\\]|\\.)*"','""',code)
         code = re.sub(r"'(?:[^'\\]|\\.)*'","''",code)
         assert not re.search(r"(?<!['\"])\b(DEMO_MICRO_EXECUTE|run_demo_micro)\s*\(", code)
+
+    def test_08_no_raw_mt5_probe(self):
+        src = (REPO_ROOT / "scripts" / "operator" / "run_managed_demo_micro_trade.py").read_text()
+        code = re.sub(r'"""[\s\S]*?"""','""',src)
+        code = re.sub(r'"(?:[^"\\]|\\.)*"','""',code)
+        code = re.sub(r"'(?:[^'\\]|\\.)*'","''",code)
+        assert not re.search(r"(?<!['\"])\b(run_raw_probe|raw_mt5_probe)\s*\(", code)
