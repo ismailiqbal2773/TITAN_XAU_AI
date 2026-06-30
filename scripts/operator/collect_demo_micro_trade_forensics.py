@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
 """
-TITAN XAU AI - Demo Micro Trade Forensics (Sprint 9.9.3.45)
-============================================================
+TITAN XAU AI - Demo Micro Trade Forensics (Sprint 9.9.3.45 / 9.9.3.45.1)
+========================================================================
 Passive forensic analysis of executed demo micro trade.
 NEVER sends orders. NEVER modifies positions.
+
+Sprint 9.9.3.45.1: Improved with --days, --symbol, --magic, --comment,
+wider history search, likely-trade classification, root cause detection.
 """
 from __future__ import annotations
-import json, sys
-from datetime import datetime, timezone
+import argparse, json, sys
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -15,7 +18,8 @@ sys.path.insert(0, str(REPO_ROOT))
 OUTPUT_DIR = REPO_ROOT / "data" / "audit" / "demo_micro_execution"
 
 
-def collect_forensics() -> dict:
+def collect_forensics(days: int = 7, symbol: str = "XAUUSD",
+                       magic: int = 202619, comment: str = "TITAN_DEMO_MICRO") -> dict:
     ts = datetime.now(timezone.utc).isoformat()
     ok_checks = []
     blockers = []
@@ -40,29 +44,53 @@ def collect_forensics() -> dict:
             findings["account_trade_mode"] = getattr(acc, "trade_mode", -1)
             ok_checks.append(f"Account server: {findings['account_server']}")
 
-        # Recent XAUUSD deals
-        deals = mt5.history_deals_get(symbol="XAUUSD", count=10)
+        # Recent XAUUSD deals (Sprint 9.9.3.45.1: wider history window)
+        from_dt = datetime.now(timezone.utc) - timedelta(days=days)
+        deals = mt5.history_deals_get(from_dt, datetime.now(timezone.utc))
         titan_deals = []
+        likely_deals = []
         if deals:
             for d in deals:
-                comment = getattr(d, "comment", "")
-                magic = getattr(d, "magic", 0)
-                if magic == 202619 or "TITAN" in comment:
+                d_comment = getattr(d, "comment", "")
+                d_magic = getattr(d, "magic", 0)
+                d_symbol = getattr(d, "symbol", "")
+                d_volume = getattr(d, "volume", 0)
+                # Exact match: magic or comment
+                if d_magic == magic or comment in d_comment:
                     titan_deals.append({
                         "ticket": getattr(d, "ticket", 0),
                         "type": getattr(d, "type", -1),
                         "entry": getattr(d, "entry", -1),
                         "price": getattr(d, "price", 0),
                         "profit": getattr(d, "profit", 0),
-                        "volume": getattr(d, "volume", 0),
-                        "comment": comment,
+                        "volume": d_volume,
+                        "comment": d_comment,
+                        "magic": d_magic,
+                        "symbol": d_symbol,
+                        "time": getattr(d, "time", 0),
+                    })
+                # Likely match: XAUUSD + volume 0.01 even without magic/comment
+                elif d_symbol == symbol and d_volume <= 0.01:
+                    likely_deals.append({
+                        "ticket": getattr(d, "ticket", 0),
+                        "type": getattr(d, "type", -1),
+                        "entry": getattr(d, "entry", -1),
+                        "price": getattr(d, "price", 0),
+                        "profit": getattr(d, "profit", 0),
+                        "volume": d_volume,
+                        "comment": d_comment,
+                        "magic": d_magic,
+                        "symbol": d_symbol,
                         "time": getattr(d, "time", 0),
                     })
         findings["titan_deals"] = titan_deals
+        findings["likely_deals"] = likely_deals
         if titan_deals:
-            ok_checks.append(f"Found {len(titan_deals)} TITAN deals")
+            ok_checks.append(f"Found {len(titan_deals)} exact TITAN deals")
+        elif likely_deals:
+            warnings.append(f"No exact TITAN deals but found {len(likely_deals)} likely XAUUSD 0.01 deals")
         else:
-            warnings.append("No TITAN deals found in history")
+            warnings.append("No TITAN or likely deals found in history")
 
         # Recent orders
         orders = mt5.history_orders_get(symbol="XAUUSD", count=10)
@@ -118,11 +146,12 @@ def collect_forensics() -> dict:
             warnings.append("Position was in profit before SL hit - trailing SL was not active")
 
         # Root cause analysis
-        root_cause = "Position management/trailing SL was not active after entry"
-        if not titan_deals:
-            root_cause = "No TITAN trades found in history"
+        all_deals = titan_deals if titan_deals else likely_deals
+        root_cause = "TRAILING_MANAGER_NOT_RUNNING"
+        if not all_deals:
+            root_cause = "HISTORY_NOT_FOUND"
         elif not sl_hit:
-            root_cause = "Position may still be open or was closed manually"
+            root_cause = "NO_OPEN_POSITION_TO_MANAGE"
         findings["root_cause"] = root_cause
         findings["trailing_active"] = False
         findings["breakeven_active"] = False
@@ -130,7 +159,14 @@ def collect_forensics() -> dict:
 
         mt5.shutdown()
 
-        verdict = "DEMO_MICRO_FORENSICS_COMPLETE" if titan_deals else "DEMO_MICRO_FORENSICS_INCOMPLETE"
+        if titan_deals and sl_hit:
+            verdict = "DEMO_MICRO_FORENSICS_COMPLETE"
+        elif likely_deals and not titan_deals:
+            verdict = "DEMO_MICRO_FORENSICS_COMPLETE_WITH_WARNINGS"
+        elif titan_deals or likely_deals:
+            verdict = "DEMO_MICRO_FORENSICS_COMPLETE_WITH_WARNINGS"
+        else:
+            verdict = "DEMO_MICRO_FORENSICS_INCOMPLETE"
 
     except ImportError:
         verdict = "DEMO_MICRO_FORENSICS_INCOMPLETE"
@@ -182,10 +218,16 @@ def write_report(result: dict) -> dict:
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(description="Demo micro trade forensics")
+    parser.add_argument("--days", type=int, default=7)
+    parser.add_argument("--symbol", default="XAUUSD")
+    parser.add_argument("--magic", type=int, default=202619)
+    parser.add_argument("--comment", default="TITAN_DEMO_MICRO")
+    args = parser.parse_args()
     print("=" * 70)
-    print("  TITAN XAU AI - Post-Trade Forensics (Sprint 9.9.3.45)")
+    print("  TITAN XAU AI - Post-Trade Forensics (Sprint 9.9.3.45.1)")
     print("=" * 70)
-    result = collect_forensics()
+    result = collect_forensics(days=args.days, symbol=args.symbol, magic=args.magic, comment=args.comment)
     report = write_report(result)
     print(f"\n  Verdict: {result['verdict']}")
     print(f"  Findings: {len(result.get('findings', {}))} fields")

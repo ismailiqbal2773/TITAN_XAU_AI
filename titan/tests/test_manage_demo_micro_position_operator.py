@@ -1,4 +1,4 @@
-"""TITAN XAU AI - Sprint 9.9.3.45 Manage Demo Micro Position Operator Tests"""
+"""TITAN XAU AI - Sprint 9.9.3.45.1 Manage Demo Micro Position Operator Tests"""
 from __future__ import annotations
 import re, sys
 from pathlib import Path
@@ -6,7 +6,7 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT))
 
-class TestManageOperator:
+class TestManagePosition:
     def test_01_check_only_returns_result(self):
         import scripts.operator.manage_demo_micro_position as mp
         result = mp.run_check_only()
@@ -34,12 +34,9 @@ class TestManageOperator:
 
     def test_05_no_order_send_in_preview(self):
         src = (REPO_ROOT / "scripts" / "operator" / "manage_demo_micro_position.py").read_text()
-        # order_send may only be in apply-once gated path, not in preview
         code = re.sub(r'"""[\s\S]*?"""','""',src)
         code = re.sub(r'"(?:[^"\\]|\\.)*"','""',code)
         code = re.sub(r"'(?:[^'\\]|\\.)*'","''",code)
-        # Check that order_send is not in run_preview_trailing or run_check_only
-        # It's OK in run_apply_once (which is gated)
         lines = code.splitlines()
         in_apply = False
         for line in lines:
