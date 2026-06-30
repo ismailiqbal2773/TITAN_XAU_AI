@@ -13,6 +13,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT))
 OUTPUT_DIR = REPO_ROOT / "data" / "audit" / "demo_micro_execution"
+RECEIPT_PATH = REPO_ROOT / "data" / "runtime" / "demo_micro_execution_receipt.json"
 
 
 def run_check_only() -> dict:
@@ -242,6 +243,9 @@ def run_execute_and_monitor(args) -> dict:
             "timestamp_utc": ts,
             "env_info": env_info,
             "ok_checks": ok_checks,
+            "execution_attempted": False,
+            "order_send_called": False,
+            "receipt_written": False,
         }
 
     try:
@@ -254,6 +258,9 @@ def run_execute_and_monitor(args) -> dict:
                 "timestamp_utc": ts,
                 "env_info": env_info,
                 "ok_checks": ok_checks,
+                "execution_attempted": False,
+                "order_send_called": False,
+                "receipt_written": False,
             }
 
         # Verify account DEMO
@@ -271,6 +278,9 @@ def run_execute_and_monitor(args) -> dict:
                     "timestamp_utc": ts,
                     "env_info": env_info,
                     "ok_checks": ok_checks,
+                    "execution_attempted": False,
+                    "order_send_called": False,
+                    "receipt_written": False,
                 }
             if "MetaQuotes-Demo" not in getattr(acc, "server", ""):
                 mt5.shutdown()
@@ -282,6 +292,9 @@ def run_execute_and_monitor(args) -> dict:
                     "timestamp_utc": ts,
                     "env_info": env_info,
                     "ok_checks": ok_checks,
+                    "execution_attempted": False,
+                    "order_send_called": False,
+                    "receipt_written": False,
                 }
         ok_checks.append(f"Account: {env_info.get('account_server', 'unknown')} DEMO mode")
 
@@ -297,6 +310,9 @@ def run_execute_and_monitor(args) -> dict:
                 "timestamp_utc": ts,
                 "env_info": env_info,
                 "ok_checks": ok_checks,
+                "execution_attempted": False,
+                "order_send_called": False,
+                "receipt_written": False,
             }
         ok_checks.append("Open positions: 0")
 
@@ -325,66 +341,218 @@ def run_execute_and_monitor(args) -> dict:
             "type_filling": mt5.ORDER_FILLING_IOC,
         }
 
-        result = mt5.order_send(request)
+        # Sprint 9.9.3.45.4: Capture order_send result fully
+        order_result = mt5.order_send(request)
+        order_send_retcode = getattr(order_result, "retcode", 0) if order_result else 0
+        order_ticket = getattr(order_result, "order", 0) if order_result else 0
+        deal_ticket = getattr(order_result, "deal", 0) if order_result else 0
+        position_id_from_result = getattr(order_result, "position_id", 0) if order_result else 0
+        result_price = getattr(order_result, "price", 0) if order_result else 0
+
+        # Sprint 9.9.3.45.4: Persist receipt IMMEDIATELY after order_send attempt
+        import hashlib as _hashlib
+        receipt = {
+            "timestamp_utc": ts,
+            "git_commit": current_head,
+            "execution_mode": "execute_and_monitor",
+            "success": order_send_retcode == 10009,
+            "account_server": env_info.get("account_server", "unknown"),
+            "account_login_hash": _hashlib.sha256(str(getattr(acc, "login", 0)).encode()).hexdigest()[:16] if acc else "unknown",
+            "symbol": "XAUUSD",
+            "volume": volume,
+            "side": direction,
+            "request_magic": 202619,
+            "request_comment": "TITAN_DEMO_MICRO",
+            "request_sl": sl,
+            "request_tp": tp,
+            "retcode": order_send_retcode,
+            "retcode_comment": "TRADE_RETCODE_DONE" if order_send_retcode == 10009 else "FAILED",
+            "order_ticket": order_ticket,
+            "deal_ticket": deal_ticket,
+            "position_id": position_id_from_result,
+            "position_detected": False,  # Updated below
+            "position_detection_method": "",
+            "error_reason": "" if order_send_retcode == 10009 else f"retcode={order_send_retcode}",
+        }
+
+        receipt_written = False
+        try:
+            RECEIPT_PATH.parent.mkdir(parents=True, exist_ok=True)
+            with open(RECEIPT_PATH, "w", encoding="utf-8") as f:
+                json.dump(receipt, f, indent=2, ensure_ascii=False)
+            receipt_written = True
+            ok_checks.append("Execution receipt written")
+        except Exception as e:
+            mt5.shutdown()
+            return {
+                "mode": "execute_and_monitor",
+                "verdict": "MANAGED_DEMO_MICRO_FAILED",
+                "blockers": [f"RECEIPT_WRITE_FAILED: {e}"],
+                "order_send_called": True,
+                "order_send_retcode": order_send_retcode,
+                "receipt_written": False,
+                "important_note": "order_send was called but receipt could not be written. Verdict FAILED.",
+                "timestamp_utc": ts,
+                "env_info": env_info,
+                "ok_checks": ok_checks,
+                "execution_attempted": True,
+            }
+
+        # Sprint 9.9.3.45.4: Check if order_send failed
+        if order_result is None or order_send_retcode != 10009:
+            mt5.shutdown()
+            return {
+                "mode": "execute_and_monitor",
+                "verdict": "MANAGED_DEMO_MICRO_FAILED",
+                "blockers": [f"ORDER_SEND_FAILED: retcode={order_send_retcode}"],
+                "order_send_called": True,
+                "order_send_retcode": order_send_retcode,
+                "order_send_comment": "returned None" if order_result is None else f"retcode={order_send_retcode}",
+                "receipt_written": receipt_written,
+                "receipt_path": str(RECEIPT_PATH),
+                "important_note": "order_send was called once and failed. No retry. Receipt written.",
+                "timestamp_utc": ts,
+                "env_info": env_info,
+                "ok_checks": ok_checks,
+                "execution_attempted": True,
+                "position_detected": False,
+                "monitor_started": False,
+            }
+
+        ok_checks.append(f"order_send succeeded: retcode={order_send_retcode}")
+
+        # Sprint 9.9.3.45.4: Position detection after execution
+        # Poll positions briefly to identify the new TITAN_DEMO_MICRO position
+        detected_position = None
+        detection_method = ""
+        detection_timeout = 10  # seconds
+        detection_interval = 1  # second
+        import time as _time
+        for attempt in range(detection_timeout):
+            _time.sleep(detection_interval)
+            positions = mt5.positions_get(symbol="XAUUSD")
+            if positions:
+                for p in positions:
+                    if getattr(p, "magic", 0) == 202619 or "TITAN" in getattr(p, "comment", ""):
+                        detected_position = p
+                        detection_method = "positions_get_magic_comment"
+                        break
+            if detected_position:
+                break
+
+        # If no open position found, check history for quick close
+        if not detected_position:
+            from datetime import datetime as _dt, timezone as _tz, timedelta as _td
+            from_dt = _dt.now(_tz) - _td(minutes=5)
+            deals = mt5.history_deals_get(from_dt, _dt.now(_tz))
+            if deals:
+                for d in deals:
+                    d_pos_id = getattr(d, "position_id", 0)
+                    d_magic = getattr(d, "magic", 0)
+                    if d_magic == 202619 and d_pos_id == position_id_from_result:
+                        detected_position = d
+                        detection_method = "history_deals_quick_close"
+                        break
+
         mt5.shutdown()
 
-        if result is None:
+        # Update receipt with position detection
+        receipt["position_detected"] = detected_position is not None
+        receipt["position_detection_method"] = detection_method
+        try:
+            with open(RECEIPT_PATH, "w", encoding="utf-8") as f:
+                json.dump(receipt, f, indent=2, ensure_ascii=False)
+        except Exception:
+            pass
+
+        # Sprint 9.9.3.45.4: No position detected = FAILED, not STARTED
+        if not detected_position:
             return {
                 "mode": "execute_and_monitor",
                 "verdict": "MANAGED_DEMO_MICRO_FAILED",
-                "blockers": ["ORDER_SEND_FAILED: returned None"],
+                "blockers": ["POSITION_NOT_DETECTED_AFTER_EXECUTION: order_send succeeded but no position found in 10s"],
                 "order_send_called": True,
-                "important_note": "order_send was called once and failed. No retry.",
+                "order_send_retcode": order_send_retcode,
+                "order_send_comment": "TRADE_RETCODE_DONE",
+                "receipt_written": receipt_written,
+                "receipt_path": str(RECEIPT_PATH),
+                "position_detected": False,
+                "position_detection_method": "",
+                "monitor_started": False,
+                "important_note": "order_send succeeded but position not detected. Verdict FAILED, not STARTED.",
                 "timestamp_utc": ts,
                 "env_info": env_info,
                 "ok_checks": ok_checks,
+                "execution_attempted": True,
             }
 
-        retcode = getattr(result, "retcode", 0)
-        if retcode == 10009:  # TRADE_RETCODE_DONE
-            # Start managed monitor
-            from titan.production.demo_micro_managed_trade_orchestrator import ManagedTradeOrchestrator
-            orch = ManagedTradeOrchestrator(
-                duration_minutes=getattr(args, "duration_minutes", 30),
-                interval_seconds=getattr(args, "interval_seconds", 5),
-            )
-            monitor_result = orch.monitor_position(
-                position_ticket=getattr(result, "position_id", 0),
-                direction=direction,
-                entry_price=price,
-                current_sl=sl,
-                current_tp=tp,
-                current_price=price,
-                is_open=True,
-            )
+        ok_checks.append(f"Position detected: method={detection_method}")
+
+        # Sprint 9.9.3.45.4: Check if position was quick-closed
+        is_open = detection_method == "positions_get_magic_comment"
+        if not is_open:
+            # Position opened and closed quickly
             return {
                 "mode": "execute_and_monitor",
-                "verdict": "MANAGED_DEMO_MICRO_STARTED",
+                "verdict": "MANAGED_DEMO_MICRO_COMPLETED_WITH_WARNINGS",
+                "blockers": [],
+                "warnings": ["POSITION_CLOSED_BEFORE_MONITOR: position opened and closed within detection window"],
                 "order_send_called": True,
-                "order_send_retcode": retcode,
-                "position_id": getattr(result, "position_id", 0),
-                "entry_price": price,
-                "sl": sl,
-                "tp": tp,
-                "monitor_result": monitor_result.to_dict(),
-                "important_note": "Order sent once and succeeded. Monitor started. No second order.",
+                "order_send_retcode": order_send_retcode,
+                "order_send_comment": "TRADE_RETCODE_DONE",
+                "receipt_written": receipt_written,
+                "receipt_path": str(RECEIPT_PATH),
+                "position_detected": True,
+                "position_detection_method": detection_method,
+                "position_id": position_id_from_result,
+                "monitor_started": False,
+                "important_note": "Position opened and closed quickly. Monitor not started. No false STARTED.",
                 "timestamp_utc": ts,
                 "env_info": env_info,
                 "ok_checks": ok_checks,
-                "next_action": "Position is being monitored for breakeven/trailing/profit-lock.",
+                "execution_attempted": True,
+                "final_position_status": "CLOSED",
             }
-        else:
-            return {
-                "mode": "execute_and_monitor",
-                "verdict": "MANAGED_DEMO_MICRO_FAILED",
-                "blockers": [f"ORDER_SEND_FAILED: retcode={retcode}"],
-                "order_send_called": True,
-                "order_send_retcode": retcode,
-                "important_note": "order_send was called once and failed. No retry.",
-                "timestamp_utc": ts,
-                "env_info": env_info,
-                "ok_checks": ok_checks,
-            }
+
+        # Sprint 9.9.3.45.4: Position is open - start managed monitor
+        from titan.production.demo_micro_managed_trade_orchestrator import ManagedTradeOrchestrator
+        orch = ManagedTradeOrchestrator(
+            duration_minutes=getattr(args, "duration_minutes", 30),
+            interval_seconds=getattr(args, "interval_seconds", 5),
+        )
+        monitor_result = orch.monitor_position(
+            position_ticket=getattr(detected_position, "ticket", position_id_from_result),
+            direction=direction,
+            entry_price=getattr(detected_position, "price_open", price),
+            current_sl=getattr(detected_position, "sl", sl),
+            current_tp=getattr(detected_position, "tp", tp),
+            current_price=getattr(detected_position, "price_current", price),
+            is_open=True,
+        )
+        return {
+            "mode": "execute_and_monitor",
+            "verdict": "MANAGED_DEMO_MICRO_STARTED",
+            "order_send_called": True,
+            "order_send_retcode": order_send_retcode,
+            "order_send_comment": "TRADE_RETCODE_DONE",
+            "receipt_written": receipt_written,
+            "receipt_path": str(RECEIPT_PATH),
+            "position_detected": True,
+            "position_detection_method": detection_method,
+            "position_id": getattr(detected_position, "ticket", position_id_from_result),
+            "entry_price": getattr(detected_position, "price_open", price),
+            "sl": getattr(detected_position, "sl", sl),
+            "tp": getattr(detected_position, "tp", tp),
+            "monitor_started": True,
+            "monitor_result": monitor_result.to_dict(),
+            "important_note": "Order sent once and succeeded. Position detected. Monitor started. No second order.",
+            "timestamp_utc": ts,
+            "env_info": env_info,
+            "ok_checks": ok_checks,
+            "execution_attempted": True,
+            "next_action": "Position is being monitored for breakeven/trailing/profit-lock." if monitor_result.verdict != "MANAGED_DEMO_MICRO_COMPLETED" else "Monitor completed.",
+            "final_position_status": monitor_result.final_position_status,
+        }
 
     except Exception as e:
         try:

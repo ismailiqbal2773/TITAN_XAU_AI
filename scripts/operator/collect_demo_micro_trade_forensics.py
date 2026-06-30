@@ -46,15 +46,27 @@ def collect_forensics(days: int = 30, symbol: str = "XAUUSD",
     receipt = _load_receipt()
     if receipt:
         findings["receipt_available"] = True
+        findings["receipt_success"] = receipt.get("success", False)
+        findings["receipt_position_detected"] = receipt.get("position_detected", False)
         findings["receipt_position_id"] = receipt.get("position_id", 0)
         findings["receipt_order_ticket"] = receipt.get("order_ticket", 0)
-        ok_checks.append("Execution receipt found")
-        # Use receipt position_id if not explicitly provided
+        findings["receipt_execution_mode"] = receipt.get("execution_mode", "")
+        findings["receipt_timestamp"] = receipt.get("timestamp_utc", "")
+        ok_checks.append(f"Execution receipt found (mode={receipt.get('execution_mode', 'unknown')}, success={receipt.get('success', False)})")
+        # Sprint 9.9.3.45.4: Use receipt position_id/order_ticket FIRST (newest receipt priority)
         if not position_id and receipt.get("position_id"):
             position_id = receipt["position_id"]
             ok_checks.append(f"Using position_id from receipt: {position_id}")
+        if not order_ticket and receipt.get("order_ticket"):
+            order_ticket = receipt["order_ticket"]
+            ok_checks.append(f"Using order_ticket from receipt: {order_ticket}")
+        if not deal_ticket and receipt.get("deal_ticket"):
+            deal_ticket = receipt["deal_ticket"]
+            ok_checks.append(f"Using deal_ticket from receipt: {deal_ticket}")
     else:
         findings["receipt_available"] = False
+        findings["receipt_success"] = None
+        findings["receipt_position_detected"] = None
 
     try:
         import MetaTrader5 as mt5
