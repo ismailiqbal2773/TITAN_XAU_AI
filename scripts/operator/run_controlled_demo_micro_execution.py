@@ -43,7 +43,7 @@ def run_build_request(direction: str = "BUY", entry_price: float = 2000.0,
     builder = DemoMicroOrderBuilder()
     result = builder.build_preview(
         direction=direction, entry_price=entry_price, sl=sl, tp=tp,
-        safe_fallback=True, fallback_reason="dry_run_preview_mode",
+        safe_fallback=False,  # Sprint 9.9.3.44.3: No preview fallback - try real MT5 tick
     )
     report = builder.write_preview(result)
     result["report_paths"] = report

@@ -81,7 +81,7 @@ class DemoMicroOrderBuilder:
         else:
             ok_checks.append(f"Volume: {volume} <= {MAX_LOT}")
 
-        # Sprint 9.9.3.44.2: Use SL/TP safety calculator
+        # Sprint 9.9.3.44.2/44.3: Use SL/TP safety calculator
         sltp_safety = DemoMicroSLTPSafety()
         sltp_result = sltp_safety.validate_or_compute(
             direction=direction,
@@ -89,6 +89,7 @@ class DemoMicroOrderBuilder:
             sl=sl,
             tp=tp,
             atr=0.0,  # ATR not passed in preview mode; execution must provide it
+            symbol="XAUUSD",
         )
 
         has_sl = sltp_result.has_sl
@@ -96,23 +97,24 @@ class DemoMicroOrderBuilder:
         final_sl = sltp_result.sl
         final_tp = sltp_result.tp
         fallback_reason = sltp_result.fallback_reason
-        safe_fallback_used = sltp_result.verdict == SLTPVerdict.SLTP_ATR_FALLBACK_USED
+        safe_fallback_used = sltp_result.verdict in (
+            SLTPVerdict.SLTP_ATR_FALLBACK_USED,
+            SLTPVerdict.SLTP_MT5_TICK_FALLBACK_USED,
+        )
 
         if sltp_result.verdict == SLTPVerdict.SLTP_BLOCKED:
-            if safe_fallback and fallback_reason == "dry_run_preview_mode":
-                # Preview-only mode: label as not executable
-                warnings.append("SL/TP missing - PREVIEW_ONLY_NOT_EXECUTABLE (dry_run_preview_mode)")
-                fallback_reason = "dry_run_preview_mode"
+            if safe_fallback:
+                # Preview-only mode: do not add blockers, just warn
+                warnings.append("SL/TP missing - PREVIEW_ONLY_NOT_EXECUTABLE")
+                fallback_reason = "dry_run_preview_mode" if fallback_reason == "dry_run_preview_mode" else (fallback_reason or "sl_tp_missing_no_atr")
             else:
                 blockers.append(f"DEMO_MICRO_SL_TP_MISSING: {sltp_result.blockers}")
-                # Still label as preview if in preview mode
-                if safe_fallback:
-                    warnings.append("SL/TP missing - PREVIEW_ONLY_NOT_EXECUTABLE")
-                    fallback_reason = fallback_reason or "sl_tp_missing_no_atr"
         elif sltp_result.verdict == SLTPVerdict.SLTP_VALID:
             ok_checks.append(f"SL/TP validated: SL={final_sl:.4f}, TP={final_tp:.4f}")
         elif sltp_result.verdict == SLTPVerdict.SLTP_ATR_FALLBACK_USED:
             ok_checks.append(f"ATR fallback SL/TP: SL={final_sl:.4f}, TP={final_tp:.4f}")
+        elif sltp_result.verdict == SLTPVerdict.SLTP_MT5_TICK_FALLBACK_USED:
+            ok_checks.append(f"MT5 tick fallback SL/TP: SL={final_sl:.4f}, TP={final_tp:.4f}, ref={sltp_result.reference_price:.4f}")
 
         # Build preview
         preview = OrderRequestPreview(
@@ -138,6 +140,12 @@ class DemoMicroOrderBuilder:
         return {
             "preview": preview.to_dict(),
             "executable_status": executable_status,
+            "reference_price": sltp_result.reference_price,
+            "sl_distance": sltp_result.sl_distance,
+            "tp_distance": sltp_result.tp_distance,
+            "stop_level_checked": sltp_result.stop_level_checked,
+            "stop_level_valid": sltp_result.stop_level_valid,
+            "fallback_source": fallback_reason,
             "ok_checks": ok_checks,
             "blockers": blockers,
             "warnings": warnings,
