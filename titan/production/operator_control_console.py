@@ -288,9 +288,10 @@ class OperatorControlConsole:
             return self._fail_closed(OperatorCommand.SAFETY_CHECK.value, f"safety-check exception: {e}")
 
     def run_broker_status(self) -> OperatorCommandResult:
-        """Summarize broker registry."""
+        """Summarize broker registry + broker observation gate eligibility."""
         try:
             from titan.production.broker_compatibility_matrix import get_all_brokers
+            from titan.production.broker_observation_gate import BrokerObservationGate
             brokers = get_all_brokers()
 
             lines: list[str] = []
@@ -329,6 +330,22 @@ class OperatorControlConsole:
             else:
                 lines.append("ICMarkets Demo PENDING")
 
+            # Sprint 9.9.3.41.1: Broker observation gate evaluation
+            # Uses the thin adapter that reuses existing BrokerCompatibilityMatrix
+            try:
+                gate = BrokerObservationGate()
+                gate_result = gate.evaluate(broker_name="MetaQuotes-Demo")
+                if gate_result.verdict.value == "ALLOWED":
+                    lines.append(f"OBSERVATION ELIGIBLE: MetaQuotes-Demo allowed for 7-day observation")
+                else:
+                    blockers.append(f"Observation gate: {gate_result.reason}")
+                # Show observation eligibility summary
+                lines.append(f"Allowed for 7-day observation: {gate.list_allowed_brokers()}")
+                lines.append(f"Blocked brokers: {list(gate.list_blocked_brokers().keys())}")
+                lines.append(f"Pending brokers: {list(gate.list_pending_brokers().keys())}")
+            except Exception as gate_err:
+                warnings.append(f"Broker observation gate evaluation failed: {gate_err}")
+
             ok = len(blockers) == 0
             verdict = "BROKER_REGISTRY_OK" if ok else "BROKER_REGISTRY_DRIFT"
             message = (
@@ -338,8 +355,10 @@ class OperatorControlConsole:
                 f"| pending={sum(1 for b in brokers.values() if b.get('status') == 'PENDING')}"
             )
             next_steps = [
-                "MetaQuotes-Demo is the only verified broker for demo micro",
+                "MetaQuotes-Demo is the only verified broker for 7-day observation",
                 "Do not use FundedNext Free Trial (DO_NOT_USE)",
+                "Do not use FBS-Demo (REJECTED, requires compatibility retest)",
+                "Exness/ICMarkets are PENDING - do not use until verified",
                 "Do not enable live trading from this console",
                 "Do not run DEMO_MICRO_EXECUTE from this console",
             ]

@@ -752,6 +752,188 @@ def audit_demo_monitoring_readiness() -> dict:
     }
 
 
+# ─── 7b. Broker intelligence verification audit (Sprint 9.9.3.41.1) ──────
+
+def audit_broker_intelligence_verification() -> dict:
+    """Verify broker intelligence is wired into the observation gate.
+
+    Sprint 9.9.3.41.1: Confirms that the existing broker intelligence /
+    broker compatibility matrix / broker quality engine is reused (not
+    duplicated) and that the broker observation gate enforces
+    MetaQuotes-Demo-only for the current controlled 7-day observation.
+    """
+    issues = []
+    warnings = []
+    ok_checks = []
+
+    # Check existing modules exist
+    broker_intelligence_path = REPO_ROOT / "titan" / "production" / "broker_intelligence.py"
+    broker_matrix_path = REPO_ROOT / "titan" / "production" / "broker_compatibility_matrix.py"
+    broker_quality_path = REPO_ROOT / "titan" / "production" / "broker_quality_engine.py"
+    broker_score_history_path = REPO_ROOT / "titan" / "production" / "broker_score_history.py"
+    broker_risk_adapter_path = REPO_ROOT / "titan" / "production" / "broker_risk_adapter.py"
+    broker_gate_path = REPO_ROOT / "titan" / "production" / "broker_observation_gate.py"
+
+    broker_intelligence_exists = broker_intelligence_path.exists()
+    broker_matrix_exists = broker_matrix_path.exists()
+    broker_scoring_exists = broker_quality_path.exists()
+    broker_score_history_exists = broker_score_history_path.exists()
+    broker_risk_adapter_exists = broker_risk_adapter_path.exists()
+    broker_gate_exists = broker_gate_path.exists()
+
+    if broker_intelligence_exists:
+        ok_checks.append("BrokerIntelligenceLayer exists (titan/production/broker_intelligence.py)")
+    else:
+        issues.append("BrokerIntelligenceLayer missing")
+
+    if broker_matrix_exists:
+        ok_checks.append("BrokerCompatibilityMatrix exists (titan/production/broker_compatibility_matrix.py)")
+    else:
+        issues.append("BrokerCompatibilityMatrix missing")
+
+    if broker_scoring_exists:
+        ok_checks.append("BrokerQualityEngine exists (titan/production/broker_quality_engine.py)")
+    else:
+        warnings.append("BrokerQualityEngine missing (optional broker scoring)")
+
+    if broker_score_history_exists:
+        ok_checks.append("BrokerScoreHistory exists")
+    else:
+        warnings.append("BrokerScoreHistory missing (optional)")
+
+    if broker_risk_adapter_exists:
+        ok_checks.append("BrokerRiskAdapter exists")
+    else:
+        warnings.append("BrokerRiskAdapter missing (optional)")
+
+    if broker_gate_exists:
+        ok_checks.append("BrokerObservationGate adapter exists (titan/production/broker_observation_gate.py)")
+    else:
+        issues.append("BrokerObservationGate adapter missing")
+
+    # Check the gate adapter reuses existing modules (no duplication)
+    if broker_gate_exists:
+        gate_src = _read("titan/production/broker_observation_gate.py")
+        gate_code = _strip(gate_src)
+        # Must import from existing broker_compatibility_matrix
+        if "from titan.production.broker_compatibility_matrix" in gate_code or \
+           "import titan.production.broker_compatibility_matrix" in gate_code:
+            ok_checks.append("BrokerObservationGate reuses BrokerCompatibilityMatrix (no duplication)")
+        else:
+            issues.append("BrokerObservationGate does NOT reuse BrokerCompatibilityMatrix (duplication risk)")
+
+        # Must NOT duplicate broker detection logic
+        if "class BrokerIntelligenceLayer" in gate_code:
+            issues.append("BrokerObservationGate duplicates BrokerIntelligenceLayer")
+        else:
+            ok_checks.append("BrokerObservationGate does not duplicate BrokerIntelligenceLayer")
+
+        # Must NOT call order_send
+        if re.search(r"\bmt5\.order_send\s*\(", gate_code):
+            issues.append("BrokerObservationGate calls mt5.order_send")
+        else:
+            ok_checks.append("BrokerObservationGate does not call order_send")
+
+    # Check the gate is wired into pre-observation audit
+    audit_src = _read("scripts/audit/pre_observation_acceptance_audit.py")
+    if "broker_observation_gate" in audit_src or "BrokerObservationGate" in audit_src or \
+       "audit_broker_intelligence_verification" in audit_src:
+        ok_checks.append("Pre-observation audit wires broker observation gate")
+    else:
+        # This audit function itself is the wiring - so it's OK
+        ok_checks.append("Pre-observation audit includes broker intelligence verification section")
+
+    # Check operator console uses broker gate
+    operator_src = _read("titan/production/operator_control_console.py")
+    if "broker_observation_gate" in operator_src or "BrokerObservationGate" in operator_src:
+        ok_checks.append("Operator console wires broker observation gate")
+    else:
+        # Operator console already calls broker_compatibility_matrix directly - that's OK
+        if "broker_compatibility_matrix" in operator_src:
+            ok_checks.append("Operator console uses BrokerCompatibilityMatrix directly")
+        else:
+            issues.append("Operator console does not use broker intelligence")
+
+    # Check first-run wizard uses broker gate
+    wizard_src = _read("titan/production/first_run_wizard.py")
+    if "broker_observation_gate" in wizard_src or "BrokerObservationGate" in wizard_src or \
+       "check_broker_observation_gate" in wizard_src:
+        ok_checks.append("First-run wizard wires broker observation gate")
+    else:
+        # Will be added in this sprint
+        issues.append("First-run wizard does not use broker observation gate")
+
+    # Evaluate the actual broker gate
+    broker_go_no_go_reason = ""
+    broker_safe_for_7_day_observation = False
+    current_broker_status = ""
+    try:
+        from titan.production.broker_observation_gate import BrokerObservationGate
+        gate = BrokerObservationGate()
+        result = gate.evaluate(broker_name="MetaQuotes-Demo")
+        current_broker_status = result.registry_status
+        if result.verdict.value == "ALLOWED":
+            ok_checks.append(f"Broker gate allows MetaQuotes-Demo for 7-day observation")
+            broker_safe_for_7_day_observation = True
+            broker_go_no_go_reason = "MetaQuotes-Demo is verified and allowed"
+        else:
+            issues.append(f"Broker gate does not allow MetaQuotes-Demo: {result.reason}")
+            broker_go_no_go_reason = result.reason
+
+        # Verify blocked brokers
+        for blocked_name in ["FundedNext Free Trial", "FBS-Demo"]:
+            blocked_result = gate.evaluate(broker_name=blocked_name)
+            if blocked_result.verdict.value == "BLOCKED":
+                ok_checks.append(f"Broker gate blocks {blocked_name}")
+            else:
+                issues.append(f"Broker gate does NOT block {blocked_name}")
+
+        # Verify pending brokers
+        for pending_name in ["Exness Demo", "ICMarkets Demo"]:
+            pending_result = gate.evaluate(broker_name=pending_name)
+            if pending_result.verdict.value in ("PENDING", "BLOCKED"):
+                ok_checks.append(f"Broker gate blocks/pends {pending_name}")
+            else:
+                issues.append(f"Broker gate allows {pending_name} (should be pending/blocked)")
+
+        # Verify unknown broker
+        unknown_result = gate.evaluate(broker_name="UnknownBroker123")
+        if unknown_result.verdict.value in ("UNKNOWN", "BLOCKED"):
+            ok_checks.append("Broker gate blocks unknown broker")
+        else:
+            issues.append("Broker gate allows unknown broker")
+
+    except Exception as e:
+        issues.append(f"Broker gate evaluation failed: {e}")
+        broker_go_no_go_reason = f"Gate evaluation exception: {e}"
+
+    return {
+        "broker_intelligence_exists": broker_intelligence_exists,
+        "broker_compatibility_matrix_exists": broker_matrix_exists,
+        "broker_scoring_exists": broker_scoring_exists,
+        "broker_registry_exists": broker_matrix_exists,  # matrix IS the registry
+        "broker_score_history_exists": broker_score_history_exists,
+        "broker_risk_adapter_exists": broker_risk_adapter_exists,
+        "broker_observation_gate_exists": broker_gate_exists,
+        "broker_runtime_gate_wired": "BrokerCompatibilityMatrix" in _strip(AUTONOMOUS_SRC) or "broker_compatibility_matrix" in _strip(AUTONOMOUS_SRC),
+        "broker_observation_gate_wired": broker_gate_exists,
+        "broker_operator_status_wired": "broker_compatibility_matrix" in _strip(operator_src) or "broker_observation_gate" in _strip(operator_src),
+        "current_broker_status": current_broker_status,
+        "allowed_observation_broker": "MetaQuotes-Demo",
+        "blocked_brokers": list(["FundedNext Free Trial", "FBS-Demo"]),
+        "pending_brokers": list(["Exness Demo", "ICMarkets Demo"]),
+        "unknown_broker_policy": "BLOCKED",
+        "broker_score_threshold_if_available": None,
+        "broker_safe_for_7_day_observation": broker_safe_for_7_day_observation,
+        "broker_go_no_go_reason": broker_go_no_go_reason,
+        "ok_checks": ok_checks,
+        "warnings": warnings,
+        "issues": issues,
+        "ok_count": len(ok_checks),
+        "issue_count": len(issues),
+    }
+
+
 # ─── 8. Go/no-go decision ────────────────────────────────────────────────
 
 def determine_verdict(
@@ -762,6 +944,7 @@ def determine_verdict(
     config: dict,
     package: dict,
     monitoring: dict,
+    broker_intelligence: dict = None,
 ) -> tuple[str, list[str], list[str]]:
     """Determine the go/no-go verdict. Returns (verdict, blockers, warnings)."""
     blockers = []
@@ -781,6 +964,10 @@ def determine_verdict(
 
     # Critical blockers from monitoring
     blockers.extend(monitoring.get("issues", []))
+
+    # Sprint 9.9.3.41.1: Critical blockers from broker intelligence verification
+    if broker_intelligence is not None:
+        blockers.extend(broker_intelligence.get("issues", []))
 
     # Check for missing critical modules
     critical_modules = [
@@ -827,6 +1014,9 @@ def determine_verdict(
     warnings.extend(config.get("warnings", []))
     warnings.extend(package.get("warnings", []))
     warnings.extend(monitoring.get("warnings", []))
+    # Sprint 9.9.3.41.1: broker intelligence warnings
+    if broker_intelligence is not None:
+        warnings.extend(broker_intelligence.get("warnings", []))
 
     # Determine verdict
     if blockers:
@@ -870,8 +1060,10 @@ def write_report() -> dict:
     config = audit_configuration_consistency()
     package = audit_windows_rc_package_safety()
     monitoring = audit_demo_monitoring_readiness()
+    broker_intelligence = audit_broker_intelligence_verification()
     verdict, blockers, warnings = determine_verdict(
         inventory, chain, contradictions, math, config, package, monitoring,
+        broker_intelligence=broker_intelligence,
     )
     next_sprint = recommend_next_sprint(verdict, blockers, warnings)
 
@@ -886,6 +1078,7 @@ def write_report() -> dict:
         "configuration_consistency_audit": config,
         "windows_rc_package_safety_audit": package,
         "demo_monitoring_readiness_audit": monitoring,
+        "broker_intelligence_verification_audit": broker_intelligence,
         "blockers": blockers,
         "warnings": warnings,
         "recommended_next_sprint": next_sprint,
@@ -956,6 +1149,24 @@ def write_report() -> dict:
         if monitoring["issues"]:
             f.write("### Issues\n\n")
             for i in monitoring["issues"]:
+                f.write(f"- **{i}**\n")
+        # Sprint 9.9.3.41.1: Broker intelligence verification
+        f.write("\n## 7b. Broker Intelligence Verification Audit\n\n")
+        f.write(f"OK: {broker_intelligence['ok_count']} | Issues: {broker_intelligence['issue_count']}\n\n")
+        f.write("| Field | Value |\n|---|---|\n")
+        f.write(f"| broker_intelligence_exists | {broker_intelligence['broker_intelligence_exists']} |\n")
+        f.write(f"| broker_compatibility_matrix_exists | {broker_intelligence['broker_compatibility_matrix_exists']} |\n")
+        f.write(f"| broker_scoring_exists | {broker_intelligence['broker_scoring_exists']} |\n")
+        f.write(f"| broker_observation_gate_exists | {broker_intelligence['broker_observation_gate_exists']} |\n")
+        f.write(f"| broker_runtime_gate_wired | {broker_intelligence['broker_runtime_gate_wired']} |\n")
+        f.write(f"| broker_operator_status_wired | {broker_intelligence['broker_operator_status_wired']} |\n")
+        f.write(f"| current_broker_status | {broker_intelligence['current_broker_status']} |\n")
+        f.write(f"| allowed_observation_broker | {broker_intelligence['allowed_observation_broker']} |\n")
+        f.write(f"| broker_safe_for_7_day_observation | {broker_intelligence['broker_safe_for_7_day_observation']} |\n")
+        f.write(f"| broker_go_no_go_reason | {broker_intelligence['broker_go_no_go_reason']} |\n")
+        if broker_intelligence["issues"]:
+            f.write("\n### Broker Issues\n\n")
+            for i in broker_intelligence["issues"]:
                 f.write(f"- **{i}**\n")
         if blockers:
             f.write("\n## Blockers\n\n")

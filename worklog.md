@@ -2777,3 +2777,81 @@ Stage Summary:
 - Pre-observation audit: DEMO_OBSERVATION_READY (0 blockers, 0 warnings)
 - All safety invariants enforced by code and verified by tests
 - Ready to commit: audit(observation): add pre-observation acceptance audit
+
+---
+Task ID: 25
+Agent: Super Z (main, Sprint 9.9.3.41.1 broker intelligence observation gate verification session 2026-06-30)
+Task: Verify broker intelligence is wired into observation gate (Sprint 9.9.3.41.1). Inspect existing broker modules, verify BrokerObservationGate reuses them (no duplication), verify gate is wired into operator console, first-run wizard, and pre-observation audit. Run all required pytest suites + first_run_check + pre-observation audit + first-run CLI + git status. Commit: fix(observation): wire broker intelligence into observation gate.
+
+Work Log:
+- Verified starting state: HEAD at cc47064 (Sprint 9.9.3.41), working tree had untracked files.
+- Discovered that titan/production/broker_observation_gate.py and titan/tests/test_broker_observation_gate.py already existed (created in a prior session within this sprint context).
+- Inspected broker_observation_gate.py:
+  * Thin adapter that reuses existing BrokerCompatibilityMatrix.get_broker_info()
+  * Does NOT duplicate BrokerIntelligenceLayer or BrokerQualityEngine
+  * ALLOWED_OBSERVATION_BROKER = "MetaQuotes-Demo" (only broker allowed for current 7-day observation)
+  * BLOCKED_BROKERS = {FundedNext Free Trial, FBS-Demo}
+  * PENDING_BROKERS = {Exness Demo, ICMarkets Demo}
+  * ObservationBrokerVerdict enum: ALLOWED, BLOCKED, PENDING, UNKNOWN
+  * BrokerObservationGateResult dataclass with verdict, broker_name, registry_status, broker_score, observation_eligible, reason, next_action
+  * BrokerObservationGate.evaluate(broker_name) returns verdict based on registry status
+  * list_allowed_brokers(), list_blocked_brokers(), list_pending_brokers(), summary()
+  * auto_switch_allowed always False (operator approval required)
+  * Never imports MetaTrader5, never calls order_send, never runs DEMO_MICRO_EXECUTE
+- Verified broker gate is wired into:
+  * titan/production/operator_control_console.py (line 294: imports BrokerObservationGate, line 336: uses it in run_broker_status)
+  * titan/production/first_run_wizard.py (line 571: check_broker_observation_gate() method, line 578: imports BrokerObservationGate, line 652: called in run_all)
+  * scripts/audit/pre_observation_acceptance_audit.py (line 757: audit_broker_intelligence_verification() function, line 1063: called in write_report, line 1081: included in report as broker_intelligence_verification_audit)
+- Ran titan/tests/test_broker_observation_gate.py: 24 passed
+  * TestExistingModulesDiscovered (4 tests) - BrokerIntelligence, BrokerCompatibilityMatrix, BrokerQualityEngine exist; no duplication
+  * TestBrokerGateVerdicts (7 tests) - MetaQuotes allowed, FundedNext blocked, FBS blocked, Exness pending, ICMarkets pending, unknown blocked, no broker = UNKNOWN
+  * TestBrokerGateWiring (3 tests) - operator console uses gate, first-run wizard uses gate, pre-observation audit includes broker section
+  * TestBrokerGateBehavior (5 tests) - registry blocked overrides, auto-switch blocked, list_allowed/blocked/pending
+  * TestSafetyInvariants (5 tests) - no MT5 import, no order_send, no DEMO_MICRO_EXECUTE, no raw_mt5_probe, no market execution
+- Ran titan/tests/test_pre_observation_acceptance_audit.py: 22 passed
+- Ran titan/tests/test_first_run_wizard.py: 23 passed
+- Ran titan/tests/test_operator_control_console.py: 30 passed
+- Total: 99 passed
+- first_run_check.py: 13 PASS, 1 WARN (MT5 Linux stub), 0 FAIL
+- python scripts/audit/pre_observation_acceptance_audit.py: verdict=DEMO_OBSERVATION_READY, 0 blockers, 0 warnings
+  * broker_intelligence_verification_audit section included with 18 OK checks, 0 issues
+  * broker_safe_for_7_day_observation: True
+  * broker_go_no_go_reason: "MetaQuotes-Demo is verified and allowed"
+- python scripts/operator/titan_first_run.py: overall_status=WARN (12 passed, 1 warning: git dirty), 0 failed
+- git status: 3 modified files (pre_observation_acceptance_audit.py, first_run_wizard.py, operator_control_console.py) + 2 untracked (broker_observation_gate.py, test_broker_observation_gate.py)
+
+KEY FINDINGS:
+- Existing BrokerIntelligenceLayer found at titan/production/broker_intelligence.py
+- Existing BrokerCompatibilityMatrix found at titan/production/broker_compatibility_matrix.py
+- Existing BrokerQualityEngine (broker scoring) found at titan/production/broker_quality_engine.py
+- BrokerScoreHistory found at titan/production/broker_score_history.py
+- BrokerRiskAdapter found at titan/production/broker_risk_adapter.py
+- NO duplicate broker engine created - BrokerObservationGate is a thin adapter that reuses existing APIs
+- Broker observation gate wired into operator console, first-run wizard, and pre-observation audit
+- MetaQuotes-Demo ALLOWED for 7-day observation (PASS in registry)
+- FundedNext Free Trial BLOCKED (DO_NOT_USE)
+- FBS-Demo BLOCKED (REJECTED, retcode 10006)
+- Exness Demo PENDING (not yet tested)
+- ICMarkets Demo PENDING (not yet tested)
+- Unknown broker BLOCKED for current 7-day observation
+- Broker auto-switch BLOCKED (operator approval required)
+- Pre-observation audit verdict: DEMO_OBSERVATION_READY (broker gate passes)
+
+Safety verification:
+- No MetaTrader5 import in broker_observation_gate.py
+- No mt5.order_send calls in broker_observation_gate.py
+- No DEMO_MICRO_EXECUTE calls in broker_observation_gate.py
+- No raw_mt5_probe calls in broker_observation_gate.py
+- No market execution calls in broker_observation_gate.py
+- No live trading, no lot size changes, no strategy logic changes
+
+Stage Summary:
+- VERDICT: Sprint 9.9.3.41.1 complete. Broker intelligence wired into observation gate.
+- Files: 2 new (broker_observation_gate.py, test_broker_observation_gate.py) + 3 modified (pre_observation_acceptance_audit.py, first_run_wizard.py, operator_control_console.py)
+- Tests: 24 new tests pass; 75 regression tests pass; total 99 passed
+- first_run_check.py: PASS (1 expected MT5 Linux WARN)
+- Pre-observation audit: DEMO_OBSERVATION_READY (0 blockers, 0 warnings, broker safe for 7-day observation)
+- First-run wizard: WARN (12 passed, 1 warning: git dirty)
+- All broker intelligence wiring verified
+- No duplicate broker logic created
+- Ready to commit: fix(observation): wire broker intelligence into observation gate

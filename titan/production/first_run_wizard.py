@@ -566,6 +566,69 @@ class FirstRunWizard:
                 next_step="Inspect safe modules",
             )
 
+    # ─── Sprint 9.9.3.41.1: Broker observation gate check ────────────────
+
+    def check_broker_observation_gate(self) -> FirstRunWizardResult:
+        """Verify broker observation gate allows MetaQuotes-Demo for 7-day observation.
+
+        Uses existing BrokerCompatibilityMatrix via the thin BrokerObservationGate adapter.
+        Does NOT duplicate broker detection/scoring logic.
+        """
+        try:
+            from titan.production.broker_observation_gate import (
+                BrokerObservationGate, ObservationBrokerVerdict,
+            )
+            gate = BrokerObservationGate()
+
+            # Evaluate MetaQuotes-Demo (the allowed broker for current observation)
+            result = gate.evaluate(broker_name="MetaQuotes-Demo")
+
+            if result.verdict == ObservationBrokerVerdict.ALLOWED:
+                # Also verify blocked brokers are actually blocked
+                blocked_ok = True
+                blocked_details = {}
+                for blocked_name in ["FundedNext Free Trial", "FBS-Demo"]:
+                    br = gate.evaluate(broker_name=blocked_name)
+                    blocked_details[blocked_name] = br.verdict.value
+                    if br.verdict != ObservationBrokerVerdict.BLOCKED:
+                        blocked_ok = False
+
+                if blocked_ok:
+                    return FirstRunWizardResult(
+                        check_name="broker_observation_gate",
+                        status=FirstRunCheckStatus.PASS,
+                        message="Broker observation gate allows MetaQuotes-Demo, blocks FundedNext/FBS",
+                        details={
+                            "allowed": "MetaQuotes-Demo",
+                            "blocked": blocked_details,
+                            "gate_summary": gate.summary(),
+                        },
+                        next_step="Continue to next check",
+                    )
+                else:
+                    return FirstRunWizardResult(
+                        check_name="broker_observation_gate",
+                        status=FirstRunCheckStatus.FAIL,
+                        message="Broker observation gate does not block all required brokers",
+                        details={"blocked_details": blocked_details},
+                        next_step="Verify BrokerObservationGate blocking logic",
+                    )
+            else:
+                return FirstRunWizardResult(
+                    check_name="broker_observation_gate",
+                    status=FirstRunCheckStatus.FAIL,
+                    message=f"Broker observation gate does not allow MetaQuotes-Demo: {result.reason}",
+                    details={"verdict": result.verdict.value, "reason": result.reason},
+                    next_step="Verify MetaQuotes-Demo is PASS in broker_compatibility_matrix",
+                )
+        except Exception as e:
+            return FirstRunWizardResult(
+                check_name="broker_observation_gate",
+                status=FirstRunCheckStatus.FAIL,
+                message=f"Broker observation gate check failed: {e}",
+                next_step="Inspect broker_observation_gate.py",
+            )
+
     # ──────────────────────────────────────────────────────────────────────
     # Aggregate
     # ──────────────────────────────────────────────────────────────────────
@@ -586,6 +649,7 @@ class FirstRunWizard:
             self.check_live_trading_blocked(),
             self.check_market_execution_absent(),
             self.check_no_order_send_exposed(),
+            self.check_broker_observation_gate(),
         ]
         summary.results = checks
         for r in checks:
