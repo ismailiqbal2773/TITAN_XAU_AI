@@ -100,3 +100,21 @@ class TestSafety:
         assert "max lot 0.01" in src.lower() or "0.01" in src
         assert "no martingale" in src.lower()
         assert "Z AI must NOT execute" in src or "Z AI must not execute" in src
+
+    def test_12_no_mojibake_in_sl_tp_safety(self):
+        """SL/TP safety module should have no mojibake."""
+        src = (REPO_ROOT / "titan" / "production" / "demo_micro_sl_tp_safety.py").read_text()
+        assert "\u2014" not in src
+
+    def test_13_no_mojibake_in_order_builder(self):
+        src = (REPO_ROOT / "titan" / "production" / "demo_micro_order_builder.py").read_text()
+        assert "\u2014" not in src
+
+    def test_14_no_mojibake_in_operator_script(self):
+        src = (REPO_ROOT / "scripts" / "operator" / "run_controlled_demo_micro_execution.py").read_text()
+        assert "\u2014" not in src
+
+    def test_15_no_order_send_in_sl_tp_safety(self):
+        src = (REPO_ROOT / "titan" / "production" / "demo_micro_sl_tp_safety.py").read_text()
+        code = self._strip(src)
+        assert not re.search(r"\bmt5\.order_send\s*\(", code)

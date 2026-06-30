@@ -53,10 +53,54 @@ class TestOperator:
             confirm_not_live = True
             confirm_environment_locked = True
             confirm_model_parity_pass = True
+            direction = "BUY"
+            entry_price = 2000.0
+            sl = 0.0
+            tp = 0.0
         result = op.run_execute_once(FakeArgs())
         assert result["verdict"] == "DEMO_MICRO_EXECUTION_REFUSED"
-        # Must be refused - either by Z AI prohibition or by gate blockers
+        # Must be refused - either by Z AI prohibition, gate blockers, or SL/TP missing
         assert len(result["blockers"]) > 0
+
+    def test_05a_execute_once_blocks_sl0_tp0(self):
+        """execute-once with sl=0,tp=0 must be refused (SL/TP missing)."""
+        import scripts.operator.run_controlled_demo_micro_execution as op
+        class FakeArgs:
+            i_understand_demo_risk = True
+            confirm_symbol = "XAUUSD"
+            confirm_lot = 0.01
+            confirm_broker = "MetaQuotes-Demo"
+            confirm_one_order_only = True
+            confirm_not_live = True
+            confirm_environment_locked = True
+            confirm_model_parity_pass = True
+            direction = "BUY"
+            entry_price = 2000.0
+            sl = 0.0
+            tp = 0.0
+        result = op.run_execute_once(FakeArgs())
+        assert result["verdict"] == "DEMO_MICRO_EXECUTION_REFUSED"
+        # Should be refused due to SL/TP missing or gate blocked
+        assert len(result["blockers"]) > 0
+
+    def test_05b_dry_run_preview_mode_not_executable(self):
+        """dry_run_preview_mode fallback must not be accepted for execute-once."""
+        import scripts.operator.run_controlled_demo_micro_execution as op
+        class FakeArgs:
+            i_understand_demo_risk = True
+            confirm_symbol = "XAUUSD"
+            confirm_lot = 0.01
+            confirm_broker = "MetaQuotes-Demo"
+            confirm_one_order_only = True
+            confirm_not_live = True
+            confirm_environment_locked = True
+            confirm_model_parity_pass = True
+            direction = "BUY"
+            entry_price = 2000.0
+            sl = 0.0
+            tp = 0.0
+        result = op.run_execute_once(FakeArgs())
+        assert result["verdict"] == "DEMO_MICRO_EXECUTION_REFUSED"
 
     def test_06_no_order_send_in_operator_script(self):
         src = (REPO_ROOT / "scripts" / "operator" / "run_controlled_demo_micro_execution.py").read_text()

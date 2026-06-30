@@ -56,14 +56,21 @@ class DemoMicroOrderBuilder:
 
         Returns dict with preview and validation status.
         NEVER calls mt5.order_send.
+
+        Sprint 9.9.3.44.2: Preview vs Executable distinction.
+        - If SL/TP valid or ATR fallback computes valid SL/TP: EXECUTABLE_WITH_PROTECTIVE_SL_TP
+        - If SL/TP missing and no ATR fallback: PREVIEW_ONLY_NOT_EXECUTABLE
+        - dry_run_preview_mode fallback is NEVER accepted for execution.
         """
+        from titan.production.demo_micro_sl_tp_safety import DemoMicroSLTPSafety, SLTPVerdict
+
         ok_checks = []
         blockers = []
         warnings = []
 
         # Validate direction
         if direction not in ("BUY", "SELL"):
-            blockers.append(f"Invalid direction: {direction} — must be BUY or SELL")
+            blockers.append(f"Invalid direction: {direction} - must be BUY or SELL")
         else:
             ok_checks.append(f"Direction: {direction}")
 
@@ -74,33 +81,63 @@ class DemoMicroOrderBuilder:
         else:
             ok_checks.append(f"Volume: {volume} <= {MAX_LOT}")
 
-        # Check SL/TP
-        has_sl = sl > 0
-        has_tp = tp > 0
-        if not has_sl or not has_tp:
-            if safe_fallback:
-                warnings.append(f"SL/TP missing — safe fallback used: {fallback_reason}")
+        # Sprint 9.9.3.44.2: Use SL/TP safety calculator
+        sltp_safety = DemoMicroSLTPSafety()
+        sltp_result = sltp_safety.validate_or_compute(
+            direction=direction,
+            entry_price=entry_price,
+            sl=sl,
+            tp=tp,
+            atr=0.0,  # ATR not passed in preview mode; execution must provide it
+        )
+
+        has_sl = sltp_result.has_sl
+        has_tp = sltp_result.has_tp
+        final_sl = sltp_result.sl
+        final_tp = sltp_result.tp
+        fallback_reason = sltp_result.fallback_reason
+        safe_fallback_used = sltp_result.verdict == SLTPVerdict.SLTP_ATR_FALLBACK_USED
+
+        if sltp_result.verdict == SLTPVerdict.SLTP_BLOCKED:
+            if safe_fallback and fallback_reason == "dry_run_preview_mode":
+                # Preview-only mode: label as not executable
+                warnings.append("SL/TP missing - PREVIEW_ONLY_NOT_EXECUTABLE (dry_run_preview_mode)")
+                fallback_reason = "dry_run_preview_mode"
             else:
-                blockers.append("SL/TP missing and no safe fallback specified")
+                blockers.append(f"DEMO_MICRO_SL_TP_MISSING: {sltp_result.blockers}")
+                # Still label as preview if in preview mode
+                if safe_fallback:
+                    warnings.append("SL/TP missing - PREVIEW_ONLY_NOT_EXECUTABLE")
+                    fallback_reason = fallback_reason or "sl_tp_missing_no_atr"
+        elif sltp_result.verdict == SLTPVerdict.SLTP_VALID:
+            ok_checks.append(f"SL/TP validated: SL={final_sl:.4f}, TP={final_tp:.4f}")
+        elif sltp_result.verdict == SLTPVerdict.SLTP_ATR_FALLBACK_USED:
+            ok_checks.append(f"ATR fallback SL/TP: SL={final_sl:.4f}, TP={final_tp:.4f}")
 
         # Build preview
         preview = OrderRequestPreview(
             order_type=direction,
             volume=volume,
-            sl=sl,
-            tp=tp,
+            sl=final_sl,
+            tp=final_tp,
             has_sl=has_sl,
             has_tp=has_tp,
-            safe_fallback_used=safe_fallback and (not has_sl or not has_tp),
-            fallback_reason=fallback_reason if safe_fallback else "",
+            safe_fallback_used=safe_fallback_used,
+            fallback_reason=fallback_reason,
         )
 
+        # Sprint 9.9.3.44.2: Determine executable status
+        if has_sl and has_tp:
+            executable_status = "EXECUTABLE_WITH_PROTECTIVE_SL_TP"
+        else:
+            executable_status = "PREVIEW_ONLY_NOT_EXECUTABLE"
+
         # Check for martingale/grid/averaging (must NOT be present)
-        # These are not in the builder by design
-        ok_checks.append("No martingale/grid/averaging — single order only")
+        ok_checks.append("No martingale/grid/averaging - single order only")
 
         return {
             "preview": preview.to_dict(),
+            "executable_status": executable_status,
             "ok_checks": ok_checks,
             "blockers": blockers,
             "warnings": warnings,
@@ -141,6 +178,6 @@ class DemoMicroOrderBuilder:
             f.write("\n## Safety\n\n")
             f.write("- No mt5.order_send was called.\n")
             f.write("- No market execution adapter was used.\n")
-            f.write("- This is a preview only — no order was sent to any broker.\n")
+            f.write("- This is a preview only - no order was sent to any broker.\n")
 
         return {"json_path": str(json_path), "md_path": str(md_path)}

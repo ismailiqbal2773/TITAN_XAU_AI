@@ -89,6 +89,27 @@ def run_execute_once(args) -> dict:
             "next_action": "Resolve gate blockers before execution",
         }
 
+    # Sprint 9.9.3.44.2: SL/TP execution safety check
+    # Build request and verify it is EXECUTABLE_WITH_PROTECTIVE_SL_TP
+    from titan.production.demo_micro_order_builder import DemoMicroOrderBuilder
+    builder = DemoMicroOrderBuilder()
+    build_result = builder.build_preview(
+        direction=getattr(args, "direction", "BUY"),
+        entry_price=getattr(args, "entry_price", 2000.0),
+        sl=getattr(args, "sl", 0.0),
+        tp=getattr(args, "tp", 0.0),
+        safe_fallback=False,  # No safe fallback for execution
+    )
+    executable_status = build_result.get("executable_status", "PREVIEW_ONLY_NOT_EXECUTABLE")
+    if executable_status != "EXECUTABLE_WITH_PROTECTIVE_SL_TP":
+        return {
+            "mode": "execute_once",
+            "verdict": "DEMO_MICRO_EXECUTION_REFUSED",
+            "reason": f"DEMO_MICRO_PREVIEW_FALLBACK_NOT_EXECUTABLE: {executable_status}",
+            "blockers": [f"DEMO_MICRO_SL_TP_MISSING or DEMO_MICRO_PREVIEW_FALLBACK_NOT_EXECUTABLE: {build_result.get('blockers', [])}"],
+            "next_action": "Provide valid SL/TP or ATR for executable order. dry_run_preview_mode is not accepted for execute-once.",
+        }
+
     # Z AI must not execute
     return {
         "mode": "execute_once",
