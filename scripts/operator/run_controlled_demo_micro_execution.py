@@ -56,7 +56,7 @@ def run_build_request(direction: str = "BUY", entry_price: float = 2000.0,
 
 
 def run_execute_once(args) -> dict:
-    """Execute-once mode — guarded, requires full confirmations.
+    """Execute-once mode - guarded, requires full confirmations.
     Z AI must NOT run this mode.
     """
     required_flags = [
@@ -74,7 +74,7 @@ def run_execute_once(args) -> dict:
             "mode": "execute_once",
             "verdict": "DEMO_MICRO_EXECUTION_REFUSED",
             "reason": "Missing required confirmation flags",
-            "blockers": ["Missing confirmation flags — execution refused"],
+            "blockers": ["Missing confirmation flags - execution refused"],
             "next_action": "Provide all --confirm-* flags and --i-understand-demo-risk",
         }
 
@@ -94,7 +94,7 @@ def run_execute_once(args) -> dict:
         "mode": "execute_once",
         "verdict": "DEMO_MICRO_EXECUTION_REFUSED",
         "reason": "Z AI must NOT execute orders. This mode is for local operator use only.",
-        "blockers": ["Z AI execution prohibition — --execute-once must be run locally by operator only"],
+        "blockers": ["Z AI execution prohibition - --execute-once must be run locally by operator only"],
         "next_action": "Run --execute-once locally on the operator's Windows machine, NOT from Z AI",
         "important_note": "No order was sent. No mt5.order_send was called.",
     }

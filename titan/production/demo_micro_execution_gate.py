@@ -28,6 +28,7 @@ APPROVED_WARNINGS = {
     "MODEL_PARITY_NOT_AVAILABLE",
     "XGBOOST_PARITY_NOT_AVAILABLE",
     "ENVIRONMENT_LOCK_READY_WITH_WARNINGS",
+    "PYTHON_313_COMPATIBILITY_WARNING",  # Sprint 9.9.3.44.1: conditionally approved
     "MetaQuotes-Demo verified",
     "FundedNext Free Trial remains DO_NOT_USE",
     "FBS-Demo remains REJECTED",
@@ -38,7 +39,7 @@ APPROVED_WARNINGS = {
     "Retry/restart policy bounding",
     "Watchdog restarter module not found",
     "requirements.txt missing",
-    "Operator confirmation token missing",  # non-blocking for gate check
+    "Operator confirmation token missing",
 }
 
 
@@ -88,12 +89,12 @@ class DemoMicroExecutionGate:
 
         # 1. Config checks
         if not dry_run:
-            result.blockers.append("dry_run=false — must be true unless explicit demo arm active")
+            result.blockers.append("dry_run=false - must be true unless explicit demo arm active")
         else:
             result.ok_checks.append("dry_run=true")
 
         if live_trading:
-            result.blockers.append("live_trading=true — must be false")
+            result.blockers.append("live_trading=true - must be false")
         else:
             result.ok_checks.append("live_trading=false")
 
@@ -108,7 +109,7 @@ class DemoMicroExecutionGate:
 
         # 2. Account type
         if account_type != "DEMO":
-            result.blockers.append(f"account_type={account_type} — must be DEMO")
+            result.blockers.append(f"account_type={account_type} - must be DEMO")
         else:
             result.ok_checks.append("account_type=DEMO")
 
@@ -118,7 +119,7 @@ class DemoMicroExecutionGate:
         broker_result = gate.evaluate(broker_name=broker_name)
         result.checks["broker_gate_verdict"] = broker_result.verdict.value
         if broker_result.verdict != ObservationBrokerVerdict.ALLOWED:
-            result.blockers.append(f"Broker gate: {broker_result.verdict.value} — {broker_result.reason}")
+            result.blockers.append(f"Broker gate: {broker_result.verdict.value} - {broker_result.reason}")
         else:
             result.ok_checks.append(f"Broker gate: {broker_name} ALLOWED")
 
@@ -145,7 +146,7 @@ class DemoMicroExecutionGate:
         if max_open_positions > 1:
             result.blockers.append(f"max_open_positions={max_open_positions} > 1")
         if current_open_positions > 0:
-            result.blockers.append(f"current_open_positions={current_open_positions} > 0 — must be 0 before entry")
+            result.blockers.append(f"current_open_positions={current_open_positions} > 0 - must be 0 before entry")
         else:
             result.ok_checks.append("current_open_positions=0")
 
@@ -219,15 +220,38 @@ class DemoMicroExecutionGate:
         except Exception as e:
             result.blockers.append(f"Self-healing audit failed: {e}")
 
-        # 11. Operator confirmation token
+        # 11. Operator confirmation token (Sprint 9.9.3.44.1: ASCII-safe)
         if not operator_confirmation_token:
-            result.warnings.append("Operator confirmation token missing — required for --execute-once")
+            result.warnings.append("Operator confirmation token missing - required for --execute-once")
         else:
             result.ok_checks.append("Operator confirmation token present")
 
-        # 12. Filter approved vs unapproved warnings
+        # 12. Sprint 9.9.3.44.1: Conditional PYTHON_313_COMPATIBILITY_WARNING approval
+        # PYTHON_313 is approved only if ALL evidence passes:
+        #   - environment drift not BLOCKED
+        #   - dependency audit not BLOCKED
+        #   - model artifact audit not BLOCKED
+        #   - model parity not FAIL
+        #   - self-healing not BLOCKED
+        # If any evidence fails, PYTHON_313 warning becomes a blocker.
+        py313_evidence_ok = (
+            result.checks.get("environment_drift_verdict", "") != "ENVIRONMENT_LOCK_BLOCKED"
+            and "BLOCKED" not in result.checks.get("dependency_audit_verdict", "")
+            and "BLOCKED" not in result.checks.get("model_artifact_verdict", "")
+            and result.checks.get("model_parity_verdict", "") != "MODEL_PARITY_FAIL"
+            and "BLOCKED" not in result.checks.get("self_healing_verdict", "")
+        )
+        result.checks["python_313_evidence_ok"] = py313_evidence_ok
+
+        # 13. Filter approved vs unapproved warnings
         for w in result.warnings:
             is_approved = any(aw.lower() in w.lower() for aw in APPROVED_WARNINGS)
+            # Special conditional approval for PYTHON_313
+            if "PYTHON_313_COMPATIBILITY_WARNING" in w.upper():
+                if py313_evidence_ok:
+                    is_approved = True
+                else:
+                    is_approved = False  # Becomes blocker when evidence fails
             if is_approved:
                 result.approved_warnings.append(w)
             else:

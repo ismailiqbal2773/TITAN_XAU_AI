@@ -71,3 +71,39 @@ class TestGate:
         code = re.sub(r'"(?:[^"\\]|\\.)*"','""',code)
         code = re.sub(r"'(?:[^'\\]|\\.)*'","''",code)
         assert not re.search(r"\bmt5\.order_send\s*\(", code)
+
+    def test_12_python313_warning_approved_when_evidence_ok(self):
+        """PYTHON_313_COMPATIBILITY_WARNING should be approved when all evidence passes."""
+        from titan.production.demo_micro_execution_gate import DemoMicroExecutionGate
+        gate = DemoMicroExecutionGate()
+        result = gate.evaluate()
+        # If all evidence passes, PYTHON_313 should be in approved_warnings
+        py313_in_warnings = any("PYTHON_313" in w.upper() for w in result.warnings)
+        if py313_in_warnings:
+            # Check it's in approved, not unapproved
+            py313_approved = any("PYTHON_313" in w.upper() for w in result.approved_warnings)
+            py313_unapproved = any("PYTHON_313" in w.upper() for w in result.unapproved_warnings)
+            assert py313_approved or not py313_unapproved, \
+                "PYTHON_313 warning should be approved when evidence passes"
+
+    def test_13_python313_warning_in_approved_set(self):
+        """PYTHON_313_COMPATIBILITY_WARNING must be in APPROVED_WARNINGS set."""
+        from titan.production.demo_micro_execution_gate import APPROVED_WARNINGS
+        assert "PYTHON_313_COMPATIBILITY_WARNING" in APPROVED_WARNINGS
+
+    def test_14_operator_token_missing_not_blocker_in_check_only(self):
+        """Operator token missing should be WARNING, not blocker, in check-only."""
+        from titan.production.demo_micro_execution_gate import DemoMicroExecutionGate
+        gate = DemoMicroExecutionGate()
+        result = gate.evaluate()  # No operator_confirmation_token
+        token_blocker = any("confirmation token" in b.lower() for b in result.blockers)
+        assert not token_blocker, "Operator token missing should not be a blocker in check-only"
+
+    def test_15_no_mojibake_in_report(self):
+        """Report should not contain mojibake characters."""
+        from titan.production.demo_micro_execution_gate import DemoMicroExecutionGate
+        gate = DemoMicroExecutionGate()
+        result = gate.evaluate()
+        result_str = str(result.to_dict())
+        assert "\u2014" not in result_str, "Em-dash (mojibake source) found in report"
+        assert "\ufffd" not in result_str, "Replacement character found in report"
