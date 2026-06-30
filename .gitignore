@@ -41,4 +41,5 @@ data/audit/model_lifecycle/
 data/audit/master_integration/
 data/audit/pre_observation/
 data/audit/cto_repo_consistency/
+data/audit/observation_7day/
 dist/

@@ -2942,3 +2942,99 @@ Stage Summary:
 - Pre-observation audit: DEMO_OBSERVATION_READY_WITH_WARNINGS (0 blockers, 1 warning: regime placeholder)
 - All CTO issues resolved
 - Ready to commit: fix(rc): resolve CTO consistency and RC truth issues
+
+---
+Task ID: 27
+Agent: Super Z (main, Sprint 9.9.3.42 controlled 7-day observation workflow session 2026-06-30)
+Task: Add controlled 7-day demo observation workflow (Sprint 9.9.3.42). Create start_7_day_demo_observation.py controller, run_daily_observation_scorecard.py runner, finalize_7_day_demo_observation.py finalizer, run_titan_7_day_observation.bat helper, controlled_7_day_demo_observation_runbook.md, and 4 test files. Run all required pytest suites + first_run_check + CTO audit + pre-observation audit + controller check-only + git status. Commit: feat(observation): add controlled 7-day observation workflow.
+
+Work Log:
+- Verified starting state: HEAD at 484ddca (Sprint 9.9.3.41.2), working tree clean.
+- Created scripts/operator/start_7_day_demo_observation.py:
+  * --check-only (default): runs all gates without starting
+  * --start: starts observation session if all gates pass
+  * Uses existing BrokerObservationGate, ProductionRuntimeAssembly, CTO audit, pre-observation audit
+  * Refuses if live_trading=true, dry_run=false, broker gate fails, broker not MetaQuotes-Demo
+  * Refuses FundedNext, FBS, Exness, ICMarkets, unknown broker
+  * Refuses if order_send/DEMO_MICRO_EXECUTE/raw_mt5_probe exposed in safe paths
+  * Accepts CTO_READY_WITH_WARNINGS and DEMO_OBSERVATION_READY_WITH_WARNINGS only for approved warnings
+  * Approved warnings: REGIME_GATE_WIRED_BUT_PLACEHOLDER_CONTEXT, git_clean_hint, virtualenv, release_docs, broker registry informational warnings
+  * Writes observation_session_start.{json,md}
+- Created scripts/operator/run_daily_observation_scorecard.py:
+  * --day N --since-hours 24 [--journal-path] [--check-only]
+  * Uses existing ForwardObservationEngine + ObservationScorecardEngine
+  * Returns INSUFFICIENT_DATA when no journals
+  * Returns FAIL if order_send/live_trading/DEMO_MICRO_EXECUTE/raw_mt5_probe evidence found
+  * Returns FAIL if open positions remain at day end
+  * Returns WARN if observation gaps or regime placeholder persists
+  * Writes day_N_scorecard.{json,md}
+- Created scripts/operator/finalize_7_day_demo_observation.py:
+  * Reads 7 daily scorecards, handles missing days safely
+  * Counts all event types (signals, intents, orders, exits, kill switch, etc.)
+  * Verifies no forbidden evidence, no open positions
+  * Final verdict: SEVEN_DAY_OBSERVATION_PASS / PASS_WITH_WARNINGS / FAIL / INSUFFICIENT_DATA
+  * Writes final_7_day_observation_report.{json,md}
+- Created run_titan_7_day_observation.bat Windows helper:
+  * Menu: 1 START CHECK, 2 DAILY SCORECARD, 3 FINALIZE, 4 OPERATOR CONSOLE, 0 EXIT
+  * No live trading, no DEMO_MICRO_EXECUTE, no raw_mt5_probe, no repeatability, no retraining/HPO
+  * Activates venv if available
+- Created docs/operator/controlled_7_day_demo_observation_runbook.md:
+  * Exact operator sequence (6 steps)
+  * MetaQuotes-Demo only, dry_run only, live trading blocked
+  * Allowed warning: REGIME_GATE_WIRED_BUT_PLACEHOLDER_CONTEXT
+  * Blocked/pending brokers documented
+  * PASS/WARN/FAIL/INSUFFICIENT_DATA definitions
+  * System restart handling
+  * Safe-to-commit vs never-commit files
+  * Clear note: does NOT prove world no.1 or live readiness
+- Created 4 test files (49 tests total):
+  * test_7_day_observation_controller.py (17 tests)
+  * test_daily_observation_scorecard_runner.py (10 tests)
+  * test_7_day_observation_finalizer.py (10 tests)
+  * test_7_day_observation_batch_safety.py (12 tests)
+- Fixed order_send regex pattern (\border_send\b didn't match order_send_result)
+- Added broker registry informational warnings to APPROVED_WARNINGS set
+- Updated .gitignore to add data/audit/observation_7day/
+- Test results:
+  * test_7_day_observation_controller.py: 17 passed
+  * test_daily_observation_scorecard_runner.py: 10 passed
+  * test_7_day_observation_finalizer.py: 10 passed
+  * test_7_day_observation_batch_safety.py: 12 passed
+  * test_broker_observation_gate.py: 24 passed
+  * test_cto_repo_consistency_audit.py: 12 passed
+  * test_pre_observation_acceptance_audit.py: 22 passed
+  * test_first_run_wizard.py: 23 passed
+  * test_operator_control_console.py: 30 passed
+  * Total: 160 passed
+- first_run_check.py: 13 PASS, 1 WARN (MT5 Linux stub), 0 FAIL
+- CTO audit: CTO_READY_WITH_WARNINGS (0 blockers, 1 warning: regime placeholder)
+- Pre-observation audit: DEMO_OBSERVATION_READY_WITH_WARNINGS (0 blockers, 1 warning)
+- Controller check-only: READY_TO_START (0 blockers, 5 approved warnings, 0 unapproved)
+
+Safety verification:
+- No MetaTrader5 import in any new module
+- No mt5.order_send calls
+- No DEMO_MICRO_EXECUTE calls
+- No raw_mt5_probe calls
+- No market execution
+- No live trading
+- No lot size increase
+- No strategy logic change
+- BrokerObservationGate reused (no duplication)
+- MetaQuotes-Demo only enforced
+- FundedNext/FBS/Exness/ICMarkets/unknown blocked
+- Approved warning handling (REGIME_GATE_WIRED_BUT_PLACEHOLDER_CONTEXT)
+- CTO_READY_WITH_WARNINGS accepted only for approved warnings
+- DEMO_OBSERVATION_READY_WITH_WARNINGS accepted only for approved warnings
+
+Stage Summary:
+- VERDICT: Sprint 9.9.3.42 complete. Controlled 7-day observation workflow added.
+- Files created: 8 (3 operator scripts, 1 batch, 1 runbook, 4 test files)
+- Files modified: 1 (.gitignore)
+- Tests: 49 new tests pass; 111 regression tests pass; total 160 passed
+- first_run_check.py: PASS (1 expected MT5 Linux WARN)
+- CTO audit: CTO_READY_WITH_WARNINGS
+- Pre-observation audit: DEMO_OBSERVATION_READY_WITH_WARNINGS
+- Controller check-only: READY_TO_START (0 blockers, 5 approved warnings)
+- All safety invariants enforced
+- Ready to commit: feat(observation): add controlled 7-day observation workflow
