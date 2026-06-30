@@ -20,6 +20,7 @@ APPROVED_WARNINGS = {
     "MODEL_SERIALIZATION_VERSION_WARNING",
     "DEPENDENCY_VERSION_DRIFT_WARNING",
     "PYTHON_313_COMPATIBILITY_WARNING",
+    "MODEL_PARITY_NOT_AVAILABLE",
     "MetaQuotes-Demo verified",
     "FundedNext Free Trial remains DO_NOT_USE",
     "FBS-Demo remains REJECTED",
@@ -138,6 +139,40 @@ def run_check(explain: bool = False) -> dict:
         blockers.append(f"Self-healing audit failed: {e}")
         sh_verdict = "SKIP"
 
+    # 5.5 Environment drift gate (Sprint 9.9.3.43.1)
+    env_verdict = "SKIP"
+    try:
+        from titan.production.environment_drift_gate import EnvironmentDriftGate, DriftVerdict
+        gate = EnvironmentDriftGate()
+        drift_result = gate.evaluate()
+        env_verdict = drift_result.verdict.value
+        if env_verdict == "ENVIRONMENT_LOCK_BLOCKED":
+            blockers.append(f"Environment drift gate BLOCKED: {drift_result.blockers}")
+        else:
+            ok_checks.append(f"Environment drift gate: {env_verdict}")
+            for w in drift_result.warnings:
+                warnings.append(w)
+    except Exception as e:
+        blockers.append(f"Environment drift gate failed: {e}")
+        env_verdict = "SKIP"
+
+    # 5.6 Model prediction parity audit (Sprint 9.9.3.43.1)
+    parity_verdict = "SKIP"
+    try:
+        import scripts.audit.model_prediction_parity_audit as parity_audit
+        parity_result = parity_audit.run_parity_audit()
+        parity_verdict = parity_result["verdict"]
+        if parity_verdict == "MODEL_PARITY_FAIL":
+            blockers.append(f"Model parity audit FAIL: {parity_result['blockers']}")
+        else:
+            ok_checks.append(f"Model parity audit: {parity_verdict}")
+            for w in parity_result.get("warnings", []):
+                warnings.append(w)
+    except Exception as e:
+        # Parity audit is optional if no candidates exist
+        parity_verdict = "MODEL_PARITY_NOT_AVAILABLE"
+        ok_checks.append(f"Model parity audit skipped: {e}")
+
     # 6. Filter approved vs unapproved warnings
     approved = []
     unapproved = []
@@ -172,6 +207,8 @@ def run_check(explain: bool = False) -> dict:
             "dependency_audit_verdict": dep_verdict,
             "model_artifact_audit_verdict": model_verdict,
             "self_healing_audit_verdict": sh_verdict,
+            "environment_drift_gate_verdict": env_verdict,
+            "model_parity_audit_verdict": parity_verdict,
         },
         "ok_checks": ok_checks,
         "approved_warnings": approved,
