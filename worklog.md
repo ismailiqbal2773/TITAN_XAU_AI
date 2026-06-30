@@ -2192,3 +2192,81 @@ Stage Summary:
 - first_run_check.py passes with 1 expected WARN (MT5 Linux stub)
 - Operator console is intentionally narrow: no live trading, no market execution, no MT5 import, no order_send
 - Ready to commit: feat(operator): add safe RC command console
+
+---
+Task ID: 19
+Agent: Super Z (main, Sprint 9.9.3.36 implementation session 2026-06-30)
+Task: Add alpha factory and model lifecycle governance foundation (Sprint 9.9.3.36). Create titan/production/model_lifecycle_governance.py, titan/production/auto_calibration_governance.py, titan/production/alpha_factory_governance.py, titan/production/model_registry.py, scripts/audit/model_lifecycle_report.py, docs/model_lifecycle/alpha_factory_and_auto_retraining_policy.md, and 5 test files. No retraining, no champion replacement, no live trading, no MT5 import, no order_send. Run all required pytest suites + first_run_check + report script + git status. Commit: feat(model): add alpha factory lifecycle governance.
+
+Work Log:
+- Inspected repo state: Sprint 9.9.3.35 completed (commit 864e301, working tree clean, operator console + CLI + batch + docs + tests added).
+- Created titan/production/model_lifecycle_governance.py:
+  * ModelLifecycleStage enum: CHAMPION, CHALLENGER, CANDIDATE, SHADOW, REJECTED, RETIRED, QUARANTINED
+  * ModelApprovalStatus enum: APPROVED, REJECTED, NEEDS_REVIEW, BLOCKED, PENDING
+  * ModelLifecycleDecision dataclass with all required fields + operator_approval_required=True for champion proposals
+  * ModelLifecycleGovernance class with evaluate_candidate(), enforce_no_auto_promotion() (always False), validate_minimum_metrics(), validate_drawdown_limits(), validate_broker_split(), validate_walk_forward(), validate_calibration(), validate_shadow_results(), quarantine(), decision_summary()
+  * Rules: missing OOS=BLOCKED, missing walk-forward=BLOCKED, missing broker split=BLOCKED, leakage=QUARANTINED, worse drawdown=NEEDS_REVIEW or BLOCKED, single-metric improvement alone does not approve, auto-promotion always False
+- Created titan/production/auto_calibration_governance.py:
+  * CalibrationAction enum: KEEP_CURRENT, RECOMMEND_THRESHOLD_ADJUSTMENT, RECOMMEND_PROBABILITY_RECALIBRATION, BLOCK_CALIBRATION, NEEDS_REVIEW
+  * CalibrationGovernanceResult dataclass with apply_automatically forced to False in __post_init__
+  * AutoCalibrationGovernance class with evaluate_calibration(), recommend_threshold(), block_if_insufficient_samples(), block_if_live_mode(), enforce_no_auto_apply() (always False), summary()
+  * Rules: insufficient samples (<500) blocks, live mode blocks, Brier >0.35 blocks, ECE >0.20 blocks, recommendations are non-binding, threshold delta clamped to 0.05
+- Created titan/production/alpha_factory_governance.py:
+  * AlphaCandidateType enum: FEATURE_SET, LABEL_VARIANT, MODEL_VARIANT, ENSEMBLE_VARIANT, THRESHOLD_VARIANT, REGIME_SPECIALIST, EXIT_POLICY_VARIANT
+  * AlphaCandidateStatus enum: GENERATED, VALIDATING, PASSED_INITIAL_FILTER, REJECTED, QUARANTINED, READY_FOR_SHADOW, NEEDS_REVIEW
+  * AlphaCandidate dataclass with all required fields
+  * AlphaFactoryGovernance class with register_candidate(), validate_candidate_metadata(), reject_if_leakage_flags(), require_walk_forward(), require_broker_split(), require_reality_gap_metrics(), mark_ready_for_shadow(), never_promote_to_champion() (always False), summary()
+  * Rules: alpha factory may register candidates only, cannot deploy/replace/trade/modify config, cannot bypass ModelLifecycleGovernance
+- Created titan/production/model_registry.py:
+  * RegisteredModel dataclass with model_id, version, stage, artifact_path, metrics, created_utc, approved_by, approval_status, notes
+  * ModelRegistry class with register_model() (defaults to CANDIDATE), get_champion(), list_challengers(), list_candidates(), reject_model(), quarantine_model(), retire_model(), promote_to_challenger(), require_manual_champion_promotion() (requires manual_approval_flag=True + operator name), save_registry_json(), load_registry_json(), has_exactly_one_champion(), has_no_champion(), summary()
+  * Rules: exactly one champion allowed, new registrations default to CANDIDATE, champion replacement requires manual flag, registry stores metadata only (never loads pickle/binaries)
+- Created scripts/audit/model_lifecycle_report.py:
+  * Writes data/audit/model_lifecycle/model_lifecycle_report.{json,md}
+  * Includes champion, candidates, challengers, calibration governance status, alpha factory governance status, lifecycle governance status, blocked promotions, manual approval requirements
+  * Final verdict: MODEL_LIFECYCLE_READY / MODEL_LIFECYCLE_WARNINGS / MODEL_LIFECYCLE_BLOCKED
+  * Safety invariants in JSON: auto_promotion_allowed=False, calibration_auto_apply=False, metatrader5_imported=False, orders_sent=0, models_retrained=0, champion_replaced=False, live_trading_enabled=False
+- Created docs/model_lifecycle/alpha_factory_and_auto_retraining_policy.md:
+  * Alpha factory purpose, auto calibration policy, auto retraining policy (forbidden in this sprint)
+  * Champion/challenger lifecycle (7 stages)
+  * Shadow validation requirements (168h minimum, no safety blocks, zero open positions, reality-gap metrics, walk-forward PASS, broker-split PASS)
+  * Manual approval gate (explicit at every transition)
+  * No auto live deployment rule
+  * Leakage prevention, broker split requirement, walk-forward requirement, drawdown protection, rollback policy
+- Created 5 test files (96 tests total):
+  * titan/tests/test_model_lifecycle_governance.py (20 tests)
+  * titan/tests/test_auto_calibration_governance.py (20 tests)
+  * titan/tests/test_alpha_factory_governance.py (20 tests)
+  * titan/tests/test_model_registry.py (24 tests)
+  * titan/tests/test_model_lifecycle_report.py (12 tests)
+- Updated .gitignore to add data/audit/model_lifecycle/ (regenerated on each run)
+- All tests pass on first run, no regressions
+- first_run_check.py: 13 PASS, 1 WARN (MT5 Linux stub), 0 FAIL
+- python scripts/audit/model_lifecycle_report.py: verdict=MODEL_LIFECYCLE_BLOCKED (expected - default sample_count=0 blocks calibration)
+- git status: working tree clean after staging
+
+Safety verification:
+- No MetaTrader5 import in any new module
+- No mt5.order_send calls in any new module
+- No MT5ExecutionAdapter() instantiation in any new module
+- No DEMO_MICRO_EXECUTE in any new module
+- No raw_mt5_probe in any new module
+- No demo_micro_repeatability in any new module
+- No .fit() / train_model() / retrain() / run_hpo() calls (no training execution)
+- No pickle.load / pickle.dump / joblib.load (registry stores metadata only)
+- No shutil.copy / shutil.move / os.replace (no artifact replacement)
+- No runtime.yaml modification
+- No live trading flag modification
+- No lot size changes
+- No champion replacement (require_manual_champion_promotion requires explicit flag)
+- Auto-promotion always False (enforced in 4 places: lifecycle, alpha factory, calibration, registry)
+
+Stage Summary:
+- VERDICT: Sprint 9.9.3.36 complete and safe
+- Files created: 11 (4 governance modules, 1 report writer, 1 policy doc, 5 test files)
+- Files modified: 1 (.gitignore)
+- Tests: 96 new tests pass; 50 regression tests pass; total 146 passed
+- first_run_check.py: PASS (1 expected MT5 Linux WARN)
+- Report script runs successfully: verdict=MODEL_LIFECYCLE_BLOCKED (expected with default empty metrics)
+- All safety invariants enforced by code and verified by tests
+- Ready to commit: feat(model): add alpha factory lifecycle governance

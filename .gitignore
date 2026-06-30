@@ -37,3 +37,4 @@ data/audit/exit_intent/
 data/audit/forward_observation/
 data/audit/production_assembly/
 data/audit/operator/
+data/audit/model_lifecycle/
