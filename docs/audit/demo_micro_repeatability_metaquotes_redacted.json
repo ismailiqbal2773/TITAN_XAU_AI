@@ -1,0 +1,18 @@
+{
+  "timestamp_utc": "2026-06-30T00:00:42.322229+00:00",
+  "source": "operator_summary",
+  "broker_server": "MetaQuotes-Demo",
+  "account_type": "DEMO",
+  "symbol": "XAUUSD",
+  "lot": 0.01,
+  "raw_probe_status": "PASS",
+  "raw_probe_open_retcode": 10009,
+  "raw_probe_close_retcode": 10009,
+  "repeatability_verdict": "DEMO_REPEATABILITY_PASS",
+  "cycles_passed": 3,
+  "cycles_failed": 0,
+  "final_open_positions": 0,
+  "execution_performed_by": "operator (local Windows MT5)",
+  "z_ai_executed": false,
+  "safety_note": "No raw account evidence committed. Account identifiers redacted."
+}
