@@ -2270,3 +2270,81 @@ Stage Summary:
 - Report script runs successfully: verdict=MODEL_LIFECYCLE_BLOCKED (expected with default empty metrics)
 - All safety invariants enforced by code and verified by tests
 - Ready to commit: feat(model): add alpha factory lifecycle governance
+
+---
+Task ID: 20
+Agent: Super Z (main, Sprint 9.9.3.37 implementation session 2026-06-30)
+Task: Add offline auto-retraining candidate pipeline (Sprint 9.9.3.37). Create titan/production/offline_retraining_pipeline.py, titan/production/retraining_trigger_monitor.py, scripts/audit/offline_retraining_report.py, docs/model_lifecycle/offline_auto_retraining_pipeline.md, and 3 test files. No retraining, no champion replacement, no live trading, no MT5 import, no order_send, no .fit() / train_model() / retrain() / run_hpo(). Run all required pytest suites + first_run_check + report script + git status. Commit: feat(model): add offline retraining candidate pipeline.
+
+Work Log:
+- Cloned fresh repo from github (was missing from session).
+- Inspected repo state: Sprint 9.9.3.36 completed (commit 2d4fd7a, working tree clean).
+- Created titan/production/offline_retraining_pipeline.py:
+  * RetrainingTrigger enum: SCHEDULED, PERFORMANCE_DECAY, CALIBRATION_DRIFT, REGIME_SHIFT, BROKER_DEGRADATION, MANUAL_OPERATOR_REQUEST
+  * RetrainingJobStatus enum: PLANNED, BLOCKED, READY_FOR_OFFLINE_TRAINING, TRAINING_DISABLED, CANDIDATE_REGISTERED, FAILED_VALIDATION, NEEDS_REVIEW
+  * RetrainingJobSpec dataclass: dry_run=True and training_enabled=False forced in __post_init__
+  * RetrainingJobResult dataclass: champion_replaced=False and training_executed=False forced in __post_init__
+  * OfflineRetrainingPipeline class with create_job_spec(), validate_job_spec(), validate_dataset_manifest() (with anti-leakage checks), validate_feature_set(), validate_label_policy(), validate_champion_reference() (strict/non-strict), block_if_training_disabled() (always blocks), register_candidate_metadata() (always CANDIDATE), submit_to_registry(), run_dry_job(), produce_result(), summary()
+  * Dataset manifest validation requires: dataset_id, symbol, timeframe, rows, date_range, train_test_split, leakage_check_status=PASS
+- Created titan/production/retraining_trigger_monitor.py:
+  * TriggerSeverity enum: INFO, WARNING, CRITICAL
+  * TriggerRecommendation enum: NO_ACTION, NEEDS_REVIEW, RECOMMEND_RETRAINING, INSUFFICIENT_DATA
+  * RetrainingTriggerSignal dataclass with all required fields
+  * RetrainingTriggerMonitor class with evaluate_performance_decay(), evaluate_calibration_drift(), evaluate_regime_shift(), evaluate_broker_degradation(), evaluate_schedule_due(), recommend_trigger()
+  * Rules: monitor recommends only (NEEDS_REVIEW at most), caps at NEEDS_REVIEW (never RECOMMEND_RETRAINING), INSUFFICIENT_DATA when sample_count < 100
+- Created scripts/audit/offline_retraining_report.py:
+  * Writes data/audit/model_lifecycle/offline_retraining_report.{json,md}
+  * Includes trigger monitor status, retraining job readiness, blockers, warnings, candidate registration status, champion replacement status (always False), training execution status (always False), safety invariants, general warnings
+  * Final verdict: RETRAINING_PIPELINE_READY / RETRAINING_PIPELINE_WARNINGS / RETRAINING_PIPELINE_BLOCKED
+- Created docs/model_lifecycle/offline_auto_retraining_pipeline.md:
+  * What triggers retraining, what happens automatically, what never happens automatically
+  * Candidate-only policy, champion replacement policy (forbidden), manual approval requirement
+  * Dataset manifest requirement (with anti-leakage), walk-forward requirement, broker split requirement, shadow validation requirement, rollback requirement
+- Created 3 test files (66 tests total):
+  * titan/tests/test_offline_retraining_pipeline.py (27 tests)
+  * titan/tests/test_retraining_trigger_monitor.py (25 tests)
+  * titan/tests/test_offline_retraining_report.py (14 tests)
+- Initial test run: 5 failures due to overly strict string matching (matching docstring mentions instead of actual code calls)
+- Added _strip_docstrings helper to test classes to remove docstrings AND string literals before pattern matching
+- Updated safety invariant tests to use the stripped source for regex pattern matching
+- Final test results:
+  * titan/tests/test_offline_retraining_pipeline.py: 27 passed
+  * titan/tests/test_retraining_trigger_monitor.py: 25 passed
+  * titan/tests/test_offline_retraining_report.py: 14 passed
+  * titan/tests/test_model_lifecycle_governance.py: 20 passed
+  * titan/tests/test_auto_calibration_governance.py: 20 passed
+  * titan/tests/test_alpha_factory_governance.py: 20 passed
+  * titan/tests/test_model_registry.py: 24 passed
+  * Total: 150 passed
+- first_run_check.py: 13 PASS, 1 WARN (MT5 Linux stub), 0 FAIL
+- python scripts/audit/offline_retraining_report.py: verdict=RETRAINING_PIPELINE_WARNINGS (expected - empty metrics produce INSUFFICIENT_DATA warnings)
+- git status: working tree clean after staging
+
+Safety verification:
+- No MetaTrader5 import in any new module
+- No mt5.order_send calls in any new module
+- No MT5ExecutionAdapter() instantiation
+- No DEMO_MICRO_EXECUTE in any new module
+- No raw_mt5_probe in any new module
+- No demo_micro_repeatability in any new module
+- No .fit() / train_model() / retrain() / run_hpo() calls (no training execution)
+- No pickle/joblib/torch load or dump
+- No shutil.copy / shutil.move / os.replace (no artifact manipulation)
+- No runtime.yaml modification
+- No live trading flag modification
+- No lot size changes
+- No champion replacement (champion_replaced hardcoded False in __post_init__)
+- No auto-promotion (candidates always registered as CANDIDATE)
+- training_enabled always False (forced in __post_init__)
+- dry_run always True (forced in __post_init__)
+- block_if_training_disabled() always returns False (always blocks)
+- Trigger monitor caps recommendations at NEEDS_REVIEW (never auto-launches)
+
+Stage Summary:
+- VERDICT: Sprint 9.9.3.37 complete and safe
+- Files created: 7 (2 production modules, 1 report writer, 1 policy doc, 3 test files)
+- Tests: 66 new tests pass; 84 regression tests pass; total 150 passed
+- first_run_check.py: PASS (1 expected MT5 Linux WARN)
+- Report script runs successfully: verdict=RETRAINING_PIPELINE_WARNINGS (expected with default empty metrics)
+- All safety invariants enforced by code and verified by tests
+- Ready to commit: feat(model): add offline retraining candidate pipeline
