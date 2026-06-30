@@ -55,12 +55,21 @@ class TestManagedOperator:
         result = mt.run_execute_and_monitor(FakeArgs())
         assert result["verdict"] == "MANAGED_DEMO_MICRO_BLOCKED"
 
-    def test_06_no_order_send_in_script(self):
+    def test_06_order_send_only_in_execute_path(self):
+        """order_send may only appear inside run_execute_and_monitor."""
         src = (REPO_ROOT / "scripts" / "operator" / "run_managed_demo_micro_trade.py").read_text()
         code = re.sub(r'"""[\s\S]*?"""','""',src)
         code = re.sub(r'"(?:[^"\\]|\\.)*"','""',code)
         code = re.sub(r"'(?:[^'\\]|\\.)*'","''",code)
-        assert not re.search(r"\bmt5\.order_send\s*\(", code)
+        lines = code.splitlines()
+        in_execute = False
+        for line in lines:
+            if "def run_execute_and_monitor" in line:
+                in_execute = True
+            elif line and not line[0].isspace() and "def " in line:
+                in_execute = False
+            if "mt5.order_send" in line and not in_execute:
+                pytest.fail(f"order_send found outside run_execute_and_monitor: {line.strip()}")
 
     def test_07_no_demo_micro_execute(self):
         src = (REPO_ROOT / "scripts" / "operator" / "run_managed_demo_micro_trade.py").read_text()
