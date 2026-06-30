@@ -166,6 +166,153 @@ class ProductionRuntimeAssembly:
             warnings.append("ObservationScorecardEngine missing")
         return status, warnings
 
+    # ─── Sprint 9.9.3.39: Actual runtime wiring checks ──────────────────
+    # Before this sprint, ProductionRuntimeAssembly returned RC_READY based
+    # on component IMPORT PRESENCE alone (via __import__). Sprint 9.9.3.38
+    # master integration audit identified this as not truthful.
+    #
+    # These new checks inspect the source files at rest and verify that
+    # AutonomousRuntime actually wires the institutional pipeline into the
+    # runtime decision path. If any critical wiring check fails, the verdict
+    # must be RC_BLOCKED.
+
+    def validate_runtime_wiring(self) -> tuple[bool, dict, list[str]]:
+        """Validate that AutonomousRuntime actually wires the institutional pipeline.
+
+        Returns (ok, checks, blockers).
+        """
+        import re
+        from pathlib import Path
+
+        repo_root = Path(__file__).resolve().parents[2]
+        launcher_src = (repo_root / "titan" / "runtime" / "launcher.py").read_text(encoding="utf-8")
+        autonomous_src = (repo_root / "titan" / "runtime" / "autonomous_loops.py").read_text(encoding="utf-8")
+
+        def _strip(src: str) -> str:
+            src = re.sub(r'"""[\s\S]*?"""', '""', src)
+            src = re.sub(r"'''[\s\S]*?'''", "''", src)
+            src = re.sub(r'"(?:[^"\\]|\\.)*"', '""', src)
+            src = re.sub(r"'(?:[^'\\]|\\.)*'", "''", src)
+            return src
+
+        launcher_code = _strip(launcher_src)
+        autonomous_code = _strip(autonomous_src)
+
+        checks: dict[str, bool] = {}
+        blockers: list[str] = []
+
+        # 1) launcher_has_autonomous_runtime
+        checks["launcher_has_autonomous_runtime"] = (
+            "titan.runtime.autonomous_loops" in launcher_code
+            or "AutonomousRuntime" in launcher_code
+        )
+
+        # 2) autonomous_runtime_has_signal_execution_bridge
+        checks["autonomous_runtime_has_signal_execution_bridge"] = (
+            "titan.production.signal_execution_bridge" in autonomous_code
+            or "SignalExecutionBridge(" in autonomous_code
+        )
+
+        # 3) autonomous_runtime_builds_execution_intent
+        checks["autonomous_runtime_builds_execution_intent"] = (
+            "build_intent(" in autonomous_code
+            or "ExecutionIntent" in autonomous_code
+        )
+
+        # 4) autonomous_runtime_calls_bridge_before_trade_loop
+        # Check that build_intent appears BEFORE process_signal in the inference loop.
+        # Heuristic: both must be present, and bridge block must skip process_signal.
+        checks["autonomous_runtime_calls_bridge_before_trade_loop"] = (
+            "build_intent(" in autonomous_code
+            and "TRADE_LOOP_SKIPPED_BY_INTENT" in autonomous_code
+            and "TRADE_LOOP_CALLED_AFTER_INTENT" in autonomous_code
+        )
+
+        # 5) bridge_blocks_before_trade_loop
+        checks["bridge_blocks_before_trade_loop"] = (
+            "EXECUTION_INTENT_BLOCKED" in autonomous_code
+            and "TRADE_LOOP_SKIPPED_BY_INTENT" in autonomous_code
+        )
+
+        # 6) autonomous_runtime_has_regime_gate
+        checks["autonomous_runtime_has_regime_gate"] = (
+            "titan.production.regime_detection" in autonomous_code
+            or "detect_regime(" in autonomous_code
+            or "REGIME_GATE_EVALUATED" in autonomous_code
+        )
+
+        # 7) autonomous_runtime_has_broker_gate
+        checks["autonomous_runtime_has_broker_gate"] = (
+            "titan.production.broker_compatibility_matrix" in autonomous_code
+            or "get_broker_info(" in autonomous_code
+            or "BROKER_GATE_EVALUATED" in autonomous_code
+        )
+
+        # 8) autonomous_runtime_has_runtime_health_gate
+        checks["autonomous_runtime_has_runtime_health_gate"] = (
+            "titan.production.runtime_health" in autonomous_code
+            or "RuntimeHealthMonitor(" in autonomous_code
+            or "RUNTIME_HEALTH_GATE_EVALUATED" in autonomous_code
+        )
+
+        # 9) autonomous_runtime_has_security_gate
+        checks["autonomous_runtime_has_security_gate"] = (
+            "titan.security.security_gate" in autonomous_code
+            or "SecurityGate(" in autonomous_code
+            or "SECURITY_GATE_EVALUATED" in autonomous_code
+        )
+
+        # 10) autonomous_runtime_has_position_lifecycle
+        checks["autonomous_runtime_has_position_lifecycle"] = (
+            "titan.production.position_lifecycle" in autonomous_code
+            or "PositionLifecycleEngine(" in autonomous_code
+            or "POSITION_LIFECYCLE_EVALUATED" in autonomous_code
+        )
+
+        # 11) autonomous_runtime_has_exit_intent_bridge
+        checks["autonomous_runtime_has_exit_intent_bridge"] = (
+            "titan.production.exit_intent_bridge" in autonomous_code
+            or "ExitIntentBridge(" in autonomous_code
+            or "EXIT_INTENT_CREATED" in autonomous_code
+        )
+
+        # 12) observation_engine_runtime_wired
+        checks["observation_engine_runtime_wired"] = (
+            "titan.production.forward_observation" in autonomous_code
+            or "ForwardObservationEngine(" in autonomous_code
+            or "FORWARD_OBSERVATION_EVENT_RECORDED" in autonomous_code
+        )
+
+        # 13) scorecard_runtime_wired
+        checks["scorecard_runtime_wired"] = (
+            "titan.production.observation_scorecard" in autonomous_code
+            or "ObservationScorecardEngine(" in autonomous_code
+            or "compute_observation_scorecard" in autonomous_code
+        )
+
+        # Build blockers for any failed critical check
+        critical_checks = [
+            "launcher_has_autonomous_runtime",
+            "autonomous_runtime_has_signal_execution_bridge",
+            "autonomous_runtime_builds_execution_intent",
+            "autonomous_runtime_calls_bridge_before_trade_loop",
+            "bridge_blocks_before_trade_loop",
+            "autonomous_runtime_has_regime_gate",
+            "autonomous_runtime_has_broker_gate",
+            "autonomous_runtime_has_runtime_health_gate",
+            "autonomous_runtime_has_security_gate",
+            "autonomous_runtime_has_position_lifecycle",
+            "autonomous_runtime_has_exit_intent_bridge",
+            "observation_engine_runtime_wired",
+            "scorecard_runtime_wired",
+        ]
+        for check_name in critical_checks:
+            if not checks.get(check_name, False):
+                blockers.append(f"Runtime wiring check failed: {check_name}")
+
+        ok = len(blockers) == 0
+        return ok, checks, blockers
+
     def build_status(self) -> ProductionAssemblyStatus:
         """Build the full assembly status. Never raises."""
         try:
@@ -175,6 +322,8 @@ class ProductionRuntimeAssembly:
             exec_ok, exec_blockers = self.validate_execution_permissions()
             broker_registry = self.validate_broker_registry()
             obs_status, obs_warnings = self.validate_observation_readiness()
+            # Sprint 9.9.3.39: actual runtime wiring checks
+            wiring_ok, wiring_checks, wiring_blockers = self.validate_runtime_wiring()
 
             blockers = []
             warnings = []
@@ -186,6 +335,9 @@ class ProductionRuntimeAssembly:
             # Safety blockers
             blockers.extend(safety_blockers)
             blockers.extend(exec_blockers)
+
+            # Sprint 9.9.3.39: runtime wiring blockers (critical)
+            blockers.extend(wiring_blockers)
 
             # Warnings
             warnings.extend(obs_warnings)

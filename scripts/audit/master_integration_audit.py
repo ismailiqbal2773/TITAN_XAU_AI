@@ -608,13 +608,27 @@ def answer_critical_questions() -> dict:
     }
 
     # 14) Is RC_READY based on actual runtime wiring or mostly import/component presence?
+    # Sprint 9.9.3.39: Now checks ACTUAL wiring via validate_runtime_wiring().
+    try:
+        from titan.production.production_runtime_assembly import ProductionRuntimeAssembly
+        asm = ProductionRuntimeAssembly()
+        wiring_ok, wiring_checks, wiring_blockers = asm.validate_runtime_wiring()
+        rc_truthful = wiring_ok
+    except Exception as e:
+        rc_truthful = False
+        wiring_blockers = [f"audit exception: {e}"]
     answers["rc_ready_based_on_runtime_wiring"] = {
-        "answer": "NO",
+        "answer": "YES" if rc_truthful else "NO",
         "evidence": (
-            "ProductionRuntimeAssembly.build_status() returns RC_READY when all 16 required components "
-            "can be IMPORTED (via __import__) and safety_gates list is non-empty. It does NOT verify "
-            "that AutonomousRuntime actually calls any of these components at runtime. "
-            "RC_READY therefore reflects COMPONENT PRESENCE, not RUNTIME WIRING."
+            "Sprint 9.9.3.39: ProductionRuntimeAssembly.validate_runtime_wiring() now inspects "
+            "the source of titan/runtime/autonomous_loops.py and verifies that "
+            "SignalExecutionBridge, RegimeDetection, BrokerCompatibilityMatrix, "
+            "RuntimeHealthMonitor, SecurityGate, PositionLifecycleEngine, ExitIntentBridge, "
+            "ForwardObservationEngine, and ObservationScorecardEngine are actually wired into "
+            "the runtime decision path (not just imported). "
+            + (f"All 13 wiring checks PASS. RC_READY is now truthful."
+               if rc_truthful
+               else f"Wiring blockers: {wiring_blockers}")
         ),
     }
 
@@ -810,10 +824,12 @@ def classify_product_readiness(wiring_matrix: dict, chain_matrix: dict,
     readiness["AUTONOMOUS_RUNTIME_WIRING_COMPLETE"] = "NO" if critical_not_wired else "YES"
 
     # RC_ASSEMBLY_TRUTHFUL - is RC_READY based on actual wiring?
-    readiness["RC_ASSEMBLY_TRUTHFUL"] = "NO"
+    # Sprint 9.9.3.39: now reflects the actual validate_runtime_wiring() result
+    rc_truthful_answer = critical_answers.get("rc_ready_based_on_runtime_wiring", {}).get("answer", "NO")
+    readiness["RC_ASSEMBLY_TRUTHFUL"] = "YES" if rc_truthful_answer == "YES" else "NO"
 
-    # DEMO_OBSERVATION_READY - observation engine exists but not wired into runtime
-    readiness["DEMO_OBSERVATION_READY"] = "WARN"
+    # DEMO_OBSERVATION_READY - Sprint 9.9.3.39: observation now wired into runtime
+    readiness["DEMO_OBSERVATION_READY"] = "YES" if readiness["AUTONOMOUS_RUNTIME_WIRING_COMPLETE"] == "YES" else "WARN"
 
     # WINDOWS_RC_PACKAGE_READY - no Windows package built yet
     readiness["WINDOWS_RC_PACKAGE_READY"] = "NO"

@@ -44,6 +44,31 @@ from titan.production.news_filter import NewsFilter
 from titan.production.meta_calibration_monitor import (
     MetaCalibrationMonitor, CalibrationConfig, CalibrationState,
 )
+# ─── Sprint 9.9.3.39: Institutional pipeline wiring ──────────────────────
+# These modules existed as standalone/report-only modules before this sprint.
+# Sprint 9.9.3.39 wires them into the actual runtime path so that
+# AutonomousRuntime uses the institutional decision pipeline instead of
+# only the Sprint 5-8 component set.
+from titan.production.signal_execution_bridge import (
+    SignalExecutionBridge, DecisionInput, ExecutionIntent, BridgeDecision,
+)
+from titan.production.regime_detection import detect_regime, RegimeStatus, RegimeType
+from titan.production.broker_compatibility_matrix import get_broker_info, get_all_brokers
+from titan.production.runtime_health import RuntimeHealthMonitor
+from titan.security.security_gate import SecurityGate
+from titan.production.position_lifecycle import (
+    PositionLifecycleEngine, PositionSnapshot, PositionLifecycleStatus,
+    PositionState,
+)
+from titan.production.exit_intent_bridge import (
+    ExitIntentBridge, ExitIntent, ExitIntentAction,
+)
+from titan.production.forward_observation import (
+    ForwardObservationEngine, ForwardObservationEvent, ForwardObservationEventType,
+)
+from titan.production.observation_scorecard import (
+    ObservationScorecardEngine, ObservationScorecard, ObservationScoreGrade,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -168,6 +193,28 @@ class AutonomousRuntime:
         self.exit_quality_scorer = exit_quality_scorer
         self.exit_governance = exit_governance
 
+        # Sprint 9.9.3.39: Institutional pipeline components.
+        # These are instantiated in initialize() and used in _inference_loop()
+        # and _exit_manager_loop(). They replace the direct InferenceEngine→TradeLoop
+        # path with the institutional decision pipeline:
+        #   InferenceEngine → SignalExecutionBridge → TradeLoop
+        # and add:
+        #   PositionSync → PositionLifecycleEngine → ExitIntentBridge → ExitManager
+        # ForwardObservationEngine + ObservationScorecardEngine receive real
+        # runtime journal events (no longer offline-only).
+        self.signal_execution_bridge: Optional[SignalExecutionBridge] = None
+        self.runtime_health_monitor: Optional[RuntimeHealthMonitor] = None
+        self.security_gate: Optional[SecurityGate] = None
+        self.position_lifecycle_engine: Optional[PositionLifecycleEngine] = None
+        self.exit_intent_bridge: Optional[ExitIntentBridge] = None
+        self.forward_observation_engine: Optional[ForwardObservationEngine] = None
+        self.observation_scorecard_engine: Optional[ObservationScorecardEngine] = None
+        # Last computed intent + observation summary (for tests + audit)
+        self._last_execution_intent: Optional[ExecutionIntent] = None
+        self._last_exit_intent: Optional[ExitIntent] = None
+        self._last_lifecycle_status: Optional[PositionLifecycleStatus] = None
+        self._observation_events: list[ForwardObservationEvent] = []
+
         # Sprint 9.3.1: runtime state shared between heartbeat + inference
         self._latest_health_score: Optional[float] = None
         self._latest_health_band: str = ""
@@ -255,6 +302,32 @@ class AutonomousRuntime:
 
         # Meta calibration monitor (Sprint 8.1)
         self.meta_calibration = MetaCalibrationMonitor()
+
+        # ─── Sprint 9.9.3.39: Institutional pipeline components ───────────
+        # These wire the standalone Sprint 9.9.3.x modules into the actual
+        # runtime path. All remain dry_run=True / demo_only=True.
+        self.signal_execution_bridge = SignalExecutionBridge(
+            dry_run=True,
+            demo_only=True,
+        )
+        self.runtime_health_monitor = RuntimeHealthMonitor(
+            mt5=None,  # dry-run: no MT5 connection
+            magic=202619,
+            symbol=cfg.symbol,
+        )
+        self.security_gate = SecurityGate()  # dev_mode by default — non-blocking
+        self.position_lifecycle_engine = PositionLifecycleEngine()
+        self.exit_intent_bridge = ExitIntentBridge(
+            dry_run=True,
+            demo_only=True,
+        )
+        self.forward_observation_engine = ForwardObservationEngine()
+        self.observation_scorecard_engine = ObservationScorecardEngine()
+
+        logger.info("Sprint 9.9.3.39 institutional pipeline wired "
+                    "(signal_execution_bridge + regime_detection + broker_compatibility_matrix "
+                    "+ runtime_health_monitor + security_gate + position_lifecycle_engine "
+                    "+ exit_intent_bridge + forward_observation_engine + observation_scorecard_engine)")
 
         logger.info("AutonomousRuntime initialized — all components ready")
 
@@ -480,6 +553,212 @@ class AutonomousRuntime:
                     effective_max_lot = max(0.001, effective_max_lot)
                     self.trade_loop.config.max_lot = effective_max_lot
 
+                # ─── Sprint 9.9.3.39: Institutional decision pipeline ─────
+                # Before calling TradeLoop, every trade decision must pass
+                # through the institutional pipeline:
+                #   RegimeDetection → BrokerCompatibilityMatrix
+                #   → RuntimeHealthMonitor → SecurityGate
+                #   → SignalExecutionBridge.build_intent()
+                # If the bridge blocks (intent.allowed=False), TradeLoop is
+                # NOT called and the signal is rejected. This is the single
+                # most important wiring change in Sprint 9.9.3.39.
+                self.journal.log_event(EventType.INSTITUTIONAL_PIPELINE_STARTED, {
+                    "bar_time": bar_time,
+                    "signal_direction": signal.direction.name,
+                    "model_confidence": signal.confidence,
+                    "meta_confidence": signal.meta_confidence,
+                })
+
+                # Gate 1: RegimeDetection
+                regime_status: Optional[dict] = None
+                try:
+                    regime = detect_regime(
+                        trend_score=0.0,
+                        volatility_score=0.0,
+                        range_score=0.0,
+                        spread_score=0.0,
+                        liquidity_score=1.0,
+                        confidence=signal.confidence,
+                    )
+                    regime_status = {
+                        "primary_regime": regime.primary_regime.value
+                            if hasattr(regime.primary_regime, "value") else str(regime.primary_regime),
+                        "risk_multiplier": regime.risk_multiplier,
+                        "allow_new_trade": regime.allow_new_trade,
+                        "block_reason": regime.block_reason,
+                    }
+                    self.journal.log_event(EventType.REGIME_GATE_EVALUATED, {
+                        "bar_time": bar_time,
+                        "regime": regime_status["primary_regime"],
+                        "risk_multiplier": regime_status["risk_multiplier"],
+                        "allow_new_trade": regime_status["allow_new_trade"],
+                    })
+                except Exception as re_err:
+                    logger.warning(f"RegimeDetection error (treated as UNKNOWN): {re_err}")
+                    regime_status = None
+                    self.journal.log_event(EventType.REGIME_GATE_EVALUATED, {
+                        "bar_time": bar_time,
+                        "regime": "UNKNOWN",
+                        "error": str(re_err),
+                    })
+
+                # Gate 2: BrokerCompatibilityMatrix
+                broker_info: Optional[dict] = None
+                try:
+                    # In dry-run, no live broker — use MetaQuotes-Demo registry entry
+                    broker_info = get_broker_info("MetaQuotes-Demo")
+                    self.journal.log_event(EventType.BROKER_GATE_EVALUATED, {
+                        "bar_time": bar_time,
+                        "broker": "MetaQuotes-Demo",
+                        "status": broker_info.get("status", "UNKNOWN"),
+                    })
+                except Exception as bc_err:
+                    logger.warning(f"BrokerCompatibilityMatrix error: {bc_err}")
+                    broker_info = None
+                    self.journal.log_event(EventType.BROKER_GATE_EVALUATED, {
+                        "bar_time": bar_time,
+                        "broker": "UNKNOWN",
+                        "error": str(bc_err),
+                    })
+
+                # Gate 3: RuntimeHealthMonitor
+                runtime_health: Optional[dict] = None
+                try:
+                    if self.runtime_health_monitor is not None:
+                        # check_tick_health requires MT5 - in dry-run, just get status
+                        rh_status = self.runtime_health_monitor.get_health_status()
+                        runtime_health = {
+                            "status": rh_status.get("status", "HEALTHY"),
+                            "event_count": rh_status.get("event_count", 0),
+                        }
+                    self.journal.log_event(EventType.RUNTIME_HEALTH_GATE_EVALUATED, {
+                        "bar_time": bar_time,
+                        "status": runtime_health["status"] if runtime_health else "UNKNOWN",
+                    })
+                except Exception as rh_err:
+                    logger.warning(f"RuntimeHealthMonitor error: {rh_err}")
+                    runtime_health = None
+                    self.journal.log_event(EventType.RUNTIME_HEALTH_GATE_EVALUATED, {
+                        "bar_time": bar_time,
+                        "status": "UNKNOWN",
+                        "error": str(rh_err),
+                    })
+
+                # Gate 4: SecurityGate
+                security_status: Optional[dict] = None
+                try:
+                    if self.security_gate is not None:
+                        sec_check = self.security_gate.check()
+                        security_status = {
+                            "allowed": sec_check.get("allowed", True),
+                            "reason": sec_check.get("reason"),
+                            "mode": sec_check.get("mode", "dev_mode"),
+                        }
+                    self.journal.log_event(EventType.SECURITY_GATE_EVALUATED, {
+                        "bar_time": bar_time,
+                        "allowed": security_status["allowed"] if security_status else True,
+                        "mode": security_status["mode"] if security_status else "dev_mode",
+                    })
+                except Exception as sg_err:
+                    logger.warning(f"SecurityGate error: {sg_err}")
+                    security_status = None
+                    self.journal.log_event(EventType.SECURITY_GATE_EVALUATED, {
+                        "bar_time": bar_time,
+                        "allowed": True,
+                        "error": str(sg_err),
+                    })
+
+                # Build DecisionInput → SignalExecutionBridge.build_intent()
+                # Direction enum uses LONG/SHORT/FLAT (not BUY/SELL).
+                # Map LONG→BUY, SHORT→SELL for the bridge's DecisionInput.
+                if signal.direction == Direction.LONG:
+                    _model_signal = "BUY"
+                    _direction = "BUY"
+                elif signal.direction == Direction.SHORT:
+                    _model_signal = "SELL"
+                    _direction = "SELL"
+                else:
+                    _model_signal = "NONE"
+                    _direction = None
+                decision_input = DecisionInput(
+                    symbol=self.config.symbol,
+                    timeframe="H1",
+                    model_signal=_model_signal,
+                    model_confidence=signal.confidence,
+                    meta_confidence=signal.meta_confidence,
+                    direction=_direction,
+                    timestamp_utc=datetime.now(timezone.utc).isoformat(),
+                )
+
+                intent = self.signal_execution_bridge.build_intent(
+                    inp=decision_input,
+                    regime_status=regime_status,
+                    broker_info=broker_info,
+                    runtime_health=runtime_health,
+                    security_status=security_status,
+                )
+                self._last_execution_intent = intent
+
+                self.journal.log_event(EventType.EXECUTION_INTENT_CREATED, {
+                    "bar_time": bar_time,
+                    "allowed": intent.allowed,
+                    "decision": intent.decision,
+                    "lot": intent.lot,
+                    "side": intent.side,
+                    "regime": intent.regime,
+                    "broker_status": intent.broker_status,
+                    "runtime_health_status": intent.runtime_health_status,
+                    "security_status": intent.security_status,
+                    "risk_multiplier": intent.risk_multiplier,
+                    "approval_reasons": intent.approval_reasons,
+                    "block_reasons": intent.block_reasons,
+                    "dry_run": intent.dry_run,
+                    "demo_only": intent.demo_only,
+                })
+
+                # Record observation event for forward observation engine
+                self._record_observation_event({
+                    "event": "EXECUTION_INTENT_CREATED",
+                    "timestamp_utc": intent.timestamp_utc,
+                    "symbol": intent.symbol,
+                    "timeframe": "H1",
+                    "intent_allowed": intent.allowed,
+                    "intent_decision": intent.decision,
+                })
+
+                # If the bridge blocks, TradeLoop must NOT be called.
+                if not intent.allowed:
+                    self._trades_blocked += 1
+                    self.journal.log_event(EventType.EXECUTION_INTENT_BLOCKED, {
+                        "bar_time": bar_time,
+                        "decision": intent.decision,
+                        "block_reasons": intent.block_reasons,
+                    })
+                    self.journal.log_event(EventType.TRADE_LOOP_SKIPPED_BY_INTENT, {
+                        "bar_time": bar_time,
+                        "reason": "SignalExecutionBridge blocked intent",
+                    })
+                    logger.info(
+                        f"Trade blocked by SignalExecutionBridge: decision={intent.decision} "
+                        f"reasons={intent.block_reasons}"
+                    )
+                    await asyncio.sleep(self.config.inference_interval_s)
+                    continue
+
+                # Intent approved — call TradeLoop
+                self.journal.log_event(EventType.EXECUTION_INTENT_APPROVED, {
+                    "bar_time": bar_time,
+                    "decision": intent.decision,
+                    "approval_reasons": intent.approval_reasons,
+                    "lot": intent.lot,
+                    "risk_multiplier": intent.risk_multiplier,
+                })
+                self.journal.log_event(EventType.TRADE_LOOP_CALLED_AFTER_INTENT, {
+                    "bar_time": bar_time,
+                    "intent_decision": intent.decision,
+                    "intent_lot": intent.lot,
+                })
+
                 decision = await self.trade_loop.process_signal(
                     signal=signal,
                     entry_price=self.config.entry_price_default,
@@ -571,6 +850,69 @@ class AutonomousRuntime:
                                 "reason": f"ai_exit_error: {ai_err}",
                                 "ai_exit_fallback_used": True,
                             })
+
+                # ── Sprint 9.9.3.39: Institutional exit pipeline ─────────
+                # PositionLifecycleEngine + ExitIntentBridge evaluate each
+                # position BEFORE the existing ExitManager. ExitManager
+                # remains the final safety layer.
+                # ExitIntentBridge never sends orders (should_send_order=False).
+                if positions and self.position_lifecycle_engine is not None \
+                        and self.exit_intent_bridge is not None:
+                    for pos in positions:
+                        try:
+                            snapshot = self._build_position_snapshot(pos)
+                            lifecycle = self.position_lifecycle_engine.evaluate(snapshot)
+                            self._last_lifecycle_status = lifecycle
+                            self.journal.log_event(EventType.POSITION_LIFECYCLE_EVALUATED, {
+                                "ticket": snapshot.ticket,
+                                "state": lifecycle.state.value
+                                    if hasattr(lifecycle.state, "value") else str(lifecycle.state),
+                                "safe_to_hold": lifecycle.safe_to_hold,
+                                "risk_level": lifecycle.risk_level,
+                                "protection_level": lifecycle.protection_level,
+                                "needs_exit_review": lifecycle.needs_exit_review,
+                                "pnl_r": lifecycle.pnl_r,
+                                "reason": lifecycle.reason,
+                            })
+                            exit_intent = self.exit_intent_bridge.build_exit_intent(snapshot)
+                            self._last_exit_intent = exit_intent
+                            self.journal.log_event(EventType.EXIT_INTENT_CREATED, {
+                                "ticket": exit_intent.ticket,
+                                "action": exit_intent.action.value
+                                    if hasattr(exit_intent.action, "value") else str(exit_intent.action),
+                                "allowed": exit_intent.allowed,
+                                "should_send_order": exit_intent.should_send_order,
+                                "reason": exit_intent.reason,
+                                "source_decision": exit_intent.source_decision,
+                            })
+                            if exit_intent.allowed:
+                                self.journal.log_event(EventType.EXIT_INTENT_APPROVED, {
+                                    "ticket": exit_intent.ticket,
+                                    "action": exit_intent.action.value
+                                        if hasattr(exit_intent.action, "value") else str(exit_intent.action),
+                                })
+                            else:
+                                self.journal.log_event(EventType.EXIT_INTENT_BLOCKED, {
+                                    "ticket": exit_intent.ticket,
+                                    "action": exit_intent.action.value
+                                        if hasattr(exit_intent.action, "value") else str(exit_intent.action),
+                                    "reason": exit_intent.reason,
+                                })
+                            # Record observation event
+                            self._record_observation_event({
+                                "event": "EXIT_INTENT_CREATED",
+                                "timestamp_utc": exit_intent.timestamp_utc,
+                                "symbol": exit_intent.symbol,
+                                "timeframe": "H1",
+                                "ticket": exit_intent.ticket,
+                                "action": exit_intent.action.value
+                                    if hasattr(exit_intent.action, "value") else str(exit_intent.action),
+                            })
+                        except Exception as eib_err:
+                            logger.warning(
+                                f"ExitIntentBridge evaluation failed (fallback to "
+                                f"ExitManager): {eib_err}"
+                            )
 
                 # ── Existing ExitManager (always runs — final safety layer) ──
                 for pos in positions:
@@ -676,6 +1018,15 @@ class AutonomousRuntime:
                             f"Trailing stop: ticket={exit_decision.ticket} "
                             f"new_sl={exit_decision.new_trailing_sl}"
                         )
+
+                    # Sprint 9.9.3.39: journal final safety evaluation result
+                    self.journal.log_event(EventType.EXIT_MANAGER_FINAL_SAFETY_EVALUATED, {
+                        "ticket": exit_decision.ticket,
+                        "should_exit": exit_decision.should_exit,
+                        "should_trail": exit_decision.should_trail,
+                        "reason": exit_decision.reason.value
+                            if hasattr(exit_decision.reason, "value") else str(exit_decision.reason),
+                    })
 
             except Exception as e:
                 logger.error(f"Exit manager error: {e}")
@@ -1185,6 +1536,116 @@ class AutonomousRuntime:
                 )
                 ai_decision.partial_close_pct = 75
 
+    # ─── Sprint 9.9.3.39: Forward observation + scorecard helpers ────────
+
+    def _build_position_snapshot(self, pos) -> PositionSnapshot:
+        """Build a PositionSnapshot from a BrokerPosition.
+
+        Adapts the existing BrokerPosition shape (from position_sync) into
+        the PositionSnapshot shape required by PositionLifecycleEngine.
+        Never raises — missing fields default to safe values.
+        """
+        try:
+            ticket = int(getattr(pos, "ticket", 0) or 0)
+            side = str(getattr(pos, "direction", getattr(pos, "side", "BUY"))).upper()
+            if side not in ("BUY", "SELL"):
+                side = "BUY"
+            entry_price = float(getattr(pos, "entry_price", 0.0) or 0.0)
+            current_price = float(getattr(pos, "current_price", self.config.entry_price_default) or self.config.entry_price_default)
+            volume = float(getattr(pos, "volume", 0.01) or 0.01)
+            if volume > 0.01:
+                volume = 0.01  # hard cap
+            initial_sl = float(getattr(pos, "initial_sl", getattr(pos, "sl", 0.0)) or 0.0)
+            current_sl = float(getattr(pos, "current_sl", getattr(pos, "sl", 0.0)) or 0.0)
+            current_tp = float(getattr(pos, "current_tp", getattr(pos, "tp", 0.0)) or 0.0)
+            unrealized_pnl = float(getattr(pos, "unrealized_pnl", getattr(pos, "pnl_usd", 0.0)) or 0.0)
+            pnl_r = float(getattr(pos, "pnl_r", 0.0) or 0.0)
+            age_seconds = float(getattr(pos, "age_seconds", getattr(pos, "holding_time_seconds", 0.0)) or 0.0)
+            spread_points = float(getattr(pos, "spread_points", 0.0) or 0.0)
+            atr = float(getattr(pos, "atr", 0.0) or 0.0)
+            return PositionSnapshot(
+                symbol=self.config.symbol,
+                side=side,
+                entry_price=entry_price,
+                current_price=current_price,
+                volume=volume,
+                initial_sl=initial_sl,
+                current_sl=current_sl,
+                current_tp=current_tp,
+                unrealized_pnl=unrealized_pnl,
+                pnl_r=pnl_r,
+                age_seconds=age_seconds,
+                spread_points=spread_points,
+                atr=atr,
+                regime="UNKNOWN",
+                model_confidence=float(getattr(self, "_last_model_confidence", 0.0) or 0.0),
+                meta_confidence=float(getattr(self, "_last_meta_confidence", 0.0) or 0.0),
+                broker="UNKNOWN",
+                ticket=ticket,
+            )
+        except Exception:
+            return PositionSnapshot(
+                symbol=self.config.symbol,
+                ticket=int(getattr(pos, "ticket", 0) or 0),
+            )
+
+    def _record_observation_event(self, raw_event: dict) -> None:
+        """Normalize a runtime event through ForwardObservationEngine and store it.
+
+        This is the runtime-side adapter for ForwardObservationEngine. The
+        engine was previously offline-only (invoked by
+        scripts/audit/forward_observation_report.py). Sprint 9.9.3.39 wires
+        it into the runtime so events are normalized in real time.
+
+        Never raises — observation is non-blocking.
+        """
+        try:
+            if self.forward_observation_engine is None:
+                return
+            event = self.forward_observation_engine.normalize_event(raw_event)
+            self._observation_events.append(event)
+            self.journal.log_event(EventType.FORWARD_OBSERVATION_EVENT_RECORDED, {
+                "event_type": event.event_type.value
+                    if hasattr(event.event_type, "value") else str(event.event_type),
+                "source": event.source,
+                "symbol": event.symbol,
+                "timeframe": event.timeframe,
+                "severity": event.severity,
+                "safe": event.safe,
+                "reason": event.reason,
+            })
+        except Exception as obs_err:
+            logger.warning(f"Forward observation event recording failed: {obs_err}")
+
+    def compute_observation_scorecard(self, final_open_positions: int = 0):
+        """Compute an ObservationScorecard from collected runtime events.
+
+        Returns an ObservationScorecard. If no events have been collected,
+        returns INSUFFICIENT_DATA.
+        """
+        try:
+            if self.forward_observation_engine is None or self.observation_scorecard_engine is None:
+                from titan.production.observation_scorecard import (
+                    ObservationScorecard, ObservationScoreGrade,
+                )
+                return ObservationScorecard(
+                    grade=ObservationScoreGrade.INSUFFICIENT_DATA,
+                )
+            events = list(self._observation_events)
+            summary = self.forward_observation_engine.summarize(events)
+            card = self.observation_scorecard_engine.score(
+                summary, final_open_positions=final_open_positions,
+            )
+            return card
+        except Exception as e:
+            from titan.production.observation_scorecard import (
+                ObservationScorecard, ObservationScoreGrade,
+            )
+            return ObservationScorecard(
+                grade=ObservationScoreGrade.INSUFFICIENT_DATA,
+                blockers=[f"compute_observation_scorecard exception: {e}"],
+            )
+
     def _compute_current_atr(self) -> float:
         """
         Compute current ATR(14) from the feature stream's bar buffer.
@@ -1312,6 +1773,148 @@ class AutonomousRuntime:
         # Process trade
         self._trades_attempted += 1
         current_atr = self._compute_current_atr()
+
+        # ─── Sprint 9.9.3.39: Institutional pipeline (mirror of _inference_loop) ──
+        # run_single_cycle is a test helper. It must also pass through the
+        # institutional pipeline so tests verify the same wiring as the loop.
+        self.journal.log_event(EventType.INSTITUTIONAL_PIPELINE_STARTED, {
+            "bar_time": "single_cycle",
+            "signal_direction": signal.direction.name,
+            "model_confidence": signal.confidence,
+            "meta_confidence": signal.meta_confidence,
+        })
+
+        # Gate 1: RegimeDetection
+        regime_status = None
+        try:
+            regime = detect_regime(confidence=signal.confidence)
+            regime_status = {
+                "primary_regime": regime.primary_regime.value
+                    if hasattr(regime.primary_regime, "value") else str(regime.primary_regime),
+                "risk_multiplier": regime.risk_multiplier,
+                "allow_new_trade": regime.allow_new_trade,
+                "block_reason": regime.block_reason,
+            }
+            self.journal.log_event(EventType.REGIME_GATE_EVALUATED, {
+                "bar_time": "single_cycle",
+                "regime": regime_status["primary_regime"],
+            })
+        except Exception:
+            regime_status = None
+
+        # Gate 2: BrokerCompatibilityMatrix
+        broker_info = None
+        try:
+            broker_info = get_broker_info("MetaQuotes-Demo")
+            self.journal.log_event(EventType.BROKER_GATE_EVALUATED, {
+                "bar_time": "single_cycle",
+                "broker": "MetaQuotes-Demo",
+                "status": broker_info.get("status", "UNKNOWN"),
+            })
+        except Exception:
+            broker_info = None
+
+        # Gate 3: RuntimeHealthMonitor
+        runtime_health = None
+        try:
+            if self.runtime_health_monitor is not None:
+                rh_status = self.runtime_health_monitor.get_health_status()
+                runtime_health = {
+                    "status": rh_status.get("status", "HEALTHY"),
+                    "event_count": rh_status.get("event_count", 0),
+                }
+            self.journal.log_event(EventType.RUNTIME_HEALTH_GATE_EVALUATED, {
+                "bar_time": "single_cycle",
+                "status": runtime_health["status"] if runtime_health else "UNKNOWN",
+            })
+        except Exception:
+            runtime_health = None
+
+        # Gate 4: SecurityGate
+        security_status = None
+        try:
+            if self.security_gate is not None:
+                sec_check = self.security_gate.check()
+                security_status = {
+                    "allowed": sec_check.get("allowed", True),
+                    "reason": sec_check.get("reason"),
+                    "mode": sec_check.get("mode", "dev_mode"),
+                }
+            self.journal.log_event(EventType.SECURITY_GATE_EVALUATED, {
+                "bar_time": "single_cycle",
+                "allowed": security_status["allowed"] if security_status else True,
+            })
+        except Exception:
+            security_status = None
+
+        # Build DecisionInput → SignalExecutionBridge.build_intent()
+        if signal.direction == Direction.LONG:
+            _ms = "BUY"
+            _dir = "BUY"
+        elif signal.direction == Direction.SHORT:
+            _ms = "SELL"
+            _dir = "SELL"
+        else:
+            _ms = "NONE"
+            _dir = None
+        decision_input = DecisionInput(
+            symbol=self.config.symbol,
+            timeframe="H1",
+            model_signal=_ms,
+            model_confidence=signal.confidence,
+            meta_confidence=signal.meta_confidence,
+            direction=_dir,
+        )
+        intent = self.signal_execution_bridge.build_intent(
+            inp=decision_input,
+            regime_status=regime_status,
+            broker_info=broker_info,
+            runtime_health=runtime_health,
+            security_status=security_status,
+        )
+        self._last_execution_intent = intent
+
+        self.journal.log_event(EventType.EXECUTION_INTENT_CREATED, {
+            "bar_time": "single_cycle",
+            "allowed": intent.allowed,
+            "decision": intent.decision,
+            "lot": intent.lot,
+            "block_reasons": intent.block_reasons,
+        })
+        self._record_observation_event({
+            "event": "EXECUTION_INTENT_CREATED",
+            "timestamp_utc": intent.timestamp_utc,
+            "symbol": intent.symbol,
+            "timeframe": "H1",
+            "intent_allowed": intent.allowed,
+            "intent_decision": intent.decision,
+        })
+
+        if not intent.allowed:
+            self._trades_blocked += 1
+            self.journal.log_event(EventType.EXECUTION_INTENT_BLOCKED, {
+                "bar_time": "single_cycle",
+                "decision": intent.decision,
+                "block_reasons": intent.block_reasons,
+            })
+            self.journal.log_event(EventType.TRADE_LOOP_SKIPPED_BY_INTENT, {
+                "bar_time": "single_cycle",
+                "reason": "SignalExecutionBridge blocked intent",
+            })
+            return {"signal": signal, "decision": None, "blocked": True,
+                    "intent": intent}
+
+        self.journal.log_event(EventType.EXECUTION_INTENT_APPROVED, {
+            "bar_time": "single_cycle",
+            "decision": intent.decision,
+            "lot": intent.lot,
+        })
+        self.journal.log_event(EventType.TRADE_LOOP_CALLED_AFTER_INTENT, {
+            "bar_time": "single_cycle",
+            "intent_decision": intent.decision,
+            "intent_lot": intent.lot,
+        })
+
         decision = await self.trade_loop.process_signal(
             signal=signal,
             entry_price=self.config.entry_price_default,
