@@ -39,4 +39,5 @@ data/audit/production_assembly/
 data/audit/operator/
 data/audit/model_lifecycle/
 data/audit/master_integration/
+data/audit/pre_observation/
 dist/

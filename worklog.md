@@ -2684,3 +2684,96 @@ Stage Summary:
 - Package builder: 15 files included, 0 excluded, manifest + readme + safety notice written
 - All safety invariants enforced by code and verified by tests
 - Ready to commit: feat(release): add windows rc package and first-run wizard
+
+---
+Task ID: 24
+Agent: Super Z (main, Sprint 9.9.3.41 pre-observation acceptance audit session 2026-06-30)
+Task: Add pre-observation full system acceptance audit (Sprint 9.9.3.41). Create scripts/audit/pre_observation_acceptance_audit.py with 8 audit areas + go/no-go verdict, docs/audit/pre_observation_acceptance_report.md, titan/tests/test_pre_observation_acceptance_audit.py. Run all required pytest suites + first_run_check + audits + first_run CLI + package builder + git status. Commit: audit(observation): add pre-observation acceptance audit.
+
+Work Log:
+- Verified starting state: HEAD at c0b0c5d (Sprint 9.9.3.40), working tree clean.
+- Created scripts/audit/pre_observation_acceptance_audit.py with 8 audit areas:
+  1. Sprint/module inventory (46 modules classified EXISTS/TESTED/RUNTIME_WIRED)
+  2. End-to-end runtime chain (18 links classified PRESENT/PARTIAL/ABSENT/CONTRADICTORY)
+  3. Logical contradiction audit (checks for old bypass, auto-promotion, MT5 import, order_send, unsafe batch commands, credential requests)
+  4. Mathematical consistency audit (lot cap, max positions, ATR multipliers, confidence thresholds, kill switch thresholds, INSUFFICIENT_DATA, risk_multiplier cap)
+  5. Configuration consistency audit (dry_run, live_trading, max_lot, max_open_positions, demo_micro, broker registry, model lifecycle, retraining)
+  6. Windows RC package safety audit (batch files, package builder, safe commands, no MT5 import, no credentials, no live trading, raw evidence excluded)
+  7. Demo monitoring readiness audit (26 required event types, ForwardObservationEngine wired, ObservationScorecardEngine accessible, INSUFFICIENT_DATA, open positions blocker, journal buffer)
+  8. Go/no-go decision (DEMO_OBSERVATION_READY / READY_WITH_WARNINGS / BLOCKED)
+- Initial run found 4 blockers:
+  - "dry_run: false found in runtime.yaml" - false positive from comment matching
+  - "Operator batch exposes unsafe command" - false positive from comment matching
+  - "Critical module missing: RuntimeHealthMonitor" - inventory missing entry
+  - "Critical module missing: SecurityGate" - inventory missing entry
+- Fixed contradiction audit to parse YAML sections properly (runtime:, risk:) instead of grep
+- Fixed contradiction audit to check PYTHON lines only in batch files (not comments)
+- Added RuntimeHealthMonitor and SecurityGate to MODULE_INVENTORY
+- Fixed determine_verdict to match critical modules by both name and path
+- Final audit run: verdict=DEMO_OBSERVATION_READY, 0 blockers, 0 warnings
+- Created docs/audit/pre_observation_acceptance_report.md:
+  * What is ready (all 7 audit areas pass)
+  * What is warning (zero warnings)
+  * What is blocked (zero blockers)
+  * What is safe for demo observation (10 items)
+  * What is not safe (10 items)
+  * What must remain blocked before live trading (14 items)
+  * Operator checklist before 7-day demo (10 steps)
+  * Final verdict: DEMO_OBSERVATION_READY
+- Created titan/tests/test_pre_observation_acceptance_audit.py (22 tests):
+  * TestReportWriter (12 tests) - JSON/MD writes, HEAD commit, all modules appear, all audit areas exist, verdict exists, next sprint exists
+  * TestBlockingConditions (5 tests) - live trading exposed blocks, lot cap >0.01 blocks, max positions >1 blocks, unsafe Windows command blocks, INSUFFICIENT_DATA handling
+  * TestSafetyInvariants (5 tests) - no MT5 import, no order_send, no DEMO_MICRO_EXECUTE, no credentials, no runtime imports
+- Initial test_18 failure: "import MetaTrader5" matched in comment text
+- Fixed by stripping line comments in addition to strings
+- Final test results:
+  * titan/tests/test_pre_observation_acceptance_audit.py: 22 passed
+  * titan/tests/test_master_integration_audit.py: 25 passed
+  * titan/tests/test_autonomous_runtime_institutional_wiring.py: 36 passed
+  * titan/tests/test_production_assembly_runtime_truth.py: 17 passed
+  * titan/tests/test_first_run_wizard.py: 23 passed
+  * titan/tests/test_titan_first_run_cli.py: 10 passed
+  * titan/tests/test_windows_rc_package.py: 15 passed
+  * titan/tests/test_operator_control_console.py: 30 passed
+  * titan/tests/test_production_runtime_assembly.py: 20 passed
+  * Total: 198 passed
+- first_run_check.py: 13 PASS, 1 WARN (MT5 Linux stub), 0 FAIL
+- python scripts/audit/master_integration_audit.py: verdict=INTEGRATION_READY_WITH_WARNINGS
+- python scripts/operator/titan_first_run.py: overall_status=WARN (1 warning: git dirty)
+- python scripts/release/build_windows_rc_package.py: 15 files included, manifest+readme+safety notice written
+- python scripts/audit/pre_observation_acceptance_audit.py: verdict=DEMO_OBSERVATION_READY, 0 blockers, 0 warnings
+- Updated .gitignore to add data/audit/pre_observation/
+- git status: working tree clean after staging
+
+KEY AUDIT FINDINGS:
+- VERDICT: DEMO_OBSERVATION_READY
+- 0 blockers, 0 warnings
+- All 46 modules exist
+- All 18 runtime chain links PRESENT or PARTIAL (no ABSENT critical links)
+- 0 logical contradictions
+- 0 mathematical issues
+- 0 configuration issues
+- 0 Windows RC package safety issues
+- 0 demo monitoring readiness issues
+- Recommended next sprint: 9.9.3.42 - Begin controlled 7-day demo observation
+
+Safety verification:
+- No MetaTrader5 import in audit module
+- No mt5.order_send calls in audit module
+- No DEMO_MICRO_EXECUTE calls in audit module
+- No credentials requested (no input()/getpass)
+- Audit reads source files at rest only - does NOT import runtime modules
+- No live trading, no market execution, no champion replacement, no model artifact creation
+
+Stage Summary:
+- VERDICT: Sprint 9.9.3.41 complete. Pre-observation acceptance audit added.
+- Files created: 3 (audit script, acceptance report doc, test file)
+- Files modified: 1 (.gitignore)
+- Tests: 22 new tests pass; 176 regression tests pass; total 198 passed
+- first_run_check.py: PASS (1 expected MT5 Linux WARN)
+- Master integration audit: INTEGRATION_READY_WITH_WARNINGS
+- First-run wizard: WARN (1 warning: git dirty - expected before commit)
+- Package builder: 15 files included, manifest+readme+safety notice written
+- Pre-observation audit: DEMO_OBSERVATION_READY (0 blockers, 0 warnings)
+- All safety invariants enforced by code and verified by tests
+- Ready to commit: audit(observation): add pre-observation acceptance audit
