@@ -43,4 +43,8 @@ data/audit/pre_observation/
 data/audit/cto_repo_consistency/
 data/audit/observation_7day/
 data/audit/accelerated_observation/
+data/audit/dependency_compatibility/
+data/audit/model_artifacts/
+data/audit/runtime_self_healing/
+data/audit/demo_micro_readiness/
 dist/
