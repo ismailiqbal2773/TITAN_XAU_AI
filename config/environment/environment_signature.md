@@ -1,25 +1,25 @@
 # TITAN XAU AI - Environment Signature
 
-**Generated:** 2026-06-30T11:31:06.639116+00:00
+**Generated:** 2026-06-30T11:43:07.499865+00:00
 
-**Git Commit:** `69db23e`
+**Git Commit:** `9b16941`
 
-**Python:** 3.12.13
+**Python:** 3.13.5
 
-**Platform:** Linux-5.10.134-013.8.3.kangaroo.al8.x86_64-x86_64-with-glibc2.41
+**Platform:** Windows-11-10.0.26200-SP0
 
-**Architecture:** x86_64
+**Architecture:** AMD64
 
 ## Critical Packages
 
 | Package | Version |
 |---|---|
-| xgboost | 2.1.3 |
-| sklearn | 1.5.2 |
-| pandas | 2.2.3 |
-| numpy | 2.1.3 |
+| xgboost | 2.1.4 |
+| sklearn | 1.9.0 |
+| pandas | 2.3.3 |
+| numpy | 2.5.0 |
 | yaml | 6.0.3 |
-| MetaTrader5 | NOT INSTALLED |
+| MetaTrader5 | 5.0.5735 |
 | joblib | 1.5.3 |
 
 ## Model Files
