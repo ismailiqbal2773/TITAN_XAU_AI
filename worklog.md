@@ -2569,3 +2569,118 @@ Stage Summary:
 - All 13 runtime wiring checks PASS
 - RC_READY is now truthful
 - Ready to commit: feat(runtime): wire institutional pipeline into autonomous runtime
+
+---
+Task ID: 23
+Agent: Super Z (main, Sprint 9.9.3.40 windows rc package and first-run wizard session 2026-06-30)
+Task: Add Windows RC package and first-run wizard (Sprint 9.9.3.40). Create titan/production/first_run_wizard.py, scripts/operator/titan_first_run.py, run_titan_first_run.bat, update run_titan_operator.bat, scripts/release/build_windows_rc_package.py, docs/release/windows_rc_package_guide.md, and 3 test files. No live trading, no market execution, no MT5 import, no order_send, no DEMO_MICRO_EXECUTE. Run all required pytest suites + first_run_check + first_run CLI + package builder + git status. Commit: feat(release): add windows rc package and first-run wizard.
+
+Work Log:
+- Verified starting state: HEAD at 36cb210 (Sprint 9.9.3.39), working tree clean.
+- Created titan/production/first_run_wizard.py:
+  * FirstRunCheckStatus enum: PASS, WARN, FAIL, SKIP
+  * FirstRunWizardResult dataclass: check_name, status, message, details, next_step
+  * FirstRunWizardSummary dataclass: overall_status, passed, warnings, failed, skipped, results, blockers, next_steps, timestamp_utc
+  * FirstRunWizard class with 12 checks:
+    - check_python_version() - verify Python 3.10+
+    - check_virtualenv() - check venv active/available (WARN if not)
+    - check_required_files() - verify operator console, CLI, batch, config files
+    - check_operator_console() - verify no DEMO_MICRO_EXECUTE/order_send exposure
+    - check_production_runtime_assembly() - verify RC_READY or RC_READY_WITH_WARNINGS
+    - check_master_integration_audit() - verify not INTEGRATION_BLOCKED
+    - check_release_docs() - verify release docs (WARN if missing)
+    - check_git_clean_hint() - hint about git dirty (WARN)
+    - check_raw_evidence_ignored() - verify .gitignore excludes raw evidence
+    - check_live_trading_blocked() - verify live_trading: false in runtime.yaml
+    - check_market_execution_absent() - verify no market execution in batch files
+    - check_no_order_send_exposed() - verify no order_send in safe modules
+  * run_all() aggregates 12 checks into summary
+  * Overall status: FAIL if any FAIL, WARN if any WARN, else PASS
+  * Never imports MetaTrader5, never sends orders, never asks for credentials
+- Created scripts/operator/titan_first_run.py CLI:
+  * python scripts/operator/titan_first_run.py (human-readable)
+  * python scripts/operator/titan_first_run.py --json (JSON output)
+  * Writes data/audit/operator/first_run_wizard_report.{json,md}
+  * Safety invariants in report: metatrader5_imported=False, orders_sent=0, demo_micro_execute_run=False, live_trading_enabled=False, credentials_requested=False
+- Created run_titan_first_run.bat Windows helper:
+  * Activates venv/.venv/env if available
+  * Shows safety banner (BLOCKED/NOT AVAILABLE/NOT IMPORTED/NOT REQUESTED)
+  * Runs titan_first_run.py
+  * Pause at end
+  * No live trading, no market execution, no DEMO_MICRO_EXECUTE, no credentials requested
+- Updated run_titan_operator.bat to expose 9 safe commands:
+  * 1 STATUS, 2 RC CHECK, 3 SAFETY CHECK, 4 BROKER STATUS, 5 OBSERVATION REPORT, 6 DAILY SCORECARD, 7 FULL AUDIT, 8 HELP, 0 EXIT
+  * No LIVE TRADING, no DEMO_MICRO_EXECUTE, no RAW MT5 PROBE, no REPEATABILITY, no ORDER SEND, no MODEL RETRAINING, no HPO
+- Created scripts/release/build_windows_rc_package.py:
+  * Builds dist/TITAN_XAU_AI_RC/ folder (not installer)
+  * Includes 16 files: batch helpers, CLI scripts, docs, requirements.txt, first_run_check.py
+  * Excludes raw evidence: demo_micro_journal.jsonl, raw_mt5_working_profile.json, broker_execution_profile.json, pass_evidence/, .env, credentials
+  * Writes RELEASE_MANIFEST.json with safety invariants
+  * Writes README_FIRST_RUN.md with quick-start instructions
+  * Writes SAFETY_NOTICE.md with 14 hard safety invariants
+  * Never imports MetaTrader5, never sends orders
+- Created docs/release/windows_rc_package_guide.md:
+  * How to run first-run wizard, operator console, safe RC checks
+  * What is included (18 files), what is intentionally excluded (10 categories)
+  * 14 safety rules, 8 privacy rules
+  * No live trading, no market execution from package, no raw evidence
+  * Observation starts only after RC package acceptance
+  * Live trading remains blocked
+- Created titan/tests/test_first_run_wizard.py (23 tests):
+  * TestWizardBasics (3 tests) - enum, result, summary dataclass
+  * TestRunAll (11 tests) - run_all, pass/warn when safe, each individual check passes
+  * TestSafetyInvariants (4 tests) - no MT5 import, no order_send, no DEMO_MICRO_EXECUTE, no credentials
+  * TestBatchFileSafety (5 tests) - first-run batch no live trading/DEMO_MICRO_EXECUTE, operator batch has 9 safe commands
+- Created titan/tests/test_titan_first_run_cli.py (10 tests):
+  * TestCliExecution (4 tests) - CLI runs, JSON output valid, results have required fields, overall status valid
+  * TestReportArtifacts (2 tests) - JSON/MD report writes with safety invariants
+  * TestSafetyInvariants (4 tests) - no MT5 import, no order_send, no DEMO_MICRO_EXECUTE, no credentials
+- Created titan/tests/test_windows_rc_package.py (15 tests):
+  * TestPackageBuilder (4 tests) - package creates dist, manifest writes, readme writes, safety notice writes
+  * TestExclusions (3 tests) - raw evidence not copied, .env not copied, API keys not copied
+  * TestPackageContents (4 tests) - operator batch, first-run batch, CLI scripts, docs included
+  * TestSafetyInvariants (4 tests) - no MT5 import, no order_send, no MT5ExecutionAdapter, no DEMO_MICRO_EXECUTE
+- Updated .gitignore to add dist/ (generated package artifact)
+- Initial test_17 failure: regex matched "DEMO_MICRO_EXECUTE" in raw string regex patterns within wizard source
+- Fixed by improving strip helper to handle raw strings (r"...", r'...') and using negative lookbehind in call pattern
+- Test results:
+  * titan/tests/test_first_run_wizard.py: 23 passed
+  * titan/tests/test_titan_first_run_cli.py: 10 passed
+  * titan/tests/test_windows_rc_package.py: 15 passed
+  * titan/tests/test_operator_control_console.py: 30 passed
+  * titan/tests/test_production_runtime_assembly.py: 20 passed
+  * titan/tests/test_master_integration_audit.py: 25 passed
+  * Total: 123 passed
+- first_run_check.py: 13 PASS, 1 WARN (MT5 Linux stub), 0 FAIL
+- python scripts/operator/titan_first_run.py: overall_status=WARN (1 warning: git_clean_hint - uncommitted changes), 11 passed, 0 failed
+- python scripts/operator/titan_first_run.py --json: valid JSON output
+- python scripts/release/build_windows_rc_package.py: package built with 15 included files, 1 missing (README.md - expected), 0 excluded
+- git status: working tree clean after staging
+
+Safety verification:
+- No MetaTrader5 import in any new module
+- No mt5.order_send calls in any new module
+- No MT5ExecutionAdapter() instantiation
+- No DEMO_MICRO_EXECUTE calls in any new module
+- No raw_mt5_probe calls in any new module
+- No demo_micro_repeatability calls in any new module
+- No .fit() / train_model() / retrain() / run_hpo() calls
+- No pickle/joblib/torch operations
+- No input() / getpass calls (no credentials requested)
+- No live trading flag modification
+- No lot size changes
+- No strategy entry logic changes
+- Package excludes raw evidence, .env, credentials, API keys
+- Operator batch exposes only 9 safe commands
+- First-run batch exposes no trading commands
+
+Stage Summary:
+- VERDICT: Sprint 9.9.3.40 complete. Windows RC package and first-run wizard added.
+- Files created: 8 (first_run_wizard.py, titan_first_run.py, run_titan_first_run.bat, build_windows_rc_package.py, windows_rc_package_guide.md, 3 test files)
+- Files modified: 2 (run_titan_operator.bat, .gitignore)
+- Tests: 48 new tests pass; 75 regression tests pass; total 123 passed
+- first_run_check.py: PASS (1 expected MT5 Linux WARN)
+- First-run wizard CLI: overall_status=WARN (1 warning: git dirty - expected before commit)
+- Package builder: 15 files included, 0 excluded, manifest + readme + safety notice written
+- All safety invariants enforced by code and verified by tests
+- Ready to commit: feat(release): add windows rc package and first-run wizard
