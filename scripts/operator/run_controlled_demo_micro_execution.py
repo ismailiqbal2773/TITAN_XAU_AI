@@ -110,15 +110,173 @@ def run_execute_once(args) -> dict:
             "next_action": "Provide valid SL/TP or ATR for executable order. dry_run_preview_mode is not accepted for execute-once.",
         }
 
-    # Z AI must not execute
-    return {
-        "mode": "execute_once",
-        "verdict": "DEMO_MICRO_EXECUTION_REFUSED",
-        "reason": "Z AI must NOT execute orders. This mode is for local operator use only.",
-        "blockers": ["Z AI execution prohibition - --execute-once must be run locally by operator only"],
-        "next_action": "Run --execute-once locally on the operator's Windows machine, NOT from Z AI",
-        "important_note": "No order was sent. No mt5.order_send was called.",
-    }
+    # Sprint 9.9.3.44.4: Require --confirm-local-operator
+    if not getattr(args, "confirm_local_operator", False):
+        return {
+            "mode": "execute_once",
+            "verdict": "DEMO_MICRO_EXECUTION_REFUSED",
+            "reason": "Missing --confirm-local-operator flag",
+            "blockers": ["Missing --confirm-local-operator - execution refused"],
+            "next_action": "Add --confirm-local-operator to confirm local operator execution",
+            "important_note": "No order was sent. No mt5.order_send was called.",
+        }
+
+    # Sprint 9.9.3.44.4: Require valid local operator token
+    from scripts.operator.create_local_operator_execution_token import load_and_validate_token, consume_token
+    token_result = load_and_validate_token()
+    if not token_result["valid"]:
+        return {
+            "mode": "execute_once",
+            "verdict": "DEMO_MICRO_EXECUTION_REFUSED",
+            "reason": f"Local operator token invalid: {token_result['reason']}",
+            "blockers": [f"Token invalid: {token_result['reason']}"],
+            "next_action": "Create a valid token: python scripts/operator/create_local_operator_execution_token.py",
+            "important_note": "No order was sent. No mt5.order_send was called.",
+        }
+
+    # Sprint 9.9.3.44.4: All gates pass - attempt gated order_send
+    # This path is only reached when all safety checks pass AND the operator
+    # has a valid local token AND all confirmation flags are provided.
+    # In Z AI / non-Windows environment, the environment drift gate above
+    # will have already blocked execution.
+    consume_token()  # Consume token regardless of order_send result
+
+    order_result = _attempt_gated_order_send(build_result, args)
+    return order_result
+
+
+def _attempt_gated_order_send(build_result: dict, args) -> dict:
+    """Attempt a single gated order_send. Never retries.
+
+    This function is only called after ALL safety gates pass.
+    In Z AI environment, the environment drift gate blocks before this point.
+    """
+    try:
+        import MetaTrader5 as mt5
+    except ImportError:
+        return {
+            "mode": "execute_once",
+            "verdict": "DEMO_MICRO_EXECUTION_REFUSED",
+            "reason": "MetaTrader5 not available - cannot execute order",
+            "blockers": ["MetaTrader5 not installed on this machine"],
+            "next_action": "Run on Windows machine with MetaTrader5 installed",
+            "important_note": "No order was sent. No mt5.order_send was called.",
+            "order_send_called": False,
+        }
+
+    try:
+        if not mt5.initialize():
+            return {
+                "mode": "execute_once",
+                "verdict": "DEMO_MICRO_EXECUTION_REFUSED",
+                "reason": "MT5 initialize failed",
+                "blockers": ["MT5 initialize failed"],
+                "next_action": "Verify MT5 terminal is running and connected",
+                "important_note": "No order was sent. No mt5.order_send was called.",
+                "order_send_called": False,
+            }
+
+        # Verify account DEMO
+        acc = mt5.account_info()
+        if acc is not None:
+            trade_mode = getattr(acc, "trade_mode", -1)
+            if trade_mode != 0:  # 0 = DEMO
+                mt5.shutdown()
+                return {
+                    "mode": "execute_once",
+                    "verdict": "DEMO_MICRO_EXECUTION_REFUSED",
+                    "reason": "Account is not DEMO mode",
+                    "blockers": ["Account trade_mode is not DEMO"],
+                    "important_note": "No order was sent.",
+                    "order_send_called": False,
+                }
+
+        # Verify open positions = 0
+        positions = mt5.positions_get(symbol="XAUUSD")
+        if positions is not None and len(positions) > 0:
+            mt5.shutdown()
+            return {
+                "mode": "execute_once",
+                "verdict": "DEMO_MICRO_EXECUTION_REFUSED",
+                "reason": f"Open positions found: {len(positions)} (must be 0)",
+                "blockers": [f"Open positions: {len(positions)} - must be 0 before entry"],
+                "important_note": "No order was sent.",
+                "order_send_called": False,
+            }
+
+        # Build order request
+        preview = build_result["preview"]
+        direction = preview["order_type"]
+        volume = preview["volume"]
+        sl = preview["sl"]
+        tp = preview["tp"]
+
+        request = {
+            "action": mt5.TRADE_ACTION_DEAL,
+            "symbol": "XAUUSD",
+            "volume": float(volume),
+            "type": mt5.ORDER_TYPE_BUY if direction == "BUY" else mt5.ORDER_TYPE_SELL,
+            "price": mt5.symbol_info_tick("XAUUSD").ask if direction == "BUY" else mt5.symbol_info_tick("XAUUSD").bid,
+            "sl": float(sl),
+            "tp": float(tp),
+            "magic": 202619,
+            "comment": "TITAN_DEMO_MICRO",
+            "deviation": 20,
+            "type_time": mt5.ORDER_TIME_GTC,
+            "type_filling": mt5.ORDER_FILLING_IOC,
+        }
+
+        # Call order_send exactly once - never retry
+        result = mt5.order_send(request)
+        mt5.shutdown()
+
+        if result is None:
+            return {
+                "mode": "execute_once",
+                "verdict": "DEMO_MICRO_ORDER_SEND_FAILED",
+                "reason": "order_send returned None",
+                "blockers": ["order_send returned None - no retry attempted"],
+                "important_note": "order_send was called once and failed. No retry.",
+                "order_send_called": True,
+                "order_send_retcode": None,
+            }
+
+        retcode = getattr(result, "retcode", 0)
+        if retcode == 10009:  # TRADE_RETCODE_DONE
+            return {
+                "mode": "execute_once",
+                "verdict": "DEMO_MICRO_ORDER_SEND_SUCCEEDED",
+                "reason": f"order_send succeeded: retcode={retcode}",
+                "order_send_called": True,
+                "order_send_retcode": retcode,
+                "order_details": {"volume": volume, "sl": sl, "tp": tp, "direction": direction},
+                "next_action": "Run post-trade verification: python scripts/operator/verify_demo_micro_position.py",
+                "important_note": "Order was sent once and succeeded. No second order will be sent.",
+            }
+        else:
+            return {
+                "mode": "execute_once",
+                "verdict": "DEMO_MICRO_ORDER_SEND_FAILED",
+                "reason": f"order_send failed: retcode={retcode}",
+                "blockers": [f"order_send retcode={retcode} - no retry attempted"],
+                "order_send_called": True,
+                "order_send_retcode": retcode,
+                "important_note": "order_send was called once and failed. No retry.",
+            }
+
+    except Exception as e:
+        try:
+            mt5.shutdown()
+        except Exception:
+            pass
+        return {
+            "mode": "execute_once",
+            "verdict": "DEMO_MICRO_EXECUTION_REFUSED",
+            "reason": f"Execution error: {e}",
+            "blockers": [f"Execution error: {e}"],
+            "important_note": "No order was sent. Error occurred before order_send.",
+            "order_send_called": False,
+        }
 
 
 def write_report(result: dict, filename: str) -> dict:
@@ -175,6 +333,7 @@ def main() -> int:
     parser.add_argument("--confirm-not-live", action="store_true", default=False)
     parser.add_argument("--confirm-environment-locked", action="store_true", default=False)
     parser.add_argument("--confirm-model-parity-pass", action="store_true", default=False)
+    parser.add_argument("--confirm-local-operator", action="store_true", default=False)
     args = parser.parse_args()
 
     print("=" * 70)

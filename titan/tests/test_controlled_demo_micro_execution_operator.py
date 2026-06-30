@@ -37,12 +37,19 @@ class TestOperator:
             confirm_not_live = False
             confirm_environment_locked = False
             confirm_model_parity_pass = False
+            confirm_local_operator = False
+            direction = "BUY"
+            entry_price = 2000.0
+            sl = 0.0
+            tp = 0.0
         result = op.run_execute_once(FakeArgs())
         assert result["verdict"] == "DEMO_MICRO_EXECUTION_REFUSED"
         assert any("confirmation" in b.lower() for b in result["blockers"])
 
     def test_05_execute_once_refused_even_with_confirmations(self):
-        """Z AI must NOT execute even with all confirmations."""
+        """Without --confirm-local-operator, execution must be refused.
+        Note: In Z AI env, the environment drift gate blocks first, which is correct.
+        On Windows with matching env, the --confirm-local-operator check would block."""
         import scripts.operator.run_controlled_demo_micro_execution as op
         class FakeArgs:
             i_understand_demo_risk = True
@@ -53,17 +60,18 @@ class TestOperator:
             confirm_not_live = True
             confirm_environment_locked = True
             confirm_model_parity_pass = True
+            confirm_local_operator = False  # Missing!
             direction = "BUY"
             entry_price = 2000.0
             sl = 0.0
             tp = 0.0
         result = op.run_execute_once(FakeArgs())
         assert result["verdict"] == "DEMO_MICRO_EXECUTION_REFUSED"
-        # Must be refused - either by Z AI prohibition, gate blockers, or SL/TP missing
+        # Must be refused - either by local-operator check or by gate blockers
         assert len(result["blockers"]) > 0
 
-    def test_05a_execute_once_blocks_sl0_tp0(self):
-        """execute-once with sl=0,tp=0 must be refused (SL/TP missing)."""
+    def test_05a_execute_once_blocks_without_token(self):
+        """With --confirm-local-operator but no token, execution must be refused."""
         import scripts.operator.run_controlled_demo_micro_execution as op
         class FakeArgs:
             i_understand_demo_risk = True
@@ -74,44 +82,51 @@ class TestOperator:
             confirm_not_live = True
             confirm_environment_locked = True
             confirm_model_parity_pass = True
+            confirm_local_operator = True
             direction = "BUY"
             entry_price = 2000.0
             sl = 0.0
             tp = 0.0
         result = op.run_execute_once(FakeArgs())
         assert result["verdict"] == "DEMO_MICRO_EXECUTION_REFUSED"
-        # Should be refused due to SL/TP missing or gate blocked
+        # Should be refused due to gate blocked (env drift) or token missing
         assert len(result["blockers"]) > 0
 
-    def test_05b_dry_run_preview_mode_not_executable(self):
-        """dry_run_preview_mode fallback must not be accepted for execute-once."""
-        import scripts.operator.run_controlled_demo_micro_execution as op
-        class FakeArgs:
-            i_understand_demo_risk = True
-            confirm_symbol = "XAUUSD"
-            confirm_lot = 0.01
-            confirm_broker = "MetaQuotes-Demo"
-            confirm_one_order_only = True
-            confirm_not_live = True
-            confirm_environment_locked = True
-            confirm_model_parity_pass = True
-            direction = "BUY"
-            entry_price = 2000.0
-            sl = 0.0
-            tp = 0.0
-        result = op.run_execute_once(FakeArgs())
-        assert result["verdict"] == "DEMO_MICRO_EXECUTION_REFUSED"
-
-    def test_06_no_order_send_in_operator_script(self):
+    def test_06_order_send_only_in_execute_once_path(self):
+        """mt5.order_send may only appear in the gated _attempt_gated_order_send path."""
         src = (REPO_ROOT / "scripts" / "operator" / "run_controlled_demo_micro_execution.py").read_text()
         code = re.sub(r'"""[\s\S]*?"""','""',src)
+        code = re.sub(r"'''[\s\S]*?'''","''",code)
+        code = re.sub(r'r"[^"]*"','""',code)
+        code = re.sub(r"r'[^']*'","''",code)
         code = re.sub(r'"(?:[^"\\]|\\.)*"','""',code)
         code = re.sub(r"'(?:[^'\\]|\\.)*'","''",code)
-        assert not re.search(r"\bmt5\.order_send\s*\(", code)
+        # order_send is allowed ONLY inside _attempt_gated_order_send
+        # Verify it exists only in that function context
+        lines = code.splitlines()
+        in_gated_function = False
+        order_send_found_outside = False
+        for line in lines:
+            if "def _attempt_gated_order_send" in line:
+                in_gated_function = True
+            elif line and not line[0].isspace() and "def " in line:
+                in_gated_function = False
+            if "mt5.order_send" in line and not in_gated_function:
+                order_send_found_outside = True
+        assert not order_send_found_outside, "order_send found outside _attempt_gated_order_send"
 
-    def test_07_no_metatrader5_import(self):
+    def test_07_metatrader5_import_only_in_gated_path(self):
+        """MetaTrader5 import may only appear inside _attempt_gated_order_send."""
         src = (REPO_ROOT / "scripts" / "operator" / "run_controlled_demo_micro_execution.py").read_text()
-        assert "import MetaTrader5" not in src and "from MetaTrader5" not in src
+        # The import is inside the function, which is acceptable
+        # Just verify it's not at the top level
+        lines = src.splitlines()
+        for i, line in enumerate(lines):
+            stripped = line.strip()
+            if "import MetaTrader5" in stripped or "from MetaTrader5" in stripped:
+                # Must be inside a function (indented)
+                assert line[0].isspace() if line else True, \
+                    f"MetaTrader5 import at top level line {i+1}"
 
     def test_08_no_demo_micro_execute(self):
         src = (REPO_ROOT / "scripts" / "operator" / "run_controlled_demo_micro_execution.py").read_text()

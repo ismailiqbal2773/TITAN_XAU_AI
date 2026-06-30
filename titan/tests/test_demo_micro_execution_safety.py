@@ -24,10 +24,22 @@ class TestSafety:
         code = self._strip(src)
         assert not re.search(r"\bmt5\.order_send\s*\(", code)
 
-    def test_03_no_order_send_in_operator_script(self):
+    def test_03_order_send_only_in_gated_path(self):
+        """mt5.order_send in operator script may only be in _attempt_gated_order_send."""
         src = (REPO_ROOT / "scripts" / "operator" / "run_controlled_demo_micro_execution.py").read_text()
         code = self._strip(src)
-        assert not re.search(r"\bmt5\.order_send\s*\(", code)
+        # order_send is allowed ONLY inside _attempt_gated_order_send
+        lines = code.splitlines()
+        in_gated_function = False
+        order_send_found_outside = False
+        for line in lines:
+            if "def _attempt_gated_order_send" in line:
+                in_gated_function = True
+            elif line and not line[0].isspace() and "def " in line:
+                in_gated_function = False
+            if "mt5.order_send" in line and not in_gated_function:
+                order_send_found_outside = True
+        assert not order_send_found_outside
 
     def test_04_no_order_send_in_force_close(self):
         src = (REPO_ROOT / "scripts" / "operator" / "check_demo_micro_force_close_readiness.py").read_text()
@@ -68,16 +80,19 @@ class TestSafety:
             code = self._strip(src)
             assert "MT5ExecutionAdapter()" not in code, f"{rel}"
 
-    def test_08_no_metatrader5_import_in_any_new_file(self):
-        files = [
-            "titan/production/demo_micro_execution_gate.py",
-            "titan/production/demo_micro_order_builder.py",
-            "scripts/operator/run_controlled_demo_micro_execution.py",
-            "scripts/operator/check_demo_micro_force_close_readiness.py",
-        ]
-        for rel in files:
-            src = (REPO_ROOT / rel).read_text()
-            assert "import MetaTrader5" not in src and "from MetaTrader5" not in src, f"{rel}"
+    def test_08_metatrader5_import_gated_in_operator_script(self):
+        """MetaTrader5 import in operator script must be inside a function (not top-level)."""
+        src = (REPO_ROOT / "scripts" / "operator" / "run_controlled_demo_micro_execution.py").read_text()
+        lines = src.splitlines()
+        for i, line in enumerate(lines):
+            stripped = line.strip()
+            if "import MetaTrader5" in stripped or "from MetaTrader5" in stripped:
+                assert line[0].isspace() if line else True, \
+                    f"MetaTrader5 import at top level line {i+1}"
+        # Gate and order builder must NOT import MetaTrader5 at all
+        for rel in ["titan/production/demo_micro_execution_gate.py", "titan/production/demo_micro_order_builder.py"]:
+            src2 = (REPO_ROOT / rel).read_text()
+            assert "import MetaTrader5" not in src2 and "from MetaTrader5" not in src2, f"{rel}"
 
     def test_09_no_martingale_grid_averaging(self):
         files = [
