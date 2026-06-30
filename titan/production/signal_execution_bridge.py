@@ -260,28 +260,27 @@ class SignalExecutionBridge:
         return intent
 
 
-# ─── Integration hook TODOs ──────────────────────────────────────────────────
-
-# TODO Sprint 9.9.4+: Wire into TradeLoop
-#   trade_loop.set_bridge(SignalExecutionBridge())
-
-# TODO Sprint 9.9.4+: Wire into InferenceEngine
-#   inference.add_post_processor(lambda result: bridge.build_intent(result))
-
-# TODO Sprint 9.9.4+: Wire into DynamicRiskEngine
-#   dynamic_risk.set_bridge_risk_multiplier(intent.risk_multiplier)
-
-# TODO Sprint 9.9.4+: Wire into RuntimeHealthMonitor
-#   health_monitor.add_pre_check(lambda: bridge.apply_runtime_health_gate())
-
-# TODO Sprint 9.9.4+: Wire into BrokerCompatibilityMatrix
-#   broker_matrix.register_callback(lambda info: bridge.apply_broker_gate(info))
-
-# TODO Sprint 9.9.4+: Wire into SecurityGate
-#   security_gate.set_enforce_callback(lambda: bridge.apply_security_gate())
-
-# TODO Sprint 9.9.4+: Wire into RegimeDetection
-#   regime.set_callback(lambda status: bridge.apply_regime_gate(status))
-
-# TODO Sprint 9.9.4+: Wire into MT5ExecutionAdapter
-#   adapter.set_intent_consumer(lambda intent: if intent.allowed: send_order(...))
+# ─── Integration status (Sprint 9.9.3.41.2 update) ──────────────────────────
+#
+# Sprint 9.9.3.39 wired SignalExecutionBridge into AutonomousRuntime.
+# The bridge is now called BEFORE TradeLoop.process_signal() in the
+# inference loop. Blocked intents skip TradeLoop entirely.
+#
+# The following modules are already wired into AutonomousRuntime via the
+# institutional pipeline:
+#   - TradeLoop: already wired (bridge intent gates TradeLoop call)
+#   - InferenceEngine: already wired (signal feeds DecisionInput)
+#   - DynamicRiskEngine: already wired (capital-protection context passed)
+#   - RuntimeHealthMonitor: already wired (health gate evaluated)
+#   - BrokerCompatibilityMatrix: already wired (broker gate evaluated)
+#   - SecurityGate: already wired (security gate evaluated)
+#   - RegimeDetection: already wired (regime gate evaluated)
+#
+# Future direct callback integration (e.g. trade_loop.set_bridge(),
+# inference.add_post_processor()) is OPTIONAL ONLY and must NOT duplicate
+# the runtime path. The runtime path is the single source of truth.
+#
+# MT5ExecutionAdapter is intentionally NOT wired into the bridge. The
+# bridge produces ExecutionIntent (a validated intent, NOT an order).
+# The adapter is only used for operator-run demo micro execution on
+# Windows, which is separate from the dry-run observation path.

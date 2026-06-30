@@ -934,6 +934,55 @@ def audit_broker_intelligence_verification() -> dict:
     }
 
 
+# ─── 7.5 Regime placeholder context audit (Sprint 9.9.3.41.2) ────────────
+
+def audit_regime_placeholder_context() -> dict:
+    """Audit whether AutonomousRuntime calls detect_regime with placeholder scores.
+
+    Sprint 9.9.3.41.2: RegimeDetection is wired into the runtime, but the
+    current inference loop passes static placeholder scores:
+      trend_score=0.0, volatility_score=0.0, range_score=0.0,
+      spread_score=0.0, liquidity_score=1.0
+
+    This is acceptable for current 7-day dry-run observation, but it must
+    NOT be claimed as "world-class/live/commercial multi-regime" capability.
+    """
+    issues = []
+    warnings = []
+    ok_checks = []
+
+    autonomous_code = _strip(AUTONOMOUS_SRC)
+
+    # Check if detect_regime is called with placeholder scores
+    # Look for the pattern: trend_score=0.0, volatility_score=0.0, etc.
+    placeholder_pattern = r"detect_regime\s*\([^)]*trend_score\s*=\s*0\.0[^)]*volatility_score\s*=\s*0\.0"
+    if re.search(placeholder_pattern, AUTONOMOUS_SRC, re.DOTALL):
+        warnings.append(
+            "REGIME_GATE_WIRED_BUT_PLACEHOLDER_CONTEXT: AutonomousRuntime calls "
+            "detect_regime with static placeholder scores (trend=0.0, volatility=0.0, "
+            "range=0.0, spread=0.0, liquidity=1.0). Regime gate is wired but operates "
+            "on placeholder context. This is acceptable for current 7-day dry-run "
+            "observation but must NOT be claimed as commercial multi-regime capability."
+        )
+    else:
+        ok_checks.append("Regime gate uses non-placeholder context scores")
+
+    # Check that detect_regime is actually called (wired)
+    if "detect_regime(" in autonomous_code:
+        ok_checks.append("RegimeDetection.detect_regime is called in AutonomousRuntime")
+    else:
+        issues.append("RegimeDetection.detect_regime NOT called in AutonomousRuntime")
+
+    return {
+        "ok_checks": ok_checks,
+        "warnings": warnings,
+        "issues": issues,
+        "ok_count": len(ok_checks),
+        "issue_count": len(issues),
+        "warning_count": len(warnings),
+    }
+
+
 # ─── 8. Go/no-go decision ────────────────────────────────────────────────
 
 def determine_verdict(
@@ -945,6 +994,7 @@ def determine_verdict(
     package: dict,
     monitoring: dict,
     broker_intelligence: dict = None,
+    regime_placeholder: dict = None,
 ) -> tuple[str, list[str], list[str]]:
     """Determine the go/no-go verdict. Returns (verdict, blockers, warnings)."""
     blockers = []
@@ -964,6 +1014,11 @@ def determine_verdict(
 
     # Critical blockers from monitoring
     blockers.extend(monitoring.get("issues", []))
+
+    # Sprint 9.9.3.41.2: regime placeholder warnings (WARN, not BLOCK)
+    if regime_placeholder:
+        warnings.extend(regime_placeholder.get("warnings", []))
+        blockers.extend(regime_placeholder.get("issues", []))
 
     # Sprint 9.9.3.41.1: Critical blockers from broker intelligence verification
     if broker_intelligence is not None:
@@ -1061,9 +1116,11 @@ def write_report() -> dict:
     package = audit_windows_rc_package_safety()
     monitoring = audit_demo_monitoring_readiness()
     broker_intelligence = audit_broker_intelligence_verification()
+    regime_placeholder = audit_regime_placeholder_context()
     verdict, blockers, warnings = determine_verdict(
         inventory, chain, contradictions, math, config, package, monitoring,
         broker_intelligence=broker_intelligence,
+        regime_placeholder=regime_placeholder,
     )
     next_sprint = recommend_next_sprint(verdict, blockers, warnings)
 
@@ -1079,6 +1136,7 @@ def write_report() -> dict:
         "windows_rc_package_safety_audit": package,
         "demo_monitoring_readiness_audit": monitoring,
         "broker_intelligence_verification_audit": broker_intelligence,
+        "regime_placeholder_context_audit": regime_placeholder,
         "blockers": blockers,
         "warnings": warnings,
         "recommended_next_sprint": next_sprint,

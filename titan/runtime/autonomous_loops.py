@@ -540,18 +540,50 @@ class AutonomousRuntime:
                     await asyncio.sleep(self.config.inference_interval_s)
                     continue
 
-                # Apply dynamic risk multiplier to effective max_lot.
-                # Safety: this can only REDUCE max_lot, never increase it.
-                # Hard cap MAX_LOT_CAP=0.01 is enforced inside TradeLoop.
-                if (ctx_risk_multiplier is not None
-                        and ctx_risk_multiplier < 1.0
-                        and ctx_risk_multiplier >= 0.0):
-                    effective_max_lot = max(
-                        0.0, self.trade_loop.config.max_lot * ctx_risk_multiplier
-                    )
-                    # Floor at 0.001 so we don't completely zero out
-                    effective_max_lot = max(0.001, effective_max_lot)
-                    self.trade_loop.config.max_lot = effective_max_lot
+                # Sprint 9.9.3.41.2: Dynamic risk safety hotfix.
+                # Previous code PERMANENTLY mutated self.trade_loop.config.max_lot,
+                # which caused sticky reduction across future decisions.
+                # Now we use a per-decision effective max_lot that is restored
+                # after the trade decision completes.
+                #
+                # risk_multiplier <= 0 must BLOCK the trade (not floor to 0.001).
+                # risk_multiplier > 0 may reduce effective max_lot for this decision only.
+                # The original self.trade_loop.config.max_lot is NEVER mutated.
+                original_max_lot = self.trade_loop.config.max_lot
+                effective_max_lot = original_max_lot
+
+                if ctx_risk_multiplier is not None:
+                    if ctx_risk_multiplier <= 0.0:
+                        # Zero or negative risk multiplier → BLOCK the trade
+                        self._trades_blocked += 1
+                        self.journal.log_event(EventType.SIGNAL_REJECTED, {
+                            "bar_time": bar_time,
+                            "reason": "zero_risk_multiplier_block",
+                            "risk_multiplier": ctx_risk_multiplier,
+                            "health_score": ctx_health_score,
+                            "health_band": ctx_health_band,
+                        })
+                        logger.info(
+                            f"Trade blocked by zero risk_multiplier: "
+                            f"mult={ctx_risk_multiplier} band={ctx_health_band}"
+                        )
+                        await asyncio.sleep(self.config.inference_interval_s)
+                        continue
+                    elif ctx_risk_multiplier < 1.0:
+                        # Reduce effective max_lot for THIS DECISION ONLY
+                        # Do NOT mutate self.trade_loop.config.max_lot
+                        effective_max_lot = max(
+                            0.001, original_max_lot * ctx_risk_multiplier
+                        )
+                        # Temporarily set on config for this one process_signal call
+                        self.trade_loop.config.max_lot = effective_max_lot
+                        logger.info(
+                            f"Dynamic risk reduction: max_lot {original_max_lot} -> "
+                            f"{effective_max_lot} (mult={ctx_risk_multiplier})"
+                        )
+
+                # Ensure original max_lot is restored after this decision
+                # (finally block below guarantees restore even on exception)
 
                 # ─── Sprint 9.9.3.39: Institutional decision pipeline ─────
                 # Before calling TradeLoop, every trade decision must pass
@@ -792,7 +824,17 @@ class AutonomousRuntime:
                 else:
                     logger.info(f"Trade rejected: {decision.reject_reason}")
 
+                # Sprint 9.9.3.41.2: Restore original max_lot after decision.
+                # This prevents sticky reduction across future decisions.
+                self.trade_loop.config.max_lot = original_max_lot
+
             except Exception as e:
+                # Sprint 9.9.3.41.2: Also restore on exception
+                try:
+                    if 'original_max_lot' in locals():
+                        self.trade_loop.config.max_lot = original_max_lot
+                except Exception:
+                    pass
                 logger.error(f"Inference loop error: {e}", exc_info=True)
                 self.journal.log_event(EventType.KILL_SWITCH_BLOCK, {
                     "reason": f"inference_loop_error: {e}",

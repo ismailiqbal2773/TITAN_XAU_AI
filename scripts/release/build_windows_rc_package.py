@@ -1,27 +1,36 @@
 #!/usr/bin/env python3
 """
-TITAN XAU AI - Windows RC Package Builder (Sprint 9.9.3.40)
-=============================================================
+TITAN XAU AI - Windows RC Operator Overlay Builder (Sprint 9.9.3.40 / 9.9.3.41.2)
+==================================================================================
 
-Builds a local Release Candidate package folder (NOT an installer).
+Builds a local Windows RC Operator Overlay folder (NOT an installer, NOT a
+standalone package).
+
+Sprint 9.9.3.41.2 truth fix: This is an OPERATOR OVERLAY for an existing
+TITAN repo checkout, NOT a standalone package. It does NOT include the full
+titan/ runtime/production source, config, or model files. The operator must
+have an existing TITAN repo checkout on their Windows machine. This overlay
+provides only the batch files, CLI scripts, and docs needed to run the
+first-run wizard and operator console safely.
 
 Output: dist/TITAN_XAU_AI_RC/
 
-The package contains everything a non-technical operator needs to:
-  - Run first-run wizard
-  - Run operator console
-  - Check RC status
-  - Check safety status
-  - Check broker registry
-  - Run full audit
-  - Read clear instructions
+The overlay contains:
+  - run_titan_operator.bat (operator console launcher)
+  - run_titan_first_run.bat (first-run wizard launcher)
+  - scripts/operator/ (CLI scripts)
+  - docs/ (operator + release + audit docs)
+  - requirements.txt, first_run_check.py
+  - RELEASE_MANIFEST.json, README_FIRST_RUN.md, SAFETY_NOTICE.md
 
-The package NEVER contains:
+The overlay NEVER contains:
   - Raw evidence (demo_micro_journal.jsonl, raw_mt5_working_profile.json, etc.)
   - .env / API keys / account credentials
   - Live trading options
   - Market execution options
   - DEMO_MICRO_EXECUTE
+  - Model binaries
+  - Full titan/ runtime/production source (operator must have existing checkout)
 
 NEVER imports MetaTrader5. NEVER sends orders.
 """
@@ -107,7 +116,14 @@ def build_package() -> dict:
     manifest = {
         "built_utc": datetime.now(timezone.utc).isoformat(),
         "package_name": "TITAN_XAU_AI_RC",
-        "package_version": "9.9.3.40",
+        "package_type": "OPERATOR_OVERLAY_NOT_STANDALONE",
+        "package_version": "9.9.3.41.2",
+        "package_description": (
+            "Windows RC Operator Overlay for an existing TITAN repo checkout. "
+            "NOT a standalone package. Does NOT include full titan/ runtime/production "
+            "source, config, or model files. Operator must have an existing TITAN repo "
+            "checkout on their Windows machine."
+        ),
         "included_files": included,
         "skipped_missing": skipped_missing,
         "excluded_patterns": EXCLUDE_PATTERNS,
@@ -121,15 +137,19 @@ def build_package() -> dict:
             "raw_evidence_included": False,
             "credentials_included": False,
             "env_file_included": False,
+            "standalone": False,  # Sprint 9.9.3.41.2: explicitly NOT standalone
+            "operator_overlay": True,
         },
         "general_warnings": [
-            "This RC package is for non-technical operators.",
+            "This is an OPERATOR OVERLAY, NOT a standalone package.",
+            "Operator must have an existing TITAN repo checkout on their Windows machine.",
             "Live trading remains BLOCKED.",
-            "Market execution is NOT available from this package.",
+            "Market execution is NOT available from this overlay.",
             "DEMO_MICRO_EXECUTE is NOT exposed.",
             "Raw evidence files are NOT included.",
             "Credentials and API keys are NOT included.",
-            "Observation may begin only after the operator accepts the RC package.",
+            "Model binaries are NOT included.",
+            "Observation may begin only after the operator accepts the RC overlay.",
         ],
     }
     manifest_path = OUTPUT_DIR / "RELEASE_MANIFEST.json"

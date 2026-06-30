@@ -190,3 +190,69 @@ Live trading remains BLOCKED. Market execution is NOT available.
 | `titan/tests/test_pre_observation_acceptance_audit.py` | Tests for audit writer |
 | `data/audit/pre_observation/pre_observation_acceptance_audit.json` | Generated JSON report |
 | `data/audit/pre_observation/pre_observation_acceptance_audit.md` | Generated MD report |
+
+## Broker Gate Limitation (Sprint 9.9.3.41.1 / 9.9.3.41.2)
+
+The following broker gate limitations must be clearly understood:
+
+1. **Current 7-day observation broker eligibility is registry-gated and
+   MetaQuotes-Demo only.** The `BrokerObservationGate` uses the existing
+   `BrokerCompatibilityMatrix` registry evidence to determine eligibility.
+   Only MetaQuotes-Demo has verified demo micro PASS evidence.
+
+2. **BrokerObservationGate uses existing broker compatibility evidence.**
+   The gate is a thin adapter that calls `broker_compatibility_matrix.get_broker_info()`.
+   It does NOT duplicate broker detection, scoring, or compatibility logic.
+
+3. **Full commercial dynamic broker auto-detection/scoring enforcement is
+   future work.** The current gate does not perform real-time broker
+   auto-detection or dynamic scoring. It relies on the static registry.
+   A future sprint may wire `BrokerIntelligenceLayer` and
+   `BrokerQualityEngine` for dynamic detection, but this is NOT needed
+   for the current controlled 7-day observation.
+
+4. **Unknown brokers require compatibility proof.** Any broker not in the
+   registry is blocked for the current 7-day observation. Future brokers
+   must pass compatibility testing (raw probe + demo micro repeatability)
+   before being added to the registry.
+
+5. **Do NOT claim multi-broker commercial readiness yet.** The system is
+   ready for controlled 7-day observation with MetaQuotes-Demo only.
+   Multi-broker commercial readiness requires:
+   - Dynamic broker auto-detection wired into runtime
+   - Real-time broker scoring
+   - Multiple brokers with PASS evidence in the registry
+   - Operator-approved broker switching
+   - Full compatibility proof for each broker
+
+## Regime Gate Placeholder Context (Sprint 9.9.3.41.2)
+
+The `RegimeDetection` module is wired into `AutonomousRuntime`, but the
+current inference loop passes static placeholder scores:
+- `trend_score=0.0`
+- `volatility_score=0.0`
+- `range_score=0.0`
+- `spread_score=0.0`
+- `liquidity_score=1.0`
+
+This is acceptable for the current 7-day dry-run observation, but it means
+the regime gate operates on placeholder context, not real market regime
+data. **Do NOT claim "world-class/live/commercial multi-regime" capability
+based on this wiring.** A future sprint must feed real feature-stream-derived
+scores into `detect_regime()` before the regime gate can be considered
+behaviorally active.
+
+## Windows RC Package Truth (Sprint 9.9.3.41.2)
+
+The Windows RC package is an **Operator Overlay**, NOT a standalone package.
+It does NOT include the full `titan/` runtime/production source, config,
+or model files. The operator must have an existing TITAN repo checkout on
+their Windows machine. The overlay provides only:
+- Batch files (`run_titan_operator.bat`, `run_titan_first_run.bat`)
+- CLI scripts (`scripts/operator/`)
+- Documentation (`docs/`)
+- `requirements.txt`, `first_run_check.py`
+- `RELEASE_MANIFEST.json`, `README_FIRST_RUN.md`, `SAFETY_NOTICE.md`
+
+Do NOT claim the RC package is standalone. It is an operator overlay for
+an existing repo checkout.

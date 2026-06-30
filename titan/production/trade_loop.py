@@ -211,14 +211,26 @@ class TradeLoop:
                         "reason": reason,
                     })
                 return self._reject(signal, reason, t0)
-            # If CAUTION → reduce size (configurable; for now, half the volume)
+            # Sprint 9.9.3.41.2: CAUTION false reduction fix.
+            # Previous code: self.config.max_lot = max(original_max / 2, 0.01)
+            # When original_max is already 0.01 (the hard cap), max(0.005, 0.01) = 0.01,
+            # so the code logged "reducing max_lot" but did not actually reduce risk.
+            #
+            # For current RC observation phase, CAUTION should BLOCK new entries
+            # unless broker min lot and fractional lot support are proven.
+            # This is safer than falsely claiming a reduction.
             if ks_state.value == "CAUTION":
-                # Reduce proposed volume by 50% in caution state
-                original_max = self.config.max_lot
-                self.config.max_lot = max(original_max / 2, 0.01)
                 logger.warning(
-                    f"Kill-switch CAUTION — reducing max_lot to {self.config.max_lot}"
+                    "Kill-switch CAUTION — blocking new entries for safety "
+                    "(broker min lot / fractional lot support not proven in RC phase)"
                 )
+                self.journal.log_event(EventType.KILL_SWITCH_BLOCK, {
+                    "kill_switch_state": ks_state.value,
+                    "reason": "caution_blocks_new_entries_rc_phase",
+                    "original_max_lot": self.config.max_lot,
+                    "note": "CAUTION does not falsely claim reduction; blocks instead",
+                })
+                return self._reject(signal, "kill_switch_caution_blocks_entries", t0)
 
         # ── PRE-CHECK 1: Tradeable signal ──
         if not signal.is_tradeable:

@@ -2855,3 +2855,90 @@ Stage Summary:
 - All broker intelligence wiring verified
 - No duplicate broker logic created
 - Ready to commit: fix(observation): wire broker intelligence into observation gate
+
+---
+Task ID: 26
+Agent: Super Z (main, Sprint 9.9.3.41.2 CTO consistency and RC truth hotfix session 2026-06-30)
+Task: Fix CTO remaining consistency and RC truth issues (Sprint 9.9.3.41.2). Fix ProductionRuntimeAssembly warning/verdict truth bug, clean stale TODOs, fix dynamic risk sticky max_lot, fix TradeLoop CAUTION false reduction, add regime placeholder warning, fix Windows RC package truth, document broker gate limitation, add CTO repo consistency audit, add 3 test files. Commit: fix(rc): resolve CTO consistency and RC truth issues.
+
+Work Log:
+- Verified starting state: HEAD at 189584c (Sprint 9.9.3.41.1), working tree clean.
+- Fixed ProductionRuntimeAssembly warning/verdict truth bug:
+  * Moved broker-registry warnings BEFORE verdict assignment
+  * RC_READY now only when blockers=0 AND warnings=0
+  * Added HEURISTIC_SOURCE_CHECK label to validate_runtime_wiring docstring
+- Cleaned stale TODOs in signal_execution_bridge.py:
+  * Removed 7 "TODO Sprint 9.9.4+: Wire into X" comments
+  * Replaced with "Integration status" section documenting Sprint 9.9.3.39 wiring
+  * Added note: "Future direct callback integration is OPTIONAL ONLY and must NOT duplicate the runtime path"
+- Fixed dynamic risk sticky max_lot issue in autonomous_loops.py:
+  * risk_multiplier <= 0 now BLOCKS the trade (not floored to 0.001)
+  * Dynamic risk no longer permanently mutates TradeLoopConfig.max_lot
+  * Uses original_max_lot variable to restore after each decision
+  * Restore happens both after normal decision and in except block
+  * Journals zero_risk_multiplier_block event with clear reason
+- Fixed TradeLoop CAUTION false reduction:
+  * Removed old max(original_max / 2, 0.01) which didn't reduce when original=0.01
+  * CAUTION now BLOCKS new entries (caution_blocks_new_entries_rc_phase)
+  * Journals KILL_SWITCH_BLOCK with clear reason
+  * Does not falsely claim reduction
+- Added regime placeholder warning to pre_observation_acceptance_audit.py:
+  * New audit_regime_placeholder_context() function
+  * Detects detect_regime called with static placeholder scores
+  * Reports REGIME_GATE_WIRED_BUT_PLACEHOLDER_CONTEXT as WARN (not BLOCK)
+  * Wired into determine_verdict() and write_report()
+- Fixed Windows RC package truth:
+  * Updated build_windows_rc_package.py docstring to "Operator Overlay" not standalone
+  * Added package_type: "OPERATOR_OVERLAY_NOT_STANDALONE" to manifest
+  * Added standalone: False, operator_overlay: True to safety section
+  * Updated general_warnings to clarify overlay nature
+- Documented broker gate limitation in pre_observation_acceptance_report.md:
+  * Added "Broker Gate Limitation" section
+  * Added "Regime Gate Placeholder Context" section
+  * Added "Windows RC Package Truth" section
+- Created scripts/audit/cto_repo_consistency_audit.py:
+  * 10 audit areas: duplicate_modules, stale_todos, hardcoded_broker_refs, regime_placeholder, dynamic_risk_sticky, trade_loop_caution, package_truth, broker_gate_limitation, safe_path_exposure, rc_truth
+  * Verdict: CTO_READY / CTO_READY_WITH_WARNINGS / CTO_BLOCKED
+  * Writes data/audit/cto_repo_consistency/cto_repo_consistency_audit.{json,md}
+- Created titan/tests/test_cto_repo_consistency_audit.py (12 tests)
+- Created titan/tests/test_rc_truth_hotfix.py (9 tests)
+- Created titan/tests/test_dynamic_risk_safety_hotfix.py (9 tests)
+- Updated .gitignore to add data/audit/cto_repo_consistency/
+- Test results:
+  * test_cto_repo_consistency_audit.py: 12 passed
+  * test_rc_truth_hotfix.py: 9 passed
+  * test_dynamic_risk_safety_hotfix.py: 9 passed
+  * test_broker_observation_gate.py: 24 passed
+  * test_pre_observation_acceptance_audit.py: 22 passed
+  * test_first_run_wizard.py: 23 passed
+  * test_operator_control_console.py: 30 passed
+  * test_production_runtime_assembly.py: 20 passed
+  * Total: 149 passed
+- first_run_check.py: 13 PASS, 1 WARN (MT5 Linux stub), 0 FAIL
+- CTO audit: CTO_READY_WITH_WARNINGS (0 blockers, 1 warning: regime placeholder)
+- Pre-observation audit: DEMO_OBSERVATION_READY_WITH_WARNINGS (0 blockers, 1 warning: regime placeholder)
+- First-run wizard: WARN (12 passed, 1 warning: git dirty)
+
+Safety verification:
+- No MetaTrader5 import in any new/modified module
+- No mt5.order_send calls
+- No DEMO_MICRO_EXECUTE calls
+- No raw_mt5_probe calls
+- No market execution
+- No live trading
+- No lot size increase
+- No strategy logic change
+- Duplicate broker logic avoided (BrokerObservationGate reused)
+- max_lot hard cap remains 0.01
+- risk_multiplier can only reduce or block, never increase
+
+Stage Summary:
+- VERDICT: Sprint 9.9.3.41.2 complete. CTO consistency and RC truth issues resolved.
+- Files modified: 6 (production_runtime_assembly.py, signal_execution_bridge.py, autonomous_loops.py, trade_loop.py, pre_observation_acceptance_audit.py, build_windows_rc_package.py, pre_observation_acceptance_report.md)
+- Files created: 4 (cto_repo_consistency_audit.py, 3 test files)
+- Files modified: 1 (.gitignore)
+- Tests: 30 new tests pass; 119 regression tests pass; total 149 passed
+- CTO audit: CTO_READY_WITH_WARNINGS (0 blockers, 1 warning: regime placeholder)
+- Pre-observation audit: DEMO_OBSERVATION_READY_WITH_WARNINGS (0 blockers, 1 warning: regime placeholder)
+- All CTO issues resolved
+- Ready to commit: fix(rc): resolve CTO consistency and RC truth issues

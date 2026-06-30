@@ -179,6 +179,12 @@ class ProductionRuntimeAssembly:
     def validate_runtime_wiring(self) -> tuple[bool, dict, list[str]]:
         """Validate that AutonomousRuntime actually wires the institutional pipeline.
 
+        Sprint 9.9.3.41.2 label: HEURISTIC_SOURCE_CHECK
+        These checks inspect source files at rest (not runtime behavior).
+        They verify that the import/instantiation/call patterns exist in the
+        source code, but do not verify runtime execution. This is sufficient
+        for RC packaging truth, but a future sprint may add behavioral checks.
+
         Returns (ok, checks, blockers).
         """
         import re
@@ -314,7 +320,16 @@ class ProductionRuntimeAssembly:
         return ok, checks, blockers
 
     def build_status(self) -> ProductionAssemblyStatus:
-        """Build the full assembly status. Never raises."""
+        """Build the full assembly status. Never raises.
+
+        Sprint 9.9.3.41.2 fix: ALL warnings are collected BEFORE the verdict
+        is assigned. Previously, broker-registry warnings were appended after
+        verdict selection, which allowed RC_READY to be returned with warnings
+        present. Now:
+          - blockers > 0  => RC_BLOCKED
+          - warnings > 0  => RC_READY_WITH_WARNINGS
+          - else          => RC_READY (blockers=0 AND warnings=0)
+        """
         try:
             loaded, missing = self.load_components()
             comp_ok, comp_missing = self.validate_component_presence()
@@ -322,7 +337,7 @@ class ProductionRuntimeAssembly:
             exec_ok, exec_blockers = self.validate_execution_permissions()
             broker_registry = self.validate_broker_registry()
             obs_status, obs_warnings = self.validate_observation_readiness()
-            # Sprint 9.9.3.39: actual runtime wiring checks
+            # Sprint 9.9.3.39: actual runtime wiring checks (HEURISTIC_SOURCE_CHECK)
             wiring_ok, wiring_checks, wiring_blockers = self.validate_runtime_wiring()
 
             blockers = []
@@ -336,21 +351,14 @@ class ProductionRuntimeAssembly:
             blockers.extend(safety_blockers)
             blockers.extend(exec_blockers)
 
-            # Sprint 9.9.3.39: runtime wiring blockers (critical)
+            # Sprint 9.9.3.39: runtime wiring blockers (critical, HEURISTIC_SOURCE_CHECK)
             blockers.extend(wiring_blockers)
 
-            # Warnings
+            # Warnings from observation readiness
             warnings.extend(obs_warnings)
 
-            # Determine verdict
-            if blockers:
-                verdict = ProductionAssemblyVerdict.RC_BLOCKED
-            elif warnings:
-                verdict = ProductionAssemblyVerdict.RC_READY_WITH_WARNINGS
-            else:
-                verdict = ProductionAssemblyVerdict.RC_READY
-
-            # Extract MetaQuotes status
+            # Sprint 9.9.3.41.2: broker-registry warnings collected BEFORE verdict
+            # (previously appended after verdict, causing RC_READY-with-warnings bug)
             metaquotes = broker_registry.get("MetaQuotes-Demo", {})
             fundednext = broker_registry.get("FundedNext Free Trial", {})
             fbs = broker_registry.get("FBS-Demo", {})
@@ -361,6 +369,14 @@ class ProductionRuntimeAssembly:
                 warnings.append("FundedNext Free Trial remains DO_NOT_USE")
             if fbs.get("status") == "REJECT":
                 warnings.append("FBS-Demo remains REJECTED (retcode 10006) — low priority")
+
+            # Sprint 9.9.3.41.2: Determine verdict AFTER all warnings collected
+            if blockers:
+                verdict = ProductionAssemblyVerdict.RC_BLOCKED
+            elif warnings:
+                verdict = ProductionAssemblyVerdict.RC_READY_WITH_WARNINGS
+            else:
+                verdict = ProductionAssemblyVerdict.RC_READY
 
             return ProductionAssemblyStatus(
                 mode=self.mode,
