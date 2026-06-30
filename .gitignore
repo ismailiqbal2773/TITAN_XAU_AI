@@ -48,4 +48,5 @@ data/audit/model_artifacts/
 data/audit/runtime_self_healing/
 data/audit/demo_micro_readiness/
 data/model_candidates/
+data/audit/demo_micro_execution/
 dist/
