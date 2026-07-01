@@ -266,6 +266,53 @@ def run_audit() -> dict:
     has_registry = _check_module_exists(required_modules["parameter_registry"])
     findings["parameter_registry"] = has_registry
 
+    # === Sprint 9.9.3.45.8.6: broker scoring, prop rules, profile matrix ===
+    broker_scoring_engine_path = REPO_ROOT / "titan" / "production" / "broker_scoring_engine.py"
+    broker_score_audit_path = REPO_ROOT / "scripts" / "audit" / "broker_score_audit.py"
+    prop_firm_rule_engine_path = REPO_ROOT / "titan" / "production" / "prop_firm_rule_engine.py"
+    prop_firm_audit_path = REPO_ROOT / "scripts" / "audit" / "prop_firm_readiness_audit.py"
+    risk_modes_path = REPO_ROOT / "config" / "risk_modes.yaml"
+    profile_matrix_audit_path = REPO_ROOT / "scripts" / "audit" / "profile_matrix_readiness_audit.py"
+
+    findings["broker_scoring_engine_exists"] = _check_module_exists(broker_scoring_engine_path)
+    findings["broker_score_audit_exists"] = _check_module_exists(broker_score_audit_path)
+    findings["prop_firm_rule_engine_exists"] = _check_module_exists(prop_firm_rule_engine_path)
+    findings["prop_firm_audit_exists"] = _check_module_exists(prop_firm_audit_path)
+    findings["risk_modes_exists"] = _check_module_exists(risk_modes_path)
+    findings["profile_matrix_audit_exists"] = _check_module_exists(profile_matrix_audit_path)
+
+    if findings["broker_scoring_engine_exists"]:
+        ok_checks.append("Broker scoring engine exists")
+    else:
+        warnings.append("Broker scoring engine missing")
+
+    if findings["prop_firm_rule_engine_exists"]:
+        ok_checks.append("Prop firm rule engine exists")
+    else:
+        warnings.append("Prop firm rule engine missing")
+
+    if findings["risk_modes_exists"]:
+        ok_checks.append("Risk modes config exists")
+    else:
+        warnings.append("Risk modes config missing")
+
+    if findings["profile_matrix_audit_exists"]:
+        ok_checks.append("Profile matrix audit exists")
+    else:
+        warnings.append("Profile matrix audit missing")
+
+    # Check aggressive profile is simulation-only
+    if findings["risk_modes_exists"]:
+        risk_modes_src = risk_modes_path.read_text()
+        aggressive_sim_only = "aggressive_simulation_only" in risk_modes_src and "simulation_only: true" in risk_modes_src and "live_allowed: false" in risk_modes_src
+        findings["aggressive_simulation_only"] = aggressive_sim_only
+        if aggressive_sim_only:
+            ok_checks.append("Aggressive profile is simulation-only (live_allowed=false)")
+        else:
+            blockers.append("Aggressive profile not properly marked simulation-only")
+    else:
+        findings["aggressive_simulation_only"] = False
+
     # === Get parameter binding status ===
     safe_default_count = 0
     needs_backtest_binding_count = 0
@@ -287,37 +334,43 @@ def run_audit() -> dict:
     findings["validated_count"] = validated_count
     findings["critical_unbound_count"] = critical_unbound_count
 
-    # === Compute production score (15 categories, 100 total) ===
-    # 1. Account profiles (8)
-    score_breakdown["account_profiles"] = 8 if (findings.get("account_profiles_exists") and findings.get("prop_constraints") and findings.get("retail_constraints") and findings.get("institutional_constraints")) else 0
-    # 2. Broker profiles (5)
-    score_breakdown["broker_profiles"] = 5 if findings.get("broker_profiles_exists") else 0
-    # 3. Cost/net profit (10)
-    score_breakdown["cost_net_profit"] = 10 if (findings.get("net_profit_model") and findings.get("cost_fields")) else 0
-    # 4. Margin/leverage/risk (8)
-    score_breakdown["margin_leverage_risk"] = 8 if findings.get("margin_guard") else 0
-    # 5. Account adaptation/lot sizing (7)
-    score_breakdown["account_adaptation_lot_sizing"] = 7 if (findings.get("account_adaptation_engine_exists") and findings.get("lot_sizing_engine_exists")) else 0
-    # 6. SL/TP/profit corridor/partial close (10)
-    score_breakdown["sl_tp_corridor_partial_close"] = 10 if (findings.get("dynamic_tp_geometry") and findings.get("rr_profile_guard") and findings.get("adaptive_profit_corridor_exists") and findings.get("partial_close_engine_exists")) else 0
-    # 7. Reconciliation/forensics (7)
-    score_breakdown["reconciliation_forensics"] = 7 if findings.get("reconciliation") else 0
-    # 8. Alpha Factory (5)
-    score_breakdown["alpha_factory"] = 5 if (findings.get("alpha_candidate_generator_exists") and findings.get("alpha_evaluator_exists") and findings.get("alpha_registry_exists")) else 0
-    # 9. Retraining and promotion gate (8)
-    score_breakdown["retraining_promotion"] = 8 if (findings.get("retraining_orchestrator_exists") and findings.get("model_promotion_gate_exists")) else 0
-    # 10. Runtime calibration (5)
-    score_breakdown["runtime_calibration"] = 5 if findings.get("runtime_calibration_engine_exists") else 0
-    # 11. Licensing/anti-copy (5)
-    score_breakdown["licensing"] = 5 if (findings.get("license_validator_exists") and findings.get("machine_binding_exists") and findings.get("expiry_guard_exists")) else 0
-    # 12. Crash/fail-closed resilience (7)
-    score_breakdown["crash_resilience"] = 7 if (findings.get("runtime_health_guard_exists") and findings.get("fail_closed_runtime_guard_exists") and findings.get("watchdog_restarter_exists")) else 0
-    # 13. Dependency update safety (5)
-    score_breakdown["dependency_safety"] = 5 if (findings.get("dependency_policy_exists") and findings.get("dependency_update_readiness_audit_exists")) else 0
-    # 14. Prop/retail/institutional readiness (5)
-    score_breakdown["prop_retail_inst"] = 5 if (findings.get("prop_constraints") and findings.get("retail_constraints") and findings.get("institutional_constraints")) else 0
-    # 15. Production score honesty (5)
-    score_breakdown["score_honesty"] = 5  # This audit itself provides honesty
+    # === Compute production score (18 categories, 100 total) ===
+    # 1. Account profiles (7)
+    score_breakdown["account_profiles"] = 7 if (findings.get("account_profiles_exists") and findings.get("prop_constraints") and findings.get("retail_constraints") and findings.get("institutional_constraints")) else 0
+    # 2. Broker profiles (3)
+    score_breakdown["broker_profiles"] = 3 if findings.get("broker_profiles_exists") else 0
+    # 3. Cost/net profit (8)
+    score_breakdown["cost_net_profit"] = 8 if (findings.get("net_profit_model") and findings.get("cost_fields")) else 0
+    # 4. Margin/leverage/risk (7)
+    score_breakdown["margin_leverage_risk"] = 7 if findings.get("margin_guard") else 0
+    # 5. Account adaptation/lot sizing (5)
+    score_breakdown["account_adaptation_lot_sizing"] = 5 if (findings.get("account_adaptation_engine_exists") and findings.get("lot_sizing_engine_exists")) else 0
+    # 6. SL/TP/profit corridor/partial close (8)
+    score_breakdown["sl_tp_corridor_partial_close"] = 8 if (findings.get("dynamic_tp_geometry") and findings.get("rr_profile_guard") and findings.get("adaptive_profit_corridor_exists") and findings.get("partial_close_engine_exists")) else 0
+    # 7. Reconciliation/forensics (5)
+    score_breakdown["reconciliation_forensics"] = 5 if findings.get("reconciliation") else 0
+    # 8. Alpha Factory (4)
+    score_breakdown["alpha_factory"] = 4 if (findings.get("alpha_candidate_generator_exists") and findings.get("alpha_evaluator_exists") and findings.get("alpha_registry_exists")) else 0
+    # 9. Retraining and promotion gate (6)
+    score_breakdown["retraining_promotion"] = 6 if (findings.get("retraining_orchestrator_exists") and findings.get("model_promotion_gate_exists")) else 0
+    # 10. Runtime calibration (4)
+    score_breakdown["runtime_calibration"] = 4 if findings.get("runtime_calibration_engine_exists") else 0
+    # 11. Licensing/anti-copy (4)
+    score_breakdown["licensing"] = 4 if (findings.get("license_validator_exists") and findings.get("machine_binding_exists") and findings.get("expiry_guard_exists")) else 0
+    # 12. Crash/fail-closed resilience (5)
+    score_breakdown["crash_resilience"] = 5 if (findings.get("runtime_health_guard_exists") and findings.get("fail_closed_runtime_guard_exists") and findings.get("watchdog_restarter_exists")) else 0
+    # 13. Dependency update safety (4)
+    score_breakdown["dependency_safety"] = 4 if (findings.get("dependency_policy_exists") and findings.get("dependency_update_readiness_audit_exists")) else 0
+    # 14. Prop/retail/institutional readiness (4)
+    score_breakdown["prop_retail_inst"] = 4 if (findings.get("prop_constraints") and findings.get("retail_constraints") and findings.get("institutional_constraints")) else 0
+    # 15. Production score honesty (4)
+    score_breakdown["score_honesty"] = 4  # This audit itself provides honesty
+    # 16. Broker scoring readiness (5) - NEW
+    score_breakdown["broker_scoring"] = 5 if (findings.get("broker_scoring_engine_exists") and findings.get("broker_score_audit_exists")) else 0
+    # 17. Prop/funded rule readiness (5) - NEW
+    score_breakdown["prop_firm_rules"] = 5 if (findings.get("prop_firm_rule_engine_exists") and findings.get("prop_firm_audit_exists") and findings.get("risk_modes_exists")) else 0
+    # 18. Profile matrix readiness + aggressive sim honesty (5) - NEW
+    score_breakdown["profile_matrix"] = 5 if (findings.get("profile_matrix_audit_exists") and findings.get("aggressive_simulation_only")) else 0
 
     production_score = sum(score_breakdown.values())
 

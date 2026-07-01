@@ -289,6 +289,62 @@ def run_build_request(direction: str = "BUY", entry_price: float = 2000.0,
     except Exception as e:
         result["margin_guard_error"] = str(e)
 
+    # Sprint 9.9.3.45.8.6: broker scoring integration
+    try:
+        from titan.production.broker_scoring_engine import BrokerScoringEngine
+        broker_profile_name = getattr(args, "broker_profile", "metaquotes_demo") if args else "metaquotes_demo"
+        scorer = BrokerScoringEngine()
+        if scorer.has_broker(broker_profile_name):
+            broker_score_result = scorer.score_broker(broker_profile_name)
+            result["broker_score"] = broker_score_result.overall_score
+            result["broker_verdict"] = broker_score_result.verdict
+            result["broker_score_details"] = broker_score_result.to_dict()
+            result["prop_funded_compatible"] = broker_score_result.prop_funded_compatible
+            # Block build-request if broker score < 70
+            if broker_score_result.overall_score < 70:
+                if result["verdict"] != "BLOCKED":
+                    result["verdict"] = "BLOCKED"
+                if "blockers" not in result:
+                    result["blockers"] = []
+                result["blockers"].append(f"BROKER_BLOCKED: score={broker_score_result.overall_score} < 70")
+                result["broker_block_reason"] = broker_score_result.verdict
+            # Caution: allow only conservative/proof mode
+            elif 70 <= broker_score_result.overall_score < 85:
+                result["broker_caution"] = True
+                risk_mode = getattr(args, "risk_mode", "conservative") if args else "conservative"
+                if "aggressive" in risk_mode:
+                    if result["verdict"] != "BLOCKED":
+                        result["verdict"] = "BLOCKED"
+                    if "blockers" not in result:
+                        result["blockers"] = []
+                    result["blockers"].append(f"BROKER_CAUTION: score={broker_score_result.overall_score}, aggressive mode blocked")
+        else:
+            result["broker_score"] = 0
+            result["broker_verdict"] = "BROKER_SCORE_INCOMPLETE"
+            result["broker_block_reason"] = "BROKER_SCORE_INCOMPLETE: broker profile not found"
+    except Exception as e:
+        result["broker_score_error"] = str(e)
+
+    # Sprint 9.9.3.45.8.6: risk mode integration
+    risk_mode = getattr(args, "risk_mode", "conservative") if args else "conservative"
+    result["risk_mode"] = risk_mode
+    risk_modes_path = REPO_ROOT / "config" / "risk_modes.yaml"
+    if risk_modes_path.exists():
+        try:
+            import yaml as _yaml2
+            with open(risk_modes_path, "r", encoding="utf-8") as f:
+                rm_data = _yaml2.safe_load(f) or {}
+            modes = rm_data.get("modes", {})
+            mode_config = modes.get(risk_mode, {})
+            result["risk_mode_config"] = mode_config
+            # Check if aggressive simulation-only mode
+            if mode_config.get("simulation_only", False):
+                result["simulation_only"] = True
+            if not mode_config.get("live_allowed", True):
+                result["live_allowed"] = False
+        except Exception:
+            pass
+
     return result
 
 
@@ -1694,10 +1750,15 @@ def main() -> int:
                         help="Account profile name (default: retail_demo_micro)")
     parser.add_argument("--initial-tp-r", type=float, default=3.0,
                         help="Initial TP in R-multiple (default: 3.0)")
+    # Sprint 9.9.3.45.8.6: risk mode selection
+    parser.add_argument("--risk-mode", default="conservative",
+                        help="Risk mode (default: conservative)")
+    parser.add_argument("--broker-profile", default="metaquotes_demo",
+                        help="Broker profile name (default: metaquotes_demo)")
     args = parser.parse_args()
 
     print("=" * 70)
-    print("  TITAN XAU AI - Managed Demo Micro Trade (Sprint 9.9.3.45.8.2)")
+    print("  TITAN XAU AI - Managed Demo Micro Trade (Sprint 9.9.3.45.8.6)")
     print("=" * 70)
     if getattr(args, "use_adaptive_trailing", False):
         print(f"  Adaptive trailing: ENABLED (mode={args.adaptive_policy_mode})")

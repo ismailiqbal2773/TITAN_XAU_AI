@@ -1,0 +1,166 @@
+brokers:
+  metaquotes_demo:
+    broker_id: metaquotes_demo
+    name: MetaQuotes-Demo
+    server: MetaQuotes-Demo
+    account_type: demo
+    typical_spread_xauusd: 0.35
+    max_spread_xauusd: 0.5
+    commission_per_lot_round_turn: 0.0
+    typical_slippage_xauusd: 0.02
+    max_slippage_xauusd: 0.1
+    swap_long_xauusd_per_lot_per_night: -3.5
+    swap_short_xauusd_per_lot_per_night: -1.2
+    contract_size_xauusd: 100
+    stops_level_points_xauusd: 50
+    freeze_level_points_xauusd: 0
+    filling_mode: ORDER_FILLING_IOC
+    margin_currency: USD
+    min_lot: 0.01
+    max_lot: 100.0
+    lot_step: 0.01
+    leverage_options:
+    - 30
+    - 50
+    - 100
+  ic_markets_standard:
+    broker_id: ic_markets_standard
+    name: IC Markets Standard
+    server: ICMarketsSC-Live
+    account_type: live
+    typical_spread_xauusd: 0.25
+    max_spread_xauusd: 0.4
+    commission_per_lot_round_turn: 7.0
+    typical_slippage_xauusd: 0.02
+    max_slippage_xauusd: 0.08
+    swap_long_xauusd_per_lot_per_night: -4.2
+    swap_short_xauusd_per_lot_per_night: -1.5
+    contract_size_xauusd: 100
+    stops_level_points_xauusd: 50
+    freeze_level_points_xauusd: 0
+    filling_mode: ORDER_FILLING_IOC
+    margin_currency: USD
+    min_lot: 0.01
+    max_lot: 100.0
+    lot_step: 0.01
+    leverage_options:
+    - 30
+    - 50
+    - 100
+    - 200
+    - 500
+  ftmo_prop:
+    broker_id: ftmo_prop
+    name: FTMO
+    server: FTMO-Server
+    account_type: live
+    typical_spread_xauusd: 0.2
+    max_spread_xauusd: 0.35
+    commission_per_lot_round_turn: 6.0
+    typical_slippage_xauusd: 0.02
+    max_slippage_xauusd: 0.06
+    swap_long_xauusd_per_lot_per_night: -3.8
+    swap_short_xauusd_per_lot_per_night: -1.3
+    contract_size_xauusd: 100
+    stops_level_points_xauusd: 30
+    freeze_level_points_xauusd: 0
+    filling_mode: ORDER_FILLING_IOC
+    margin_currency: USD
+    min_lot: 0.01
+    max_lot: 50.0
+    lot_step: 0.01
+    leverage_options:
+    - 100
+  institutional_ecn:
+    broker_id: institutional_ecn
+    name: Institutional ECN
+    server: Institutional-ECN
+    account_type: live
+    typical_spread_xauusd: 0.15
+    max_spread_xauusd: 0.25
+    commission_per_lot_round_turn: 4.5
+    typical_slippage_xauusd: 0.01
+    max_slippage_xauusd: 0.04
+    swap_long_xauusd_per_lot_per_night: -3.0
+    swap_short_xauusd_per_lot_per_night: -1.0
+    contract_size_xauusd: 100
+    stops_level_points_xauusd: 20
+    freeze_level_points_xauusd: 0
+    filling_mode: ORDER_FILLING_IOC
+    margin_currency: USD
+    min_lot: 0.01
+    max_lot: 200.0
+    lot_step: 0.01
+    leverage_options:
+    - 50
+    - 100
+  exness:
+    broker_id: exness
+    name: Exness (synthetic from historical CSV)
+    server: Exness-Real
+    account_type: live
+    typical_spread_xauusd: 0.25
+    max_spread_xauusd: 0.45
+    commission_per_lot_round_turn: 7.0
+    typical_slippage_xauusd: 0.02
+    max_slippage_xauusd: 0.1
+    swap_long_xauusd_per_lot_per_night: -4.0
+    swap_short_xauusd_per_lot_per_night: -1.4
+    contract_size_xauusd: 100
+    stops_level_points_xauusd: 30
+    freeze_level_points_xauusd: 0
+    filling_mode: ORDER_FILLING_IOC
+    margin_currency: USD
+    min_lot: 0.01
+    max_lot: 100.0
+    lot_step: 0.01
+    leverage_options:
+    - 100
+    - 200
+    - 500
+  fundednext:
+    broker_id: fundednext
+    name: FundedNext (synthetic from historical CSV)
+    server: FundedNext-Server
+    account_type: live
+    typical_spread_xauusd: 0.28
+    max_spread_xauusd: 0.5
+    commission_per_lot_round_turn: 6.0
+    typical_slippage_xauusd: 0.02
+    max_slippage_xauusd: 0.1
+    swap_long_xauusd_per_lot_per_night: -3.5
+    swap_short_xauusd_per_lot_per_night: -1.2
+    contract_size_xauusd: 100
+    stops_level_points_xauusd: 30
+    freeze_level_points_xauusd: 0
+    filling_mode: ORDER_FILLING_IOC
+    margin_currency: USD
+    min_lot: 0.01
+    max_lot: 50.0
+    lot_step: 0.01
+    leverage_options:
+    - 100
+  fbs:
+    broker_id: fbs
+    name: FBS (synthetic from historical CSV)
+    server: FBS-Real
+    account_type: live
+    typical_spread_xauusd: 0.3
+    max_spread_xauusd: 0.5
+    commission_per_lot_round_turn: 6.0
+    typical_slippage_xauusd: 0.03
+    max_slippage_xauusd: 0.12
+    swap_long_xauusd_per_lot_per_night: -3.5
+    swap_short_xauusd_per_lot_per_night: -1.2
+    contract_size_xauusd: 100
+    stops_level_points_xauusd: 40
+    freeze_level_points_xauusd: 0
+    filling_mode: ORDER_FILLING_IOC
+    margin_currency: USD
+    min_lot: 0.01
+    max_lot: 100.0
+    lot_step: 0.01
+    leverage_options:
+    - 100
+    - 200
+    - 500

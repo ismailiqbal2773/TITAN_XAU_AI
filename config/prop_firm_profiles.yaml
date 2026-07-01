@@ -238,6 +238,207 @@ profiles:
     hedging_allowed: true
     notes: "Custom: fully configurable via runtime.yaml:prop_firm.custom_overrides"
 
+  # ─── Generic Prop 100x — static DD (Sprint 9.9.3.45.8.5) ───────────────────
+  # Conservative generic prop firm profile: 100x leverage, 8% target, 3% daily,
+  # 8% total DD (static). Two unknowns (news_trading, weekend_holding) are
+  # flagged non-critical for challenge phase; consistency_rule=true with 5 min
+  # trading days.
+  generic_prop_100x_static_dd:
+    firm_id: generic_prop
+    name: "Generic Prop 100x — Static DD"
+    initial_balance: 100000.0
+    leverage: 100
+    profit_target_pct: 0.08
+    max_daily_loss_pct: 0.03
+    max_total_loss_pct: 0.08
+    emergency_halt_pct: 0.07
+    daily_caution_pct: 0.025
+    drawdown_mode: static
+    daily_loss_mode: balance_based
+    min_trading_days: 5
+    max_trading_days: 0
+    consistency_rule_enabled: true
+    consistency_pct: 0.40
+    weekend_close_required: unknown
+    use_news_filter: unknown
+    news_blackout_minutes: 30
+    max_open_positions: 1
+    max_lot: 0.01
+    risk_per_trade_pct: 0.01
+    max_symbol_exposure: 0.01
+    min_rr: 2.0
+    atr_profile: balanced            # 2.0/4.0
+    phase: challenge
+    hedging_allowed: true
+    ea_allowed: true
+    copy_trading: unknown
+    notes: "Generic Prop 100x static-DD conservative profile."
+
+  # ─── Generic Prop 100x — trailing DD ───────────────────────────────────────
+  # Same as static_dd but drawdown is trailing (peak equity based).
+  generic_prop_100x_trailing_dd:
+    firm_id: generic_prop
+    name: "Generic Prop 100x — Trailing DD"
+    initial_balance: 100000.0
+    leverage: 100
+    profit_target_pct: 0.08
+    max_daily_loss_pct: 0.03
+    max_total_loss_pct: 0.08
+    emergency_halt_pct: 0.07
+    daily_caution_pct: 0.025
+    drawdown_mode: trailing
+    daily_loss_mode: balance_based
+    min_trading_days: 5
+    max_trading_days: 0
+    consistency_rule_enabled: true
+    consistency_pct: 0.40
+    weekend_close_required: unknown
+    use_news_filter: unknown
+    news_blackout_minutes: 30
+    max_open_positions: 1
+    max_lot: 0.01
+    risk_per_trade_pct: 0.01
+    max_symbol_exposure: 0.01
+    min_rr: 2.0
+    atr_profile: balanced            # 2.0/4.0
+    phase: challenge
+    hedging_allowed: true
+    ea_allowed: true
+    copy_trading: unknown
+    notes: "Generic Prop 100x trailing-DD conservative profile."
+
+  # ─── FundedNext-style conservative ─────────────────────────────────────────
+  # Mirrors FundedNext funded phase but with conservative challenge constraints
+  # applied: 100x, 8% target, 3% daily, 8% total DD, trailing.
+  fundednext_style_conservative:
+    firm_id: fundednext
+    name: "FundedNext-style Conservative"
+    initial_balance: 100000.0
+    leverage: 100
+    profit_target_pct: 0.08
+    max_daily_loss_pct: 0.03
+    max_total_loss_pct: 0.08
+    emergency_halt_pct: 0.07
+    daily_caution_pct: 0.025
+    drawdown_mode: trailing
+    daily_loss_mode: balance_based
+    min_trading_days: 0
+    max_trading_days: 0
+    consistency_rule_enabled: false
+    consistency_pct: 0.0
+    weekend_close_required: true
+    use_news_filter: true
+    news_blackout_minutes: 30
+    max_open_positions: 1
+    max_lot: 0.01
+    risk_per_trade_pct: 0.01
+    max_symbol_exposure: 0.01
+    min_rr: 2.0
+    atr_profile: balanced            # 2.0/4.0
+    phase: challenge
+    hedging_allowed: true
+    notes: "FundedNext-style conservative: trailing DD, 8% target, 3% daily."
+
+  # ─── FTMO-style conservative ───────────────────────────────────────────────
+  # Conservative variant of FTMO Challenge: 100x, 10% target, 5% daily, 10% DD,
+  # static drawdown. Mirrors FTMO Challenge but explicit min_rr and leverage.
+  ftmo_style_conservative:
+    firm_id: ftmo
+    name: "FTMO-style Conservative"
+    initial_balance: 100000.0
+    leverage: 100
+    profit_target_pct: 0.10
+    max_daily_loss_pct: 0.05
+    max_total_loss_pct: 0.10
+    emergency_halt_pct: 0.08
+    daily_caution_pct: 0.04
+    drawdown_mode: static
+    daily_loss_mode: balance_based
+    min_trading_days: 4
+    max_trading_days: 0
+    consistency_rule_enabled: true
+    consistency_pct: 0.40
+    weekend_close_required: true
+    use_news_filter: true
+    news_blackout_minutes: 30
+    max_open_positions: 1
+    max_lot: 0.01
+    risk_per_trade_pct: 0.01
+    max_symbol_exposure: 0.01
+    min_rr: 2.0
+    atr_profile: challenge           # 1.5/3.0
+    phase: challenge
+    hedging_allowed: true
+    notes: "FTMO-style conservative: 10% target, 5% daily, 10% static DD."
+
+  # ─── Institutional internal mandate ────────────────────────────────────────
+  # Internal book mandate (not a prop firm). Tighter limits than prop firms:
+  # 50x leverage, 5% target, 2% daily, 4% total DD, static drawdown.
+  institutional_internal_mandate:
+    firm_id: institutional
+    name: "Institutional Internal Mandate"
+    initial_balance: 100000.0
+    leverage: 50
+    profit_target_pct: 0.05
+    max_daily_loss_pct: 0.02
+    max_total_loss_pct: 0.04
+    emergency_halt_pct: 0.035
+    daily_caution_pct: 0.015
+    drawdown_mode: static
+    daily_loss_mode: balance_based
+    min_trading_days: 0
+    max_trading_days: 0
+    consistency_rule_enabled: false
+    consistency_pct: 0.0
+    weekend_close_required: true
+    use_news_filter: true
+    news_blackout_minutes: 30
+    max_open_positions: 1
+    max_lot: 0.01
+    risk_per_trade_pct: 0.005
+    max_symbol_exposure: 0.01
+    min_rr: 2.5
+    atr_profile: balanced            # 2.0/4.0
+    phase: funded
+    hedging_allowed: false
+    notes: "Institutional internal mandate: 5% target, 2% daily, 4% DD, 50x."
+
+  # ─── Aggressive 20% simulation-only ────────────────────────────────────────
+  # Aggressive 20% monthly target simulation profile. NEVER live — explicitly
+  # marked simulation_only=true, live_allowed=false. Trailing DD.
+  prop_aggressive_20pct_simulation_only:
+    firm_id: generic_prop
+    name: "Prop Aggressive 20% — SIMULATION ONLY"
+    initial_balance: 100000.0
+    leverage: 100
+    profit_target_pct: 0.20
+    max_daily_loss_pct: 0.03
+    max_total_loss_pct: 0.08
+    emergency_halt_pct: 0.07
+    daily_caution_pct: 0.025
+    drawdown_mode: trailing
+    daily_loss_mode: balance_based
+    min_trading_days: 5
+    max_trading_days: 0
+    consistency_rule_enabled: true
+    consistency_pct: 0.40
+    weekend_close_required: unknown
+    use_news_filter: unknown
+    news_blackout_minutes: 30
+    max_open_positions: 1
+    max_lot: 0.01
+    risk_per_trade_pct: 0.015
+    max_symbol_exposure: 0.01
+    min_rr: 1.5
+    atr_profile: production_aggressive   # 3.0/6.0
+    phase: challenge
+    hedging_allowed: true
+    simulation_only: true
+    live_allowed: false
+    monthly_target_pct: 0.20
+    target_status: "NOT_PROVEN"
+    notes: "SIMULATION ONLY — aggressive 20% target. NEVER for live trading."
+
 # ─── MT5 auto-detection rules ────────────────────────────────────────────────
 # Used by PropFirmProfileManager.auto_detect(mt5_account_info).
 # Auto-detection is ADVISORY ONLY — never auto-applies. Operator must confirm.

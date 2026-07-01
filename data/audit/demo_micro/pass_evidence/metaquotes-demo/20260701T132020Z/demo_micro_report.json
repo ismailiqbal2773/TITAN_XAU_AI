@@ -1,0 +1,25 @@
+{
+  "final_verdict": "DEMO_FULL_CYCLE_PASS",
+  "net_pnl": 2.4,
+  "open_positions_remaining": 0,
+  "filling_mode_selected": "IOC",
+  "filling_source": "raw_working_profile",
+  "raw_working_profile_used": true,
+  "open_order": {
+    "retcode": 10009,
+    "request": {
+      "symbol": "XAUUSD",
+      "volume": 0.01,
+      "type": 0
+    }
+  },
+  "close_result": {
+    "retcode": 10009
+  },
+  "pre_send_diagnostics": {
+    "account": {
+      "server": "MetaQuotes-Demo",
+      "login": "12***78"
+    }
+  }
+}

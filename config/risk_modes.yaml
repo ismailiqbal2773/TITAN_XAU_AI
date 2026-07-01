@@ -1,0 +1,124 @@
+# TITAN XAU AI - Risk Modes (Sprint 9.9.3.45.8.5)
+# =================================================
+# Risk modes compose with account profiles, broker profiles, and prop-firm
+# profiles to produce the final per-trade risk envelope. Each mode declares
+# max_risk_per_trade_pct, max_daily_dd_pct, max_total_dd_pct, live_allowed,
+# and the safety invariants no_martingale/no_grid/no_averaging/
+# no_loss_based_lot_multiplier.
+#
+# All percentages stored as decimals (0.05 = 5%).
+#
+# Safety invariants (HARD — enforced for every mode):
+#   no_martingale: true
+#   no_grid: true
+#   no_averaging: true
+#   no_loss_based_lot_multiplier: true
+
+modes:
+
+  # ─── Ultra-safe demo (smallest possible risk envelope) ───────────────────
+  ultra_safe_demo:
+    max_risk_per_trade_pct: 0.002         # 0.2% per trade
+    max_daily_dd_pct: 0.02                # 2% daily DD
+    max_total_dd_pct: 0.04                # 4% total DD
+    live_allowed: false
+    no_martingale: true
+    no_grid: true
+    no_averaging: true
+    no_loss_based_lot_multiplier: true
+    notes: "Ultra-safe demo: 0.2% risk, 2% daily, 4% total. NEVER live."
+
+  # ─── Conservative live ───────────────────────────────────────────────────
+  conservative:
+    max_risk_per_trade_pct: 0.005         # 0.5% per trade
+    max_daily_dd_pct: 0.03                # 3% daily DD
+    max_total_dd_pct: 0.06                # 6% total DD
+    live_allowed: true
+    no_martingale: true
+    no_grid: true
+    no_averaging: true
+    no_loss_based_lot_multiplier: true
+    notes: "Conservative: 0.5% risk, 3% daily, 6% total. Live-safe."
+
+  # ─── Balanced live ───────────────────────────────────────────────────────
+  balanced:
+    max_risk_per_trade_pct: 0.0075        # 0.75% per trade
+    max_daily_dd_pct: 0.03                # 3% daily DD
+    max_total_dd_pct: 0.08                # 8% total DD
+    live_allowed: true
+    no_martingale: true
+    no_grid: true
+    no_averaging: true
+    no_loss_based_lot_multiplier: true
+    notes: "Balanced: 0.75% risk, 3% daily, 8% total. Live-safe."
+
+  # ─── Aggressive simulation-only (20% monthly target) ────────────────────
+  aggressive_simulation_only:
+    max_risk_per_trade_pct: 0.015         # 1.5% per trade
+    max_daily_dd_pct: 0.03                # 3% daily DD
+    max_total_dd_pct: 0.08                # 8% total DD
+    live_allowed: false
+    simulation_only: true
+    monthly_target_pct: 0.20              # 20% monthly target
+    target_status: "NOT_PROVEN"
+    no_martingale: true
+    no_grid: true
+    no_averaging: true
+    no_loss_based_lot_multiplier: true
+    notes: "Aggressive simulation: 1.5% risk, 20% target. NEVER live."
+
+  # ─── Prop challenge conservative ─────────────────────────────────────────
+  # Internal stops sit BELOW the external prop-firm limits so the kill-switch
+  # fires before the prop firm's hard limit is breached.
+  # External: 3% daily / 7% total. Internal: 2.5% daily / 6.0% total.
+  prop_challenge_conservative:
+    max_risk_per_trade_pct: 0.0075        # 0.75% per trade
+    max_daily_dd_pct: 0.025               # 2.5% internal daily (ext 3%)
+    max_total_dd_pct: 0.07                # 7.0% internal total (ext 8%)
+    live_allowed: false
+    external_max_daily_dd_pct: 0.03       # external prop limit
+    external_max_total_dd_pct: 0.08       # external prop limit
+    no_martingale: true
+    no_grid: true
+    no_averaging: true
+    no_loss_based_lot_multiplier: true
+    notes: "Prop challenge conservative: internal stops below external limits."
+
+  # ─── Prop challenge aggressive simulation-only ───────────────────────────
+  prop_challenge_aggressive_simulation_only:
+    max_risk_per_trade_pct: 0.015         # 1.5% per trade
+    max_daily_dd_pct: 0.025               # 2.5% internal daily (ext 3%)
+    max_total_dd_pct: 0.07                # 7.0% internal total (ext 8%)
+    live_allowed: false
+    simulation_only: true
+    external_max_daily_dd_pct: 0.03       # external prop limit
+    external_max_total_dd_pct: 0.08       # external prop limit
+    no_martingale: true
+    no_grid: true
+    no_averaging: true
+    no_loss_based_lot_multiplier: true
+    notes: "Prop challenge aggressive simulation: NEVER live."
+
+  # ─── Institutional low risk ──────────────────────────────────────────────
+  institutional_low_risk:
+    max_risk_per_trade_pct: 0.0025        # 0.25% per trade
+    max_daily_dd_pct: 0.02                # 2% daily DD
+    max_total_dd_pct: 0.04                # 4% total DD
+    live_allowed: true
+    no_martingale: true
+    no_grid: true
+    no_averaging: true
+    no_loss_based_lot_multiplier: true
+    notes: "Institutional low risk: 0.25% risk, 2% daily, 4% total. Live-safe."
+
+  # ─── Institutional balanced ──────────────────────────────────────────────
+  institutional_balanced:
+    max_risk_per_trade_pct: 0.005         # 0.5% per trade
+    max_daily_dd_pct: 0.03                # 3% daily DD
+    max_total_dd_pct: 0.06                # 6% total DD
+    live_allowed: true
+    no_martingale: true
+    no_grid: true
+    no_averaging: true
+    no_loss_based_lot_multiplier: true
+    notes: "Institutional balanced: 0.5% risk, 3% daily, 6% total. Live-safe."
