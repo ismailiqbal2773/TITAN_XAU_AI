@@ -1,0 +1,133 @@
+{
+  "candidates": [
+    {
+      "created_utc": "2026-07-01T11:00:31.352405+00:00",
+      "description": "Rate-of-change momentum on H1 close, threshold-gated.",
+      "formula_type": "MOMENTUM",
+      "name": "momentum_h1_roc",
+      "notes": "",
+      "parameters": {
+        "lookback": 14,
+        "threshold": 0.0015,
+        "timeframe": "H1"
+      },
+      "safety": {
+        "no_auto_live": true,
+        "no_averaging": true,
+        "no_grid": true,
+        "no_loss_based_lot_multiplier": true,
+        "no_martingale": true,
+        "no_order_send": true
+      },
+      "source": "research",
+      "status": "CANDIDATE"
+    },
+    {
+      "created_utc": "2026-07-01T11:00:31.352438+00:00",
+      "description": "Z-score mean reversion on M15 with regime filter.",
+      "formula_type": "MEAN_REVERSION",
+      "name": "mean_reversion_m15_zscore",
+      "notes": "",
+      "parameters": {
+        "lookback": 30,
+        "timeframe": "M15",
+        "z_threshold": 2.0
+      },
+      "safety": {
+        "no_auto_live": true,
+        "no_averaging": true,
+        "no_grid": true,
+        "no_loss_based_lot_multiplier": true,
+        "no_martingale": true,
+        "no_order_send": true
+      },
+      "source": "research",
+      "status": "CANDIDATE"
+    },
+    {
+      "created_utc": "2026-07-01T11:00:31.352444+00:00",
+      "description": "Regime-specialist alpha active only in trending regimes.",
+      "formula_type": "REGIME",
+      "name": "regime_specialist_trending",
+      "notes": "",
+      "parameters": {
+        "min_confidence": 0.65,
+        "regime": "TRENDING"
+      },
+      "safety": {
+        "no_auto_live": true,
+        "no_averaging": true,
+        "no_grid": true,
+        "no_loss_based_lot_multiplier": true,
+        "no_martingale": true,
+        "no_order_send": true
+      },
+      "source": "research",
+      "status": "CANDIDATE"
+    },
+    {
+      "created_utc": "2026-07-01T11:00:31.352449+00:00",
+      "description": "Ensemble voter combining LSTM, XGBoost, and transformer signals.",
+      "formula_type": "ENSEMBLE_VOTER",
+      "name": "ensemble_voter_three_model",
+      "notes": "",
+      "parameters": {
+        "quorum": 2,
+        "voters": [
+          "lstm_v2",
+          "xgboost_v2",
+          "transformer_v1"
+        ]
+      },
+      "safety": {
+        "no_auto_live": true,
+        "no_averaging": true,
+        "no_grid": true,
+        "no_loss_based_lot_multiplier": true,
+        "no_martingale": true,
+        "no_order_send": true
+      },
+      "source": "research",
+      "status": "CANDIDATE"
+    },
+    {
+      "created_utc": "2026-07-01T11:00:31.352455+00:00",
+      "description": "Adaptive trailing exit policy variant for existing positions.",
+      "formula_type": "EXIT_POLICY",
+      "name": "exit_policy_adaptive_trailing",
+      "notes": "",
+      "parameters": {
+        "atr_multiple": 1.8,
+        "tighten_after_mfe_r": 1.0
+      },
+      "safety": {
+        "no_auto_live": true,
+        "no_averaging": true,
+        "no_grid": true,
+        "no_loss_based_lot_multiplier": true,
+        "no_martingale": true,
+        "no_order_send": true
+      },
+      "source": "research",
+      "status": "CANDIDATE"
+    }
+  ],
+  "evaluations": [],
+  "generated_utc": "2026-07-01T11:00:31.353680+00:00",
+  "safety_contract": {
+    "no_auto_live": true,
+    "no_averaging": true,
+    "no_grid": true,
+    "no_loss_based_lot_multiplier": true,
+    "no_martingale": true,
+    "no_order_send": true
+  },
+  "schema_version": 1,
+  "summary": {
+    "by_status": {
+      "CANDIDATE": 5
+    },
+    "total_candidates": 5,
+    "total_evaluations": 0
+  }
+}
