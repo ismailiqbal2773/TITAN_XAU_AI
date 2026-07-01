@@ -1,14 +1,26 @@
 #!/usr/bin/env python3
 """
-TITAN XAU AI - Demo Micro Trade Forensics (Sprint 9.9.3.45.2)
+TITAN XAU AI - Demo Micro Trade Forensics (Sprint 9.9.3.45.5)
 ================================================================
 Passive forensic analysis of executed demo micro trade.
 NEVER sends orders. NEVER modifies positions.
 
-Sprint 9.9.3.45.2: Fixed matching bug. Now supports explicit
-position_id/order_ticket/deal_ticket matching, execution receipt
-matching, robust position_id grouping, SL close detection from
-comment "[sl ...]", and order SL/TP capture.
+Sprint 9.9.3.45.5: Strict no-fallback matching.
+  - If --position-id is supplied and no matching deal/order/open
+    position is found: verdict DEMO_MICRO_FORENSICS_INCOMPLETE,
+    root_cause EXPLICIT_POSITION_ID_NOT_FOUND. Do NOT fallback to old
+    magic/comment trades.
+  - If receipt exists and receipt_success=True: receipt match is
+    mandatory first. If receipt order/deal/position cannot be found:
+    verdict DEMO_MICRO_FORENSICS_INCOMPLETE, root_cause
+    RECEIPT_TRADE_NOT_FOUND_IN_HISTORY_OR_OPEN_POSITIONS. Include old
+    fallback candidates separately only as diagnostics. Do NOT return
+    COMPLETE based on old trade.
+  - Fallback to old magic/comment only allowed when: no explicit id
+    supplied, no receipt exists, OR receipt_success=False.
+  - New fields: explicit_position_id_supplied, explicit_position_id_found,
+    receipt_match_required, receipt_match_found, fallback_candidates_count,
+    fallback_used, fallback_allowed, fallback_blocked_reason.
 """
 from __future__ import annotations
 import argparse, hashlib, json, sys
@@ -20,6 +32,9 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT))
 OUTPUT_DIR = REPO_ROOT / "data" / "audit" / "demo_micro_execution"
 RECEIPT_PATH = REPO_ROOT / "data" / "runtime" / "demo_micro_execution_receipt.json"
+
+TITAN_MAGIC = 202619
+TITAN_COMMENT = "TITAN_DEMO_MICRO"
 
 
 def _load_receipt() -> Optional[dict]:
@@ -33,14 +48,27 @@ def _load_receipt() -> Optional[dict]:
 
 
 def collect_forensics(days: int = 30, symbol: str = "XAUUSD",
-                       magic: int = 202619, comment: str = "TITAN_DEMO_MICRO",
+                       magic: int = TITAN_MAGIC, comment: str = TITAN_COMMENT,
                        position_id: int = 0, order_ticket: int = 0,
                        deal_ticket: int = 0) -> dict:
     ts = datetime.now(timezone.utc).isoformat()
     ok_checks = []
     blockers = []
     warnings = []
-    findings = {}
+    findings = {
+        "explicit_position_id_supplied": position_id > 0,
+        "explicit_position_id_found": False,
+        "explicit_order_ticket_supplied": order_ticket > 0,
+        "explicit_order_ticket_found": False,
+        "explicit_deal_ticket_supplied": deal_ticket > 0,
+        "explicit_deal_ticket_found": False,
+        "receipt_match_required": False,
+        "receipt_match_found": False,
+        "fallback_candidates_count": 0,
+        "fallback_used": False,
+        "fallback_allowed": False,
+        "fallback_blocked_reason": "",
+    }
 
     # Load execution receipt if available
     receipt = _load_receipt()
@@ -50,23 +78,39 @@ def collect_forensics(days: int = 30, symbol: str = "XAUUSD",
         findings["receipt_position_detected"] = receipt.get("position_detected", False)
         findings["receipt_position_id"] = receipt.get("position_id", 0)
         findings["receipt_order_ticket"] = receipt.get("order_ticket", 0)
+        findings["receipt_detected_position_ticket"] = receipt.get("detected_position_ticket", 0)
+        findings["receipt_detected_position_identifier"] = receipt.get("detected_position_identifier", 0)
         findings["receipt_execution_mode"] = receipt.get("execution_mode", "")
         findings["receipt_timestamp"] = receipt.get("timestamp_utc", "")
-        ok_checks.append(f"Execution receipt found (mode={receipt.get('execution_mode', 'unknown')}, success={receipt.get('success', False)})")
-        # Sprint 9.9.3.45.4: Use receipt position_id/order_ticket FIRST (newest receipt priority)
-        if not position_id and receipt.get("position_id"):
-            position_id = receipt["position_id"]
-            ok_checks.append(f"Using position_id from receipt: {position_id}")
-        if not order_ticket and receipt.get("order_ticket"):
-            order_ticket = receipt["order_ticket"]
-            ok_checks.append(f"Using order_ticket from receipt: {order_ticket}")
-        if not deal_ticket and receipt.get("deal_ticket"):
-            deal_ticket = receipt["deal_ticket"]
-            ok_checks.append(f"Using deal_ticket from receipt: {deal_ticket}")
+        ok_checks.append(
+            f"Execution receipt found (mode={receipt.get('execution_mode', 'unknown')}, "
+            f"success={receipt.get('success', False)})"
+        )
     else:
         findings["receipt_available"] = False
         findings["receipt_success"] = None
         findings["receipt_position_detected"] = None
+
+    # Sprint 9.9.3.45.5: Determine fallback policy
+    explicit_id_supplied = position_id > 0 or order_ticket > 0 or deal_ticket > 0
+    receipt_match_required = bool(receipt and receipt.get("success", False))
+    fallback_allowed = (not explicit_id_supplied) and (
+        not receipt or not receipt.get("success", False)
+    )
+
+    findings["receipt_match_required"] = receipt_match_required
+    findings["fallback_allowed"] = fallback_allowed
+
+    if explicit_id_supplied and not fallback_allowed:
+        # Don't block fallback yet - we may not need it. But if explicit
+        # id is supplied, fallback is forbidden regardless of receipt.
+        findings["fallback_blocked_reason"] = "EXPLICIT_ID_SUPPLIED_FORBIDS_FALLBACK"
+    elif receipt_match_required and not fallback_allowed:
+        findings["fallback_blocked_reason"] = "RECEIPT_SUCCESS_TRUE_REQUIRES_RECEIPT_MATCH"
+    elif not fallback_allowed:
+        findings["fallback_blocked_reason"] = "FALLBACK_NOT_ALLOWED"
+    else:
+        findings["fallback_blocked_reason"] = ""
 
     try:
         import MetaTrader5 as mt5
@@ -75,7 +119,7 @@ def collect_forensics(days: int = 30, symbol: str = "XAUUSD",
                 "timestamp_utc": ts,
                 "verdict": "DEMO_MICRO_FORENSICS_BLOCKED",
                 "reason": "MT5 not available",
-                "ok_checks": ok_checks, "blockers": ["MT5 initialize failed"], "warnings": [],
+                "ok_checks": ok_checks, "blockers": ["MT5 initialize failed"], "warnings": warnings,
                 "findings": findings,
             }
 
@@ -96,22 +140,15 @@ def collect_forensics(days: int = 30, symbol: str = "XAUUSD",
         all_orders = mt5.history_orders_get(from_dt, to_dt)
         findings["total_orders_in_window"] = len(all_orders) if all_orders else 0
 
-        mt5.shutdown()
+        # Query current open positions (Sprint 9.9.3.45.5: needed for explicit position-id check)
+        open_positions = mt5.positions_get(symbol=symbol)
+        findings["open_positions_count"] = len(open_positions) if open_positions else 0
 
-        if not all_deals:
-            warnings.append("No deals found in history window")
-            findings["root_cause"] = "HISTORY_NOT_FOUND"
-            return {
-                "timestamp_utc": ts,
-                "verdict": "DEMO_MICRO_FORENSICS_INCOMPLETE",
-                "ok_checks": ok_checks, "blockers": blockers, "warnings": warnings,
-                "findings": findings,
-                "safety": {"order_send_called": False, "position_modified": False},
-            }
+        mt5.shutdown()
 
         # Normalize all deals
         normalized_deals = []
-        for d in all_deals:
+        for d in (all_deals or []):
             normalized_deals.append({
                 "ticket": getattr(d, "ticket", 0),
                 "order": getattr(d, "order", 0),
@@ -129,110 +166,233 @@ def collect_forensics(days: int = 30, symbol: str = "XAUUSD",
 
         # Normalize all orders
         normalized_orders = []
-        if all_orders:
-            for o in all_orders:
-                normalized_orders.append({
-                    "ticket": getattr(o, "ticket", 0),
-                    "position_id": getattr(o, "position_id", 0),
-                    "type": getattr(o, "type", -1),
-                    "sl": getattr(o, "sl", 0),
-                    "tp": getattr(o, "tp", 0),
-                    "price": getattr(o, "price", 0),
-                    "volume_initial": getattr(o, "volume_initial", 0),
-                    "comment": getattr(o, "comment", ""),
-                    "magic": getattr(o, "magic", 0),
-                    "symbol": getattr(o, "symbol", ""),
-                    "time_setup": getattr(o, "time_setup", 0),
-                    "time_done": getattr(o, "time_done", 0),
-                })
+        for o in (all_orders or []):
+            normalized_orders.append({
+                "ticket": getattr(o, "ticket", 0),
+                "position_id": getattr(o, "position_id", 0),
+                "type": getattr(o, "type", -1),
+                "sl": getattr(o, "sl", 0),
+                "tp": getattr(o, "tp", 0),
+                "price": getattr(o, "price", 0),
+                "volume_initial": getattr(o, "volume_initial", 0),
+                "comment": getattr(o, "comment", ""),
+                "magic": getattr(o, "magic", 0),
+                "symbol": getattr(o, "symbol", ""),
+                "time_setup": getattr(o, "time_setup", 0),
+                "time_done": getattr(o, "time_done", 0),
+            })
 
-        # Matching priority:
-        # 1. Explicit deal_ticket
-        # 2. Explicit position_id
-        # 3. Explicit order_ticket
-        # 4. Receipt position_id/order_ticket
-        # 5. Magic + symbol
-        # 6. Comment contains TITAN_DEMO_MICRO + symbol
-        # 7. Likely: XAUUSD + volume 0.01 + entry/close pair
+        # Normalize open positions
+        normalized_open_positions = []
+        for p in (open_positions or []):
+            normalized_open_positions.append({
+                "ticket": getattr(p, "ticket", 0),
+                "identifier": getattr(p, "identifier", getattr(p, "ticket", 0)),
+                "symbol": getattr(p, "symbol", ""),
+                "magic": getattr(p, "magic", 0),
+                "comment": getattr(p, "comment", ""),
+                "type": getattr(p, "type", -1),
+                "volume": getattr(p, "volume", 0),
+                "price_open": getattr(p, "price_open", 0),
+                "price_current": getattr(p, "price_current", 0),
+                "sl": getattr(p, "sl", 0),
+                "tp": getattr(p, "tp", 0),
+            })
 
         matched_deals = []
         matched_orders = []
         match_method = ""
 
+        # === Strict explicit matching (Sprint 9.9.3.45.5) ===
         # 1. Explicit deal_ticket
         if deal_ticket:
-            matched_deals = [d for d in normalized_deals if d["ticket"] == deal_ticket]
-            if matched_deals:
-                # Find the position_id from this deal and get all deals with same position_id
-                pos_id = matched_deals[0]["position_id"]
-                matched_deals = [d for d in normalized_deals if d["position_id"] == pos_id]
-                matched_orders = [o for o in normalized_orders if o["position_id"] == pos_id]
-                match_method = f"explicit_deal_ticket_{deal_ticket}"
-                ok_checks.append(f"Matched by explicit deal_ticket: {deal_ticket}")
+            explicit_deals = [d for d in normalized_deals if d["ticket"] == deal_ticket]
+            explicit_open = [p for p in normalized_open_positions
+                             if p["ticket"] == deal_ticket or p["identifier"] == deal_ticket]
+            if explicit_deals or explicit_open:
+                findings["explicit_deal_ticket_found"] = True
+                if explicit_deals:
+                    pos_id = explicit_deals[0]["position_id"]
+                    matched_deals = [d for d in normalized_deals if d["position_id"] == pos_id]
+                    matched_orders = [o for o in normalized_orders if o["position_id"] == pos_id]
+                    match_method = f"explicit_deal_ticket_{deal_ticket}"
+                    ok_checks.append(f"Matched by explicit deal_ticket: {deal_ticket}")
 
         # 2. Explicit position_id
         if not matched_deals and position_id:
-            matched_deals = [d for d in normalized_deals if d["position_id"] == position_id]
-            matched_orders = [o for o in normalized_orders if o["position_id"] == position_id]
-            if matched_deals:
+            explicit_pos_deals = [d for d in normalized_deals if d["position_id"] == position_id]
+            explicit_pos_orders = [o for o in normalized_orders if o["position_id"] == position_id]
+            explicit_pos_open = [p for p in normalized_open_positions
+                                 if p["ticket"] == position_id or p["identifier"] == position_id]
+            if explicit_pos_deals or explicit_pos_orders or explicit_pos_open:
+                findings["explicit_position_id_found"] = True
+                matched_deals = explicit_pos_deals
+                matched_orders = explicit_pos_orders
                 match_method = f"explicit_position_id_{position_id}"
                 ok_checks.append(f"Matched by explicit position_id: {position_id}")
+            else:
+                # Explicit position-id supplied but NOT FOUND - strict no-fallback
+                findings["root_cause"] = "EXPLICIT_POSITION_ID_NOT_FOUND"
+                findings["fallback_blocked_reason"] = "EXPLICIT_POSITION_ID_NOT_FOUND"
+                warnings.append(
+                    f"Explicit position_id={position_id} not found in deals, orders, or open positions. "
+                    "Fallback to old trades is forbidden."
+                )
+                return {
+                    "timestamp_utc": ts,
+                    "verdict": "DEMO_MICRO_FORENSICS_INCOMPLETE",
+                    "ok_checks": ok_checks, "blockers": blockers, "warnings": warnings,
+                    "findings": findings,
+                    "safety": {"order_send_called": False, "position_modified": False},
+                }
 
         # 3. Explicit order_ticket
         if not matched_deals and order_ticket:
-            # Find the position_id from this order
             order_match = [o for o in normalized_orders if o["ticket"] == order_ticket]
-            if order_match:
-                pos_id = order_match[0]["position_id"]
+            deal_match = [d for d in normalized_deals if d["order"] == order_ticket]
+            if order_match or deal_match:
+                findings["explicit_order_ticket_found"] = True
+                pos_id = (order_match[0]["position_id"] if order_match
+                          else deal_match[0]["position_id"])
                 matched_deals = [d for d in normalized_deals if d["position_id"] == pos_id]
                 matched_orders = [o for o in normalized_orders if o["position_id"] == pos_id]
                 match_method = f"explicit_order_ticket_{order_ticket}"
                 ok_checks.append(f"Matched by explicit order_ticket: {order_ticket}")
+            else:
+                findings["root_cause"] = "EXPLICIT_ORDER_TICKET_NOT_FOUND"
+                findings["fallback_blocked_reason"] = "EXPLICIT_ORDER_TICKET_NOT_FOUND"
+                warnings.append(
+                    f"Explicit order_ticket={order_ticket} not found in orders or deals. "
+                    "Fallback to old trades is forbidden."
+                )
+                return {
+                    "timestamp_utc": ts,
+                    "verdict": "DEMO_MICRO_FORENSICS_INCOMPLETE",
+                    "ok_checks": ok_checks, "blockers": blockers, "warnings": warnings,
+                    "findings": findings,
+                    "safety": {"order_send_called": False, "position_modified": False},
+                }
 
-        # 5. Magic + symbol match
-        if not matched_deals:
+        # === Receipt matching (mandatory first if receipt_success=True) ===
+        if not matched_deals and receipt_match_required:
+            receipt_pos_id = receipt.get("detected_position_identifier") or receipt.get("position_id") or 0
+            receipt_order = receipt.get("order_ticket") or receipt.get("order_send_result_order") or 0
+            receipt_deal = receipt.get("deal_ticket") or receipt.get("order_send_result_deal") or 0
+            receipt_detected_ticket = receipt.get("detected_position_ticket") or 0
+
+            receipt_matched = False
+            # Try receipt position-id / detected-position-ticket
+            for rid in [receipt_pos_id, receipt_detected_ticket]:
+                if not rid:
+                    continue
+                rm_deals = [d for d in normalized_deals if d["position_id"] == rid]
+                rm_orders = [o for o in normalized_orders if o["position_id"] == rid]
+                rm_open = [p for p in normalized_open_positions
+                           if p["ticket"] == rid or p["identifier"] == rid]
+                if rm_deals or rm_orders or rm_open:
+                    matched_deals = rm_deals
+                    matched_orders = rm_orders
+                    match_method = f"receipt_position_id_{rid}"
+                    receipt_matched = True
+                    ok_checks.append(f"Matched by receipt position_id: {rid}")
+                    break
+            # Try receipt deal ticket
+            if not receipt_matched and receipt_deal:
+                rm_deals = [d for d in normalized_deals if d["ticket"] == receipt_deal]
+                if rm_deals:
+                    pos_id = rm_deals[0]["position_id"]
+                    matched_deals = [d for d in normalized_deals if d["position_id"] == pos_id]
+                    matched_orders = [o for o in normalized_orders if o["position_id"] == pos_id]
+                    match_method = f"receipt_deal_ticket_{receipt_deal}"
+                    receipt_matched = True
+                    ok_checks.append(f"Matched by receipt deal_ticket: {receipt_deal}")
+            # Try receipt order ticket
+            if not receipt_matched and receipt_order:
+                rm_orders = [o for o in normalized_orders if o["ticket"] == receipt_order]
+                rm_deals = [d for d in normalized_deals if d["order"] == receipt_order]
+                if rm_orders or rm_deals:
+                    pos_id = (rm_orders[0]["position_id"] if rm_orders
+                              else rm_deals[0]["position_id"])
+                    matched_deals = [d for d in normalized_deals if d["position_id"] == pos_id]
+                    matched_orders = [o for o in normalized_orders if o["position_id"] == pos_id]
+                    match_method = f"receipt_order_ticket_{receipt_order}"
+                    receipt_matched = True
+                    ok_checks.append(f"Matched by receipt order_ticket: {receipt_order}")
+
+            findings["receipt_match_found"] = receipt_matched
+            if not receipt_matched:
+                # Receipt success=True but receipt trade NOT FOUND - strict no-fallback
+                findings["root_cause"] = "RECEIPT_TRADE_NOT_FOUND_IN_HISTORY_OR_OPEN_POSITIONS"
+                findings["fallback_blocked_reason"] = "RECEIPT_TRADE_NOT_FOUND_IN_HISTORY_OR_OPEN_POSITIONS"
+                # Compute fallback candidates as DIAGNOSTICS only
+                fb_candidates = []
+                magic_deals = [d for d in normalized_deals if d["magic"] == magic and d["symbol"] == symbol]
+                if magic_deals:
+                    pos_ids = set(d["position_id"] for d in magic_deals if d["position_id"])
+                    for pid in sorted(pos_ids, reverse=True):
+                        fb_candidates.append({
+                            "position_id": pid,
+                            "match_type": "magic_comment",
+                            "deal_count": sum(1 for d in magic_deals if d["position_id"] == pid),
+                        })
+                findings["fallback_candidates"] = fb_candidates
+                findings["fallback_candidates_count"] = len(fb_candidates)
+                warnings.append(
+                    "Receipt success=True but receipt order/deal/position NOT FOUND in history or open positions. "
+                    "Fallback to old trades is forbidden. Old candidates included as diagnostics only."
+                )
+                return {
+                    "timestamp_utc": ts,
+                    "verdict": "DEMO_MICRO_FORENSICS_INCOMPLETE",
+                    "ok_checks": ok_checks, "blockers": blockers, "warnings": warnings,
+                    "findings": findings,
+                    "safety": {"order_send_called": False, "position_modified": False},
+                }
+
+        # === Fallback matching (only when allowed) ===
+        if not matched_deals and fallback_allowed:
+            findings["fallback_used"] = True
+            # 5. Magic + symbol match
             magic_deals = [d for d in normalized_deals if d["magic"] == magic and d["symbol"] == symbol]
             if magic_deals:
-                # Group by position_id
                 pos_ids = set(d["position_id"] for d in magic_deals if d["position_id"])
                 if pos_ids:
-                    # Take the latest position_id
                     latest_pos = max(pos_ids)
                     matched_deals = [d for d in normalized_deals if d["position_id"] == latest_pos]
                     matched_orders = [o for o in normalized_orders if o["position_id"] == latest_pos]
                     match_method = f"magic_{magic}_symbol_{symbol}_pos_{latest_pos}"
                     ok_checks.append(f"Matched by magic={magic} + symbol={symbol}, position_id={latest_pos}")
+                    findings["fallback_candidates_count"] = len(pos_ids)
 
-        # 6. Comment match
-        if not matched_deals:
-            comment_deals = [d for d in normalized_deals if comment in d.get("comment", "") and d["symbol"] == symbol]
-            if comment_deals:
-                pos_ids = set(d["position_id"] for d in comment_deals if d["position_id"])
-                if pos_ids:
-                    latest_pos = max(pos_ids)
-                    matched_deals = [d for d in normalized_deals if d["position_id"] == latest_pos]
-                    matched_orders = [o for o in normalized_orders if o["position_id"] == latest_pos]
-                    match_method = f"comment_{comment}_pos_{latest_pos}"
-                    ok_checks.append(f"Matched by comment '{comment}', position_id={latest_pos}")
+            # 6. Comment match
+            if not matched_deals:
+                comment_deals = [d for d in normalized_deals if comment in d.get("comment", "") and d["symbol"] == symbol]
+                if comment_deals:
+                    pos_ids = set(d["position_id"] for d in comment_deals if d["position_id"])
+                    if pos_ids:
+                        latest_pos = max(pos_ids)
+                        matched_deals = [d for d in normalized_deals if d["position_id"] == latest_pos]
+                        matched_orders = [o for o in normalized_orders if o["position_id"] == latest_pos]
+                        match_method = f"comment_{comment}_pos_{latest_pos}"
+                        ok_checks.append(f"Matched by comment '{comment}', position_id={latest_pos}")
+                        findings["fallback_candidates_count"] = len(pos_ids)
 
-        # 7. Likely: XAUUSD + volume 0.01 + entry/close pair
-        likely_deals = []
-        if not matched_deals:
-            xauusd_small = [d for d in normalized_deals if d["symbol"] == symbol and d["volume"] <= 0.01]
-            if xauusd_small:
-                pos_ids = set(d["position_id"] for d in xauusd_small if d["position_id"])
-                if pos_ids:
-                    latest_pos = max(pos_ids)
-                    likely_deals = [d for d in normalized_deals if d["position_id"] == latest_pos]
-                    matched_deals = likely_deals
-                    matched_orders = [o for o in normalized_orders if o["position_id"] == latest_pos]
-                    match_method = f"likely_xauusd_001_pos_{latest_pos}"
-                    warnings.append(f"Matched by likely XAUUSD 0.01 trade, position_id={latest_pos} (no magic/comment match)")
+            # 7. Likely: XAUUSD + volume 0.01 + entry/close pair
+            if not matched_deals:
+                xauusd_small = [d for d in normalized_deals if d["symbol"] == symbol and d["volume"] <= 0.01]
+                if xauusd_small:
+                    pos_ids = set(d["position_id"] for d in xauusd_small if d["position_id"])
+                    if pos_ids:
+                        latest_pos = max(pos_ids)
+                        matched_deals = [d for d in normalized_deals if d["position_id"] == latest_pos]
+                        matched_orders = [o for o in normalized_orders if o["position_id"] == latest_pos]
+                        match_method = f"likely_xauusd_001_pos_{latest_pos}"
+                        warnings.append(f"Matched by likely XAUUSD 0.01 trade, position_id={latest_pos} (no magic/comment match)")
+                        findings["fallback_candidates_count"] = len(pos_ids)
 
         findings["match_method"] = match_method
         findings["matched_deals"] = matched_deals
         findings["matched_orders"] = matched_orders
-        findings["likely_deals"] = likely_deals
 
         if not matched_deals:
             findings["root_cause"] = "HISTORY_NOT_FOUND"
@@ -288,7 +448,6 @@ def collect_forensics(days: int = 30, symbol: str = "XAUUSD",
                 sl_close_comment = exit_deal.get("comment", "")
                 ok_checks.append(f"SL hit detected: {sl_close_comment}")
             else:
-                # Check if exit price matches SL
                 if entry_sl > 0 and abs(exit_deal["price"] - entry_sl) < 0.01:
                     sl_hit = True
                     sl_close_comment = f"exit_price={exit_deal['price']} matches SL={entry_sl}"
@@ -298,17 +457,13 @@ def collect_forensics(days: int = 30, symbol: str = "XAUUSD",
         findings["sl_close_comment"] = sl_close_comment
         findings["realized_pl"] = realized_pl
 
-        # Detect profit before SL (MFE/MAE unknown without tick data)
         profit_before_sl = "UNKNOWN"
         if sl_hit and realized_pl < 0:
-            # SL hit at a loss - position may have been in profit before
             profit_before_sl = "POSSIBLE"
             warnings.append("SL hit at a loss - position may have been in profit before SL hit")
         findings["profit_before_sl_detected"] = profit_before_sl
 
-        # SL modification events
         sl_modification_events = 0
-        # Check if any orders have different SL than entry order (modification)
         if matched_orders and len(matched_orders) > 1:
             for o in matched_orders[1:]:
                 if o.get("sl", 0) != entry_sl and o.get("sl", 0) > 0:
@@ -334,10 +489,20 @@ def collect_forensics(days: int = 30, symbol: str = "XAUUSD",
         findings["root_cause"] = root_cause
         ok_checks.append(f"Root cause: {root_cause}")
 
-        # Verdict
-        is_exact_match = "magic" in match_method or "comment" in match_method or "explicit" in match_method or "receipt" in match_method
-        if is_exact_match and entry_deal and (sl_hit or exit_deal):
+        # Verdict - Sprint 9.9.3.45.5: stricter. No COMPLETE based on fallback.
+        is_explicit_match = "explicit" in match_method or "receipt" in match_method
+        is_strict_match = "magic" in match_method or "comment" in match_method or is_explicit_match
+        is_likely_match = "likely" in match_method
+
+        if is_explicit_match and entry_deal and (sl_hit or exit_deal):
             verdict = "DEMO_MICRO_FORENSICS_COMPLETE"
+        elif is_strict_match and entry_deal and (sl_hit or exit_deal):
+            verdict = "DEMO_MICRO_FORENSICS_COMPLETE"
+        elif is_strict_match and matched_deals:
+            verdict = "DEMO_MICRO_FORENSICS_COMPLETE_WITH_WARNINGS"
+        elif is_likely_match and matched_deals:
+            verdict = "DEMO_MICRO_FORENSICS_COMPLETE_WITH_WARNINGS"
+            warnings.append("Verdict based on LIKELY match (no magic/comment/explicit/receipt match). Treat as diagnostic only.")
         elif matched_deals and (sl_hit or exit_deal):
             verdict = "DEMO_MICRO_FORENSICS_COMPLETE_WITH_WARNINGS"
         elif matched_deals:
@@ -375,9 +540,25 @@ def write_report(result: dict) -> dict:
         f.write(f"**Verdict:** **{result['verdict']}**\n\n")
         f.write(f"**Timestamp:** {result['timestamp_utc']}\n\n")
         findings = result.get("findings", {})
-        f.write("## Findings\n\n")
+        # Sprint 9.9.3.45.5: Strict no-fallback summary
+        f.write("## Strict No-Fallback Summary\n\n")
+        f.write("| Field | Value |\n|---|---|\n")
+        strict_fields = [
+            "explicit_position_id_supplied", "explicit_position_id_found",
+            "explicit_order_ticket_supplied", "explicit_order_ticket_found",
+            "explicit_deal_ticket_supplied", "explicit_deal_ticket_found",
+            "receipt_match_required", "receipt_match_found",
+            "fallback_candidates_count", "fallback_used",
+            "fallback_allowed", "fallback_blocked_reason",
+        ]
+        for k in strict_fields:
+            if k in findings:
+                f.write(f"| {k} | {findings[k]} |\n")
+        f.write("\n## Findings\n\n")
         f.write("| Field | Value |\n|---|---|\n")
         for k, v in findings.items():
+            if k in strict_fields:
+                continue
             if not isinstance(v, (list, dict)):
                 f.write(f"| {k} | {v} |\n")
         if findings.get("entry_deal"):
@@ -396,6 +577,10 @@ def write_report(result: dict) -> dict:
             f.write(f"- Price: {xd['price']}\n")
             f.write(f"- Profit: {xd['profit']}\n")
             f.write(f"- Comment: {xd['comment']}\n")
+        if findings.get("fallback_candidates"):
+            f.write("\n## Fallback Candidates (Diagnostics Only)\n\n")
+            for c in findings["fallback_candidates"]:
+                f.write(f"- position_id={c['position_id']} match_type={c['match_type']} deal_count={c['deal_count']}\n")
         if findings.get("entry_sl", 0) > 0 or findings.get("entry_tp", 0) > 0:
             f.write(f"\n## Entry SL/TP\n\n")
             f.write(f"- SL: {findings.get('entry_sl', 'N/A')}\n")
@@ -417,14 +602,14 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Demo micro trade forensics")
     parser.add_argument("--days", type=int, default=30)
     parser.add_argument("--symbol", default="XAUUSD")
-    parser.add_argument("--magic", type=int, default=202619)
-    parser.add_argument("--comment", default="TITAN_DEMO_MICRO")
+    parser.add_argument("--magic", type=int, default=TITAN_MAGIC)
+    parser.add_argument("--comment", default=TITAN_COMMENT)
     parser.add_argument("--position-id", type=int, default=0)
     parser.add_argument("--order-ticket", type=int, default=0)
     parser.add_argument("--deal-ticket", type=int, default=0)
     args = parser.parse_args()
     print("=" * 70)
-    print("  TITAN XAU AI - Post-Trade Forensics (Sprint 9.9.3.45.2)")
+    print("  TITAN XAU AI - Post-Trade Forensics (Sprint 9.9.3.45.5)")
     print("=" * 70)
     result = collect_forensics(
         days=args.days, symbol=args.symbol, magic=args.magic, comment=args.comment,
@@ -434,6 +619,8 @@ def main() -> int:
     print(f"\n  Verdict: {result['verdict']}")
     print(f"  Findings: {len(result.get('findings', {}))} fields")
     print(f"  Root cause: {result.get('findings', {}).get('root_cause', 'N/A')}")
+    print(f"  Fallback used: {result.get('findings', {}).get('fallback_used', False)}")
+    print(f"  Fallback blocked: {result.get('findings', {}).get('fallback_blocked_reason', '')}")
     print(f"\n  JSON: {report['json_path']}")
     print(f"  MD:   {report['md_path']}")
     print("\n" + "=" * 70)

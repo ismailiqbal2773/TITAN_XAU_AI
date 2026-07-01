@@ -1,19 +1,51 @@
 #!/usr/bin/env python3
 """
-TITAN XAU AI - Managed Demo Micro Trade Operator (Sprint 9.9.3.45.1)
+TITAN XAU AI - Managed Demo Micro Trade Operator (Sprint 9.9.3.45.5)
 =====================================================================
 Orchestrates: gate check -> build request -> execute once -> monitor.
+
+Sprint 9.9.3.45.5 changes:
+  - Capture full safe order_send result fields (retcode, comment, order,
+    deal, volume, price, bid, ask, request_id, retcode_external).
+  - Receipt uses correct field names: order_send_result_order,
+    order_send_result_deal, order_send_result_retcode,
+    order_send_result_comment, requested_sl, requested_tp,
+    detected_position_ticket, detected_position_identifier,
+    resolved_history_position_id.
+  - Never label a position ticket as order_ticket unless it is actually
+    result.order. Never label a deal ticket unless it is actually
+    result.deal. Zero/missing values stored as null with warning.
+  - After retcode 10009: poll positions_get AND history_deals_get /
+    history_orders_get around execution timestamp. Resolve actual
+    position ticket, position identifier, order ticket, deal ticket,
+    history position_id. Mark position_open_verified / history_verified
+    / pending_history accordingly.
+  - Monitor lifecycle: loop with iterations until position closed,
+    timeout reached, gate blocked, or unrecoverable error. Adds
+    monitor_iterations, monitor_duration_seconds, monitor_stop_reason,
+    final_position_status, final_position_source,
+    final_positions_get_count, final_history_match_found,
+    close_deal_ticket, close_comment, realized_pl.
+  - Never report final_position_status=OPEN unless final positions_get
+    confirms it. If position disappears without history, return
+    COMPLETED_WITH_WARNINGS or FAILED with stop_reason
+    POSITION_DISAPPEARED_WITHOUT_HISTORY. Must not be STARTED.
+
 Z AI must NOT run --execute-and-monitor.
 """
 from __future__ import annotations
 import argparse, json, sys
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT))
 OUTPUT_DIR = REPO_ROOT / "data" / "audit" / "demo_micro_execution"
 RECEIPT_PATH = REPO_ROOT / "data" / "runtime" / "demo_micro_execution_receipt.json"
+
+# Constants
+TITAN_MAGIC = 202619
+TITAN_COMMENT = "TITAN_DEMO_MICRO"
 
 
 def run_check_only() -> dict:
@@ -58,6 +90,514 @@ def run_build_request(direction: str = "BUY", entry_price: float = 2000.0,
     }
 
 
+def _capture_order_send_result_safe(order_result) -> dict:
+    """Sprint 9.9.3.45.5: Capture full safe order_send result fields.
+
+    Returns dict with retcode, comment, order, deal, volume, price, bid,
+    ask, request_id, retcode_external. Zero/missing values stored as
+    None so receipt never mislabels missing data as a real ticket.
+    """
+    def _safe_int(v):
+        try:
+            iv = int(v) if v is not None else 0
+            return iv if iv > 0 else None
+        except Exception:
+            return None
+
+    def _safe_float(v):
+        try:
+            fv = float(v) if v is not None else 0.0
+            return fv if fv != 0.0 else None
+        except Exception:
+            return None
+
+    if order_result is None:
+        return {
+            "retcode": 0,
+            "comment": "RESULT_NONE",
+            "order": None,
+            "deal": None,
+            "volume": None,
+            "price": None,
+            "bid": None,
+            "ask": None,
+            "request_id": None,
+            "retcode_external": None,
+        }
+
+    return {
+        "retcode": int(getattr(order_result, "retcode", 0) or 0),
+        "comment": str(getattr(order_result, "comment", "") or ""),
+        "order": _safe_int(getattr(order_result, "order", 0)),
+        "deal": _safe_int(getattr(order_result, "deal", 0)),
+        "volume": _safe_float(getattr(order_result, "volume", 0)),
+        "price": _safe_float(getattr(order_result, "price", 0)),
+        "bid": _safe_float(getattr(order_result, "bid", 0)),
+        "ask": _safe_float(getattr(order_result, "ask", 0)),
+        "request_id": _safe_int(getattr(order_result, "request_id", 0)),
+        "retcode_external": _safe_int(getattr(order_result, "retcode_external", 0)),
+    }
+
+
+def _build_receipt(*, ts: str, current_head: str, env_info: dict, acc,
+                   volume: float, direction: str, sl: float, tp: float,
+                   raw_result: dict, execution_success: bool) -> dict:
+    """Sprint 9.9.3.45.5: Build receipt with correct field names.
+
+    Legacy fields ``order_ticket`` / ``deal_ticket`` are only populated
+    when raw result.order / result.deal are non-zero. ``position_id`` is
+    NOT populated from result.position_id (that was the 9.9.3.45.4 bug
+    that mislabeled position_id=0). Detection-based fields are filled
+    later by _update_receipt_with_detection().
+    """
+    import hashlib as _hashlib
+    warnings = []
+    if execution_success and (raw_result["order"] is None or raw_result["deal"] is None):
+        warnings.append(
+            "ORDER_SEND_RESULT_INCOMPLETE: retcode=10009 but "
+            f"order={raw_result['order']} deal={raw_result['deal']} "
+            "position_id=0 - broker did not return full ticket information"
+        )
+
+    return {
+        "timestamp_utc": ts,
+        "git_commit": current_head,
+        "execution_mode": "execute_and_monitor",
+        "success": execution_success,
+        "account_server": env_info.get("account_server", "unknown"),
+        "account_login_hash": _hashlib.sha256(
+            str(getattr(acc, "login", 0)).encode()
+        ).hexdigest()[:16] if acc else "unknown",
+        "symbol": "XAUUSD",
+        "volume": volume,
+        "side": direction,
+        "request_magic": TITAN_MAGIC,
+        "request_comment": TITAN_COMMENT,
+        "requested_sl": float(sl) if sl else None,
+        "requested_tp": float(tp) if tp else None,
+        # Raw order_send result fields (Sprint 9.9.3.45.5)
+        "order_send_result_retcode": raw_result["retcode"],
+        "order_send_result_comment": raw_result["comment"],
+        "order_send_result_order": raw_result["order"],
+        "order_send_result_deal": raw_result["deal"],
+        "order_send_result_volume": raw_result["volume"],
+        "order_send_result_price": raw_result["price"],
+        "order_send_result_bid": raw_result["bid"],
+        "order_send_result_ask": raw_result["ask"],
+        "order_send_result_request_id": raw_result["request_id"],
+        "order_send_result_retcode_external": raw_result["retcode_external"],
+        # Legacy compat: only populated when raw result has non-zero values
+        "order_ticket": raw_result["order"],
+        "deal_ticket": raw_result["deal"],
+        # NOT populated from result.position_id (was the 45.4 bug)
+        "position_id": None,
+        # Detection-based fields - populated by _update_receipt_with_detection
+        "detected_position_ticket": None,
+        "detected_position_identifier": None,
+        "resolved_history_position_id": None,
+        "position_detected": False,
+        "position_detection_method": "",
+        "position_open_verified": False,
+        "history_verified": False,
+        "pending_history": False,
+        "warnings": warnings,
+        "error_reason": "" if execution_success else f"retcode={raw_result['retcode']}",
+    }
+
+
+def _write_receipt(receipt: dict) -> bool:
+    """Write receipt atomically. Returns True on success."""
+    try:
+        RECEIPT_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with open(RECEIPT_PATH, "w", encoding="utf-8") as f:
+            json.dump(receipt, f, indent=2, ensure_ascii=False)
+        return True
+    except Exception:
+        return False
+
+
+def _detect_position_via_positions_and_history(*, mt5, execution_ts: str,
+                                                expected_order, expected_deal,
+                                                detection_timeout: int = 10,
+                                                detection_interval: int = 1) -> dict:
+    """Sprint 9.9.3.45.5: Position detection via positions_get + history.
+
+    Polls positions_get for TITAN_DEMO_MICRO magic/comment, and queries
+    history_deals_get / history_orders_get around execution timestamp.
+    Returns dict with:
+      detected_position_ticket, detected_position_identifier,
+      detected_position_direction, detected_position_entry_price,
+      detected_position_sl, detected_position_tp,
+      detected_position_current_price, detection_method,
+      position_open_verified, history_verified, pending_history,
+      resolved_history_position_id, history_order_ticket,
+      history_deal_ticket, warnings
+    """
+    import time as _time
+
+    result = {
+        "detected_position_ticket": None,
+        "detected_position_identifier": None,
+        "detected_position_direction": "BUY",
+        "detected_position_entry_price": 0.0,
+        "detected_position_sl": 0.0,
+        "detected_position_tp": 0.0,
+        "detected_position_current_price": 0.0,
+        "detection_method": "",
+        "position_open_verified": False,
+        "history_verified": False,
+        "pending_history": False,
+        "resolved_history_position_id": None,
+        "history_order_ticket": None,
+        "history_deal_ticket": None,
+        "warnings": [],
+    }
+
+    # Parse execution timestamp
+    try:
+        exec_dt = datetime.fromisoformat(execution_ts.replace("Z", "+00:00"))
+    except Exception:
+        exec_dt = datetime.now(timezone.utc)
+
+    from_dt = exec_dt - timedelta(minutes=5)
+    to_dt = exec_dt + timedelta(minutes=5)
+    now_dt = datetime.now(timezone.utc)
+    if to_dt < now_dt:
+        to_dt = now_dt + timedelta(minutes=1)
+
+    # Poll positions_get for up to detection_timeout seconds
+    detected_position = None
+    detection_method = ""
+    for attempt in range(max(1, detection_timeout)):
+        positions = mt5.positions_get(symbol="XAUUSD")
+        if positions:
+            for p in positions:
+                magic = getattr(p, "magic", 0)
+                comment = getattr(p, "comment", "") or ""
+                if magic == TITAN_MAGIC or TITAN_COMMENT in comment:
+                    detected_position = p
+                    detection_method = "positions_get_magic_comment"
+                    break
+        if detected_position:
+            break
+        _time.sleep(detection_interval)
+
+    # Query history (deals + orders) around execution timestamp
+    history_deals = []
+    history_orders = []
+    try:
+        hd = mt5.history_deals_get(from_dt, to_dt)
+        if hd:
+            history_deals = list(hd)
+    except Exception:
+        pass
+    try:
+        ho = mt5.history_orders_get(from_dt, to_dt)
+        if ho:
+            history_orders = list(ho)
+    except Exception:
+        pass
+
+    # Match history by expected_order, expected_deal, magic, or comment
+    matching_history_deal = None
+    matching_history_order = None
+    history_position_id = None
+
+    # Try explicit deal ticket
+    if expected_deal:
+        for d in history_deals:
+            if getattr(d, "ticket", 0) == expected_deal:
+                matching_history_deal = d
+                history_position_id = getattr(d, "position_id", 0) or None
+                break
+    # Try explicit order ticket
+    if not matching_history_deal and expected_order:
+        for o in history_orders:
+            if getattr(o, "ticket", 0) == expected_order:
+                matching_history_order = o
+                history_position_id = getattr(o, "position_id", 0) or None
+                break
+        for d in history_deals:
+            if getattr(d, "order", 0) == expected_order:
+                matching_history_deal = d
+                history_position_id = getattr(d, "position_id", 0) or None
+                break
+    # Try magic + comment
+    if not matching_history_deal and not matching_history_order:
+        titan_deals = [d for d in history_deals
+                       if getattr(d, "magic", 0) == TITAN_MAGIC
+                       and TITAN_COMMENT in (getattr(d, "comment", "") or "")]
+        if titan_deals:
+            # Pick the deal whose time is closest to execution_ts
+            titan_deals.sort(key=lambda d: abs(getattr(d, "time", 0) - exec_dt.timestamp()))
+            matching_history_deal = titan_deals[0]
+            history_position_id = getattr(matching_history_deal, "position_id", 0) or None
+
+    # Resolve position identifier from history
+    if history_position_id and not matching_history_order:
+        for o in history_orders:
+            if getattr(o, "position_id", 0) == history_position_id:
+                matching_history_order = o
+                break
+
+    # Populate result
+    if detected_position is not None:
+        result["detected_position_ticket"] = getattr(detected_position, "ticket", 0) or None
+        result["detected_position_identifier"] = getattr(detected_position, "identifier", None) or result["detected_position_ticket"]
+        result["detected_position_direction"] = "BUY" if getattr(detected_position, "type", 1) == 0 else "SELL"
+        result["detected_position_entry_price"] = float(getattr(detected_position, "price_open", 0) or 0)
+        result["detected_position_sl"] = float(getattr(detected_position, "sl", 0) or 0)
+        result["detected_position_tp"] = float(getattr(detected_position, "tp", 0) or 0)
+        result["detected_position_current_price"] = float(getattr(detected_position, "price_current", 0) or 0)
+        result["detection_method"] = detection_method
+        result["position_open_verified"] = True
+
+    if matching_history_deal is not None or matching_history_order is not None:
+        result["history_verified"] = True
+        result["resolved_history_position_id"] = history_position_id
+        if matching_history_deal is not None:
+            result["history_deal_ticket"] = getattr(matching_history_deal, "ticket", 0) or None
+        if matching_history_order is not None:
+            result["history_order_ticket"] = getattr(matching_history_order, "ticket", 0) or None
+    elif detected_position is not None:
+        # Position detected but history not yet visible - pending
+        result["pending_history"] = True
+        result["warnings"].append(
+            "POSITION_OPEN_BUT_HISTORY_PENDING: positions_get detected position "
+            "but history_deals_get/history_orders_get did not yet show the trade"
+        )
+
+    return result
+
+
+def _update_receipt_with_detection(receipt: dict, detection: dict) -> dict:
+    """Sprint 9.9.3.45.5: Update receipt with detection results."""
+    receipt["detected_position_ticket"] = detection["detected_position_ticket"]
+    receipt["detected_position_identifier"] = detection["detected_position_identifier"]
+    receipt["resolved_history_position_id"] = detection["resolved_history_position_id"]
+    receipt["position_detected"] = detection["detected_position_ticket"] is not None or detection["history_verified"]
+    receipt["position_detection_method"] = detection["detection_method"] or ("history_verified" if detection["history_verified"] else "")
+    receipt["position_open_verified"] = detection["position_open_verified"]
+    receipt["history_verified"] = detection["history_verified"]
+    receipt["pending_history"] = detection["pending_history"]
+    if detection["warnings"]:
+        receipt.setdefault("warnings", []).extend(detection["warnings"])
+    return receipt
+
+
+def _run_monitor_loop(*, mt5, detected_position, args, ok_checks) -> dict:
+    """Sprint 9.9.3.45.5: Monitor lifecycle loop.
+
+    Iterates until one of:
+      - position closed (verified by history_deals_get)
+      - configured timeout reached
+      - position disappeared without history (POSITION_DISAPPEARED_WITHOUT_HISTORY)
+      - kill switch / gate blocked (delegated to caller)
+      - unrecoverable error
+    """
+    import time as _time
+    from titan.production.demo_micro_managed_trade_orchestrator import ManagedTradeOrchestrator
+
+    duration_minutes = getattr(args, "duration_minutes", 30)
+    interval_seconds = getattr(args, "interval_seconds", 5)
+    # Compute max iterations. For tests, allow very small durations.
+    max_iterations = max(1, (duration_minutes * 60) // max(1, interval_seconds))
+    # Safety cap so unit tests with duration_minutes=0 don't loop forever.
+    if max_iterations > 10000:
+        max_iterations = 10000
+
+    position_ticket = detected_position["detected_position_ticket"]
+    direction = detected_position["detected_position_direction"]
+    entry_price = detected_position["detected_position_entry_price"]
+    sl = detected_position["detected_position_sl"]
+    tp = detected_position["detected_position_tp"]
+
+    monitor_iterations = 0
+    monitor_start = _time.time()
+    monitor_events = []
+    sl_modify_previews = []
+    breakeven_triggered = False
+    trailing_triggered = False
+    profit_lock_triggered = False
+    final_position_status = "UNKNOWN"
+    final_position_source = ""
+    final_positions_get_count = 0
+    final_history_match_found = False
+    close_deal_ticket = None
+    close_comment = ""
+    realized_pl = 0.0
+    monitor_stop_reason = ""
+    warnings = []
+
+    for iteration in range(1, max_iterations + 1):
+        monitor_iterations = iteration
+        # Poll positions_get
+        try:
+            positions = mt5.positions_get(symbol="XAUUSD") or []
+        except Exception:
+            positions = []
+        titan_positions = [p for p in positions if getattr(p, "magic", 0) == TITAN_MAGIC]
+        final_positions_get_count = len(titan_positions)
+
+        current_position = None
+        for p in titan_positions:
+            if getattr(p, "ticket", 0) == position_ticket:
+                current_position = p
+                break
+
+        if current_position is None:
+            # Position disappeared - check history
+            try:
+                from_dt = datetime.now(timezone.utc) - timedelta(minutes=30)
+                deals = mt5.history_deals_get(from_dt, datetime.now(timezone.utc)) or []
+            except Exception:
+                deals = []
+            matching_deals = [d for d in deals
+                              if getattr(d, "position_id", 0) == position_ticket
+                              or getattr(d, "order", 0) == position_ticket]
+            if matching_deals:
+                final_history_match_found = True
+                final_position_status = "CLOSED"
+                final_position_source = "history_deals_get"
+                close_deal = matching_deals[-1]
+                close_deal_ticket = getattr(close_deal, "ticket", 0) or None
+                close_comment = getattr(close_deal, "comment", "") or ""
+                realized_pl = float(sum(getattr(d, "profit", 0) or 0 for d in matching_deals))
+                monitor_stop_reason = "POSITION_CLOSED"
+                # Append closure event
+                monitor_events.append({
+                    "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+                    "event_type": "MONITOR_POSITION_CLOSED",
+                    "description": f"Position {position_ticket} closed. Close deal={close_deal_ticket}, profit={realized_pl}",
+                    "sl_action": "HOLD",
+                    "new_sl": 0.0,
+                    "current_sl": sl,
+                    "favorable": realized_pl >= 0,
+                })
+            else:
+                # Position disappeared without history - unsafe state
+                final_position_status = "UNKNOWN"
+                final_position_source = "positions_get_empty_history_empty"
+                monitor_stop_reason = "POSITION_DISAPPEARED_WITHOUT_HISTORY"
+                warnings.append(
+                    f"POSITION_DISAPPEARED_WITHOUT_HISTORY: position {position_ticket} "
+                    "no longer in positions_get and not found in history_deals_get"
+                )
+                monitor_events.append({
+                    "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+                    "event_type": "MONITOR_POSITION_DISAPPEARED",
+                    "description": f"Position {position_ticket} disappeared without history",
+                    "sl_action": "HOLD",
+                    "new_sl": 0.0,
+                    "current_sl": sl,
+                    "favorable": False,
+                })
+            break
+
+        # Position still open - evaluate
+        current_price = float(getattr(current_position, "price_current", 0) or 0)
+        current_sl = float(getattr(current_position, "sl", 0) or sl)
+        current_tp = float(getattr(current_position, "tp", 0) or tp)
+
+        orch = ManagedTradeOrchestrator(
+            duration_minutes=duration_minutes,
+            interval_seconds=interval_seconds,
+        )
+        rec_result = orch.monitor_position(
+            position_ticket=position_ticket,
+            direction=direction,
+            entry_price=entry_price,
+            current_sl=current_sl,
+            current_tp=current_tp,
+            current_price=current_price,
+            is_open=True,
+        )
+        if rec_result.monitor_events:
+            monitor_events.extend(rec_result.monitor_events)
+        if rec_result.sl_modify_previews:
+            sl_modify_previews.extend(rec_result.sl_modify_previews)
+        if rec_result.breakeven_triggered:
+            breakeven_triggered = True
+        if rec_result.trailing_triggered:
+            trailing_triggered = True
+        if rec_result.profit_lock_triggered:
+            profit_lock_triggered = True
+
+        # Sleep until next iteration (skip on last)
+        if iteration < max_iterations:
+            _time.sleep(max(0, interval_seconds))
+    else:
+        # Loop completed without break - timeout reached.
+        # Verify with one final positions_get that position is still open.
+        try:
+            final_positions = mt5.positions_get(symbol="XAUUSD") or []
+        except Exception:
+            final_positions = []
+        final_titan = [p for p in final_positions if getattr(p, "magic", 0) == TITAN_MAGIC]
+        final_positions_get_count = len(final_titan)
+        still_open = any(getattr(p, "ticket", 0) == position_ticket for p in final_titan)
+        if still_open:
+            final_position_status = "OPEN"
+            final_position_source = "positions_get"
+            monitor_stop_reason = "TIMEOUT_REACHED"
+        else:
+            # Position disappeared at the very end without history
+            try:
+                from_dt = datetime.now(timezone.utc) - timedelta(minutes=30)
+                deals = mt5.history_deals_get(from_dt, datetime.now(timezone.utc)) or []
+            except Exception:
+                deals = []
+            matching_deals = [d for d in deals
+                              if getattr(d, "position_id", 0) == position_ticket]
+            if matching_deals:
+                final_history_match_found = True
+                final_position_status = "CLOSED"
+                final_position_source = "history_deals_get"
+                close_deal = matching_deals[-1]
+                close_deal_ticket = getattr(close_deal, "ticket", 0) or None
+                close_comment = getattr(close_deal, "comment", "") or ""
+                realized_pl = float(sum(getattr(d, "profit", 0) or 0 for d in matching_deals))
+                monitor_stop_reason = "POSITION_CLOSED"
+            else:
+                final_position_status = "UNKNOWN"
+                final_position_source = "positions_get_empty_history_empty"
+                monitor_stop_reason = "POSITION_DISAPPEARED_WITHOUT_HISTORY"
+                warnings.append(
+                    f"POSITION_DISAPPEARED_WITHOUT_HISTORY: position {position_ticket} "
+                    "disappeared at timeout without history"
+                )
+
+    monitor_duration_seconds = round(_time.time() - monitor_start, 2)
+
+    # Determine verdict based on final position status
+    if final_position_status == "OPEN":
+        verdict = "MANAGED_DEMO_MICRO_STARTED"
+    elif final_position_status == "CLOSED":
+        verdict = "MANAGED_DEMO_MICRO_COMPLETED"
+    else:  # UNKNOWN
+        verdict = "MANAGED_DEMO_MICRO_COMPLETED_WITH_WARNINGS"
+
+    return {
+        "verdict": verdict,
+        "monitor_iterations": monitor_iterations,
+        "monitor_duration_seconds": monitor_duration_seconds,
+        "monitor_stop_reason": monitor_stop_reason,
+        "final_position_status": final_position_status,
+        "final_position_source": final_position_source,
+        "final_positions_get_count": final_positions_get_count,
+        "final_history_match_found": final_history_match_found,
+        "close_deal_ticket": close_deal_ticket,
+        "close_comment": close_comment,
+        "realized_pl": realized_pl,
+        "monitor_events": monitor_events,
+        "sl_modify_previews": sl_modify_previews,
+        "breakeven_triggered": breakeven_triggered,
+        "trailing_triggered": trailing_triggered,
+        "profit_lock_triggered": profit_lock_triggered,
+        "warnings": warnings,
+    }
+
+
 def run_execute_and_monitor(args) -> dict:
     """Execute and monitor. Z AI must NOT run this.
 
@@ -65,6 +605,9 @@ def run_execute_and_monitor(args) -> dict:
     environment gate. Execution is allowed only when ALL evidence-based
     checks pass. Z AI/non-Windows is blocked by environment drift gate,
     not by a hard-coded string.
+
+    Sprint 9.9.3.45.5: Receipt truth + MT5 result mapping + monitor
+    lifecycle. See module docstring.
     """
     import platform as _platform
     import sys as _sys
@@ -131,7 +674,6 @@ def run_execute_and_monitor(args) -> dict:
     env_info["frozen_python"] = ""
     env_info["environment_drift_verdict"] = drift_result.verdict.value
 
-    # Load frozen signature for reporting
     import json as _json
     sig_path = REPO_ROOT / "config" / "environment" / "environment_signature.json"
     if sig_path.exists():
@@ -154,7 +696,7 @@ def run_execute_and_monitor(args) -> dict:
         }
     ok_checks.append(f"Environment drift: {drift_result.verdict.value}")
 
-    # 4. Token git commit check (token must match current commit or be accepted)
+    # 4. Token git commit check
     import subprocess as _sp
     try:
         head_r = _sp.run(["git", "rev-parse", "--short", "HEAD"],
@@ -174,7 +716,7 @@ def run_execute_and_monitor(args) -> dict:
         }
     ok_checks.append(f"Git commit: {current_head}")
 
-    # 5. Gate check (dependency/model/self-healing/parity)
+    # 5. Gate check
     gate_result = run_check_only()
     if "BLOCKED" in gate_result.get("gate_verdict", ""):
         return {
@@ -229,9 +771,6 @@ def run_execute_and_monitor(args) -> dict:
     consume_token()
 
     # 9. Attempt gated execution via MT5
-    # This path is reached only when ALL evidence-based gates pass.
-    # In Z AI/non-Windows, the environment drift gate blocks above.
-    # On local Windows with matching signature, this proceeds.
     try:
         import MetaTrader5 as mt5
     except ImportError:
@@ -334,62 +873,40 @@ def run_execute_and_monitor(args) -> dict:
             "price": price,
             "sl": float(sl),
             "tp": float(tp),
-            "magic": 202619,
-            "comment": "TITAN_DEMO_MICRO",
+            "magic": TITAN_MAGIC,
+            "comment": TITAN_COMMENT,
             "deviation": 20,
             "type_time": mt5.ORDER_TIME_GTC,
             "type_filling": mt5.ORDER_FILLING_IOC,
         }
 
-        # Sprint 9.9.3.45.4: Capture order_send result fully
+        # Sprint 9.9.3.45.5: Capture full safe order_send result fields
         order_result = mt5.order_send(request)
-        order_send_retcode = getattr(order_result, "retcode", 0) if order_result else 0
-        order_ticket = getattr(order_result, "order", 0) if order_result else 0
-        deal_ticket = getattr(order_result, "deal", 0) if order_result else 0
-        position_id_from_result = getattr(order_result, "position_id", 0) if order_result else 0
-        result_price = getattr(order_result, "price", 0) if order_result else 0
+        raw_result = _capture_order_send_result_safe(order_result)
+        order_send_retcode = raw_result["retcode"]
+        execution_success = order_send_retcode == 10009
 
-        # Sprint 9.9.3.45.4: Persist receipt IMMEDIATELY after order_send attempt
-        import hashlib as _hashlib
-        receipt = {
-            "timestamp_utc": ts,
-            "git_commit": current_head,
-            "execution_mode": "execute_and_monitor",
-            "success": order_send_retcode == 10009,
-            "account_server": env_info.get("account_server", "unknown"),
-            "account_login_hash": _hashlib.sha256(str(getattr(acc, "login", 0)).encode()).hexdigest()[:16] if acc else "unknown",
-            "symbol": "XAUUSD",
-            "volume": volume,
-            "side": direction,
-            "request_magic": 202619,
-            "request_comment": "TITAN_DEMO_MICRO",
-            "request_sl": sl,
-            "request_tp": tp,
-            "retcode": order_send_retcode,
-            "retcode_comment": "TRADE_RETCODE_DONE" if order_send_retcode == 10009 else "FAILED",
-            "order_ticket": order_ticket,
-            "deal_ticket": deal_ticket,
-            "position_id": position_id_from_result,
-            "position_detected": False,  # Updated below
-            "position_detection_method": "",
-            "error_reason": "" if order_send_retcode == 10009 else f"retcode={order_send_retcode}",
-        }
+        # Build receipt with correct field names
+        receipt = _build_receipt(
+            ts=ts, current_head=current_head, env_info=env_info, acc=acc,
+            volume=volume, direction=direction, sl=sl, tp=tp,
+            raw_result=raw_result, execution_success=execution_success,
+        )
 
-        receipt_written = False
-        try:
-            RECEIPT_PATH.parent.mkdir(parents=True, exist_ok=True)
-            with open(RECEIPT_PATH, "w", encoding="utf-8") as f:
-                json.dump(receipt, f, indent=2, ensure_ascii=False)
-            receipt_written = True
-            ok_checks.append("Execution receipt written")
-        except Exception as e:
-            mt5.shutdown()
+        # Persist receipt IMMEDIATELY (mandatory before any STARTED claim)
+        receipt_written = _write_receipt(receipt)
+        if not receipt_written:
+            try:
+                mt5.shutdown()
+            except Exception:
+                pass
             return {
                 "mode": "execute_and_monitor",
                 "verdict": "MANAGED_DEMO_MICRO_FAILED",
-                "blockers": [f"RECEIPT_WRITE_FAILED: {e}"],
+                "blockers": ["RECEIPT_WRITE_FAILED: receipt could not be persisted"],
                 "order_send_called": True,
                 "order_send_retcode": order_send_retcode,
+                "order_send_comment": raw_result["comment"],
                 "receipt_written": False,
                 "important_note": "order_send was called but receipt could not be written. Verdict FAILED.",
                 "timestamp_utc": ts,
@@ -397,17 +914,21 @@ def run_execute_and_monitor(args) -> dict:
                 "ok_checks": ok_checks,
                 "execution_attempted": True,
             }
+        ok_checks.append("Execution receipt written (truthful field mapping)")
 
-        # Sprint 9.9.3.45.4: Check if order_send failed
-        if order_result is None or order_send_retcode != 10009:
-            mt5.shutdown()
+        # If order_send failed, return FAILED
+        if order_result is None or not execution_success:
+            try:
+                mt5.shutdown()
+            except Exception:
+                pass
             return {
                 "mode": "execute_and_monitor",
                 "verdict": "MANAGED_DEMO_MICRO_FAILED",
                 "blockers": [f"ORDER_SEND_FAILED: retcode={order_send_retcode}"],
                 "order_send_called": True,
                 "order_send_retcode": order_send_retcode,
-                "order_send_comment": "returned None" if order_result is None else f"retcode={order_send_retcode}",
+                "order_send_comment": raw_result["comment"],
                 "receipt_written": receipt_written,
                 "receipt_path": str(RECEIPT_PATH),
                 "important_note": "order_send was called once and failed. No retry. Receipt written.",
@@ -421,77 +942,57 @@ def run_execute_and_monitor(args) -> dict:
 
         ok_checks.append(f"order_send succeeded: retcode={order_send_retcode}")
 
-        # Sprint 9.9.3.45.4: Position detection after execution
-        # Poll positions briefly to identify the new TITAN_DEMO_MICRO position
-        detected_position = None
-        detection_method = ""
-        detection_timeout = 10  # seconds
-        detection_interval = 1  # second
-        import time as _time
-        for attempt in range(detection_timeout):
-            _time.sleep(detection_interval)
-            positions = mt5.positions_get(symbol="XAUUSD")
-            if positions:
-                for p in positions:
-                    if getattr(p, "magic", 0) == 202619 or "TITAN" in getattr(p, "comment", ""):
-                        detected_position = p
-                        detection_method = "positions_get_magic_comment"
-                        break
-            if detected_position:
-                break
+        # Sprint 9.9.3.45.5: Position detection via positions_get + history
+        detection = _detect_position_via_positions_and_history(
+            mt5=mt5, execution_ts=ts,
+            expected_order=raw_result["order"],
+            expected_deal=raw_result["deal"],
+            detection_timeout=10, detection_interval=1,
+        )
+        receipt = _update_receipt_with_detection(receipt, detection)
+        # Re-write receipt with detection results
+        _write_receipt(receipt)
 
-        # If no open position found, check history for quick close
-        if not detected_position:
-            from datetime import datetime as _dt, timezone as _tz, timedelta as _td
-            from_dt = _dt.now(_tz) - _td(minutes=5)
-            deals = mt5.history_deals_get(from_dt, _dt.now(_tz))
-            if deals:
-                for d in deals:
-                    d_pos_id = getattr(d, "position_id", 0)
-                    d_magic = getattr(d, "magic", 0)
-                    if d_magic == 202619 and d_pos_id == position_id_from_result:
-                        detected_position = d
-                        detection_method = "history_deals_quick_close"
-                        break
-
-        mt5.shutdown()
-
-        # Update receipt with position detection
-        receipt["position_detected"] = detected_position is not None
-        receipt["position_detection_method"] = detection_method
-        try:
-            with open(RECEIPT_PATH, "w", encoding="utf-8") as f:
-                json.dump(receipt, f, indent=2, ensure_ascii=False)
-        except Exception:
-            pass
-
-        # Sprint 9.9.3.45.4: No position detected = FAILED, not STARTED
-        if not detected_position:
+        # If neither positions_get nor history can verify the trade, FAILED
+        if not detection["position_open_verified"] and not detection["history_verified"]:
+            try:
+                mt5.shutdown()
+            except Exception:
+                pass
             return {
                 "mode": "execute_and_monitor",
                 "verdict": "MANAGED_DEMO_MICRO_FAILED",
-                "blockers": ["POSITION_NOT_DETECTED_AFTER_EXECUTION: order_send succeeded but no position found in 10s"],
+                "blockers": ["POSITION_NOT_VERIFIED_AFTER_EXECUTION: order_send retcode=10009 but no open position and no history match"],
                 "order_send_called": True,
                 "order_send_retcode": order_send_retcode,
-                "order_send_comment": "TRADE_RETCODE_DONE",
+                "order_send_comment": raw_result["comment"],
                 "receipt_written": receipt_written,
                 "receipt_path": str(RECEIPT_PATH),
                 "position_detected": False,
                 "position_detection_method": "",
+                "position_open_verified": False,
+                "history_verified": False,
+                "pending_history": False,
                 "monitor_started": False,
-                "important_note": "order_send succeeded but position not detected. Verdict FAILED, not STARTED.",
+                "important_note": "order_send retcode=10009 but trade not found in positions_get or history. Verdict FAILED, not STARTED.",
                 "timestamp_utc": ts,
                 "env_info": env_info,
                 "ok_checks": ok_checks,
                 "execution_attempted": True,
+                "warnings": receipt.get("warnings", []),
             }
 
-        ok_checks.append(f"Position detected: method={detection_method}")
+        ok_checks.append(
+            f"Position verified: open={detection['position_open_verified']} "
+            f"history={detection['history_verified']} pending={detection['pending_history']}"
+        )
 
-        # Sprint 9.9.3.45.4: Check if position was quick-closed
-        is_open = detection_method == "positions_get_magic_comment"
-        if not is_open:
-            # Position opened and closed quickly
+        # If only history verified (quick close), COMPLETED_WITH_WARNINGS
+        if not detection["position_open_verified"] and detection["history_verified"]:
+            try:
+                mt5.shutdown()
+            except Exception:
+                pass
             return {
                 "mode": "execute_and_monitor",
                 "verdict": "MANAGED_DEMO_MICRO_COMPLETED_WITH_WARNINGS",
@@ -499,12 +1000,17 @@ def run_execute_and_monitor(args) -> dict:
                 "warnings": ["POSITION_CLOSED_BEFORE_MONITOR: position opened and closed within detection window"],
                 "order_send_called": True,
                 "order_send_retcode": order_send_retcode,
-                "order_send_comment": "TRADE_RETCODE_DONE",
+                "order_send_comment": raw_result["comment"],
                 "receipt_written": receipt_written,
                 "receipt_path": str(RECEIPT_PATH),
                 "position_detected": True,
-                "position_detection_method": detection_method,
-                "position_id": position_id_from_result,
+                "position_detection_method": "history_verified",
+                "detected_position_ticket": detection["detected_position_ticket"],
+                "detected_position_identifier": detection["detected_position_identifier"],
+                "resolved_history_position_id": detection["resolved_history_position_id"],
+                "position_open_verified": False,
+                "history_verified": True,
+                "pending_history": False,
                 "monitor_started": False,
                 "important_note": "Position opened and closed quickly. Monitor not started. No false STARTED.",
                 "timestamp_utc": ts,
@@ -512,46 +1018,80 @@ def run_execute_and_monitor(args) -> dict:
                 "ok_checks": ok_checks,
                 "execution_attempted": True,
                 "final_position_status": "CLOSED",
+                "final_position_source": "history_verified",
+                "monitor_iterations": 0,
+                "monitor_duration_seconds": 0,
+                "monitor_stop_reason": "POSITION_CLOSED_BEFORE_MONITOR",
+                "final_positions_get_count": 0,
+                "final_history_match_found": True,
+                "close_deal_ticket": detection["history_deal_ticket"],
+                "close_comment": "",
+                "realized_pl": 0.0,
             }
 
-        # Sprint 9.9.3.45.4: Position is open - start managed monitor
-        from titan.production.demo_micro_managed_trade_orchestrator import ManagedTradeOrchestrator
-        orch = ManagedTradeOrchestrator(
-            duration_minutes=getattr(args, "duration_minutes", 30),
-            interval_seconds=getattr(args, "interval_seconds", 5),
+        # Position is open - start managed monitor lifecycle loop
+        monitor_result = _run_monitor_loop(
+            mt5=mt5, detected_position=detection, args=args, ok_checks=ok_checks,
         )
-        monitor_result = orch.monitor_position(
-            position_ticket=getattr(detected_position, "ticket", position_id_from_result),
-            direction=direction,
-            entry_price=getattr(detected_position, "price_open", price),
-            current_sl=getattr(detected_position, "sl", sl),
-            current_tp=getattr(detected_position, "tp", tp),
-            current_price=getattr(detected_position, "price_current", price),
-            is_open=True,
-        )
+        try:
+            mt5.shutdown()
+        except Exception:
+            pass
+
+        # Update receipt with final state
+        receipt["position_detected"] = True
+        receipt["detected_position_ticket"] = detection["detected_position_ticket"]
+        receipt["detected_position_identifier"] = detection["detected_position_identifier"]
+        receipt["resolved_history_position_id"] = monitor_result.get("resolved_history_position_id") or detection["resolved_history_position_id"]
+        _write_receipt(receipt)
+
         return {
             "mode": "execute_and_monitor",
-            "verdict": "MANAGED_DEMO_MICRO_STARTED",
+            "verdict": monitor_result["verdict"],
             "order_send_called": True,
             "order_send_retcode": order_send_retcode,
-            "order_send_comment": "TRADE_RETCODE_DONE",
+            "order_send_comment": raw_result["comment"],
             "receipt_written": receipt_written,
             "receipt_path": str(RECEIPT_PATH),
             "position_detected": True,
-            "position_detection_method": detection_method,
-            "position_id": getattr(detected_position, "ticket", position_id_from_result),
-            "entry_price": getattr(detected_position, "price_open", price),
-            "sl": getattr(detected_position, "sl", sl),
-            "tp": getattr(detected_position, "tp", tp),
+            "position_detection_method": detection["detection_method"],
+            "detected_position_ticket": detection["detected_position_ticket"],
+            "detected_position_identifier": detection["detected_position_identifier"],
+            "resolved_history_position_id": detection["resolved_history_position_id"],
+            "position_open_verified": detection["position_open_verified"],
+            "history_verified": detection["history_verified"],
+            "pending_history": detection["pending_history"],
+            "position_id": detection["detected_position_ticket"],
+            "entry_price": detection["detected_position_entry_price"],
+            "sl": detection["detected_position_sl"],
+            "tp": detection["detected_position_tp"],
             "monitor_started": True,
-            "monitor_result": monitor_result.to_dict(),
-            "important_note": "Order sent once and succeeded. Position detected. Monitor started. No second order.",
+            "monitor_result": monitor_result,
+            "monitor_iterations": monitor_result["monitor_iterations"],
+            "monitor_duration_seconds": monitor_result["monitor_duration_seconds"],
+            "monitor_stop_reason": monitor_result["monitor_stop_reason"],
+            "final_position_status": monitor_result["final_position_status"],
+            "final_position_source": monitor_result["final_position_source"],
+            "final_positions_get_count": monitor_result["final_positions_get_count"],
+            "final_history_match_found": monitor_result["final_history_match_found"],
+            "close_deal_ticket": monitor_result["close_deal_ticket"],
+            "close_comment": monitor_result["close_comment"],
+            "realized_pl": monitor_result["realized_pl"],
+            "monitor_events": monitor_result["monitor_events"],
+            "breakeven_triggered": monitor_result["breakeven_triggered"],
+            "trailing_triggered": monitor_result["trailing_triggered"],
+            "profit_lock_triggered": monitor_result["profit_lock_triggered"],
+            "important_note": "Order sent once and succeeded. Position verified. Monitor lifecycle complete.",
             "timestamp_utc": ts,
             "env_info": env_info,
             "ok_checks": ok_checks,
             "execution_attempted": True,
-            "next_action": "Position is being monitored for breakeven/trailing/profit-lock." if monitor_result.verdict != "MANAGED_DEMO_MICRO_COMPLETED" else "Monitor completed.",
-            "final_position_status": monitor_result.final_position_status,
+            "warnings": monitor_result.get("warnings", []),
+            "next_action": (
+                "Position closed. Forensics available." if monitor_result["final_position_status"] == "CLOSED"
+                else "Monitor reached timeout with position still open." if monitor_result["final_position_status"] == "OPEN"
+                else "Position disappeared without history. Investigate receipt vs MT5 state."
+            ),
         }
 
     except Exception as e:
@@ -587,6 +1127,38 @@ def write_report(result: dict) -> dict:
             f.write("| Field | Value |\n|---|---|\n")
             for k, v in env_info.items():
                 f.write(f"| {k} | {v} |\n")
+        # Execution truthfulness fields (Sprint 9.9.3.45.5)
+        truth_fields = [
+            ("order_send_called", "Order send called"),
+            ("order_send_retcode", "Order send retcode"),
+            ("order_send_comment", "Order send comment"),
+            ("receipt_written", "Receipt written"),
+            ("receipt_path", "Receipt path"),
+            ("position_detected", "Position detected"),
+            ("position_detection_method", "Position detection method"),
+            ("detected_position_ticket", "Detected position ticket"),
+            ("detected_position_identifier", "Detected position identifier"),
+            ("resolved_history_position_id", "Resolved history position id"),
+            ("position_open_verified", "Position open verified"),
+            ("history_verified", "History verified"),
+            ("pending_history", "Pending history"),
+            ("monitor_started", "Monitor started"),
+            ("monitor_iterations", "Monitor iterations"),
+            ("monitor_duration_seconds", "Monitor duration seconds"),
+            ("monitor_stop_reason", "Monitor stop reason"),
+            ("final_position_status", "Final position status"),
+            ("final_position_source", "Final position source"),
+            ("final_positions_get_count", "Final positions get count"),
+            ("final_history_match_found", "Final history match found"),
+            ("close_deal_ticket", "Close deal ticket"),
+            ("close_comment", "Close comment"),
+            ("realized_pl", "Realized PL"),
+        ]
+        f.write("\n## Execution Truthfulness\n\n")
+        f.write("| Field | Value |\n|---|---|\n")
+        for k, label in truth_fields:
+            if k in result:
+                f.write(f"| {label} | {result[k]} |\n")
         if result.get("ok_checks"):
             f.write("\n## OK Checks\n\n")
             for c in result["ok_checks"]:
@@ -595,6 +1167,10 @@ def write_report(result: dict) -> dict:
             f.write("\n## Blockers\n\n")
             for b in result["blockers"]:
                 f.write(f"- **{b}**\n")
+        if result.get("warnings"):
+            f.write("\n## Warnings\n\n")
+            for w in result["warnings"]:
+                f.write(f"- {w}\n")
         if result.get("next_action"):
             f.write(f"\n## Next Action\n\n{result['next_action']}\n")
     return {"json_path": str(json_path), "md_path": str(md_path)}
@@ -625,7 +1201,7 @@ def main() -> int:
     args = parser.parse_args()
 
     print("=" * 70)
-    print("  TITAN XAU AI - Managed Demo Micro Trade (Sprint 9.9.3.45.1)")
+    print("  TITAN XAU AI - Managed Demo Micro Trade (Sprint 9.9.3.45.5)")
     print("=" * 70)
 
     if args.execute_and_monitor:
