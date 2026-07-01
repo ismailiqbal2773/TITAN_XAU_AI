@@ -832,3 +832,120 @@ class TestManagedMonitorApplyIntegration:
         assert "martingale" not in events_str
         assert "grid_trade" not in events_str
         assert "averaging" not in events_str
+
+    # === Sprint 9.9.3.45.8.1: adaptive opt-in wiring integration ===
+
+    def test_20_adaptive_opt_in_use_adaptive_policy_flag(self):
+        """ManagedTradeOrchestrator must accept use_adaptive_policy flag."""
+        from titan.production.demo_micro_managed_trade_orchestrator import ManagedTradeOrchestrator
+        orch = ManagedTradeOrchestrator(use_adaptive_policy=True)
+        assert orch.use_adaptive_policy is True
+        assert orch.manager.legacy_mode is False
+
+    def test_21_adaptive_opt_in_legacy_default(self):
+        """ManagedTradeOrchestrator must default to legacy mode (use_adaptive_policy=False)."""
+        from titan.production.demo_micro_managed_trade_orchestrator import ManagedTradeOrchestrator
+        orch = ManagedTradeOrchestrator()
+        assert orch.use_adaptive_policy is False
+        assert orch.manager.legacy_mode is True
+
+    def test_22_adaptive_opt_in_passes_kwargs(self):
+        """ManagedTradeOrchestrator must accept adaptive_policy_kwargs."""
+        from titan.production.demo_micro_managed_trade_orchestrator import ManagedTradeOrchestrator
+        from titan.production.adaptive_trailing_policy import PolicyMode
+        orch = ManagedTradeOrchestrator(
+            use_adaptive_policy=True,
+            adaptive_policy_kwargs={
+                "mode": "conservative",
+                "breakeven_trigger_R": 1.5,
+            },
+        )
+        assert orch.use_adaptive_policy is True
+        # The adaptive policy should have the overridden value
+        assert orch.manager.adaptive_policy.breakeven_trigger_R == 1.5
+
+    def test_23_adaptive_opt_in_evaluates_with_adaptive_policy(self):
+        """When use_adaptive_policy=True, orchestrator must use AdaptiveTrailingPolicy."""
+        from titan.production.demo_micro_managed_trade_orchestrator import ManagedTradeOrchestrator
+        from titan.production.adaptive_trailing_policy import Regime
+        orch = ManagedTradeOrchestrator(use_adaptive_policy=True)
+        # Force hold_seconds past min_hold_seconds
+        orch._hold_seconds = 120
+        orch._monitor_iterations = 5
+        orch._seconds_since_last_modify = 999
+        result = orch.monitor_position(
+            position_ticket=12345,
+            direction="BUY",
+            entry_price=2000.0,
+            current_sl=1990.0,
+            current_tp=2020.0,
+            current_price=2010.0,  # profit_R=1.0 -> breakeven
+            is_open=True,
+            atr=1.0, spread=0.05,
+            regime=Regime.TREND,
+        )
+        # Adaptive policy should produce a MOVE_TO_BREAKEVEN
+        assert result.breakeven_triggered is True
+        # Verify the manager produced a phase field (adaptive only)
+        assert len(result.monitor_events) > 0
+
+    def test_24_adaptive_opt_in_no_modify_below_1R(self):
+        """Adaptive orchestrator must NOT modify when profit_R < 1.0."""
+        from titan.production.demo_micro_managed_trade_orchestrator import ManagedTradeOrchestrator
+        from titan.production.adaptive_trailing_policy import Regime
+        from titan.production.demo_micro_position_manager import SLAction
+        orch = ManagedTradeOrchestrator(use_adaptive_policy=True)
+        orch._hold_seconds = 120
+        orch._monitor_iterations = 5
+        orch._seconds_since_last_modify = 999
+        result = orch.monitor_position(
+            position_ticket=12345,
+            direction="BUY",
+            entry_price=2000.0,
+            current_sl=1990.0,
+            current_tp=2020.0,
+            current_price=2005.0,  # profit_R=0.5 < 1.0 -> HOLD
+            is_open=True,
+            atr=1.0, spread=0.05,
+            regime=Regime.TREND,
+        )
+        # No modify triggered
+        assert result.breakeven_triggered is False
+        assert result.trailing_triggered is False
+        assert result.profit_lock_triggered is False
+        # Verify event sl_action is HOLD
+        if result.monitor_events:
+            assert result.monitor_events[-1]["sl_action"] == "HOLD"
+
+    def test_25_adaptive_opt_in_no_martingale(self):
+        """Adaptive orchestrator must NOT add martingale/grid/averaging."""
+        from titan.production.demo_micro_managed_trade_orchestrator import ManagedTradeOrchestrator
+        from titan.production.adaptive_trailing_policy import Regime
+        orch = ManagedTradeOrchestrator(use_adaptive_policy=True)
+        orch._hold_seconds = 120
+        orch._monitor_iterations = 5
+        orch._seconds_since_last_modify = 999
+        result = orch.monitor_position(
+            position_ticket=12345,
+            direction="BUY",
+            entry_price=2000.0,
+            current_sl=1990.0,
+            current_tp=2040.0,
+            current_price=2020.0,  # profit_R=2.0 -> TRAIL
+            is_open=True,
+            atr=1.0, spread=0.05,
+            regime=Regime.TREND,
+        )
+        result_dict = str(result.to_dict()).lower()
+        assert "martingale" not in result_dict
+        assert "grid_trade" not in result_dict
+        assert "averaging_down" not in result_dict
+
+    def test_26_adaptive_opt_in_no_loss_based_lot_multiplier(self):
+        """Adaptive orchestrator must NOT use loss-based lot multiplier."""
+        from titan.production.demo_micro_managed_trade_orchestrator import ManagedTradeOrchestrator
+        from titan.production.adaptive_trailing_policy import Regime
+        orch = ManagedTradeOrchestrator(use_adaptive_policy=True)
+        result_dict_str = str(orch.__dict__).lower()
+        assert "loss_based_lot" not in result_dict_str
+        assert "double_after_loss" not in result_dict_str

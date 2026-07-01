@@ -511,3 +511,39 @@ class TestAdaptiveTrailingPolicy:
         assert "loss_based_lot" not in code
         assert "loss_multiplier" not in code
         assert "double_after_loss" not in code
+
+    # === Sprint 9.9.3.45.8.1: orchestrator integration ===
+
+    def test_31_orchestrator_accepts_use_adaptive_policy(self):
+        """ManagedTradeOrchestrator must accept use_adaptive_policy flag."""
+        from titan.production.demo_micro_managed_trade_orchestrator import ManagedTradeOrchestrator
+        orch = ManagedTradeOrchestrator(use_adaptive_policy=True)
+        assert orch.use_adaptive_policy is True
+
+    def test_32_orchestrator_defaults_to_legacy(self):
+        """ManagedTradeOrchestrator must default to legacy (use_adaptive_policy=False)."""
+        from titan.production.demo_micro_managed_trade_orchestrator import ManagedTradeOrchestrator
+        orch = ManagedTradeOrchestrator()
+        assert orch.use_adaptive_policy is False
+
+    def test_33_orchestrator_adaptive_mode_uses_adaptive_policy(self):
+        """When use_adaptive_policy=True, manager must be in adaptive mode."""
+        from titan.production.demo_micro_managed_trade_orchestrator import ManagedTradeOrchestrator
+        orch = ManagedTradeOrchestrator(use_adaptive_policy=True)
+        assert orch.manager.legacy_mode is False
+        assert orch.manager.adaptive_policy is not None
+
+    def test_34_orchestrator_legacy_mode_uses_legacy_manager(self):
+        """When use_adaptive_policy=False (default), manager must be in legacy mode."""
+        from titan.production.demo_micro_managed_trade_orchestrator import ManagedTradeOrchestrator
+        orch = ManagedTradeOrchestrator()
+        assert orch.manager.legacy_mode is True
+
+    def test_35_orchestrator_adaptive_policy_kwargs_passed(self):
+        """adaptive_policy_kwargs must be passed to the policy."""
+        from titan.production.demo_micro_managed_trade_orchestrator import ManagedTradeOrchestrator
+        orch = ManagedTradeOrchestrator(
+            use_adaptive_policy=True,
+            adaptive_policy_kwargs={"mode": "aggressive", "breakeven_trigger_R": 0.75},
+        )
+        assert orch.manager.adaptive_policy.breakeven_trigger_R == 0.75

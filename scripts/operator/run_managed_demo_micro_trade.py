@@ -48,12 +48,53 @@ TITAN_MAGIC = 202619
 TITAN_COMMENT = "TITAN_DEMO_MICRO"
 
 
-def run_check_only() -> dict:
+def _build_adaptive_config(args) -> dict:
+    """Sprint 9.9.3.45.8.1: Build adaptive trailing config dict from CLI args.
+
+    Returns dict with:
+      - adaptive_trailing_enabled (bool)
+      - adaptive_policy_mode (str)
+      - breakeven_trigger_R (float)
+      - trailing_trigger_R (float)
+      - profit_lock_trigger_R (float)
+      - min_hold_seconds (int)
+      - min_monitor_iterations (int)
+      - cooldown_seconds (int)
+    """
+    return {
+        "adaptive_trailing_enabled": bool(getattr(args, "use_adaptive_trailing", False)),
+        "adaptive_policy_mode": getattr(args, "adaptive_policy_mode", "balanced_conservative"),
+        "breakeven_trigger_R": float(getattr(args, "breakeven_trigger_r", 1.0)),
+        "trailing_trigger_R": float(getattr(args, "trailing_trigger_r", 1.75)),
+        "profit_lock_trigger_R": float(getattr(args, "profit_lock_trigger_r", 3.0)),
+        "min_hold_seconds": int(getattr(args, "min_hold_seconds", 60)),
+        "min_monitor_iterations": int(getattr(args, "min_monitor_iterations", 3)),
+        "cooldown_seconds": int(getattr(args, "sl_update_cooldown_seconds", 60)),
+    }
+
+
+def _build_adaptive_policy_kwargs(args) -> dict:
+    """Sprint 9.9.3.45.8.1: Build adaptive_policy_kwargs for orchestrator.
+
+    Only called when use_adaptive_trailing=True.
+    """
+    return {
+        "mode": getattr(args, "adaptive_policy_mode", "balanced_conservative"),
+        "breakeven_trigger_R": float(getattr(args, "breakeven_trigger_r", 1.0)),
+        "trailing_trigger_R": float(getattr(args, "trailing_trigger_r", 1.75)),
+        "profit_lock_trigger_R": float(getattr(args, "profit_lock_trigger_r", 3.0)),
+        "min_hold_seconds": int(getattr(args, "min_hold_seconds", 60)),
+        "min_monitor_iterations": int(getattr(args, "min_monitor_iterations", 3)),
+        "cooldown_seconds": int(getattr(args, "sl_update_cooldown_seconds", 60)),
+    }
+
+
+def run_check_only(args=None) -> dict:
     ts = datetime.now(timezone.utc).isoformat()
     from titan.production.demo_micro_execution_gate import DemoMicroExecutionGate
     gate = DemoMicroExecutionGate()
     gate_result = gate.evaluate()
-    return {
+    result = {
         "timestamp_utc": ts,
         "mode": "check_only",
         "verdict": "MANAGED_DEMO_MICRO_READY" if "PASS" in gate_result.verdict.value else "MANAGED_DEMO_MICRO_BLOCKED",
@@ -61,10 +102,14 @@ def run_check_only() -> dict:
         "gate_blockers": gate_result.blockers,
         "next_action": "Run --dry-arm to arm managed trade",
     }
+    # Sprint 9.9.3.45.8.1: include adaptive trailing config in report
+    if args is not None:
+        result["adaptive_trailing_config"] = _build_adaptive_config(args)
+    return result
 
 
-def run_dry_arm() -> dict:
-    result = run_check_only()
+def run_dry_arm(args=None) -> dict:
+    result = run_check_only(args)
     result["mode"] = "dry_arm"
     result["armed"] = "PASS" in result.get("gate_verdict", "")
     result["next_action"] = "Run --build-request to generate executable order preview"
@@ -72,7 +117,7 @@ def run_dry_arm() -> dict:
 
 
 def run_build_request(direction: str = "BUY", entry_price: float = 2000.0,
-                       sl: float = 0.0, tp: float = 0.0) -> dict:
+                       sl: float = 0.0, tp: float = 0.0, args=None) -> dict:
     ts = datetime.now(timezone.utc).isoformat()
     from titan.production.demo_micro_order_builder import DemoMicroOrderBuilder
     builder = DemoMicroOrderBuilder()
@@ -80,7 +125,7 @@ def run_build_request(direction: str = "BUY", entry_price: float = 2000.0,
         direction=direction, entry_price=entry_price, sl=sl, tp=tp,
         safe_fallback=False,
     )
-    return {
+    result = {
         "timestamp_utc": ts,
         "mode": "build_request",
         "verdict": build_result["verdict"],
@@ -88,6 +133,10 @@ def run_build_request(direction: str = "BUY", entry_price: float = 2000.0,
         "preview": build_result.get("preview"),
         "next_action": "If EXECUTABLE_WITH_PROTECTIVE_SL_TP, run --execute-and-monitor locally",
     }
+    # Sprint 9.9.3.45.8.1: include adaptive trailing config in report
+    if args is not None:
+        result["adaptive_trailing_config"] = _build_adaptive_config(args)
+    return result
 
 
 def _capture_order_send_result_safe(order_result) -> dict:
@@ -646,12 +695,24 @@ def _run_monitor_loop(*, mt5, detected_position, args, ok_checks,
             current_tp = float(getattr(current_position, "tp", 0) or tp)
 
             # Sprint 9.9.3.45.6: build orchestrator with optional applier
-            orch = ManagedTradeOrchestrator(
+            # Sprint 9.9.3.45.8.1: wire adaptive trailing policy when
+            # --use-adaptive-trailing flag is set. Legacy default
+            # preserved when flag absent.
+            use_adaptive = bool(getattr(args, "use_adaptive_trailing", False))
+            orch_kwargs = dict(
                 duration_minutes=duration_minutes,
                 interval_seconds=interval_seconds,
                 apply_modifications=apply_allowed,
                 modify_applier=modify_applier if apply_allowed else None,
             )
+            if use_adaptive:
+                orch_kwargs["use_adaptive_policy"] = True
+                orch_kwargs["adaptive_policy_kwargs"] = _build_adaptive_policy_kwargs(args)
+            orch = ManagedTradeOrchestrator(**orch_kwargs)
+            # Sprint 9.9.3.45.8.1: increment orchestrator hold_seconds
+            # tracker based on iteration count for adaptive policy
+            if use_adaptive:
+                orch._hold_seconds = monitor_iterations * interval_seconds
             rec_result = orch.monitor_position(
                 position_ticket=position_ticket,
                 direction=direction,
@@ -915,7 +976,7 @@ def run_execute_and_monitor(args) -> dict:
     ok_checks.append(f"Git commit: {current_head}")
 
     # 5. Gate check
-    gate_result = run_check_only()
+    gate_result = run_check_only(args)
     if "BLOCKED" in gate_result.get("gate_verdict", ""):
         return {
             "mode": "execute_and_monitor",
@@ -1286,6 +1347,8 @@ def run_execute_and_monitor(args) -> dict:
             "breakeven_triggered": monitor_result["breakeven_triggered"],
             "trailing_triggered": monitor_result["trailing_triggered"],
             "profit_lock_triggered": monitor_result["profit_lock_triggered"],
+            # Sprint 9.9.3.45.8.1: adaptive trailing config in report
+            "adaptive_trailing_config": _build_adaptive_config(args),
             "important_note": "Order sent once and succeeded. Position verified. Monitor lifecycle complete.",
             "timestamp_utc": ts,
             "env_info": env_info,
@@ -1332,6 +1395,19 @@ def write_report(result: dict) -> dict:
             f.write("| Field | Value |\n|---|---|\n")
             for k, v in env_info.items():
                 f.write(f"| {k} | {v} |\n")
+        # Sprint 9.9.3.45.8.1: adaptive trailing config section
+        adaptive_cfg = result.get("adaptive_trailing_config")
+        if adaptive_cfg:
+            f.write("\n## Adaptive Trailing Config\n\n")
+            f.write("| Field | Value |\n|---|---|\n")
+            f.write(f"| adaptive_trailing_enabled | {adaptive_cfg.get('adaptive_trailing_enabled', False)} |\n")
+            f.write(f"| adaptive_policy_mode | {adaptive_cfg.get('adaptive_policy_mode', 'N/A')} |\n")
+            f.write(f"| breakeven_trigger_R | {adaptive_cfg.get('breakeven_trigger_R', 'N/A')} |\n")
+            f.write(f"| trailing_trigger_R | {adaptive_cfg.get('trailing_trigger_R', 'N/A')} |\n")
+            f.write(f"| profit_lock_trigger_R | {adaptive_cfg.get('profit_lock_trigger_R', 'N/A')} |\n")
+            f.write(f"| min_hold_seconds | {adaptive_cfg.get('min_hold_seconds', 'N/A')} |\n")
+            f.write(f"| min_monitor_iterations | {adaptive_cfg.get('min_monitor_iterations', 'N/A')} |\n")
+            f.write(f"| cooldown_seconds | {adaptive_cfg.get('cooldown_seconds', 'N/A')} |\n")
         # Execution truthfulness fields (Sprint 9.9.3.45.5)
         truth_fields = [
             ("order_send_called", "Order send called"),
@@ -1408,25 +1484,53 @@ def main() -> int:
                         help="Monitor loop duration in minutes (default 30)")
     parser.add_argument("--monitor-interval-seconds", type=int, default=5,
                         help="Monitor loop interval in seconds (default 5)")
+    # Sprint 9.9.3.45.8.1: adaptive trailing opt-in CLI flags
+    parser.add_argument("--use-adaptive-trailing", action="store_true", default=False,
+                        help="Enable adaptive anti-whipsaw trailing policy (default: legacy mode)")
+    parser.add_argument("--adaptive-policy-mode", default="balanced_conservative",
+                        choices=["conservative", "balanced", "aggressive", "balanced_conservative"],
+                        help="Adaptive policy mode (default: balanced_conservative)")
+    parser.add_argument("--breakeven-trigger-r", type=float, default=1.0,
+                        help="Breakeven trigger in R-multiple (default: 1.0)")
+    parser.add_argument("--trailing-trigger-r", type=float, default=1.75,
+                        help="Trailing trigger in R-multiple (default: 1.75)")
+    parser.add_argument("--profit-lock-trigger-r", type=float, default=3.0,
+                        help="Profit lock trigger in R-multiple (default: 3.0)")
+    parser.add_argument("--min-hold-seconds", type=int, default=60,
+                        help="Minimum hold seconds before any SL move (default: 60)")
+    parser.add_argument("--min-monitor-iterations", type=int, default=3,
+                        help="Minimum monitor iterations before any SL move (default: 3)")
+    parser.add_argument("--sl-update-cooldown-seconds", type=int, default=60,
+                        help="SL update cooldown in seconds (default: 60)")
     args = parser.parse_args()
 
     print("=" * 70)
-    print("  TITAN XAU AI - Managed Demo Micro Trade (Sprint 9.9.3.45.6)")
+    print("  TITAN XAU AI - Managed Demo Micro Trade (Sprint 9.9.3.45.8.1)")
     print("=" * 70)
+    if getattr(args, "use_adaptive_trailing", False):
+        print(f"  Adaptive trailing: ENABLED (mode={args.adaptive_policy_mode})")
+    else:
+        print("  Adaptive trailing: disabled (legacy mode)")
 
     if args.execute_and_monitor:
         result = run_execute_and_monitor(args)
     elif args.dry_arm:
-        result = run_dry_arm()
+        result = run_dry_arm(args)
     elif args.build_request:
-        result = run_build_request(args.direction, args.entry_price, args.sl, args.tp)
+        result = run_build_request(args.direction, args.entry_price, args.sl, args.tp, args)
     else:
-        result = run_check_only()
+        result = run_check_only(args)
 
     report = write_report(result)
     print(f"\n  Mode: {result.get('mode', 'check_only')}")
     print(f"  Verdict: {result.get('verdict', 'UNKNOWN')}")
     print(f"  Blockers: {len(result.get('blockers', []))}")
+    # Sprint 9.9.3.45.8.1: print adaptive trailing config in console
+    adaptive_cfg = result.get("adaptive_trailing_config")
+    if adaptive_cfg:
+        print(f"  Adaptive trailing enabled: {adaptive_cfg.get('adaptive_trailing_enabled', False)}")
+        if adaptive_cfg.get("adaptive_trailing_enabled"):
+            print(f"  Adaptive policy mode: {adaptive_cfg.get('adaptive_policy_mode')}")
     print(f"\n  JSON: {report['json_path']}")
     print(f"  MD:   {report['md_path']}")
     print("\n" + "=" * 70)

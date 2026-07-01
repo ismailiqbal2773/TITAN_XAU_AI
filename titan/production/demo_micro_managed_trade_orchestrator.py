@@ -199,7 +199,6 @@ class ManagedTradeOrchestrator:
             eval_kwargs = {
                 "initial_sl": current_sl,  # First iteration uses current_sl as initial_sl
                 "atr": atr, "spread": spread,
-                "stops_level_points": stops_level_points, "point": point,
                 "regime": regime, "structure_buffer": structure_buffer,
                 "hold_seconds": self._hold_seconds,
                 "monitor_iterations": self._monitor_iterations,

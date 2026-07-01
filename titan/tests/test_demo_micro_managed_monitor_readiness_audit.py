@@ -37,18 +37,26 @@ class TestManagedMonitorReadinessAudit:
         assert hasattr(a, "write_report")
 
     def test_02_audit_returns_ready(self):
-        """Audit must return MANAGED_MONITOR_READY when all gates pass."""
+        """Audit must return MANAGED_MONITOR_READY (or
+        MANAGED_MONITOR_READY_ADAPTIVE_OPT_IN when adaptive wiring is
+        present) when all gates pass."""
         import scripts.audit.demo_micro_managed_monitor_readiness_audit as a
         result = a.run_audit()
-        # In the current implementation, all gates should pass
-        assert result["verdict"] in ("MANAGED_MONITOR_READY", "MANAGED_MONITOR_BLOCKED")
+        # Sprint 9.9.3.45.8.1: ADAPTIVE_OPT_IN verdict is also acceptable
+        assert result["verdict"] in (
+            "MANAGED_MONITOR_READY",
+            "MANAGED_MONITOR_READY_ADAPTIVE_OPT_IN",
+            "MANAGED_MONITOR_BLOCKED",
+        )
         # If BLOCKED, print blockers for debugging
         if result["verdict"] == "MANAGED_MONITOR_BLOCKED":
             for b in result.get("blockers", []):
                 print(f"  BLOCKER: {b}")
-        # We expect READY in the final implementation
-        assert result["verdict"] == "MANAGED_MONITOR_READY", \
-            f"Expected MANAGED_MONITOR_READY, got {result['verdict']}. Blockers: {result.get('blockers', [])}"
+        # We expect READY (or ADAPTIVE_OPT_IN) in the final implementation
+        assert result["verdict"] in (
+            "MANAGED_MONITOR_READY",
+            "MANAGED_MONITOR_READY_ADAPTIVE_OPT_IN",
+        ), f"Expected READY, got {result['verdict']}. Blockers: {result.get('blockers', [])}"
 
     def test_03_audit_no_order_send(self):
         """Audit must not call mt5.order_send (passive source audit)."""
@@ -174,3 +182,66 @@ class TestManagedMonitorReadinessAudit:
             # pattern like "def martingale" or "martingale()" or "apply_martingale"
             assert f"def {term}" not in code, f"Function definition for '{term}' in audit script"
             assert f"{term}()" not in code, f"Function call to '{term}' in audit script"
+
+    # === Sprint 9.9.3.45.8.1: adaptive opt-in wiring checks ===
+
+    def test_21_audit_detects_adaptive_policy_module(self):
+        """Audit must detect adaptive policy module exists."""
+        import scripts.audit.demo_micro_managed_monitor_readiness_audit as a
+        result = a.run_audit()
+        assert result["findings"].get("adaptive_policy_module_exists") is True
+
+    def test_22_audit_detects_adaptive_cli_flag(self):
+        """Audit must detect --use-adaptive-trailing CLI flag."""
+        import scripts.audit.demo_micro_managed_monitor_readiness_audit as a
+        result = a.run_audit()
+        assert result["findings"].get("adaptive_cli_flag_exists") is True
+
+    def test_23_audit_detects_adaptive_runtime_wiring(self):
+        """Audit must detect adaptive runtime wiring (use_adaptive_policy
+        + adaptive_policy_kwargs)."""
+        import scripts.audit.demo_micro_managed_monitor_readiness_audit as a
+        result = a.run_audit()
+        assert result["findings"].get("adaptive_runtime_wiring") is True
+
+    def test_24_audit_verifies_legacy_default_preserved(self):
+        """Audit must verify legacy default preserved
+        (use_adaptive_trailing defaults to False)."""
+        import scripts.audit.demo_micro_managed_monitor_readiness_audit as a
+        result = a.run_audit()
+        assert result["findings"].get("legacy_default_preserved") is True
+
+    def test_25_audit_detects_adaptive_opt_in_available(self):
+        """Audit must detect adaptive opt-in is available
+        (adaptive_trailing_config in report)."""
+        import scripts.audit.demo_micro_managed_monitor_readiness_audit as a
+        result = a.run_audit()
+        assert result["findings"].get("adaptive_opt_in_available") is True
+
+    def test_26_audit_detects_adaptive_mode_cli_flag(self):
+        """Audit must detect --adaptive-policy-mode CLI flag."""
+        import scripts.audit.demo_micro_managed_monitor_readiness_audit as a
+        result = a.run_audit()
+        assert result["findings"].get("adaptive_mode_cli_flag") is True
+
+    def test_27_audit_verifies_no_martingale_in_adaptive_module(self):
+        """Audit must verify no martingale/grid/averaging in adaptive policy module."""
+        import scripts.audit.demo_micro_managed_monitor_readiness_audit as a
+        result = a.run_audit()
+        assert result["findings"].get("adaptive_no_martingale") is True
+
+    def test_28_audit_returns_adaptive_opt_in_verdict_when_wired(self):
+        """Audit must return MANAGED_MONITOR_READY_ADAPTIVE_OPT_IN when
+        all adaptive wiring is present and no blockers."""
+        import scripts.audit.demo_micro_managed_monitor_readiness_audit as a
+        result = a.run_audit()
+        # With adaptive wiring complete, verdict should be ADAPTIVE_OPT_IN
+        assert result["verdict"] == "MANAGED_MONITOR_READY_ADAPTIVE_OPT_IN", \
+            f"Expected ADAPTIVE_OPT_IN, got {result['verdict']}"
+
+    def test_29_audit_no_loss_based_lot_multiplier_in_adaptive(self):
+        """Audit must verify no loss-based lot multiplier in adaptive policy."""
+        import scripts.audit.demo_micro_managed_monitor_readiness_audit as a
+        result = a.run_audit()
+        # The adaptive_no_martingale check covers loss_based_lot too
+        assert result["findings"].get("adaptive_no_martingale") is True

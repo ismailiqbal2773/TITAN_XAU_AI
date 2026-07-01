@@ -277,9 +277,107 @@ def run_audit() -> dict:
         blockers.append(f"Stop reasons missing: {missing_reasons}")
         findings["stop_reasons_missing"] = missing_reasons
 
+    # === Sprint 9.9.3.45.8.1: adaptive trailing opt-in wiring checks ===
+
+    # 16. Adaptive policy module exists
+    adaptive_policy_path = REPO_ROOT / "titan" / "production" / "adaptive_trailing_policy.py"
+    adaptive_module_exists = adaptive_policy_path.exists()
+    if adaptive_module_exists:
+        ok_checks.append("Adaptive trailing policy module exists")
+        findings["adaptive_policy_module_exists"] = True
+    else:
+        blockers.append("Adaptive trailing policy module missing")
+        findings["adaptive_policy_module_exists"] = False
+
+    # 17. Adaptive runtime flag exists (--use-adaptive-trailing)
+    adaptive_cli_flag = "--use-adaptive-trailing" in run_managed_src
+    if adaptive_cli_flag:
+        ok_checks.append("Adaptive runtime CLI flag (--use-adaptive-trailing) exists")
+        findings["adaptive_cli_flag_exists"] = True
+    else:
+        blockers.append("Adaptive runtime CLI flag missing")
+        findings["adaptive_cli_flag_exists"] = False
+
+    # 18. Adaptive runtime wiring exists (use_adaptive_policy passed to orchestrator)
+    adaptive_wiring = (
+        "use_adaptive_policy" in run_managed_src
+        and "adaptive_policy_kwargs" in run_managed_src
+        and "_build_adaptive_policy_kwargs" in run_managed_src
+    )
+    if adaptive_wiring:
+        ok_checks.append("Adaptive runtime wiring (use_adaptive_policy + kwargs) present")
+        findings["adaptive_runtime_wiring"] = True
+    else:
+        blockers.append("Adaptive runtime wiring missing")
+        findings["adaptive_runtime_wiring"] = False
+
+    # 19. Legacy default preserved (use_adaptive_trailing defaults to False)
+    legacy_default_preserved = (
+        'use-adaptive-trailing", action="store_true", default=False' in run_managed_src
+        or "use_adaptive_trailing\", action=\"store_true\", default=False" in run_managed_src
+    )
+    if legacy_default_preserved:
+        ok_checks.append("Legacy default preserved (use_adaptive_trailing defaults to False)")
+        findings["legacy_default_preserved"] = True
+    else:
+        blockers.append("Legacy default not preserved (use_adaptive_trailing should default to False)")
+        findings["legacy_default_preserved"] = False
+
+    # 20. Adaptive opt-in available (report shows adaptive_trailing_enabled field)
+    adaptive_opt_in_available = "adaptive_trailing_config" in run_managed_src
+    if adaptive_opt_in_available:
+        ok_checks.append("Adaptive opt-in available (adaptive_trailing_config in report)")
+        findings["adaptive_opt_in_available"] = True
+    else:
+        blockers.append("Adaptive opt-in not available (adaptive_trailing_config missing from report)")
+        findings["adaptive_opt_in_available"] = False
+
+    # 21. Adaptive policy mode CLI flag
+    adaptive_mode_flag = "--adaptive-policy-mode" in run_managed_src
+    if adaptive_mode_flag:
+        ok_checks.append("Adaptive policy mode CLI flag (--adaptive-policy-mode) exists")
+        findings["adaptive_mode_cli_flag"] = True
+    else:
+        blockers.append("Adaptive policy mode CLI flag missing")
+        findings["adaptive_mode_cli_flag"] = False
+
+    # 22. No martingale/grid/averaging in adaptive policy module
+    if adaptive_module_exists:
+        adaptive_src = adaptive_policy_path.read_text()
+        adaptive_code = _strip(adaptive_src).lower()
+        forbidden_adaptive = ["martingale", "grid_trade", "averaging_down",
+                              "double_lot", "add_position", "loss_based_lot",
+                              "recovery_multiplier"]
+        found_forbidden_adaptive = []
+        for term in forbidden_adaptive:
+            if term in adaptive_code:
+                found_forbidden_adaptive.append(term)
+        if not found_forbidden_adaptive:
+            ok_checks.append("No martingale/grid/averaging in adaptive policy module")
+            findings["adaptive_no_martingale"] = True
+        else:
+            blockers.append(f"Forbidden terms in adaptive policy module: {found_forbidden_adaptive}")
+            findings["adaptive_no_martingale"] = False
+
     # Determine verdict
+    # Sprint 9.9.3.45.8.1: if all base checks pass AND adaptive opt-in
+    # wiring is present, return MANAGED_MONITOR_READY_ADAPTIVE_OPT_IN.
+    # If base checks pass but adaptive wiring missing, return
+    # MANAGED_MONITOR_READY. If any blockers, return MANAGED_MONITOR_BLOCKED.
     if not blockers:
-        verdict = "MANAGED_MONITOR_READY"
+        adaptive_wiring_complete = (
+            findings.get("adaptive_policy_module_exists")
+            and findings.get("adaptive_cli_flag_exists")
+            and findings.get("adaptive_runtime_wiring")
+            and findings.get("legacy_default_preserved")
+            and findings.get("adaptive_opt_in_available")
+            and findings.get("adaptive_mode_cli_flag")
+            and findings.get("adaptive_no_martingale", True)
+        )
+        if adaptive_wiring_complete:
+            verdict = "MANAGED_MONITOR_READY_ADAPTIVE_OPT_IN"
+        else:
+            verdict = "MANAGED_MONITOR_READY"
     else:
         verdict = "MANAGED_MONITOR_BLOCKED"
 
