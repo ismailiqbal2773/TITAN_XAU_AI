@@ -1,5 +1,5 @@
 {
-  "timestamp_utc": "2026-07-01T13:21:06.936598+00:00",
+  "timestamp_utc": "2026-07-01T15:40:52.523595+00:00",
   "profiles_path": "/home/z/my-project/TITAN_XAU_AI/config/broker_profiles.yaml",
   "historical_csv": "/home/z/my-project/TITAN_XAU_AI/data/audit/frozen_balanced_validation/broker_validation.csv",
   "engine_module": "titan.production.broker_scoring_engine",

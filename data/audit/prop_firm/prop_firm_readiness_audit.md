@@ -4,9 +4,9 @@
 
 **Design:** Every prop-firm profile is validated by PropFirmRuleEngine. Critical unknown rules fail closed for funded/live profiles. Simulation-only profiles (explicitly marked) may ship with unknown non-critical rules. Internal DD stops must sit below external prop-firm limits. The audit NEVER calls mt5.order_send and NEVER contains martingale/grid/averaging logic.
 
-**Timestamp:** 2026-07-01T15:26:19.275476+00:00
+**Timestamp:** 2026-07-01T15:41:00.877641+00:00
 
-**Head:** 1c580dd
+**Head:** 1454334
 
 **Profiles:** 18 (from `/home/z/my-project/TITAN_XAU_AI/config/prop_firm_profiles.yaml`)
 

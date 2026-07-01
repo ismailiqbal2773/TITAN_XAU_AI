@@ -1,0 +1,156 @@
+#!/usr/bin/env python3
+"""
+TITAN XAU AI - Demo Proof Operator Checklist (Sprint 9.9.3.45.8.9)
+====================================================================
+Prints operator checklist for MetaQuotes-Demo micro proof.
+This script does NOT trade. It only prints a checklist.
+
+NEVER sends orders. NEVER modifies positions. NEVER creates tokens.
+"""
+from __future__ import annotations
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(REPO_ROOT))
+OUTPUT_DIR = REPO_ROOT / "data" / "audit" / "demo_readiness"
+
+
+def generate_checklist() -> str:
+    ts = datetime.now(timezone.utc).isoformat()
+    lines = []
+    lines.append("# TITAN XAU AI - Demo Proof Operator Checklist")
+    lines.append(f"**Generated:** {ts}")
+    lines.append(f"**Profile:** prop_funded_safe")
+    lines.append(f"**Broker:** MetaQuotes-Demo (score >= 85)")
+    lines.append("")
+    lines.append("## Pre-Execution Checklist")
+    lines.append("")
+    lines.append("### 1. MT5 Terminal")
+    lines.append("- [ ] MT5 terminal is open and running")
+    lines.append("- [ ] MT5 is connected to MetaQuotes-Demo server")
+    lines.append("- [ ] Auto-trading is ENABLED in MT5 terminal")
+    lines.append("")
+    lines.append("### 2. Account Verification")
+    lines.append("- [ ] Account type is DEMO (not real/live)")
+    lines.append("- [ ] Account server contains 'MetaQuotes-Demo'")
+    lines.append("- [ ] Account balance is sufficient for 0.01 lot XAUUSD")
+    lines.append("- [ ] Leverage is set to 1:100")
+    lines.append("")
+    lines.append("### 3. Symbol Verification")
+    lines.append("- [ ] XAUUSD symbol is available in Market Watch")
+    lines.append("- [ ] Current spread is <= 0.35 (max threshold)")
+    lines.append("- [ ] No spread spike or news event active")
+    lines.append("")
+    lines.append("### 4. Position Safety")
+    lines.append("- [ ] Open TITAN positions = 0 (run check_open_positions.py)")
+    lines.append("- [ ] No orphan positions from previous runs")
+    lines.append("- [ ] No other EAs trading on this account")
+    lines.append("")
+    lines.append("### 5. Profile Selection")
+    lines.append("- [ ] Selected profile: prop_funded_safe")
+    lines.append("- [ ] NO aggressive profile selected")
+    lines.append("- [ ] NO aggressive 20% profile (simulation-only)")
+    lines.append("")
+    lines.append("### 6. Risk Limits")
+    lines.append("- [ ] Risk per trade: 0.5% (0.005)")
+    lines.append("- [ ] Internal daily DD stop: 2.0%")
+    lines.append("- [ ] Internal total DD stop: 6.0%")
+    lines.append("- [ ] External daily DD limit: 3.0%")
+    lines.append("- [ ] External total DD limit: 8.0%")
+    lines.append("- [ ] Max open positions: 1")
+    lines.append("- [ ] Lot size: 0.01 (fixed for proof)")
+    lines.append("")
+    lines.append("### 7. SL/TP Geometry")
+    lines.append("- [ ] ATR SL multiplier: 1.5")
+    lines.append("- [ ] Initial TP R: 3.0")
+    lines.append("- [ ] Minimum RR: 2.0")
+    lines.append("- [ ] Dynamic TP trigger R: 2.0")
+    lines.append("- [ ] Breakeven trigger R: 1.0")
+    lines.append("- [ ] Trailing trigger R: 1.75")
+    lines.append("- [ ] Profit lock trigger R: 3.0")
+    lines.append("")
+    lines.append("### 8. Safety Gates")
+    lines.append("- [ ] dry_run: true in config/runtime.yaml")
+    lines.append("- [ ] live_trading: false in config/runtime.yaml")
+    lines.append("- [ ] TITAN_LIVE_TRADING env var is NOT set")
+    lines.append("- [ ] No execution token created by Z AI")
+    lines.append("- [ ] Token will be created by operator only")
+    lines.append("")
+    lines.append("### 9. Execution Preparation")
+    lines.append("- [ ] Final demo readiness audit: FINAL_DEMO_PROOF_READY")
+    lines.append("- [ ] Build-request: PASS")
+    lines.append("- [ ] Operator has read and understood all risk limits")
+    lines.append("- [ ] Operator understands: execution requires separate human action")
+    lines.append("- [ ] Operator has emergency close plan ready")
+    lines.append("")
+    lines.append("### 10. What NOT to Do")
+    lines.append("- [ ] DO NOT use aggressive profile for demo proof")
+    lines.append("- [ ] DO NOT increase lot above 0.01")
+    lines.append("- [ ] DO NOT allow more than 1 open position")
+    lines.append("- [ ] DO NOT disable dry_run safety")
+    lines.append("- [ ] DO NOT enable live trading")
+    lines.append("- [ ] DO NOT use real account")
+    lines.append("- [ ] DO NOT use non-MetaQuotes-Demo broker")
+    lines.append("")
+    lines.append("## Execution Command (Operator Only)")
+    lines.append("```")
+    lines.append("python scripts/operator/create_local_operator_execution_token.py --symbol XAUUSD --lot 0.01 --broker MetaQuotes-Demo --expiry-minutes 10")
+    lines.append("")
+    lines.append("python scripts/operator/run_managed_demo_micro_trade.py \\")
+    lines.append("  --execute-and-monitor \\")
+    lines.append("  --i-understand-demo-risk \\")
+    lines.append("  --confirm-symbol XAUUSD \\")
+    lines.append("  --confirm-lot 0.01 \\")
+    lines.append("  --confirm-broker MetaQuotes-Demo \\")
+    lines.append("  --confirm-one-order-only \\")
+    lines.append("  --confirm-not-live \\")
+    lines.append("  --confirm-environment-locked \\")
+    lines.append("  --confirm-model-parity-pass \\")
+    lines.append("  --confirm-local-operator \\")
+    lines.append("  --confirm-managed-trailing \\")
+    lines.append("  --prop-funded-profile prop_funded_safe \\")
+    lines.append("  --use-adaptive-trailing \\")
+    lines.append("  --use-dynamic-tp-extension \\")
+    lines.append("  --monitor-duration-minutes 30 \\")
+    lines.append("  --monitor-interval-seconds 5")
+    lines.append("```")
+    lines.append("")
+    lines.append("## After Execution")
+    lines.append("- [ ] Verify receipt written")
+    lines.append("- [ ] Run diagnose_latest_execution_receipt.py")
+    lines.append("- [ ] Run collect_demo_micro_trade_forensics.py")
+    lines.append("- [ ] Check monitor iterations > 1")
+    lines.append("- [ ] Check final position status")
+    lines.append("- [ ] Document results for 7-day forward demo plan")
+    lines.append("")
+    lines.append("## Safety Invariants")
+    lines.append("- no_martingale: True")
+    lines.append("- no_grid: True")
+    lines.append("- no_averaging: True")
+    lines.append("- no_loss_based_lot_multiplier: True")
+    lines.append("- Execution requires operator token (not created by Z AI)")
+    lines.append("- This checklist does NOT trade. It only prints instructions.")
+
+    return "\n".join(lines)
+
+
+def main() -> int:
+    print("=" * 70)
+    print("  TITAN XAU AI - Demo Proof Operator Checklist")
+    print("=" * 70)
+    checklist = generate_checklist()
+    print(checklist)
+
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    md_path = OUTPUT_DIR / "operator_checklist.md"
+    with open(md_path, "w", encoding="utf-8") as f:
+        f.write(checklist)
+    print(f"\n  Checklist saved: {md_path}")
+    print("\n" + "=" * 70)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

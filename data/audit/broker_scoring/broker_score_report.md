@@ -1,6 +1,6 @@
 # TITAN XAU AI — Broker Score Report
 
-**Generated:** 2026-07-01T13:21:06.936598+00:00
+**Generated:** 2026-07-01T15:40:52.523595+00:00
 
 Scores every broker in `config/broker_profiles.yaml` against 14 weighted execution-quality dimensions. Brokers present in the historical frozen-balanced validation CSV but missing from the YAML are scored using synthetic profiles.
 

@@ -4,9 +4,9 @@
 
 **Design:** Every account profile × risk mode combination is validated against the prop-firm rule engine and broker scoring engine. Combinations are BLOCKED if prop rules fail, net RR falls below min_rr, margin use exceeds the cap, or a live account is paired with a non-live risk mode. Simulation-only modes produce SIMULATION_ONLY combinations. The audit NEVER calls mt5.order_send and NEVER contains martingale/grid/averaging logic.
 
-**Timestamp:** 2026-07-01T15:26:19.533355+00:00
+**Timestamp:** 2026-07-01T15:41:01.135860+00:00
 
-**Head:** 1c580dd
+**Head:** 1454334
 
 **Combinations:** 48 (PASS=24, SIMULATION_ONLY=8, BLOCKED=16)
 

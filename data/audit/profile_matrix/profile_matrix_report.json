@@ -1,6 +1,6 @@
 {
-  "timestamp_utc": "2026-07-01T15:26:19.533355+00:00",
-  "head_short": "1c580dd",
+  "timestamp_utc": "2026-07-01T15:41:01.135860+00:00",
+  "head_short": "1454334",
   "verdict": "PROFILE_MATRIX_READY_WITH_GAPS",
   "account_profiles_path": "/home/z/my-project/TITAN_XAU_AI/config/account_profiles.yaml",
   "risk_modes_path": "/home/z/my-project/TITAN_XAU_AI/config/risk_modes.yaml",

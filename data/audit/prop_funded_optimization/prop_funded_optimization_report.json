@@ -1,5 +1,5 @@
 {
-  "timestamp_utc": "2026-07-01T15:26:53.051343+00:00",
+  "timestamp_utc": "2026-07-01T15:41:01.493731+00:00",
   "verdict": "PROP_FUNDED_READY_CONSERVATIVE",
   "ok_checks": [
     "prop_funded_safe: score=82.0, verdict=PROP_FUNDED_READY_CONSERVATIVE, monthly=5.18%, max_dd=4.51%, PF=1.63, Sharpe=3.33, executable=True, sim_only=False",
@@ -12,7 +12,7 @@
   "blockers": [],
   "warnings": [],
   "optimization_result": {
-    "timestamp_utc": "2026-07-01T15:26:53.077277+00:00",
+    "timestamp_utc": "2026-07-01T15:41:01.510459+00:00",
     "profiles": [
       {
         "profile_name": "prop_funded_safe",
