@@ -76,20 +76,43 @@ def collect_forensics(days: int = 30, symbol: str = "XAUUSD",
         findings["receipt_available"] = True
         findings["receipt_success"] = receipt.get("success", False)
         findings["receipt_position_detected"] = receipt.get("position_detected", False)
+        # Sprint 9.9.3.45.8.10: Parse ALL valid receipt fields
         findings["receipt_position_id"] = receipt.get("position_id", 0)
         findings["receipt_order_ticket"] = receipt.get("order_ticket", 0)
+        findings["receipt_deal_ticket"] = receipt.get("deal_ticket", 0)
         findings["receipt_detected_position_ticket"] = receipt.get("detected_position_ticket", 0)
         findings["receipt_detected_position_identifier"] = receipt.get("detected_position_identifier", 0)
+        findings["receipt_resolved_history_position_id"] = receipt.get("resolved_history_position_id", 0)
+        findings["receipt_order_send_result_order"] = receipt.get("order_send_result_order", 0)
+        findings["receipt_order_send_result_deal"] = receipt.get("order_send_result_deal", 0)
+        findings["receipt_order_send_result_request_id"] = receipt.get("order_send_result_request_id", 0)
+        findings["receipt_request_magic"] = receipt.get("request_magic", 0)
+        findings["receipt_request_comment"] = receipt.get("request_comment", "")
         findings["receipt_execution_mode"] = receipt.get("execution_mode", "")
         findings["receipt_timestamp"] = receipt.get("timestamp_utc", "")
+        findings["receipt_account_server"] = receipt.get("account_server", "")
+        findings["receipt_symbol"] = receipt.get("symbol", "")
+        findings["receipt_volume"] = receipt.get("volume", 0)
+        findings["receipt_side"] = receipt.get("side", "")
         ok_checks.append(
             f"Execution receipt found (mode={receipt.get('execution_mode', 'unknown')}, "
             f"success={receipt.get('success', False)})"
         )
+        # Sprint 9.9.3.45.8.10: Mark explicit fields as supplied
+        receipt_order = (receipt.get("order_ticket") or receipt.get("order_send_result_order") or 0)
+        receipt_deal = (receipt.get("deal_ticket") or receipt.get("order_send_result_deal") or 0)
+        receipt_pos_id = (receipt.get("position_id") or receipt.get("detected_position_identifier")
+                          or receipt.get("detected_position_ticket") or receipt.get("resolved_history_position_id") or 0)
+        findings["explicit_order_ticket_supplied"] = receipt_order > 0
+        findings["explicit_deal_ticket_supplied"] = receipt_deal > 0
+        findings["explicit_position_id_supplied"] = receipt_pos_id > 0
     else:
         findings["receipt_available"] = False
         findings["receipt_success"] = None
         findings["receipt_position_detected"] = None
+        receipt_order = 0
+        receipt_deal = 0
+        receipt_pos_id = 0
 
     # Sprint 9.9.3.45.5: Determine fallback policy
     explicit_id_supplied = position_id > 0 or order_ticket > 0 or deal_ticket > 0
@@ -274,53 +297,128 @@ def collect_forensics(days: int = 30, symbol: str = "XAUUSD",
                 }
 
         # === Receipt matching (mandatory first if receipt_success=True) ===
+        # Sprint 9.9.3.45.8.10: Fixed match priority and diagnostic integration
         if not matched_deals and receipt_match_required:
-            receipt_pos_id = receipt.get("detected_position_identifier") or receipt.get("position_id") or 0
-            receipt_order = receipt.get("order_ticket") or receipt.get("order_send_result_order") or 0
-            receipt_deal = receipt.get("deal_ticket") or receipt.get("order_send_result_deal") or 0
+            # Load diagnostic as supporting evidence
+            diagnostic_path = REPO_ROOT / "data" / "audit" / "demo_micro_execution" / "latest_receipt_diagnostic.json"
+            diagnostic = None
+            if diagnostic_path.exists():
+                try:
+                    with open(diagnostic_path, "r", encoding="utf-8") as f:
+                        diagnostic = json.load(f)
+                except Exception:
+                    pass
+
+            # Build all receipt candidate IDs
+            receipt_deal_candidates = []
+            if receipt_deal:
+                receipt_deal_candidates.append(receipt_deal)
             receipt_detected_ticket = receipt.get("detected_position_ticket") or 0
+            receipt_detected_identifier = receipt.get("detected_position_identifier") or 0
+            receipt_resolved_history = receipt.get("resolved_history_position_id") or 0
+
+            receipt_order_candidates = []
+            if receipt_order:
+                receipt_order_candidates.append(receipt_order)
+
+            receipt_pos_candidates = []
+            for rid in [receipt_pos_id, receipt_detected_ticket, receipt_detected_identifier, receipt_resolved_history]:
+                if rid and rid not in receipt_pos_candidates:
+                    receipt_pos_candidates.append(rid)
+
+            # Add diagnostic position_id as supporting candidate
+            if diagnostic:
+                diag_pos_id = diagnostic.get("history_deal_position_id") or 0
+                diag_deal_ticket = diagnostic.get("history_deal_ticket") or 0
+                if diag_pos_id and diag_pos_id not in receipt_pos_candidates:
+                    receipt_pos_candidates.append(diag_pos_id)
+                if diag_deal_ticket and diag_deal_ticket not in receipt_deal_candidates:
+                    receipt_deal_candidates.append(diag_deal_ticket)
+                findings["diagnostic_available"] = True
+                findings["diagnostic_history_deal_match"] = diagnostic.get("history_deal_match", False)
+                findings["diagnostic_history_deal_ticket"] = diag_deal_ticket
+                findings["diagnostic_history_deal_position_id"] = diag_pos_id
+                findings["diagnostic_resolved_closed"] = diagnostic.get("resolved_closed", False)
+                findings["diagnostic_open_positions_count"] = diagnostic.get("open_positions_count", 0)
+            else:
+                findings["diagnostic_available"] = False
 
             receipt_matched = False
-            # Try receipt position-id / detected-position-ticket
-            for rid in [receipt_pos_id, receipt_detected_ticket]:
-                if not rid:
+            matched_pos_id = 0
+
+            # Priority 1: Exact deal ticket match
+            for deal_candidate in receipt_deal_candidates:
+                if not deal_candidate:
                     continue
-                rm_deals = [d for d in normalized_deals if d["position_id"] == rid]
-                rm_orders = [o for o in normalized_orders if o["position_id"] == rid]
-                rm_open = [p for p in normalized_open_positions
-                           if p["ticket"] == rid or p["identifier"] == rid]
-                if rm_deals or rm_orders or rm_open:
-                    matched_deals = rm_deals
-                    matched_orders = rm_orders
-                    match_method = f"receipt_position_id_{rid}"
-                    receipt_matched = True
-                    ok_checks.append(f"Matched by receipt position_id: {rid}")
-                    break
-            # Try receipt deal ticket
-            if not receipt_matched and receipt_deal:
-                rm_deals = [d for d in normalized_deals if d["ticket"] == receipt_deal]
+                rm_deals = [d for d in normalized_deals if d["ticket"] == deal_candidate]
                 if rm_deals:
-                    pos_id = rm_deals[0]["position_id"]
-                    matched_deals = [d for d in normalized_deals if d["position_id"] == pos_id]
-                    matched_orders = [o for o in normalized_orders if o["position_id"] == pos_id]
-                    match_method = f"receipt_deal_ticket_{receipt_deal}"
+                    matched_pos_id = rm_deals[0]["position_id"]
+                    matched_deals = [d for d in normalized_deals if d["position_id"] == matched_pos_id]
+                    matched_orders = [o for o in normalized_orders if o["position_id"] == matched_pos_id]
+                    match_method = f"receipt_deal_ticket_{deal_candidate}"
                     receipt_matched = True
-                    ok_checks.append(f"Matched by receipt deal_ticket: {receipt_deal}")
-            # Try receipt order ticket
-            if not receipt_matched and receipt_order:
-                rm_orders = [o for o in normalized_orders if o["ticket"] == receipt_order]
-                rm_deals = [d for d in normalized_deals if d["order"] == receipt_order]
-                if rm_orders or rm_deals:
-                    pos_id = (rm_orders[0]["position_id"] if rm_orders
-                              else rm_deals[0]["position_id"])
-                    matched_deals = [d for d in normalized_deals if d["position_id"] == pos_id]
-                    matched_orders = [o for o in normalized_orders if o["position_id"] == pos_id]
-                    match_method = f"receipt_order_ticket_{receipt_order}"
-                    receipt_matched = True
-                    ok_checks.append(f"Matched by receipt order_ticket: {receipt_order}")
+                    ok_checks.append(f"Matched by receipt deal_ticket: {deal_candidate}")
+                    break
+
+            # Priority 2: Exact order ticket match
+            if not receipt_matched:
+                for order_candidate in receipt_order_candidates:
+                    if not order_candidate:
+                        continue
+                    rm_orders = [o for o in normalized_orders if o["ticket"] == order_candidate]
+                    rm_deals = [d for d in normalized_deals if d["order"] == order_candidate]
+                    if rm_orders or rm_deals:
+                        matched_pos_id = (rm_orders[0]["position_id"] if rm_orders
+                                          else rm_deals[0]["position_id"])
+                        matched_deals = [d for d in normalized_deals if d["position_id"] == matched_pos_id]
+                        matched_orders = [o for o in normalized_orders if o["position_id"] == matched_pos_id]
+                        match_method = f"receipt_order_ticket_{order_candidate}"
+                        receipt_matched = True
+                        ok_checks.append(f"Matched by receipt order_ticket: {order_candidate}")
+                        break
+
+            # Priority 3: Position identifier match
+            if not receipt_matched:
+                for pos_candidate in receipt_pos_candidates:
+                    if not pos_candidate:
+                        continue
+                    rm_deals = [d for d in normalized_deals if d["position_id"] == pos_candidate]
+                    rm_orders = [o for o in normalized_orders if o["position_id"] == pos_candidate]
+                    rm_open = [p for p in normalized_open_positions
+                               if p["ticket"] == pos_candidate or p["identifier"] == pos_candidate]
+                    if rm_deals or rm_orders or rm_open:
+                        matched_pos_id = pos_candidate
+                        matched_deals = rm_deals
+                        matched_orders = rm_orders
+                        match_method = f"receipt_position_id_{pos_candidate}"
+                        receipt_matched = True
+                        ok_checks.append(f"Matched by receipt position_id: {pos_candidate}")
+                        break
 
             findings["receipt_match_found"] = receipt_matched
+            findings["matched_position_id"] = matched_pos_id if receipt_matched else 0
+
             if not receipt_matched:
+                # Sprint 9.9.3.45.8.10: Check if diagnostic found a deal but forensics didn't
+                if diagnostic and diagnostic.get("history_deal_match"):
+                    # Matcher bug: diagnostic found deal but forensics didn't
+                    findings["root_cause"] = "MATCHER_BUG_OR_FIELD_MAPPING_ERROR"
+                    findings["fallback_blocked_reason"] = "MATCHER_BUG_OR_FIELD_MAPPING_ERROR"
+                    findings["diagnostic_deal_ticket"] = diagnostic.get("history_deal_ticket", 0)
+                    findings["diagnostic_deal_position_id"] = diagnostic.get("history_deal_position_id", 0)
+                    warnings.append(
+                        f"MATCHER_BUG: Diagnostic found history deal (ticket={diagnostic.get('history_deal_ticket')}, "
+                        f"position_id={diagnostic.get('history_deal_position_id')}) but forensics did not match. "
+                        "Possible field mapping error or time window mismatch."
+                    )
+                    return {
+                        "timestamp_utc": ts,
+                        "verdict": "DEMO_MICRO_EVIDENCE_FAIL",
+                        "ok_checks": ok_checks, "blockers": blockers, "warnings": warnings,
+                        "findings": findings,
+                        "safety": {"order_send_called": False, "position_modified": False},
+                    }
+
                 # Receipt success=True but receipt trade NOT FOUND - strict no-fallback
                 findings["root_cause"] = "RECEIPT_TRADE_NOT_FOUND_IN_HISTORY_OR_OPEN_POSITIONS"
                 findings["fallback_blocked_reason"] = "RECEIPT_TRADE_NOT_FOUND_IN_HISTORY_OR_OPEN_POSITIONS"
@@ -343,7 +441,7 @@ def collect_forensics(days: int = 30, symbol: str = "XAUUSD",
                 )
                 return {
                     "timestamp_utc": ts,
-                    "verdict": "DEMO_MICRO_FORENSICS_INCOMPLETE",
+                    "verdict": "DEMO_MICRO_EVIDENCE_INCOMPLETE",
                     "ok_checks": ok_checks, "blockers": blockers, "warnings": warnings,
                     "findings": findings,
                     "safety": {"order_send_called": False, "position_modified": False},
@@ -489,15 +587,32 @@ def collect_forensics(days: int = 30, symbol: str = "XAUUSD",
         findings["root_cause"] = root_cause
         ok_checks.append(f"Root cause: {root_cause}")
 
-        # Verdict - Sprint 9.9.3.45.5: stricter. No COMPLETE based on fallback.
+        # Sprint 9.9.3.45.8.10: Entry/close reconciliation with new verdicts
+        entry_deals = [d for d in matched_deals if d["entry"] == 0]
+        exit_deals = [d for d in matched_deals if d["entry"] == 1]
+        findings["entry_deals_count"] = len(entry_deals)
+        findings["exit_deals_count"] = len(exit_deals)
+        findings["open_positions_count"] = len(normalized_open_positions)
+
+        # Verdict - Sprint 9.9.3.45.8.10: New evidence-based verdicts
         is_explicit_match = "explicit" in match_method or "receipt" in match_method
         is_strict_match = "magic" in match_method or "comment" in match_method or is_explicit_match
         is_likely_match = "likely" in match_method
 
-        if is_explicit_match and entry_deal and (sl_hit or exit_deal):
-            verdict = "DEMO_MICRO_FORENSICS_COMPLETE"
+        if is_explicit_match and entry_deal and exit_deal:
+            verdict = "DEMO_MICRO_EVIDENCE_PASS"
+        elif is_explicit_match and entry_deal and not exit_deal:
+            # Entry confirmed but exit deal missing
+            # Check if diagnostic says resolved_closed
+            diag_closed = findings.get("diagnostic_resolved_closed", False)
+            if diag_closed:
+                verdict = "DEMO_MICRO_EVIDENCE_ENTRY_CONFIRMED_CLOSE_DEAL_MISSING"
+                warnings.append("Entry deal found but exit deal missing. Diagnostic says resolved_closed.")
+            else:
+                verdict = "DEMO_MICRO_EVIDENCE_ENTRY_CONFIRMED_CLOSE_DEAL_MISSING"
+                warnings.append("Entry deal found but exit deal missing. Position may still be open or close deal not yet in history.")
         elif is_strict_match and entry_deal and (sl_hit or exit_deal):
-            verdict = "DEMO_MICRO_FORENSICS_COMPLETE"
+            verdict = "DEMO_MICRO_EVIDENCE_PASS"
         elif is_strict_match and matched_deals:
             verdict = "DEMO_MICRO_FORENSICS_COMPLETE_WITH_WARNINGS"
         elif is_likely_match and matched_deals:
@@ -506,9 +621,9 @@ def collect_forensics(days: int = 30, symbol: str = "XAUUSD",
         elif matched_deals and (sl_hit or exit_deal):
             verdict = "DEMO_MICRO_FORENSICS_COMPLETE_WITH_WARNINGS"
         elif matched_deals:
-            verdict = "DEMO_MICRO_FORENSICS_COMPLETE_WITH_WARNINGS"
+            verdict = "DEMO_MICRO_EVIDENCE_INCOMPLETE"
         else:
-            verdict = "DEMO_MICRO_FORENSICS_INCOMPLETE"
+            verdict = "DEMO_MICRO_EVIDENCE_INCOMPLETE"
 
     except ImportError:
         verdict = "DEMO_MICRO_FORENSICS_INCOMPLETE"

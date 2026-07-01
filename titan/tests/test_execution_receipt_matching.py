@@ -253,3 +253,58 @@ class TestReceipt:
         code = _strip(src).lower()
         for term in ["martingale", "grid_trade", "averaging_down", "double_lot"]:
             assert term not in code, f"Forbidden term '{term}' in code"
+
+    # === Sprint 9.9.3.45.8.10: forensics reconciliation tests ===
+
+    def test_05_forensics_parses_order_send_result_order(self):
+        """Forensics must parse order_send_result_order from receipt."""
+        src = (REPO_ROOT / "scripts" / "operator" / "collect_demo_micro_trade_forensics.py").read_text()
+        assert 'receipt.get("order_send_result_order"' in src
+
+    def test_06_forensics_parses_order_send_result_deal(self):
+        """Forensics must parse order_send_result_deal from receipt."""
+        src = (REPO_ROOT / "scripts" / "operator" / "collect_demo_micro_trade_forensics.py").read_text()
+        assert 'receipt.get("order_send_result_deal"' in src
+
+    def test_07_forensics_parses_detected_position_identifier(self):
+        """Forensics must parse detected_position_identifier."""
+        src = (REPO_ROOT / "scripts" / "operator" / "collect_demo_micro_trade_forensics.py").read_text()
+        assert 'receipt.get("detected_position_identifier"' in src
+
+    def test_08_forensics_match_priority_deal_first(self):
+        """Match priority: deal ticket first, then order, then position."""
+        src = (REPO_ROOT / "scripts" / "operator" / "collect_demo_micro_trade_forensics.py").read_text()
+        idx1 = src.find("Priority 1: Exact deal ticket match")
+        idx2 = src.find("Priority 2: Exact order ticket match")
+        idx3 = src.find("Priority 3: Position identifier match")
+        assert idx1 > 0
+        assert idx2 > idx1
+        assert idx3 > idx2
+
+    def test_09_forensics_uses_diagnostic_as_support(self):
+        """Forensics must use diagnostic as supporting evidence."""
+        src = (REPO_ROOT / "scripts" / "operator" / "collect_demo_micro_trade_forensics.py").read_text()
+        assert "latest_receipt_diagnostic.json" in src
+        assert "diagnostic_history_deal_position_id" in src
+
+    def test_10_forensics_new_evidence_verdicts(self):
+        """Forensics must use new evidence verdicts."""
+        src = (REPO_ROOT / "scripts" / "operator" / "collect_demo_micro_trade_forensics.py").read_text()
+        assert "DEMO_MICRO_EVIDENCE_PASS" in src
+        assert "DEMO_MICRO_EVIDENCE_ENTRY_CONFIRMED_CLOSE_DEAL_MISSING" in src
+
+    def test_11_forensics_reports_entry_exit_counts(self):
+        """Forensics must report entry_deals_count and exit_deals_count."""
+        src = (REPO_ROOT / "scripts" / "operator" / "collect_demo_micro_trade_forensics.py").read_text()
+        assert "entry_deals_count" in src
+        assert "exit_deals_count" in src
+
+    def test_12_forensics_reports_matched_position_id(self):
+        """Forensics must report matched_position_id."""
+        src = (REPO_ROOT / "scripts" / "operator" / "collect_demo_micro_trade_forensics.py").read_text()
+        assert "matched_position_id" in src
+
+    def test_13_forensics_detects_matcher_bug(self):
+        """Forensics must detect matcher bug when diagnostic found deal but forensics didn't."""
+        src = (REPO_ROOT / "scripts" / "operator" / "collect_demo_micro_trade_forensics.py").read_text()
+        assert "MATCHER_BUG_OR_FIELD_MAPPING_ERROR" in src

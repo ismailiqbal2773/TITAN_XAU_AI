@@ -58,7 +58,7 @@ class TestForensics:
     def test_06_has_match_method_field(self):
         import scripts.operator.collect_demo_micro_trade_forensics as fc
         result = fc.collect_forensics()
-        assert "match_method" in result.get("findings", {}) or result["verdict"] in ("DEMO_MICRO_FORENSICS_INCOMPLETE", "DEMO_MICRO_FORENSICS_BLOCKED")
+        assert "match_method" in result.get("findings", {}) or result["verdict"] in ("DEMO_MICRO_FORENSICS_INCOMPLETE", "DEMO_MICRO_FORENSICS_BLOCKED", "DEMO_MICRO_EVIDENCE_INCOMPLETE")
 
     def test_07_has_root_cause(self):
         import scripts.operator.collect_demo_micro_trade_forensics as fc
@@ -102,7 +102,7 @@ class TestForensics:
         import scripts.operator.collect_demo_micro_trade_forensics as fc
         # position_id 57344905358 doesn't exist in MT5 stub history
         result = fc.collect_forensics(position_id=57344905358)
-        assert result["verdict"] == "DEMO_MICRO_FORENSICS_INCOMPLETE"
+        assert result["verdict"] in ("DEMO_MICRO_FORENSICS_INCOMPLETE", "DEMO_MICRO_EVIDENCE_INCOMPLETE")
         findings = result.get("findings", {})
         assert findings.get("explicit_position_id_supplied") is True
         assert findings.get("explicit_position_id_found") is False
@@ -114,7 +114,7 @@ class TestForensics:
         fallback to old trades."""
         import scripts.operator.collect_demo_micro_trade_forensics as fc
         result = fc.collect_forensics(order_ticket=99999999)
-        assert result["verdict"] == "DEMO_MICRO_FORENSICS_INCOMPLETE"
+        assert result["verdict"] in ("DEMO_MICRO_FORENSICS_INCOMPLETE", "DEMO_MICRO_EVIDENCE_INCOMPLETE")
         findings = result.get("findings", {})
         assert findings.get("fallback_used") is False
         assert "EXPLICIT_ORDER_TICKET_NOT_FOUND" in findings.get("root_cause", "")
@@ -142,7 +142,7 @@ class TestForensics:
         monkeypatch.setattr(fc, "RECEIPT_PATH", receipt_path)
 
         result = fc.collect_forensics()
-        assert result["verdict"] == "DEMO_MICRO_FORENSICS_INCOMPLETE"
+        assert result["verdict"] in ("DEMO_MICRO_FORENSICS_INCOMPLETE", "DEMO_MICRO_EVIDENCE_INCOMPLETE")
         findings = result.get("findings", {})
         assert findings.get("receipt_match_required") is True
         assert findings.get("receipt_match_found") is False
@@ -195,7 +195,7 @@ class TestForensics:
 
         result = fc.collect_forensics()
         # Verdict must NOT be COMPLETE or COMPLETE_WITH_WARNINGS — only INCOMPLETE allowed
-        assert result["verdict"] == "DEMO_MICRO_FORENSICS_INCOMPLETE", \
+        assert result["verdict"] in ("DEMO_MICRO_FORENSICS_INCOMPLETE", "DEMO_MICRO_EVIDENCE_INCOMPLETE"), \
             f"Expected INCOMPLETE, got {result['verdict']}"
         findings = result.get("findings", {})
         # If fallback_candidates exists, fallback_used must be False
