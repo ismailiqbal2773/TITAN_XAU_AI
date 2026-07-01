@@ -1,0 +1,61 @@
+# TITAN XAU AI - Transaction Cost Profiles (Sprint 9.9.3.45.8.3)
+# ==============================================================
+# Transaction cost models for spread, commission, slippage, swap.
+# Used by titan.production.transaction_cost_engine to compute
+# net_profit from gross_profit.
+#
+# All monetary values in account currency (USD).
+# spread = typical spread in price units (not points).
+# commission_per_lot_round_turn = commission for full round-trip per 1.0 lot.
+
+profiles:
+
+  # ─── Zero Spread Demo (MetaQuotes-Demo default) ──────────────────────────
+  zero_spread_demo:
+    spread_xauusd: 0.35
+    commission_per_lot_round_turn: 0.0
+    typical_slippage_xauusd: 0.02
+    swap_long_per_lot_per_night: 0.0
+    swap_short_per_lot_per_night: 0.0
+    contract_size_xauusd: 100
+    description: "Demo account with zero commission, typical demo spread"
+
+  # ─── Standard Retail ─────────────────────────────────────────────────────
+  standard_retail:
+    spread_xauusd: 0.30
+    commission_per_lot_round_turn: 7.0
+    typical_slippage_xauusd: 0.02
+    swap_long_per_lot_per_night: -4.20
+    swap_short_per_lot_per_night: -1.50
+    contract_size_xauusd: 100
+    description: "Standard retail broker with commission and swap"
+
+  # ─── Prop Firm Standard ──────────────────────────────────────────────────
+  prop_firm_standard:
+    spread_xauusd: 0.20
+    commission_per_lot_round_turn: 6.0
+    typical_slippage_xauusd: 0.02
+    swap_long_per_lot_per_night: -3.80
+    swap_short_per_lot_per_night: -1.30
+    contract_size_xauusd: 100
+    description: "Prop firm standard costs (FTMO-style)"
+
+  # ─── Funded Standard ─────────────────────────────────────────────────────
+  funded_standard:
+    spread_xauusd: 0.20
+    commission_per_lot_round_turn: 6.0
+    typical_slippage_xauusd: 0.02
+    swap_long_per_lot_per_night: -3.80
+    swap_short_per_lot_per_night: -1.30
+    contract_size_xauusd: 100
+    description: "Funded account standard costs"
+
+  # ─── Institutional ECN ───────────────────────────────────────────────────
+  institutional_ecn:
+    spread_xauusd: 0.15
+    commission_per_lot_round_turn: 4.50
+    typical_slippage_xauusd: 0.01
+    swap_long_per_lot_per_night: -3.00
+    swap_short_per_lot_per_night: -1.00
+    contract_size_xauusd: 100
+    description: "Institutional ECN with tight spread and low commission"

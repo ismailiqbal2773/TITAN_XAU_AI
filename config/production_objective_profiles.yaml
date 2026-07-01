@@ -1,0 +1,91 @@
+# TITAN XAU AI - Production Objective Profiles (Sprint 9.9.3.45.8.3)
+# =================================================================
+# Production objective profiles define the goal of each deployment:
+# maximize net risk-adjusted profit, minimize drawdown, survive costs.
+#
+# Each objective profile binds an account profile, broker profile,
+# runtime parameter profile, and transaction cost profile together
+# with a production readiness target.
+
+profiles:
+
+  # ─── Demo Proof Objective ────────────────────────────────────────────────
+  demo_proof:
+    description: "Demo proof: validate execution, monitor, trailing, corridor"
+    account_profile: retail_demo_micro
+    broker_profile: metaquotes_demo
+    runtime_parameter_profile: balanced_conservative
+    transaction_cost_profile: zero_spread_demo
+    objective: "validate_execution_safety"
+    max_lot: 0.01
+    require_demo_only: true
+    require_dynamic_tp_geometry_valid: false
+    require_net_rr_valid: false
+    min_production_score: 90
+    allowed_verdicts:
+      - PRODUCTION_CLOSURE_READY
+      - PRODUCTION_CLOSURE_READY_WITH_SAFE_DEFAULTS
+
+  # ─── Prop Firm Challenge Objective ───────────────────────────────────────
+  prop_firm_challenge:
+    description: "Prop firm challenge: pass challenge with dynamic TP"
+    account_profile: prop_firm_100x_demo
+    broker_profile: ftmo_prop
+    runtime_parameter_profile: balanced_conservative
+    transaction_cost_profile: prop_firm_standard
+    objective: "maximize_net_risk_adjusted_profit"
+    max_lot: 0.01
+    require_demo_only: true
+    require_dynamic_tp_geometry_valid: true
+    require_net_rr_valid: true
+    min_production_score: 90
+    allowed_verdicts:
+      - PRODUCTION_CLOSURE_READY
+
+  # ─── Funded Conservative Objective ───────────────────────────────────────
+  funded_conservative:
+    description: "Funded account conservative: protect capital, grow steadily"
+    account_profile: funded_100x_conservative
+    broker_profile: ftmo_prop
+    runtime_parameter_profile: conservative
+    transaction_cost_profile: funded_standard
+    objective: "maximize_net_risk_adjusted_profit"
+    max_lot: 0.01
+    require_demo_only: false
+    require_dynamic_tp_geometry_valid: true
+    require_net_rr_valid: true
+    min_production_score: 90
+    allowed_verdicts:
+      - PRODUCTION_CLOSURE_READY
+
+  # ─── Institutional Low Risk Objective ─────────────────────────────────────
+  institutional_low_risk:
+    description: "Institutional low risk: minimal drawdown, tight costs"
+    account_profile: institutional_low_risk
+    broker_profile: institutional_ecn
+    runtime_parameter_profile: conservative
+    transaction_cost_profile: institutional_ecn
+    objective: "maximize_net_risk_adjusted_profit"
+    max_lot: 0.10
+    require_demo_only: false
+    require_dynamic_tp_geometry_valid: true
+    require_net_rr_valid: true
+    min_production_score: 90
+    allowed_verdicts:
+      - PRODUCTION_CLOSURE_READY
+
+  # ─── Institutional Balanced Objective ────────────────────────────────────
+  institutional_balanced:
+    description: "Institutional balanced: moderate risk, good returns"
+    account_profile: institutional_balanced
+    broker_profile: institutional_ecn
+    runtime_parameter_profile: balanced
+    transaction_cost_profile: institutional_ecn
+    objective: "maximize_net_risk_adjusted_profit"
+    max_lot: 0.20
+    require_demo_only: false
+    require_dynamic_tp_geometry_valid: true
+    require_net_rr_valid: true
+    min_production_score: 90
+    allowed_verdicts:
+      - PRODUCTION_CLOSURE_READY

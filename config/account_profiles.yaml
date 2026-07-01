@@ -1,0 +1,191 @@
+# TITAN XAU AI - Account Profiles (Sprint 9.9.3.45.8.3)
+# ========================================================
+# Master production closure: profile-driven risk, leverage, lot,
+# drawdown, RR, session, and cost constraints per account type.
+#
+# Safety invariants (ALL profiles):
+#   no_martingale: true
+#   no_grid: true
+#   no_averaging: true
+#   no_loss_based_lot_multiplier: true
+#
+# All percentages stored as decimals (0.05 = 5%).
+
+profiles:
+
+  # ─── Retail Demo Micro ───────────────────────────────────────────────────
+  retail_demo_micro:
+    account_type: demo
+    leverage: 30
+    max_daily_dd_pct: 0.05
+    max_total_dd_pct: 0.10
+    max_risk_per_trade_pct: 0.01
+    max_open_positions: 1
+    max_margin_usage_pct: 0.20
+    max_lot: 0.01
+    fixed_lot_for_proof: 0.01
+    minimum_RR: 1.5
+    target_net_RR: 2.0
+    minimum_profit_factor: 1.2
+    max_expected_drawdown: 0.08
+    allowed_symbols: ["XAUUSD"]
+    allowed_sessions: ["london", "new_york"]
+    spread_limit: 0.50
+    slippage_limit: 0.10
+    commission_model: "zero_spread_demo"
+    swap_handling: "ignore"
+    no_martingale: true
+    no_grid: true
+    no_averaging: true
+    no_loss_based_lot_multiplier: true
+
+  # ─── Retail Live Conservative ────────────────────────────────────────────
+  retail_live_conservative:
+    account_type: live
+    leverage: 30
+    max_daily_dd_pct: 0.03
+    max_total_dd_pct: 0.06
+    max_risk_per_trade_pct: 0.005
+    max_open_positions: 1
+    max_margin_usage_pct: 0.10
+    max_lot: 0.05
+    fixed_lot_for_proof: 0.01
+    minimum_RR: 2.0
+    target_net_RR: 2.5
+    minimum_profit_factor: 1.5
+    max_expected_drawdown: 0.05
+    allowed_symbols: ["XAUUSD"]
+    allowed_sessions: ["london", "new_york"]
+    spread_limit: 0.35
+    slippage_limit: 0.05
+    commission_model: "standard_retail"
+    swap_handling: "include"
+    no_martingale: true
+    no_grid: true
+    no_averaging: true
+    no_loss_based_lot_multiplier: true
+
+  # ─── Prop Firm 100x Demo ─────────────────────────────────────────────────
+  prop_firm_100x_demo:
+    account_type: demo
+    leverage: 100
+    max_daily_dd_pct: 0.03
+    max_total_dd_pct: 0.08
+    max_risk_per_trade_pct: 0.005
+    max_open_positions: 1
+    max_margin_usage_pct: 0.15
+    max_lot: 0.01
+    fixed_lot_for_proof: 0.01
+    minimum_RR: 2.0
+    target_net_RR: 3.0
+    minimum_profit_factor: 1.5
+    max_expected_drawdown: 0.05
+    allowed_symbols: ["XAUUSD"]
+    allowed_sessions: ["london", "new_york"]
+    spread_limit: 0.30
+    slippage_limit: 0.05
+    commission_model: "prop_firm_standard"
+    swap_handling: "include"
+    # Dynamic TP geometry for prop firm proof
+    dynamic_tp_initial_tp_R: 3.0
+    dynamic_tp_trigger_R: 2.0
+    breakeven_trigger_R: 1.0
+    trailing_trigger_R: 1.75
+    profit_lock_trigger_R: 3.0
+    no_martingale: true
+    no_grid: true
+    no_averaging: true
+    no_loss_based_lot_multiplier: true
+
+  # ─── Funded 100x Conservative ────────────────────────────────────────────
+  funded_100x_conservative:
+    account_type: live
+    leverage: 100
+    max_daily_dd_pct: 0.03
+    max_total_dd_pct: 0.08
+    max_risk_per_trade_pct: 0.005
+    max_open_positions: 1
+    max_margin_usage_pct: 0.12
+    max_lot: 0.01
+    fixed_lot_for_proof: 0.01
+    minimum_RR: 2.0
+    target_net_RR: 3.0
+    minimum_profit_factor: 1.5
+    max_expected_drawdown: 0.05
+    allowed_symbols: ["XAUUSD"]
+    allowed_sessions: ["london", "new_york"]
+    spread_limit: 0.30
+    slippage_limit: 0.05
+    commission_model: "funded_standard"
+    swap_handling: "include"
+    dynamic_tp_initial_tp_R: 3.0
+    dynamic_tp_trigger_R: 2.0
+    breakeven_trigger_R: 1.0
+    trailing_trigger_R: 1.75
+    profit_lock_trigger_R: 3.0
+    no_martingale: true
+    no_grid: true
+    no_averaging: true
+    no_loss_based_lot_multiplier: true
+
+  # ─── Institutional Low Risk ──────────────────────────────────────────────
+  institutional_low_risk:
+    account_type: live
+    leverage: 50
+    max_daily_dd_pct: 0.02
+    max_total_dd_pct: 0.04
+    max_risk_per_trade_pct: 0.0025
+    max_open_positions: 1
+    max_margin_usage_pct: 0.08
+    max_lot: 0.10
+    fixed_lot_for_proof: 0.01
+    minimum_RR: 2.5
+    target_net_RR: 3.5
+    minimum_profit_factor: 2.0
+    max_expected_drawdown: 0.03
+    allowed_symbols: ["XAUUSD"]
+    allowed_sessions: ["london", "new_york"]
+    spread_limit: 0.20
+    slippage_limit: 0.03
+    commission_model: "institutional_ecn"
+    swap_handling: "include"
+    dynamic_tp_initial_tp_R: 3.0
+    dynamic_tp_trigger_R: 2.0
+    breakeven_trigger_R: 1.0
+    trailing_trigger_R: 1.75
+    profit_lock_trigger_R: 3.0
+    no_martingale: true
+    no_grid: true
+    no_averaging: true
+    no_loss_based_lot_multiplier: true
+
+  # ─── Institutional Balanced ──────────────────────────────────────────────
+  institutional_balanced:
+    account_type: live
+    leverage: 50
+    max_daily_dd_pct: 0.03
+    max_total_dd_pct: 0.06
+    max_risk_per_trade_pct: 0.005
+    max_open_positions: 1
+    max_margin_usage_pct: 0.10
+    max_lot: 0.20
+    fixed_lot_for_proof: 0.01
+    minimum_RR: 2.0
+    target_net_RR: 3.0
+    minimum_profit_factor: 1.8
+    max_expected_drawdown: 0.04
+    allowed_symbols: ["XAUUSD"]
+    allowed_sessions: ["london", "new_york"]
+    spread_limit: 0.25
+    slippage_limit: 0.04
+    commission_model: "institutional_ecn"
+    swap_handling: "include"
+    dynamic_tp_initial_tp_R: 3.0
+    dynamic_tp_trigger_R: 2.0
+    breakeven_trigger_R: 1.0
+    trailing_trigger_R: 1.75
+    profit_lock_trigger_R: 3.0
+    no_martingale: true
+    no_grid: true
+    no_averaging: true
+    no_loss_based_lot_multiplier: true

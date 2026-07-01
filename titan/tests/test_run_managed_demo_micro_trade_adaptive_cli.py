@@ -426,3 +426,147 @@ class TestRunManagedDemoMicroTradeAdaptiveCLI:
         cfg = result["adaptive_trailing_config"]
         assert cfg["dynamic_tp_enabled"] is True
         assert cfg["tp_extension_trigger_R"] == 2.5
+
+    # === Sprint 9.9.3.45.8.3: production closure CLI tests ===
+
+    def test_42_account_profile_flag_exists(self):
+        """--account-profile flag must exist."""
+        src = (REPO_ROOT / "scripts" / "operator" / "run_managed_demo_micro_trade.py").read_text()
+        assert "--account-profile" in src
+
+    def test_43_initial_tp_r_flag_exists(self):
+        """--initial-tp-r flag must exist."""
+        src = (REPO_ROOT / "scripts" / "operator" / "run_managed_demo_micro_trade.py").read_text()
+        assert "--initial-tp-r" in src
+
+    def test_44_build_request_with_account_profile(self):
+        """build_request must include account_profile in result."""
+        import scripts.operator.run_managed_demo_micro_trade as m
+        args = FakeArgs(use_adaptive_trailing=True)
+        args.account_profile = "prop_firm_100x_demo"
+        args.initial_tp_r = 3.0
+        args.use_dynamic_tp_extension = True
+        args.tp_extension_trigger_r = 2.0
+        # Add all required attrs for _build_adaptive_config
+        args.adaptive_policy_mode = "balanced_conservative"
+        args.breakeven_trigger_r = 1.0
+        args.trailing_trigger_r = 1.75
+        args.profit_lock_trigger_r = 3.0
+        args.min_hold_seconds = 60
+        args.min_monitor_iterations = 3
+        args.sl_update_cooldown_seconds = 60
+        args.tp_extension_r = 1.0
+        args.tp_extension_atr_mult = 2.0
+        args.tp_extension_cooldown_seconds = 120
+        args.min_profit_lock_after_tp_extension_r = 1.0
+        args.max_profit_giveback_r_trend = 1.0
+        args.max_profit_giveback_r_range = 0.5
+        result = m.run_build_request(args=args)
+        assert result.get("account_profile") == "prop_firm_100x_demo"
+        assert result.get("initial_tp_R") == 3.0
+
+    def test_45_build_request_initial_tp_1r_blocked_for_dynamic_tp(self):
+        """--initial-tp-r 1.0 with dynamic TP must block."""
+        import scripts.operator.run_managed_demo_micro_trade as m
+        args = FakeArgs(use_adaptive_trailing=True)
+        args.account_profile = "prop_firm_100x_demo"
+        args.initial_tp_r = 1.0
+        args.use_dynamic_tp_extension = True
+        args.tp_extension_trigger_r = 2.0
+        args.adaptive_policy_mode = "balanced_conservative"
+        args.breakeven_trigger_r = 1.0
+        args.trailing_trigger_r = 1.75
+        args.profit_lock_trigger_r = 3.0
+        args.min_hold_seconds = 60
+        args.min_monitor_iterations = 3
+        args.sl_update_cooldown_seconds = 60
+        args.tp_extension_r = 1.0
+        args.tp_extension_atr_mult = 2.0
+        args.tp_extension_cooldown_seconds = 120
+        args.min_profit_lock_after_tp_extension_r = 1.0
+        args.max_profit_giveback_r_trend = 1.0
+        args.max_profit_giveback_r_range = 0.5
+        result = m.run_build_request(args=args)
+        assert result["verdict"] == "BLOCKED"
+        assert result.get("dynamic_tp_geometry_valid") is False
+
+    def test_46_build_request_initial_tp_3r_allowed(self):
+        """--initial-tp-r 3.0 with dynamic TP should pass geometry."""
+        import scripts.operator.run_managed_demo_micro_trade as m
+        args = FakeArgs(use_adaptive_trailing=True)
+        args.account_profile = "prop_firm_100x_demo"
+        args.initial_tp_r = 3.0
+        args.use_dynamic_tp_extension = True
+        args.tp_extension_trigger_r = 2.0
+        args.adaptive_policy_mode = "balanced_conservative"
+        args.breakeven_trigger_r = 1.0
+        args.trailing_trigger_r = 1.75
+        args.profit_lock_trigger_r = 3.0
+        args.min_hold_seconds = 60
+        args.min_monitor_iterations = 3
+        args.sl_update_cooldown_seconds = 60
+        args.tp_extension_r = 1.0
+        args.tp_extension_atr_mult = 2.0
+        args.tp_extension_cooldown_seconds = 120
+        args.min_profit_lock_after_tp_extension_r = 1.0
+        args.max_profit_giveback_r_trend = 1.0
+        args.max_profit_giveback_r_range = 0.5
+        result = m.run_build_request(args=args)
+        assert result.get("dynamic_tp_geometry_valid") is True
+
+    def test_47_build_request_includes_transaction_cost(self):
+        """build_request must include transaction_cost in result."""
+        import scripts.operator.run_managed_demo_micro_trade as m
+        args = FakeArgs(use_adaptive_trailing=False)
+        args.account_profile = "retail_demo_micro"
+        args.initial_tp_r = 3.0
+        args.use_dynamic_tp_extension = False
+        args.tp_extension_trigger_r = 2.0
+        args.adaptive_policy_mode = "balanced_conservative"
+        args.breakeven_trigger_r = 1.0
+        args.trailing_trigger_r = 1.75
+        args.profit_lock_trigger_r = 3.0
+        args.min_hold_seconds = 60
+        args.min_monitor_iterations = 3
+        args.sl_update_cooldown_seconds = 60
+        args.tp_extension_r = 1.0
+        args.tp_extension_atr_mult = 2.0
+        args.tp_extension_cooldown_seconds = 120
+        args.min_profit_lock_after_tp_extension_r = 1.0
+        args.max_profit_giveback_r_trend = 1.0
+        args.max_profit_giveback_r_range = 0.5
+        result = m.run_build_request(args=args)
+        assert "transaction_cost" in result
+        assert "gross_profit" in result
+        assert "net_profit" in result
+
+    def test_48_build_request_includes_margin_risk(self):
+        """build_request must include margin_risk in result."""
+        import scripts.operator.run_managed_demo_micro_trade as m
+        args = FakeArgs(use_adaptive_trailing=False)
+        args.account_profile = "retail_demo_micro"
+        args.initial_tp_r = 3.0
+        args.use_dynamic_tp_extension = False
+        args.tp_extension_trigger_r = 2.0
+        args.adaptive_policy_mode = "balanced_conservative"
+        args.breakeven_trigger_r = 1.0
+        args.trailing_trigger_r = 1.75
+        args.profit_lock_trigger_r = 3.0
+        args.min_hold_seconds = 60
+        args.min_monitor_iterations = 3
+        args.sl_update_cooldown_seconds = 60
+        args.tp_extension_r = 1.0
+        args.tp_extension_atr_mult = 2.0
+        args.tp_extension_cooldown_seconds = 120
+        args.min_profit_lock_after_tp_extension_r = 1.0
+        args.max_profit_giveback_r_trend = 1.0
+        args.max_profit_giveback_r_range = 0.5
+        result = m.run_build_request(args=args)
+        assert "margin_risk" in result
+
+    def test_49_no_martingale_in_build_request(self):
+        """build_request code must not contain martingale/grid/averaging."""
+        src = (REPO_ROOT / "scripts" / "operator" / "run_managed_demo_micro_trade.py").read_text()
+        code = _strip(src).lower()
+        for term in ["martingale", "grid_trade", "averaging_down", "loss_based_lot"]:
+            assert term not in code, f"Forbidden term '{term}' in code"

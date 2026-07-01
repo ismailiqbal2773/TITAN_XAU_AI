@@ -143,8 +143,40 @@ def run_build_request(direction: str = "BUY", entry_price: float = 2000.0,
     ts = datetime.now(timezone.utc).isoformat()
     from titan.production.demo_micro_order_builder import DemoMicroOrderBuilder
     builder = DemoMicroOrderBuilder()
+
+    # Sprint 9.9.3.45.8.3: profile-driven geometry
+    account_profile_name = getattr(args, "account_profile", "retail_demo_micro") if args else "retail_demo_micro"
+    initial_tp_r = getattr(args, "initial_tp_r", 3.0) if args else 3.0
+    use_dynamic_tp = bool(getattr(args, "use_dynamic_tp_extension", False)) if args else False
+    use_adaptive = bool(getattr(args, "use_adaptive_trailing", False)) if args else False
+
+    # Load account profile
+    import yaml as _yaml
+    account_profiles_path = REPO_ROOT / "config" / "account_profiles.yaml"
+    account_profile = {}
+    if account_profiles_path.exists():
+        try:
+            with open(account_profiles_path, "r", encoding="utf-8") as f:
+                ap_data = _yaml.safe_load(f) or {}
+            account_profile = ap_data.get("profiles", {}).get(account_profile_name, {})
+        except Exception:
+            pass
+
+    # If initial_tp_r provided, compute TP from entry and SL
+    computed_tp = tp
+    computed_sl = sl
+    if initial_tp_r > 0 and sl == 0:
+        # Default SL = entry - 10.0 (10 USD for XAUUSD at 2000)
+        computed_sl = entry_price - 10.0 if direction == "BUY" else entry_price + 10.0
+    if initial_tp_r > 0:
+        R = abs(entry_price - computed_sl) if computed_sl > 0 else 10.0
+        if direction == "BUY":
+            computed_tp = entry_price + (initial_tp_r * R)
+        else:
+            computed_tp = entry_price - (initial_tp_r * R)
+
     build_result = builder.build_preview(
-        direction=direction, entry_price=entry_price, sl=sl, tp=tp,
+        direction=direction, entry_price=entry_price, sl=computed_sl, tp=computed_tp,
         safe_fallback=False,
     )
     result = {
@@ -158,6 +190,105 @@ def run_build_request(direction: str = "BUY", entry_price: float = 2000.0,
     # Sprint 9.9.3.45.8.1: include adaptive trailing config in report
     if args is not None:
         result["adaptive_trailing_config"] = _build_adaptive_config(args)
+
+    # Sprint 9.9.3.45.8.3: profile-driven geometry and cost/RR validation
+    result["account_profile"] = account_profile_name
+    result["initial_tp_R"] = initial_tp_r
+    result["dynamic_tp_enabled"] = use_dynamic_tp
+
+    # Dynamic TP geometry validation
+    dynamic_tp_trigger_r = float(getattr(args, "tp_extension_trigger_r", 2.0)) if args else 2.0
+    geometry_blockers = []
+    if use_dynamic_tp:
+        if initial_tp_r <= dynamic_tp_trigger_r:
+            geometry_blockers.append(
+                f"DYNAMIC_TP_TRIGGER_BEYOND_STATIC_TP: initial_tp_R={initial_tp_r} <= dynamic_tp_trigger_R={dynamic_tp_trigger_r}"
+            )
+            result["verdict"] = "BLOCKED"
+        if initial_tp_r < 3.0:
+            geometry_blockers.append(
+                f"INITIAL_TP_TOO_CLOSE_FOR_DYNAMIC_TP: initial_tp_R={initial_tp_r} < 3.0"
+            )
+            result["verdict"] = "BLOCKED"
+        # RR 1:1 blocked for prop/funded/institutional
+        is_prop_or_funded = (
+            "prop_firm" in account_profile_name
+            or "funded" in account_profile_name
+            or "institutional" in account_profile_name
+        )
+        if is_prop_or_funded and initial_tp_r < 2.0:
+            geometry_blockers.append(
+                f"RR_1_1_BLOCKED_FOR_PROP_DYNAMIC_TP: initial_tp_R={initial_tp_r} < 2.0 for {account_profile_name}"
+            )
+            result["verdict"] = "BLOCKED"
+
+    result["dynamic_tp_geometry_valid"] = len(geometry_blockers) == 0
+    if geometry_blockers:
+        result["geometry_blockers"] = geometry_blockers
+
+    # Transaction cost and net profit validation (if we have valid SL/TP)
+    if computed_sl > 0 and computed_tp > 0:
+        try:
+            from titan.production.transaction_cost_engine import TransactionCostEngine
+            from titan.production.net_profit_target_validator import NetProfitTargetValidator
+
+            cost_profile = account_profile.get("commission_model", "zero_spread_demo")
+            validator = NetProfitTargetValidator(
+                account_profile_name=account_profile_name,
+                cost_profile_name=cost_profile,
+            )
+            validation = validator.validate(
+                direction=direction,
+                entry_price=entry_price,
+                sl_price=computed_sl,
+                tp_price=computed_tp,
+                lot=0.01,
+                initial_tp_R=initial_tp_r,
+                dynamic_tp_trigger_R=dynamic_tp_trigger_r,
+                dynamic_tp_enabled=use_dynamic_tp,
+            )
+            result["transaction_cost"] = validation.cost_result
+            result["net_profit_validation"] = validation.to_dict()
+            result["gross_RR"] = validation.target_net_RR  # Will be overridden below
+            # Actually get gross_RR from cost result
+            result["gross_RR"] = validation.cost_result.get("gross_RR", 0.0)
+            result["net_RR"] = validation.cost_result.get("net_RR", 0.0)
+            result["gross_profit"] = validation.target_gross_profit
+            result["net_profit"] = validation.expected_net_profit
+            result["total_transaction_cost"] = validation.expected_total_transaction_cost
+            result["net_profit_target_reached"] = validation.net_profit_target_reached
+            if validation.blockers:
+                result["verdict"] = "BLOCKED"
+                if "blockers" not in result:
+                    result["blockers"] = []
+                result["blockers"].extend(validation.blockers)
+        except Exception as e:
+            result["cost_validation_error"] = str(e)
+
+    # Margin/leverage guard
+    try:
+        from titan.production.margin_leverage_guard import MarginLeverageGuard
+        broker_profile_name = "metaquotes_demo"
+        guard = MarginLeverageGuard(
+            account_profile_name=account_profile_name,
+            broker_profile_name=broker_profile_name,
+        )
+        margin_result = guard.calculate(
+            price=entry_price, sl_price=computed_sl, lot=0.01,
+        )
+        result["margin_risk"] = margin_result.to_dict()
+        result["prop_firm_safe"] = margin_result.prop_firm_safe
+        result["retail_safe"] = margin_result.retail_safe
+        result["institutional_safe"] = margin_result.institutional_safe
+        if margin_result.blockers:
+            if result["verdict"] != "BLOCKED":
+                result["verdict"] = "BLOCKED"
+            if "blockers" not in result:
+                result["blockers"] = []
+            result["blockers"].extend(margin_result.blockers)
+    except Exception as e:
+        result["margin_guard_error"] = str(e)
+
     return result
 
 
@@ -1558,6 +1689,11 @@ def main() -> int:
                         help="Max profit giveback R in trend regime (default: 1.0)")
     parser.add_argument("--max-profit-giveback-r-range", type=float, default=0.5,
                         help="Max profit giveback R in range regime (default: 0.5)")
+    # Sprint 9.9.3.45.8.3: production closure profile-driven geometry
+    parser.add_argument("--account-profile", default="retail_demo_micro",
+                        help="Account profile name (default: retail_demo_micro)")
+    parser.add_argument("--initial-tp-r", type=float, default=3.0,
+                        help="Initial TP in R-multiple (default: 3.0)")
     args = parser.parse_args()
 
     print("=" * 70)
