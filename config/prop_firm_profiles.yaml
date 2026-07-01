@@ -1,30 +1,11 @@
-# TITAN XAU AI — Prop Firm Profiles (Sprint 9.0)
-#
-# All percentages stored as decimals (0.05 = 5%).
-# Loaded by titan.production.prop_firm_manager.PropFirmProfileManager.
-#
-# Profile selection is via config/runtime.yaml:
-#   prop_firm:
-#     enabled: true
-#     profile: ftmo_challenge   # or "auto" for suggestion-only
-#     phase: challenge
-#
-# Safety invariants:
-#   - profile max_lot can only DECREASE risk (trade_loop MAX_LOT_CAP=0.01 hard-coded)
-#   - profile never changes dry_run / live_trading flags
-#   - profile never changes models, thresholds, or ATR formulas
-#   - all profile decisions are journaled via EventType.PROFILE_*
-
 profiles:
-
-  # ─── FTMO ──────────────────────────────────────────────────────────────────
   ftmo_challenge:
     firm_id: ftmo
-    name: "FTMO Challenge Phase 1"
+    name: FTMO Challenge Phase 1
     initial_balance: 100000.0
-    profit_target_pct: 0.10
+    profit_target_pct: 0.1
     max_daily_loss_pct: 0.05
-    max_total_loss_pct: 0.10
+    max_total_loss_pct: 0.1
     emergency_halt_pct: 0.08
     daily_caution_pct: 0.04
     drawdown_mode: static
@@ -32,7 +13,7 @@ profiles:
     min_trading_days: 4
     max_trading_days: 0
     consistency_rule_enabled: true
-    consistency_pct: 0.40
+    consistency_pct: 0.4
     weekend_close_required: true
     use_news_filter: true
     news_blackout_minutes: 30
@@ -40,18 +21,20 @@ profiles:
     max_lot: 0.01
     risk_per_trade_pct: 0.01
     max_symbol_exposure: 0.01
-    atr_profile: challenge           # 1.5/3.0
+    atr_profile: challenge
     phase: challenge
     hedging_allowed: true
-    notes: "FTMO Challenge: 10% target, 5% daily, 10% DD, 4 min days, 40% consistency"
-
+    notes: 'FTMO Challenge: 10% target, 5% daily, 10% DD, 4 min days, 40% consistency'
+    min_rr: 2.0
+    _rr_source: TEMPLATE_DEFAULT
+    active_for_production_proof: false
   ftmo_verification:
     firm_id: ftmo
-    name: "FTMO Verification Phase 2"
+    name: FTMO Verification Phase 2
     initial_balance: 100000.0
     profit_target_pct: 0.05
     max_daily_loss_pct: 0.05
-    max_total_loss_pct: 0.10
+    max_total_loss_pct: 0.1
     emergency_halt_pct: 0.08
     daily_caution_pct: 0.04
     drawdown_mode: static
@@ -59,7 +42,7 @@ profiles:
     min_trading_days: 4
     max_trading_days: 0
     consistency_rule_enabled: true
-    consistency_pct: 0.40
+    consistency_pct: 0.4
     weekend_close_required: true
     use_news_filter: true
     news_blackout_minutes: 30
@@ -67,21 +50,23 @@ profiles:
     max_lot: 0.01
     risk_per_trade_pct: 0.01
     max_symbol_exposure: 0.01
-    atr_profile: challenge           # 1.5/3.0
+    atr_profile: challenge
     phase: verification
     hedging_allowed: true
-    notes: "FTMO Verification: 5% target, 5% daily, 10% DD, 4 min days, 40% consistency"
-
+    notes: 'FTMO Verification: 5% target, 5% daily, 10% DD, 4 min days, 40% consistency'
+    min_rr: 2.0
+    _rr_source: TEMPLATE_DEFAULT
+    active_for_production_proof: false
   ftmo_funded:
     firm_id: ftmo
-    name: "FTMO Funded Account"
+    name: FTMO Funded Account
     initial_balance: 100000.0
     profit_target_pct: 0.0
     max_daily_loss_pct: 0.05
-    max_total_loss_pct: 0.10
+    max_total_loss_pct: 0.1
     emergency_halt_pct: 0.08
     daily_caution_pct: 0.04
-    drawdown_mode: trailing          # ← KEY: trailing on funded
+    drawdown_mode: trailing
     daily_loss_mode: balance_based
     min_trading_days: 0
     max_trading_days: 0
@@ -94,19 +79,20 @@ profiles:
     max_lot: 0.01
     risk_per_trade_pct: 0.01
     max_symbol_exposure: 0.01
-    atr_profile: production_aggressive   # 3.0/6.0
+    atr_profile: production_aggressive
     phase: funded
     hedging_allowed: true
-    notes: "FTMO Funded: trailing DD, no profit target, don't breach"
-
-  # ─── FundedNext ────────────────────────────────────────────────────────────
+    notes: 'FTMO Funded: trailing DD, no profit target, don''t breach'
+    min_rr: 2.0
+    _rr_source: TEMPLATE_DEFAULT
+    active_for_production_proof: false
   fundednext_challenge:
     firm_id: fundednext
-    name: "FundedNext Challenge"
+    name: FundedNext Challenge
     initial_balance: 100000.0
-    profit_target_pct: 0.10
+    profit_target_pct: 0.1
     max_daily_loss_pct: 0.05
-    max_total_loss_pct: 0.10
+    max_total_loss_pct: 0.1
     emergency_halt_pct: 0.08
     daily_caution_pct: 0.045
     drawdown_mode: static
@@ -122,21 +108,23 @@ profiles:
     max_lot: 0.01
     risk_per_trade_pct: 0.01
     max_symbol_exposure: 0.01
-    atr_profile: challenge           # 1.5/3.0
+    atr_profile: challenge
     phase: challenge
     hedging_allowed: true
-    notes: "FundedNext Challenge: 10% target, 5% daily, 10% DD, no consistency rule"
-
+    notes: 'FundedNext Challenge: 10% target, 5% daily, 10% DD, no consistency rule'
+    min_rr: 2.0
+    _rr_source: TEMPLATE_DEFAULT
+    active_for_production_proof: false
   fundednext_funded:
     firm_id: fundednext
-    name: "FundedNext Funded Account"
+    name: FundedNext Funded Account
     initial_balance: 100000.0
     profit_target_pct: 0.0
     max_daily_loss_pct: 0.05
-    max_total_loss_pct: 0.10
+    max_total_loss_pct: 0.1
     emergency_halt_pct: 0.08
     daily_caution_pct: 0.045
-    drawdown_mode: trailing          # ← FundedNext trailing on funded
+    drawdown_mode: trailing
     daily_loss_mode: balance_based
     min_trading_days: 0
     max_trading_days: 0
@@ -149,19 +137,20 @@ profiles:
     max_lot: 0.01
     risk_per_trade_pct: 0.01
     max_symbol_exposure: 0.01
-    atr_profile: production_aggressive   # 3.0/6.0
+    atr_profile: production_aggressive
     phase: funded
     hedging_allowed: true
-    notes: "FundedNext Funded: trailing DD, no target, no consistency"
-
-  # ─── The 5ers ──────────────────────────────────────────────────────────────
+    notes: 'FundedNext Funded: trailing DD, no target, no consistency'
+    min_rr: 2.0
+    _rr_source: TEMPLATE_DEFAULT
+    active_for_production_proof: false
   the5ers_challenge:
     firm_id: the5ers
-    name: "The 5ers Challenge"
+    name: The 5ers Challenge
     initial_balance: 100000.0
-    profit_target_pct: 0.06          # 6% target
-    max_daily_loss_pct: 0.04         # 4% daily (tighter)
-    max_total_loss_pct: 0.06         # 6% overall (tighter)
+    profit_target_pct: 0.06
+    max_daily_loss_pct: 0.04
+    max_total_loss_pct: 0.06
     emergency_halt_pct: 0.05
     daily_caution_pct: 0.035
     drawdown_mode: static
@@ -172,29 +161,30 @@ profiles:
     consistency_pct: 0.0
     weekend_close_required: true
     use_news_filter: true
-    news_blackout_minutes: 2         # 5ers only requires 2min
+    news_blackout_minutes: 2
     max_open_positions: 1
     max_lot: 0.01
     risk_per_trade_pct: 0.008
     max_symbol_exposure: 0.01
-    atr_profile: challenge           # 1.5/3.0 (low-DD firm)
+    atr_profile: challenge
     phase: challenge
     hedging_allowed: false
-    notes: "The 5ers: 6% target, 4% daily, 6% DD, 2min news blackout, no hedging"
-
-  # ─── MyFundedFX ────────────────────────────────────────────────────────────
+    notes: 'The 5ers: 6% target, 4% daily, 6% DD, 2min news blackout, no hedging'
+    min_rr: 2.0
+    _rr_source: TEMPLATE_DEFAULT
+    active_for_production_proof: false
   myfundedfx_challenge:
     firm_id: myfundedfx
-    name: "MyFundedFX Challenge"
+    name: MyFundedFX Challenge
     initial_balance: 100000.0
-    profit_target_pct: 0.08          # 8% target
+    profit_target_pct: 0.08
     max_daily_loss_pct: 0.05
-    max_total_loss_pct: 0.10
+    max_total_loss_pct: 0.1
     emergency_halt_pct: 0.08
     daily_caution_pct: 0.04
     drawdown_mode: static
     daily_loss_mode: balance_based
-    min_trading_days: 3              # MyFundedFX requires 3 days
+    min_trading_days: 3
     max_trading_days: 0
     consistency_rule_enabled: false
     consistency_pct: 0.0
@@ -205,19 +195,20 @@ profiles:
     max_lot: 0.01
     risk_per_trade_pct: 0.01
     max_symbol_exposure: 0.01
-    atr_profile: balanced            # 2.0/4.0
+    atr_profile: balanced
     phase: challenge
     hedging_allowed: true
-    notes: "MyFundedFX: 8% target, 5% daily, 10% DD, 3 min days"
-
-  # ─── Custom (fully configurable via runtime.yaml overrides) ────────────────
+    notes: 'MyFundedFX: 8% target, 5% daily, 10% DD, 3 min days'
+    min_rr: 2.0
+    _rr_source: TEMPLATE_DEFAULT
+    active_for_production_proof: false
   custom:
     firm_id: custom
-    name: "Custom Profile"
+    name: Custom Profile
     initial_balance: 100000.0
     profit_target_pct: 0.08
     max_daily_loss_pct: 0.05
-    max_total_loss_pct: 0.10
+    max_total_loss_pct: 0.1
     emergency_halt_pct: 0.08
     daily_caution_pct: 0.04
     drawdown_mode: hybrid
@@ -225,7 +216,7 @@ profiles:
     min_trading_days: 3
     max_trading_days: 30
     consistency_rule_enabled: true
-    consistency_pct: 0.40
+    consistency_pct: 0.4
     weekend_close_required: true
     use_news_filter: true
     news_blackout_minutes: 30
@@ -233,19 +224,16 @@ profiles:
     max_lot: 0.01
     risk_per_trade_pct: 0.01
     max_symbol_exposure: 0.01
-    atr_profile: balanced            # 2.0/4.0
+    atr_profile: balanced
     phase: challenge
     hedging_allowed: true
-    notes: "Custom: fully configurable via runtime.yaml:prop_firm.custom_overrides"
-
-  # ─── Generic Prop 100x — static DD (Sprint 9.9.3.45.8.5) ───────────────────
-  # Conservative generic prop firm profile: 100x leverage, 8% target, 3% daily,
-  # 8% total DD (static). Two unknowns (news_trading, weekend_holding) are
-  # flagged non-critical for challenge phase; consistency_rule=true with 5 min
-  # trading days.
+    notes: 'Custom: fully configurable via runtime.yaml:prop_firm.custom_overrides'
+    min_rr: 1.5
+    _rr_source: TEMPLATE_DEFAULT
+    active_for_production_proof: false
   generic_prop_100x_static_dd:
     firm_id: generic_prop
-    name: "Generic Prop 100x — Static DD"
+    name: Generic Prop 100x — Static DD
     initial_balance: 100000.0
     leverage: 100
     profit_target_pct: 0.08
@@ -258,7 +246,7 @@ profiles:
     min_trading_days: 5
     max_trading_days: 0
     consistency_rule_enabled: true
-    consistency_pct: 0.40
+    consistency_pct: 0.4
     weekend_close_required: unknown
     use_news_filter: unknown
     news_blackout_minutes: 30
@@ -267,18 +255,17 @@ profiles:
     risk_per_trade_pct: 0.01
     max_symbol_exposure: 0.01
     min_rr: 2.0
-    atr_profile: balanced            # 2.0/4.0
+    atr_profile: balanced
     phase: challenge
     hedging_allowed: true
     ea_allowed: true
     copy_trading: unknown
-    notes: "Generic Prop 100x static-DD conservative profile."
-
-  # ─── Generic Prop 100x — trailing DD ───────────────────────────────────────
-  # Same as static_dd but drawdown is trailing (peak equity based).
+    notes: Generic Prop 100x static-DD conservative profile.
+    minimum_RR: 2.0
+    active_for_production_proof: true
   generic_prop_100x_trailing_dd:
     firm_id: generic_prop
-    name: "Generic Prop 100x — Trailing DD"
+    name: Generic Prop 100x — Trailing DD
     initial_balance: 100000.0
     leverage: 100
     profit_target_pct: 0.08
@@ -291,7 +278,7 @@ profiles:
     min_trading_days: 5
     max_trading_days: 0
     consistency_rule_enabled: true
-    consistency_pct: 0.40
+    consistency_pct: 0.4
     weekend_close_required: unknown
     use_news_filter: unknown
     news_blackout_minutes: 30
@@ -300,19 +287,17 @@ profiles:
     risk_per_trade_pct: 0.01
     max_symbol_exposure: 0.01
     min_rr: 2.0
-    atr_profile: balanced            # 2.0/4.0
+    atr_profile: balanced
     phase: challenge
     hedging_allowed: true
     ea_allowed: true
     copy_trading: unknown
-    notes: "Generic Prop 100x trailing-DD conservative profile."
-
-  # ─── FundedNext-style conservative ─────────────────────────────────────────
-  # Mirrors FundedNext funded phase but with conservative challenge constraints
-  # applied: 100x, 8% target, 3% daily, 8% total DD, trailing.
+    notes: Generic Prop 100x trailing-DD conservative profile.
+    minimum_RR: 2.0
+    active_for_production_proof: false
   fundednext_style_conservative:
     firm_id: fundednext
-    name: "FundedNext-style Conservative"
+    name: FundedNext-style Conservative
     initial_balance: 100000.0
     leverage: 100
     profit_target_pct: 0.08
@@ -334,22 +319,20 @@ profiles:
     risk_per_trade_pct: 0.01
     max_symbol_exposure: 0.01
     min_rr: 2.0
-    atr_profile: balanced            # 2.0/4.0
+    atr_profile: balanced
     phase: challenge
     hedging_allowed: true
-    notes: "FundedNext-style conservative: trailing DD, 8% target, 3% daily."
-
-  # ─── FTMO-style conservative ───────────────────────────────────────────────
-  # Conservative variant of FTMO Challenge: 100x, 10% target, 5% daily, 10% DD,
-  # static drawdown. Mirrors FTMO Challenge but explicit min_rr and leverage.
+    notes: 'FundedNext-style conservative: trailing DD, 8% target, 3% daily.'
+    minimum_RR: 2.0
+    active_for_production_proof: true
   ftmo_style_conservative:
     firm_id: ftmo
-    name: "FTMO-style Conservative"
+    name: FTMO-style Conservative
     initial_balance: 100000.0
     leverage: 100
-    profit_target_pct: 0.10
+    profit_target_pct: 0.1
     max_daily_loss_pct: 0.05
-    max_total_loss_pct: 0.10
+    max_total_loss_pct: 0.1
     emergency_halt_pct: 0.08
     daily_caution_pct: 0.04
     drawdown_mode: static
@@ -357,7 +340,7 @@ profiles:
     min_trading_days: 4
     max_trading_days: 0
     consistency_rule_enabled: true
-    consistency_pct: 0.40
+    consistency_pct: 0.4
     weekend_close_required: true
     use_news_filter: true
     news_blackout_minutes: 30
@@ -366,17 +349,15 @@ profiles:
     risk_per_trade_pct: 0.01
     max_symbol_exposure: 0.01
     min_rr: 2.0
-    atr_profile: challenge           # 1.5/3.0
+    atr_profile: challenge
     phase: challenge
     hedging_allowed: true
-    notes: "FTMO-style conservative: 10% target, 5% daily, 10% static DD."
-
-  # ─── Institutional internal mandate ────────────────────────────────────────
-  # Internal book mandate (not a prop firm). Tighter limits than prop firms:
-  # 50x leverage, 5% target, 2% daily, 4% total DD, static drawdown.
+    notes: 'FTMO-style conservative: 10% target, 5% daily, 10% static DD.'
+    minimum_RR: 2.0
+    active_for_production_proof: true
   institutional_internal_mandate:
     firm_id: institutional
-    name: "Institutional Internal Mandate"
+    name: Institutional Internal Mandate
     initial_balance: 100000.0
     leverage: 50
     profit_target_pct: 0.05
@@ -398,20 +379,18 @@ profiles:
     risk_per_trade_pct: 0.005
     max_symbol_exposure: 0.01
     min_rr: 2.5
-    atr_profile: balanced            # 2.0/4.0
+    atr_profile: balanced
     phase: funded
     hedging_allowed: false
-    notes: "Institutional internal mandate: 5% target, 2% daily, 4% DD, 50x."
-
-  # ─── Aggressive 20% simulation-only ────────────────────────────────────────
-  # Aggressive 20% monthly target simulation profile. NEVER live — explicitly
-  # marked simulation_only=true, live_allowed=false. Trailing DD.
+    notes: 'Institutional internal mandate: 5% target, 2% daily, 4% DD, 50x.'
+    minimum_RR: 2.5
+    active_for_production_proof: false
   prop_aggressive_20pct_simulation_only:
     firm_id: generic_prop
-    name: "Prop Aggressive 20% — SIMULATION ONLY"
+    name: Prop Aggressive 20% — SIMULATION ONLY
     initial_balance: 100000.0
     leverage: 100
-    profit_target_pct: 0.20
+    profit_target_pct: 0.2
     max_daily_loss_pct: 0.03
     max_total_loss_pct: 0.08
     emergency_halt_pct: 0.07
@@ -421,7 +400,7 @@ profiles:
     min_trading_days: 5
     max_trading_days: 0
     consistency_rule_enabled: true
-    consistency_pct: 0.40
+    consistency_pct: 0.4
     weekend_close_required: unknown
     use_news_filter: unknown
     news_blackout_minutes: 30
@@ -430,36 +409,53 @@ profiles:
     risk_per_trade_pct: 0.015
     max_symbol_exposure: 0.01
     min_rr: 1.5
-    atr_profile: production_aggressive   # 3.0/6.0
+    atr_profile: production_aggressive
     phase: challenge
     hedging_allowed: true
     simulation_only: true
     live_allowed: false
-    monthly_target_pct: 0.20
-    target_status: "NOT_PROVEN"
-    notes: "SIMULATION ONLY — aggressive 20% target. NEVER for live trading."
-
-# ─── MT5 auto-detection rules ────────────────────────────────────────────────
-# Used by PropFirmProfileManager.auto_detect(mt5_account_info).
-# Auto-detection is ADVISORY ONLY — never auto-applies. Operator must confirm.
+    monthly_target_pct: 0.2
+    target_status: NOT_PROVEN
+    notes: SIMULATION ONLY — aggressive 20% target. NEVER for live trading.
+    minimum_RR: 1.5
+    active_for_production_proof: true
+  funded_conservative_generic:
+    firm_id: generic_funded
+    name: Funded Conservative Generic
+    initial_balance: 100000.0
+    profit_target_pct: 0.08
+    max_daily_loss_pct: 0.03
+    max_total_loss_pct: 0.08
+    emergency_halt_pct: 0.06
+    daily_caution_pct: 0.025
+    drawdown_mode: trailing
+    leverage: 100
+    min_rr: 2.0
+    max_open_positions: 1
+    max_lot: 0.01
+    news_trading: unknown
+    weekend_holding: unknown
+    consistency_rule: true
+    min_trading_days: 5
+    ea_allowed: true
+    copy_trading: unknown
+    active_for_production_proof: true
+    minimum_RR: 2.0
+    risk_per_trade_pct: 0.0075
+    consistency_rule_enabled: true
+    daily_dd_reset_time: 00:00 UTC
 auto_detect:
   rules:
-    - match: "FTMO"
-      field: company
-      profile: ftmo_challenge
-    - match: "FundedNext"
-      field: company
-      profile: fundednext_challenge
-    - match: "5ers"
-      field: company
-      profile: the5ers_challenge
-    - match: "MyFundedFX"
-      field: company
-      profile: myfundedfx_challenge
-  on_no_match: refuse_start          # refuse_start | default_to_custom
-
-# ─── ATR profile mapping (already exists in runtime.yaml:atr_profiles) ───────
-# Referenced by profiles via `atr_profile` field:
-#   challenge           → atr_sl_multiplier: 1.5, atr_tp_multiplier: 3.0
-#   balanced            → atr_sl_multiplier: 2.0, atr_tp_multiplier: 4.0
-#   production_aggressive → atr_sl_multiplier: 3.0, atr_tp_multiplier: 6.0
+  - match: FTMO
+    field: company
+    profile: ftmo_challenge
+  - match: FundedNext
+    field: company
+    profile: fundednext_challenge
+  - match: 5ers
+    field: company
+    profile: the5ers_challenge
+  - match: MyFundedFX
+    field: company
+    profile: myfundedfx_challenge
+  on_no_match: refuse_start

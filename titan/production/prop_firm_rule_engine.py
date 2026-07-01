@@ -112,6 +112,9 @@ RULE_SCHEMA: tuple[tuple[str, str, bool], ...] = (
     ("copy_trading", "tristate", False),
 )
 
+# Sprint 9.9.3.45.8.7: RR field aliases — canonical is minimum_RR
+RR_FIELD_ALIASES = ("minimum_RR", "min_rr", "minimum_rr")
+
 
 # ─── Tri-state accepted string values ─────────────────────────────────────
 TRISTATE_VALUES: frozenset[str] = frozenset({"true", "false", "unknown"})
@@ -153,6 +156,9 @@ class PropFirmRuleResult:
     no_martingale: bool = True
     no_grid: bool = True
     no_averaging: bool = True
+    # Sprint 9.9.3.45.8.7: active/legacy profile tracking
+    active_for_production_proof: bool = False
+    is_simulation_only: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -247,7 +253,15 @@ class PropFirmRuleEngine:
         # daily_dd_reset_time has a safe default ("00:00 UTC") so we treat
         # it as already-known if missing.
         for key, kind, critical_for_funded_live in RULE_SCHEMA:
-            value = raw.get(key)
+            # Sprint 9.9.3.45.8.7: resolve RR field aliases
+            if key == "min_rr":
+                value = None
+                for alias in RR_FIELD_ALIASES:
+                    if alias in raw:
+                        value = raw[alias]
+                        break
+            else:
+                value = raw.get(key)
             parsed_value: Any
             is_unknown = False
 
@@ -497,6 +511,8 @@ class PropFirmRuleEngine:
             no_martingale=True,
             no_grid=True,
             no_averaging=True,
+            active_for_production_proof=_coerce_bool(raw.get("active_for_production_proof", False)),
+            is_simulation_only=simulation_only is True,
         )
         logger.info(
             "PropFirmRuleEngine verdict for %s: %s "

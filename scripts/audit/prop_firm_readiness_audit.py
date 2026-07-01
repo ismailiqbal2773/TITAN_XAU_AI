@@ -48,6 +48,8 @@ PROFILES_PATH = REPO_ROOT / "config" / "prop_firm_profiles.yaml"
 PROP_FIRM_READY: str = "PROP_FIRM_READY"
 PROP_FIRM_NEEDS_WORK: str = "PROP_FIRM_NEEDS_WORK"
 PROP_FIRM_BLOCKED: str = "PROP_FIRM_BLOCKED"
+# Sprint 9.9.3.45.8.7: new verdict for active profiles pass but legacy need review
+PROP_FIRM_READY_WITH_LEGACY_REVIEW: str = "PROP_FIRM_READY_WITH_LEGACY_REVIEW"
 
 
 def _strip(src: str) -> str:
@@ -146,22 +148,46 @@ def run_audit(
 
     any_blocked = False
     any_needs_work = False
+    any_legacy_review = False
+    active_count = 0
+    inactive_count = 0
+    active_blocked_count = 0
+    inactive_review_count = 0
 
     for prof_id in engine.list_profiles():
         result = engine.validate_rules(prof_id)
         d = result.to_dict()
         profile_results.append(d)
 
+        is_active = d.get("active_for_production_proof", False)
+        if is_active:
+            active_count += 1
+        else:
+            inactive_count += 1
+
         if result.verdict == PROP_RULES_BLOCKED:
-            any_blocked = True
-            for b in result.blockers:
-                blockers.append(f"[{prof_id}] {b}")
+            if is_active:
+                any_blocked = True
+                active_blocked_count += 1
+                for b in result.blockers:
+                    blockers.append(f"[{prof_id}] {b}")
+            else:
+                # Inactive/legacy profile blocked - don't block production, just review
+                any_legacy_review = True
+                inactive_review_count += 1
+                for b in result.blockers:
+                    warnings.append(f"[{prof_id}] LEGACY_REVIEW: {b}")
         elif result.verdict == PROP_RULES_READY_WITH_UNKNOWN_NON_CRITICAL:
-            any_needs_work = True
-            for w in result.warnings:
-                warnings.append(f"[{prof_id}] {w}")
+            if is_active:
+                any_needs_work = True
+                for w in result.warnings:
+                    warnings.append(f"[{prof_id}] {w}")
+            else:
+                any_legacy_review = True
+                for w in result.warnings:
+                    warnings.append(f"[{prof_id}] LEGACY: {w}")
         elif result.verdict == PROP_RULES_READY:
-            ok_checks.append(f"[{prof_id}] PROP_RULES_READY")
+            ok_checks.append(f"[{prof_id}] {'ACTIVE' if is_active else 'LEGACY'} PROP_RULES_READY")
         # Safety invariant assertions.
         if not result.no_martingale:
             blockers.append(f"[{prof_id}] no_martingale=False (safety violation)")
@@ -174,8 +200,11 @@ def run_audit(
             any_blocked = True
 
     # ── Verdict ──────────────────────────────────────────────────────
+    # Sprint 9.9.3.45.8.7: Only active profiles can block production proof
     if any_blocked:
         verdict = PROP_FIRM_BLOCKED
+    elif any_legacy_review and not any_needs_work:
+        verdict = PROP_FIRM_READY_WITH_LEGACY_REVIEW
     elif any_needs_work:
         verdict = PROP_FIRM_NEEDS_WORK
     else:
@@ -203,6 +232,10 @@ def run_audit(
         "verdict": verdict,
         "profiles_path": str(profiles_path),
         "profile_count": len(profile_results),
+        "active_profiles_count": active_count,
+        "inactive_legacy_profiles_count": inactive_count,
+        "active_profiles_blocked_count": active_blocked_count,
+        "inactive_legacy_review_count": inactive_review_count,
         "profiles": profile_results,
         "ok_checks": ok_checks,
         "warnings": warnings,

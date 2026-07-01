@@ -1,9 +1,13 @@
 {
-  "timestamp_utc": "2026-07-01T13:21:06.979198+00:00",
-  "head_short": "396208a",
-  "verdict": "PROP_FIRM_BLOCKED",
+  "timestamp_utc": "2026-07-01T15:10:33.534173+00:00",
+  "head_short": "463cfe6",
+  "verdict": "PROP_FIRM_NEEDS_WORK",
   "profiles_path": "/home/z/my-project/TITAN_XAU_AI/config/prop_firm_profiles.yaml",
-  "profile_count": 14,
+  "profile_count": 15,
+  "active_profiles_count": 5,
+  "inactive_legacy_profiles_count": 10,
+  "active_profiles_blocked_count": 0,
+  "inactive_legacy_review_count": 3,
   "profiles": [
     {
       "profile_name": "custom",
@@ -16,7 +20,7 @@
         "max_open_positions": 1,
         "max_lot": 0.01,
         "risk_per_trade_pct": 0.01,
-        "min_rr": null,
+        "min_rr": 1.5,
         "news_trading": "unknown",
         "weekend_holding": "unknown",
         "consistency_rule_enabled": true,
@@ -36,18 +40,18 @@
         "internal_total_stop_pct": 0.08,
         "external_total_dd_limit_pct": 0.1
       },
-      "unknown_critical_count": 1,
-      "verdict": "PROP_RULES_BLOCKED",
-      "blockers": [
-        "1 unknown CRITICAL rule(s) on non-simulation profile — refusing to guess (fail-closed)"
-      ],
+      "unknown_critical_count": 0,
+      "verdict": "PROP_RULES_READY_WITH_UNKNOWN_NON_CRITICAL",
+      "blockers": [],
       "warnings": [
         "daily_dd_reset_time not declared — defaulting to 00:00 UTC",
         "4 unknown NON-CRITICAL rule(s) — operator should resolve before live use"
       ],
       "no_martingale": true,
       "no_grid": true,
-      "no_averaging": true
+      "no_averaging": true,
+      "active_for_production_proof": false,
+      "is_simulation_only": false
     },
     {
       "profile_name": "ftmo_challenge",
@@ -60,7 +64,7 @@
         "max_open_positions": 1,
         "max_lot": 0.01,
         "risk_per_trade_pct": 0.01,
-        "min_rr": null,
+        "min_rr": 2.0,
         "news_trading": "unknown",
         "weekend_holding": "unknown",
         "consistency_rule_enabled": true,
@@ -80,18 +84,18 @@
         "internal_total_stop_pct": 0.08,
         "external_total_dd_limit_pct": 0.1
       },
-      "unknown_critical_count": 1,
-      "verdict": "PROP_RULES_BLOCKED",
-      "blockers": [
-        "1 unknown CRITICAL rule(s) on non-simulation profile — refusing to guess (fail-closed)"
-      ],
+      "unknown_critical_count": 0,
+      "verdict": "PROP_RULES_READY_WITH_UNKNOWN_NON_CRITICAL",
+      "blockers": [],
       "warnings": [
         "daily_dd_reset_time not declared — defaulting to 00:00 UTC",
         "4 unknown NON-CRITICAL rule(s) — operator should resolve before live use"
       ],
       "no_martingale": true,
       "no_grid": true,
-      "no_averaging": true
+      "no_averaging": true,
+      "active_for_production_proof": false,
+      "is_simulation_only": false
     },
     {
       "profile_name": "ftmo_funded",
@@ -104,7 +108,7 @@
         "max_open_positions": 1,
         "max_lot": 0.01,
         "risk_per_trade_pct": 0.01,
-        "min_rr": null,
+        "min_rr": 2.0,
         "news_trading": "unknown",
         "weekend_holding": "unknown",
         "consistency_rule_enabled": false,
@@ -124,18 +128,18 @@
         "internal_total_stop_pct": 0.08,
         "external_total_dd_limit_pct": 0.1
       },
-      "unknown_critical_count": 1,
-      "verdict": "PROP_RULES_BLOCKED",
-      "blockers": [
-        "1 unknown CRITICAL rule(s) on non-simulation profile — refusing to guess (fail-closed)"
-      ],
+      "unknown_critical_count": 0,
+      "verdict": "PROP_RULES_READY_WITH_UNKNOWN_NON_CRITICAL",
+      "blockers": [],
       "warnings": [
         "daily_dd_reset_time not declared — defaulting to 00:00 UTC",
         "4 unknown NON-CRITICAL rule(s) — operator should resolve before live use"
       ],
       "no_martingale": true,
       "no_grid": true,
-      "no_averaging": true
+      "no_averaging": true,
+      "active_for_production_proof": false,
+      "is_simulation_only": false
     },
     {
       "profile_name": "ftmo_style_conservative",
@@ -177,7 +181,9 @@
       ],
       "no_martingale": true,
       "no_grid": true,
-      "no_averaging": true
+      "no_averaging": true,
+      "active_for_production_proof": true,
+      "is_simulation_only": false
     },
     {
       "profile_name": "ftmo_verification",
@@ -190,7 +196,7 @@
         "max_open_positions": 1,
         "max_lot": 0.01,
         "risk_per_trade_pct": 0.01,
-        "min_rr": null,
+        "min_rr": 2.0,
         "news_trading": "unknown",
         "weekend_holding": "unknown",
         "consistency_rule_enabled": true,
@@ -210,18 +216,61 @@
         "internal_total_stop_pct": 0.08,
         "external_total_dd_limit_pct": 0.1
       },
-      "unknown_critical_count": 1,
-      "verdict": "PROP_RULES_BLOCKED",
-      "blockers": [
-        "1 unknown CRITICAL rule(s) on non-simulation profile — refusing to guess (fail-closed)"
-      ],
+      "unknown_critical_count": 0,
+      "verdict": "PROP_RULES_READY_WITH_UNKNOWN_NON_CRITICAL",
+      "blockers": [],
       "warnings": [
         "daily_dd_reset_time not declared — defaulting to 00:00 UTC",
         "4 unknown NON-CRITICAL rule(s) — operator should resolve before live use"
       ],
       "no_martingale": true,
       "no_grid": true,
-      "no_averaging": true
+      "no_averaging": true,
+      "active_for_production_proof": false,
+      "is_simulation_only": false
+    },
+    {
+      "profile_name": "funded_conservative_generic",
+      "rules": {
+        "profit_target_pct": 0.08,
+        "max_daily_loss_pct": 0.03,
+        "max_total_loss_pct": 0.08,
+        "drawdown_mode": "trailing",
+        "daily_dd_reset_time": "00:00 UTC",
+        "max_open_positions": 1,
+        "max_lot": 0.01,
+        "risk_per_trade_pct": 0.0075,
+        "min_rr": 2.0,
+        "news_trading": "unknown",
+        "weekend_holding": "unknown",
+        "consistency_rule_enabled": true,
+        "min_trading_days": 5,
+        "ea_allowed": "true",
+        "copy_trading": "unknown",
+        "no_martingale": true,
+        "no_grid": true,
+        "no_averaging": true,
+        "simulation_only": false,
+        "live_allowed": true,
+        "phase": "challenge",
+        "daily_caution_pct": 0.025,
+        "internal_daily_stop_pct": 0.025,
+        "external_daily_dd_limit_pct": 0.03,
+        "emergency_halt_pct": 0.06,
+        "internal_total_stop_pct": 0.06,
+        "external_total_dd_limit_pct": 0.08
+      },
+      "unknown_critical_count": 0,
+      "verdict": "PROP_RULES_READY_WITH_UNKNOWN_NON_CRITICAL",
+      "blockers": [],
+      "warnings": [
+        "3 unknown NON-CRITICAL rule(s) — operator should resolve before live use"
+      ],
+      "no_martingale": true,
+      "no_grid": true,
+      "no_averaging": true,
+      "active_for_production_proof": true,
+      "is_simulation_only": false
     },
     {
       "profile_name": "fundednext_challenge",
@@ -234,7 +283,7 @@
         "max_open_positions": 1,
         "max_lot": 0.01,
         "risk_per_trade_pct": 0.01,
-        "min_rr": null,
+        "min_rr": 2.0,
         "news_trading": "unknown",
         "weekend_holding": "unknown",
         "consistency_rule_enabled": false,
@@ -254,11 +303,10 @@
         "internal_total_stop_pct": 0.08,
         "external_total_dd_limit_pct": 0.1
       },
-      "unknown_critical_count": 1,
+      "unknown_critical_count": 0,
       "verdict": "PROP_RULES_BLOCKED",
       "blockers": [
-        "internal daily stop (daily_caution_pct=0.045) exceeds external daily DD cap (0.05 * 0.8333 = 0.0417)",
-        "1 unknown CRITICAL rule(s) on non-simulation profile — refusing to guess (fail-closed)"
+        "internal daily stop (daily_caution_pct=0.045) exceeds external daily DD cap (0.05 * 0.8333 = 0.0417)"
       ],
       "warnings": [
         "daily_dd_reset_time not declared — defaulting to 00:00 UTC",
@@ -266,7 +314,9 @@
       ],
       "no_martingale": true,
       "no_grid": true,
-      "no_averaging": true
+      "no_averaging": true,
+      "active_for_production_proof": false,
+      "is_simulation_only": false
     },
     {
       "profile_name": "fundednext_funded",
@@ -279,7 +329,7 @@
         "max_open_positions": 1,
         "max_lot": 0.01,
         "risk_per_trade_pct": 0.01,
-        "min_rr": null,
+        "min_rr": 2.0,
         "news_trading": "unknown",
         "weekend_holding": "unknown",
         "consistency_rule_enabled": false,
@@ -299,11 +349,10 @@
         "internal_total_stop_pct": 0.08,
         "external_total_dd_limit_pct": 0.1
       },
-      "unknown_critical_count": 1,
+      "unknown_critical_count": 0,
       "verdict": "PROP_RULES_BLOCKED",
       "blockers": [
-        "internal daily stop (daily_caution_pct=0.045) exceeds external daily DD cap (0.05 * 0.8333 = 0.0417)",
-        "1 unknown CRITICAL rule(s) on non-simulation profile — refusing to guess (fail-closed)"
+        "internal daily stop (daily_caution_pct=0.045) exceeds external daily DD cap (0.05 * 0.8333 = 0.0417)"
       ],
       "warnings": [
         "daily_dd_reset_time not declared — defaulting to 00:00 UTC",
@@ -311,7 +360,9 @@
       ],
       "no_martingale": true,
       "no_grid": true,
-      "no_averaging": true
+      "no_averaging": true,
+      "active_for_production_proof": false,
+      "is_simulation_only": false
     },
     {
       "profile_name": "fundednext_style_conservative",
@@ -353,7 +404,9 @@
       ],
       "no_martingale": true,
       "no_grid": true,
-      "no_averaging": true
+      "no_averaging": true,
+      "active_for_production_proof": true,
+      "is_simulation_only": false
     },
     {
       "profile_name": "generic_prop_100x_static_dd",
@@ -395,7 +448,9 @@
       ],
       "no_martingale": true,
       "no_grid": true,
-      "no_averaging": true
+      "no_averaging": true,
+      "active_for_production_proof": true,
+      "is_simulation_only": false
     },
     {
       "profile_name": "generic_prop_100x_trailing_dd",
@@ -437,7 +492,9 @@
       ],
       "no_martingale": true,
       "no_grid": true,
-      "no_averaging": true
+      "no_averaging": true,
+      "active_for_production_proof": false,
+      "is_simulation_only": false
     },
     {
       "profile_name": "institutional_internal_mandate",
@@ -479,7 +536,9 @@
       ],
       "no_martingale": true,
       "no_grid": true,
-      "no_averaging": true
+      "no_averaging": true,
+      "active_for_production_proof": false,
+      "is_simulation_only": false
     },
     {
       "profile_name": "myfundedfx_challenge",
@@ -492,7 +551,7 @@
         "max_open_positions": 1,
         "max_lot": 0.01,
         "risk_per_trade_pct": 0.01,
-        "min_rr": null,
+        "min_rr": 2.0,
         "news_trading": "unknown",
         "weekend_holding": "unknown",
         "consistency_rule_enabled": false,
@@ -512,18 +571,18 @@
         "internal_total_stop_pct": 0.08,
         "external_total_dd_limit_pct": 0.1
       },
-      "unknown_critical_count": 1,
-      "verdict": "PROP_RULES_BLOCKED",
-      "blockers": [
-        "1 unknown CRITICAL rule(s) on non-simulation profile — refusing to guess (fail-closed)"
-      ],
+      "unknown_critical_count": 0,
+      "verdict": "PROP_RULES_READY_WITH_UNKNOWN_NON_CRITICAL",
+      "blockers": [],
       "warnings": [
         "daily_dd_reset_time not declared — defaulting to 00:00 UTC",
         "4 unknown NON-CRITICAL rule(s) — operator should resolve before live use"
       ],
       "no_martingale": true,
       "no_grid": true,
-      "no_averaging": true
+      "no_averaging": true,
+      "active_for_production_proof": false,
+      "is_simulation_only": false
     },
     {
       "profile_name": "prop_aggressive_20pct_simulation_only",
@@ -565,7 +624,9 @@
       ],
       "no_martingale": true,
       "no_grid": true,
-      "no_averaging": true
+      "no_averaging": true,
+      "active_for_production_proof": true,
+      "is_simulation_only": true
     },
     {
       "profile_name": "the5ers_challenge",
@@ -578,7 +639,7 @@
         "max_open_positions": 1,
         "max_lot": 0.01,
         "risk_per_trade_pct": 0.008,
-        "min_rr": null,
+        "min_rr": 2.0,
         "news_trading": "unknown",
         "weekend_holding": "unknown",
         "consistency_rule_enabled": false,
@@ -598,11 +659,10 @@
         "internal_total_stop_pct": 0.05,
         "external_total_dd_limit_pct": 0.06
       },
-      "unknown_critical_count": 1,
+      "unknown_critical_count": 0,
       "verdict": "PROP_RULES_BLOCKED",
       "blockers": [
-        "internal daily stop (daily_caution_pct=0.035) exceeds external daily DD cap (0.04 * 0.8333 = 0.0333)",
-        "1 unknown CRITICAL rule(s) on non-simulation profile — refusing to guess (fail-closed)"
+        "internal daily stop (daily_caution_pct=0.035) exceeds external daily DD cap (0.04 * 0.8333 = 0.0333)"
       ],
       "warnings": [
         "daily_dd_reset_time not declared — defaulting to 00:00 UTC",
@@ -610,41 +670,45 @@
       ],
       "no_martingale": true,
       "no_grid": true,
-      "no_averaging": true
+      "no_averaging": true,
+      "active_for_production_proof": false,
+      "is_simulation_only": false
     }
   ],
   "ok_checks": [
-    "PropFirmRuleEngine loaded 14 profiles from /home/z/my-project/TITAN_XAU_AI/config/prop_firm_profiles.yaml",
+    "PropFirmRuleEngine loaded 15 profiles from /home/z/my-project/TITAN_XAU_AI/config/prop_firm_profiles.yaml",
     "prop firm audit never calls mt5.order_send",
     "prop firm audit has no martingale/grid/averaging logic"
   ],
   "warnings": [
+    "[custom] LEGACY: daily_dd_reset_time not declared — defaulting to 00:00 UTC",
+    "[custom] LEGACY: 4 unknown NON-CRITICAL rule(s) — operator should resolve before live use",
+    "[ftmo_challenge] LEGACY: daily_dd_reset_time not declared — defaulting to 00:00 UTC",
+    "[ftmo_challenge] LEGACY: 4 unknown NON-CRITICAL rule(s) — operator should resolve before live use",
+    "[ftmo_funded] LEGACY: daily_dd_reset_time not declared — defaulting to 00:00 UTC",
+    "[ftmo_funded] LEGACY: 4 unknown NON-CRITICAL rule(s) — operator should resolve before live use",
     "[ftmo_style_conservative] daily_dd_reset_time not declared — defaulting to 00:00 UTC",
     "[ftmo_style_conservative] 4 unknown NON-CRITICAL rule(s) — operator should resolve before live use",
+    "[ftmo_verification] LEGACY: daily_dd_reset_time not declared — defaulting to 00:00 UTC",
+    "[ftmo_verification] LEGACY: 4 unknown NON-CRITICAL rule(s) — operator should resolve before live use",
+    "[funded_conservative_generic] 3 unknown NON-CRITICAL rule(s) — operator should resolve before live use",
+    "[fundednext_challenge] LEGACY_REVIEW: internal daily stop (daily_caution_pct=0.045) exceeds external daily DD cap (0.05 * 0.8333 = 0.0417)",
+    "[fundednext_funded] LEGACY_REVIEW: internal daily stop (daily_caution_pct=0.045) exceeds external daily DD cap (0.05 * 0.8333 = 0.0417)",
     "[fundednext_style_conservative] daily_dd_reset_time not declared — defaulting to 00:00 UTC",
     "[fundednext_style_conservative] 4 unknown NON-CRITICAL rule(s) — operator should resolve before live use",
     "[generic_prop_100x_static_dd] daily_dd_reset_time not declared — defaulting to 00:00 UTC",
     "[generic_prop_100x_static_dd] 3 unknown NON-CRITICAL rule(s) — operator should resolve before live use",
-    "[generic_prop_100x_trailing_dd] daily_dd_reset_time not declared — defaulting to 00:00 UTC",
-    "[generic_prop_100x_trailing_dd] 3 unknown NON-CRITICAL rule(s) — operator should resolve before live use",
-    "[institutional_internal_mandate] daily_dd_reset_time not declared — defaulting to 00:00 UTC",
-    "[institutional_internal_mandate] 4 unknown NON-CRITICAL rule(s) — operator should resolve before live use",
+    "[generic_prop_100x_trailing_dd] LEGACY: daily_dd_reset_time not declared — defaulting to 00:00 UTC",
+    "[generic_prop_100x_trailing_dd] LEGACY: 3 unknown NON-CRITICAL rule(s) — operator should resolve before live use",
+    "[institutional_internal_mandate] LEGACY: daily_dd_reset_time not declared — defaulting to 00:00 UTC",
+    "[institutional_internal_mandate] LEGACY: 4 unknown NON-CRITICAL rule(s) — operator should resolve before live use",
+    "[myfundedfx_challenge] LEGACY: daily_dd_reset_time not declared — defaulting to 00:00 UTC",
+    "[myfundedfx_challenge] LEGACY: 4 unknown NON-CRITICAL rule(s) — operator should resolve before live use",
     "[prop_aggressive_20pct_simulation_only] daily_dd_reset_time not declared — defaulting to 00:00 UTC",
-    "[prop_aggressive_20pct_simulation_only] 4 unknown NON-CRITICAL rule(s) — operator should resolve before live use"
+    "[prop_aggressive_20pct_simulation_only] 4 unknown NON-CRITICAL rule(s) — operator should resolve before live use",
+    "[the5ers_challenge] LEGACY_REVIEW: internal daily stop (daily_caution_pct=0.035) exceeds external daily DD cap (0.04 * 0.8333 = 0.0333)"
   ],
-  "blockers": [
-    "[custom] 1 unknown CRITICAL rule(s) on non-simulation profile — refusing to guess (fail-closed)",
-    "[ftmo_challenge] 1 unknown CRITICAL rule(s) on non-simulation profile — refusing to guess (fail-closed)",
-    "[ftmo_funded] 1 unknown CRITICAL rule(s) on non-simulation profile — refusing to guess (fail-closed)",
-    "[ftmo_verification] 1 unknown CRITICAL rule(s) on non-simulation profile — refusing to guess (fail-closed)",
-    "[fundednext_challenge] internal daily stop (daily_caution_pct=0.045) exceeds external daily DD cap (0.05 * 0.8333 = 0.0417)",
-    "[fundednext_challenge] 1 unknown CRITICAL rule(s) on non-simulation profile — refusing to guess (fail-closed)",
-    "[fundednext_funded] internal daily stop (daily_caution_pct=0.045) exceeds external daily DD cap (0.05 * 0.8333 = 0.0417)",
-    "[fundednext_funded] 1 unknown CRITICAL rule(s) on non-simulation profile — refusing to guess (fail-closed)",
-    "[myfundedfx_challenge] 1 unknown CRITICAL rule(s) on non-simulation profile — refusing to guess (fail-closed)",
-    "[the5ers_challenge] internal daily stop (daily_caution_pct=0.035) exceeds external daily DD cap (0.04 * 0.8333 = 0.0333)",
-    "[the5ers_challenge] 1 unknown CRITICAL rule(s) on non-simulation profile — refusing to guess (fail-closed)"
-  ],
+  "blockers": [],
   "design_description": "Every prop-firm profile is validated by PropFirmRuleEngine. Critical unknown rules fail closed for funded/live profiles. Simulation-only profiles (explicitly marked) may ship with unknown non-critical rules. Internal DD stops must sit below external prop-firm limits. The audit NEVER calls mt5.order_send and NEVER contains martingale/grid/averaging logic.",
   "no_martingale": true,
   "no_grid": true,

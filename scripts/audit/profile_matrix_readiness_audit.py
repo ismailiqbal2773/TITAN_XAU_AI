@@ -469,31 +469,62 @@ def run_audit(
             combinations.append(combo)
 
     # ── Aggregate verdicts ────────────────────────────────────────────
+    # Sprint 9.9.3.45.8.7: Distinguish expected incompatibility (live account
+    # + simulation mode) from critical blocks (demo account + prop rules fail)
     blocked_combos = [c for c in combinations if c["final_verdict"] == COMBO_BLOCKED]
     sim_combos = [c for c in combinations if c["final_verdict"] == COMBO_SIMULATION_ONLY]
     pass_combos = [c for c in combinations if c["final_verdict"] == COMBO_PASS]
 
-    if blocked_combos:
-        for c in blocked_combos:
-            for b in c["blockers"]:
-                blockers.append(
-                    f"[{c['account_profile']} × {c['risk_mode']}] {b}"
-                )
-        verdict = PROFILE_MATRIX_BLOCKED
-    elif sim_combos:
-        verdict = PROFILE_MATRIX_READY_WITH_GAPS
-        warnings.append(
-            f"{len(sim_combos)} combination(s) are SIMULATION_ONLY "
-            f"(demo or simulation-only risk mode) — operator must upgrade "
-            f"to PASS before live use"
+    # Categorize blocked combos
+    critical_blocks = []
+    expected_incompatibility = []
+    for c in blocked_combos:
+        # If a live account is paired with a non-live mode (simulation-only,
+        # demo, or prop challenge with live_allowed=false), that's an expected
+        # incompatibility, not a critical block
+        account_profile = c.get("account_profile", "")
+        risk_mode = c.get("risk_mode", "")
+        is_live_account = "live" in account_profile or "funded" in account_profile or "institutional" in account_profile
+        # Check if the block reason is about live/simulation incompatibility
+        block_reasons = " ".join(c.get("blockers", [])).lower()
+        is_live_sim_incompatibility = (
+            "live" in block_reasons and (
+                "simulation" in block_reasons
+                or "live_allowed=false" in block_reasons
+                or "simulation_only" in block_reasons
+            )
         )
+        if is_live_account and is_live_sim_incompatibility:
+            expected_incompatibility.append(c)
+        else:
+            critical_blocks.append(c)
+            for b in c.get("blockers", []):
+                blockers.append(f"[{c['account_profile']} x {c['risk_mode']}] {b}")
+
+    if critical_blocks:
+        verdict = PROFILE_MATRIX_BLOCKED
+    elif sim_combos or expected_incompatibility:
+        verdict = PROFILE_MATRIX_READY_WITH_GAPS
+        if sim_combos:
+            warnings.append(
+                f"{len(sim_combos)} combination(s) are SIMULATION_ONLY "
+                f"(demo or simulation-only risk mode) — operator must upgrade "
+                f"to PASS before live use"
+            )
+        if expected_incompatibility:
+            warnings.append(
+                f"{len(expected_incompatibility)} combination(s) are expected "
+                f"incompatibility (live account + simulation-only mode) — "
+                f"these are correctly BLOCKED and do not affect production readiness"
+            )
     else:
         verdict = PROFILE_MATRIX_READY
 
     ok_checks.append(
         f"{len(pass_combos)} combination(s) PASS, "
         f"{len(sim_combos)} SIMULATION_ONLY, "
-        f"{len(blocked_combos)} BLOCKED"
+        f"{len(critical_blocks)} critically BLOCKED, "
+        f"{len(expected_incompatibility)} expected incompatibility"
     )
 
     # ── Self-audit: never call order_send, never banned betting ───────

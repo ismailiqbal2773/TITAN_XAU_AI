@@ -340,10 +340,40 @@ def run_build_request(direction: str = "BUY", entry_price: float = 2000.0,
             # Check if aggressive simulation-only mode
             if mode_config.get("simulation_only", False):
                 result["simulation_only"] = True
+                result["executable_request"] = False
             if not mode_config.get("live_allowed", True):
                 result["live_allowed"] = False
         except Exception:
             pass
+
+    # Sprint 9.9.3.45.8.7: prop firm profile validation
+    prop_firm_profile = getattr(args, "prop_firm_profile", "") if args else ""
+    if prop_firm_profile:
+        result["prop_firm_profile"] = prop_firm_profile
+        try:
+            from titan.production.prop_firm_rule_engine import PropFirmRuleEngine
+            pf_engine = PropFirmRuleEngine()
+            pf_result = pf_engine.validate_rules(prop_firm_profile)
+            result["prop_rules_verdict"] = pf_result.verdict
+            result["prop_rules_active"] = pf_result.active_for_production_proof
+            result["prop_rules_simulation_only"] = pf_result.is_simulation_only
+            # If active profile is blocked, block build-request
+            if pf_result.verdict == "PROP_RULES_BLOCKED" and pf_result.active_for_production_proof:
+                if result["verdict"] != "BLOCKED":
+                    result["verdict"] = "BLOCKED"
+                if "blockers" not in result:
+                    result["blockers"] = []
+                result["blockers"].extend(pf_result.blockers)
+            # If simulation-only, mark as not executable
+            if pf_result.is_simulation_only:
+                result["simulation_only"] = True
+                result["executable_request"] = False
+        except Exception as e:
+            result["prop_rules_error"] = str(e)
+
+    # Sprint 9.9.3.45.8.7: set executable_request default
+    if "executable_request" not in result:
+        result["executable_request"] = result.get("verdict") == "PASS" and not result.get("simulation_only", False)
 
     return result
 
@@ -1755,6 +1785,9 @@ def main() -> int:
                         help="Risk mode (default: conservative)")
     parser.add_argument("--broker-profile", default="metaquotes_demo",
                         help="Broker profile name (default: metaquotes_demo)")
+    # Sprint 9.9.3.45.8.7: prop firm profile selection
+    parser.add_argument("--prop-firm-profile", default="",
+                        help="Prop firm profile name (default: none)")
     args = parser.parse_args()
 
     print("=" * 70)

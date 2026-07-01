@@ -1,12 +1,12 @@
 # TITAN XAU AI - Profile Matrix Readiness Audit
 
-**Verdict:** **PROFILE_MATRIX_BLOCKED**
+**Verdict:** **PROFILE_MATRIX_READY_WITH_GAPS**
 
 **Design:** Every account profile × risk mode combination is validated against the prop-firm rule engine and broker scoring engine. Combinations are BLOCKED if prop rules fail, net RR falls below min_rr, margin use exceeds the cap, or a live account is paired with a non-live risk mode. Simulation-only modes produce SIMULATION_ONLY combinations. The audit NEVER calls mt5.order_send and NEVER contains martingale/grid/averaging logic.
 
-**Timestamp:** 2026-07-01T13:21:07.126327+00:00
+**Timestamp:** 2026-07-01T15:10:33.701095+00:00
 
-**Head:** 396208a
+**Head:** 463cfe6
 
 **Combinations:** 48 (PASS=24, SIMULATION_ONLY=8, BLOCKED=16)
 
@@ -65,29 +65,15 @@
 
 ## OK Checks
 
-- Loaded 6 account profiles, 8 risk modes, 4 broker profiles, 14 prop-firm profiles
+- Loaded 6 account profiles, 8 risk modes, 4 broker profiles, 15 prop-firm profiles
 - All account profiles and risk modes enforce no_martingale, no_grid, no_averaging, no_loss_based_lot_multiplier
-- 24 combination(s) PASS, 8 SIMULATION_ONLY, 16 BLOCKED
+- 24 combination(s) PASS, 8 SIMULATION_ONLY, 0 critically BLOCKED, 16 expected incompatibility
 - profile matrix audit never calls mt5.order_send
 - profile matrix audit has no martingale/grid/averaging logic
 
-## Blockers
+## Warnings
 
-- **[funded_100x_conservative × aggressive_simulation_only] account_type=live but risk_mode aggressive_simulation_only is simulation_only — NEVER for live trading**
-- **[funded_100x_conservative × prop_challenge_aggressive_simulation_only] account_type=live but risk_mode prop_challenge_aggressive_simulation_only is simulation_only — NEVER for live trading**
-- **[funded_100x_conservative × prop_challenge_conservative] account_type=live but risk_mode prop_challenge_conservative has live_allowed=false (and simulation_only=false)**
-- **[funded_100x_conservative × ultra_safe_demo] account_type=live but risk_mode ultra_safe_demo has live_allowed=false (and simulation_only=false)**
-- **[institutional_balanced × aggressive_simulation_only] account_type=live but risk_mode aggressive_simulation_only is simulation_only — NEVER for live trading**
-- **[institutional_balanced × prop_challenge_aggressive_simulation_only] account_type=live but risk_mode prop_challenge_aggressive_simulation_only is simulation_only — NEVER for live trading**
-- **[institutional_balanced × prop_challenge_conservative] account_type=live but risk_mode prop_challenge_conservative has live_allowed=false (and simulation_only=false)**
-- **[institutional_balanced × ultra_safe_demo] account_type=live but risk_mode ultra_safe_demo has live_allowed=false (and simulation_only=false)**
-- **[institutional_low_risk × aggressive_simulation_only] account_type=live but risk_mode aggressive_simulation_only is simulation_only — NEVER for live trading**
-- **[institutional_low_risk × prop_challenge_aggressive_simulation_only] account_type=live but risk_mode prop_challenge_aggressive_simulation_only is simulation_only — NEVER for live trading**
-- **[institutional_low_risk × prop_challenge_conservative] account_type=live but risk_mode prop_challenge_conservative has live_allowed=false (and simulation_only=false)**
-- **[institutional_low_risk × ultra_safe_demo] account_type=live but risk_mode ultra_safe_demo has live_allowed=false (and simulation_only=false)**
-- **[retail_live_conservative × aggressive_simulation_only] account_type=live but risk_mode aggressive_simulation_only is simulation_only — NEVER for live trading**
-- **[retail_live_conservative × prop_challenge_aggressive_simulation_only] account_type=live but risk_mode prop_challenge_aggressive_simulation_only is simulation_only — NEVER for live trading**
-- **[retail_live_conservative × prop_challenge_conservative] account_type=live but risk_mode prop_challenge_conservative has live_allowed=false (and simulation_only=false)**
-- **[retail_live_conservative × ultra_safe_demo] account_type=live but risk_mode ultra_safe_demo has live_allowed=false (and simulation_only=false)**
+- 8 combination(s) are SIMULATION_ONLY (demo or simulation-only risk mode) — operator must upgrade to PASS before live use
+- 16 combination(s) are expected incompatibility (live account + simulation-only mode) — these are correctly BLOCKED and do not affect production readiness
 
 **The audit NEVER calls mt5.order_send and NEVER contains martingale/grid/averaging logic.**

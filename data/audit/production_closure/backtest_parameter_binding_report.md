@@ -2,7 +2,7 @@
 
 **Verdict:** **BACKTEST_BINDING_READY_WITH_GAPS**
 
-**Timestamp:** 2026-07-01T13:21:06.761617+00:00
+**Timestamp:** 2026-07-01T15:13:27.243332+00:00
 
 ## Summary
 
@@ -13,19 +13,19 @@
 | Parameters safe default | 17 |
 | Parameters needs review | 0 |
 | Critical parameters unbound | 0 |
-| Artifacts scanned | 261 |
+| Artifacts scanned | 238 |
 | Score impact | Score capped at 92 due to 17 safe defaults |
 
 ## Artifact Paths Used
 
-- `/home/z/my-project/TITAN_XAU_AI/titan/data/hpo/best_params_xgb.json`
-- `/home/z/my-project/TITAN_XAU_AI/data/audit/demo_micro/pass_evidence/metaquotes-demo/20260701T132020Z/broker_execution_profile.json`
-- `/home/z/my-project/TITAN_XAU_AI/data/validation/atr_execution_validation_report.json`
-- `/home/z/my-project/TITAN_XAU_AI/data/audit/parameter_optimization/best_parameter_sets.csv`
-- `/home/z/my-project/TITAN_XAU_AI/data/audit/virtual_lifecycle/virtual_lifecycle_report.json`
-- `/home/z/my-project/TITAN_XAU_AI/data/audit/frozen_balanced_validation/broker_validation.csv`
-- `/home/z/my-project/TITAN_XAU_AI/titan/data/models/xgboost_v1.pkl`
 - `/home/z/my-project/TITAN_XAU_AI/config/runtime.yaml`
+- `/home/z/my-project/TITAN_XAU_AI/titan/data/models/xgboost_v1.pkl`
+- `/home/z/my-project/TITAN_XAU_AI/data/audit/virtual_lifecycle/virtual_lifecycle_report.json`
+- `/home/z/my-project/TITAN_XAU_AI/data/validation/atr_execution_validation_report.json`
+- `/home/z/my-project/TITAN_XAU_AI/titan/data/hpo/best_params_xgb.json`
+- `/home/z/my-project/TITAN_XAU_AI/data/audit/frozen_balanced_validation/broker_validation.csv`
+- `/home/z/my-project/TITAN_XAU_AI/data/audit/demo_micro/pass_evidence/metaquotes-demo/20260701T132020Z/broker_execution_profile.json`
+- `/home/z/my-project/TITAN_XAU_AI/data/audit/parameter_optimization/best_parameter_sets.csv`
 
 ## Parameter Details
 
