@@ -1,19 +1,19 @@
 {
-  "timestamp_utc": "2026-07-01T15:13:27.243332+00:00",
+  "timestamp_utc": "2026-07-01T15:28:18.640121+00:00",
   "total_parameters_checked": 32,
   "parameters_bound": 15,
   "parameters_safe_default": 17,
   "parameters_needs_review": 0,
   "critical_parameters_unbound": 0,
   "artifact_paths_used": [
-    "/home/z/my-project/TITAN_XAU_AI/config/runtime.yaml",
-    "/home/z/my-project/TITAN_XAU_AI/titan/data/models/xgboost_v1.pkl",
-    "/home/z/my-project/TITAN_XAU_AI/data/audit/virtual_lifecycle/virtual_lifecycle_report.json",
     "/home/z/my-project/TITAN_XAU_AI/data/validation/atr_execution_validation_report.json",
     "/home/z/my-project/TITAN_XAU_AI/titan/data/hpo/best_params_xgb.json",
-    "/home/z/my-project/TITAN_XAU_AI/data/audit/frozen_balanced_validation/broker_validation.csv",
+    "/home/z/my-project/TITAN_XAU_AI/titan/data/models/xgboost_v1.pkl",
     "/home/z/my-project/TITAN_XAU_AI/data/audit/demo_micro/pass_evidence/metaquotes-demo/20260701T132020Z/broker_execution_profile.json",
-    "/home/z/my-project/TITAN_XAU_AI/data/audit/parameter_optimization/best_parameter_sets.csv"
+    "/home/z/my-project/TITAN_XAU_AI/config/runtime.yaml",
+    "/home/z/my-project/TITAN_XAU_AI/data/audit/frozen_balanced_validation/broker_validation.csv",
+    "/home/z/my-project/TITAN_XAU_AI/data/audit/parameter_optimization/best_parameter_sets.csv",
+    "/home/z/my-project/TITAN_XAU_AI/data/audit/virtual_lifecycle/virtual_lifecycle_report.json"
   ],
   "metric_summaries": {
     "atr_sl_multiplier": "PF=1.63, Sharpe=3.33, Sortino=16.97, MaxDD=1.52%, Trades=183, FTMO pass=100.0%",

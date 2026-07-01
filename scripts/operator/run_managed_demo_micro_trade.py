@@ -375,6 +375,49 @@ def run_build_request(direction: str = "BUY", entry_price: float = 2000.0,
     if "executable_request" not in result:
         result["executable_request"] = result.get("verdict") == "PASS" and not result.get("simulation_only", False)
 
+    # Sprint 9.9.3.45.8.8: prop funded optimizer integration
+    prop_funded_profile = getattr(args, "prop_funded_profile", "") if args else ""
+    if prop_funded_profile:
+        result["prop_funded_profile"] = prop_funded_profile
+        try:
+            from titan.production.prop_funded_optimizer import PropFundedOptimizer
+            optimizer = PropFundedOptimizer()
+            opt_result = optimizer.optimize()
+            # Find the selected profile
+            selected = None
+            for p in opt_result.profiles:
+                if p.profile_name == prop_funded_profile:
+                    selected = p
+                    break
+            if selected:
+                result["optimizer_verdict"] = selected.verdict
+                result["optimizer_score"] = selected.optimizer_score
+                result["optimizer_monthly_return"] = selected.monthly_return_estimate
+                result["optimizer_pf"] = selected.pf
+                result["optimizer_sharpe"] = selected.sharpe
+                result["optimizer_sortino"] = selected.sortino
+                result["optimizer_wfe"] = selected.wfe
+                result["optimizer_monte_carlo_survival"] = selected.monte_carlo_survival
+                result["optimizer_max_dd"] = selected.max_dd
+                result["optimizer_daily_dd_internal"] = selected.internal_daily_dd_pct
+                result["optimizer_total_dd_internal"] = selected.internal_total_dd_pct
+                result["optimizer_broker_score"] = selected.broker_score
+                # If simulation-only, mark as not executable
+                if selected.simulation_only:
+                    result["simulation_only"] = True
+                    result["executable_request"] = False
+                # If blocked, block build-request
+                if selected.verdict == "PROP_FUNDED_BLOCKED":
+                    if result["verdict"] != "BLOCKED":
+                        result["verdict"] = "BLOCKED"
+                    if "blockers" not in result:
+                        result["blockers"] = []
+                    result["blockers"].append(f"OPTIMIZER_BLOCKED: {prop_funded_profile} verdict={selected.verdict}")
+            else:
+                result["optimizer_error"] = f"Profile {prop_funded_profile} not found in optimizer"
+        except Exception as e:
+            result["optimizer_error"] = str(e)
+
     return result
 
 
@@ -1788,6 +1831,9 @@ def main() -> int:
     # Sprint 9.9.3.45.8.7: prop firm profile selection
     parser.add_argument("--prop-firm-profile", default="",
                         help="Prop firm profile name (default: none)")
+    # Sprint 9.9.3.45.8.8: prop funded optimizer profile
+    parser.add_argument("--prop-funded-profile", default="",
+                        help="Prop funded optimizer profile (prop_funded_safe, prop_funded_growth, prop_funded_aggressive_20pct_simulation)")
     args = parser.parse_args()
 
     print("=" * 70)

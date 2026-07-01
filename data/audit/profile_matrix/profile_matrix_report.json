@@ -1,6 +1,6 @@
 {
-  "timestamp_utc": "2026-07-01T15:10:33.701095+00:00",
-  "head_short": "463cfe6",
+  "timestamp_utc": "2026-07-01T15:26:19.533355+00:00",
+  "head_short": "1c580dd",
   "verdict": "PROFILE_MATRIX_READY_WITH_GAPS",
   "account_profiles_path": "/home/z/my-project/TITAN_XAU_AI/config/account_profiles.yaml",
   "risk_modes_path": "/home/z/my-project/TITAN_XAU_AI/config/risk_modes.yaml",
@@ -1056,7 +1056,7 @@
     }
   ],
   "ok_checks": [
-    "Loaded 6 account profiles, 8 risk modes, 4 broker profiles, 15 prop-firm profiles",
+    "Loaded 6 account profiles, 8 risk modes, 4 broker profiles, 18 prop-firm profiles",
     "All account profiles and risk modes enforce no_martingale, no_grid, no_averaging, no_loss_based_lot_multiplier",
     "24 combination(s) PASS, 8 SIMULATION_ONLY, 0 critically BLOCKED, 16 expected incompatibility",
     "profile matrix audit never calls mt5.order_send",

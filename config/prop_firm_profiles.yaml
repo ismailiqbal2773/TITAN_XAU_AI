@@ -444,6 +444,87 @@ profiles:
     risk_per_trade_pct: 0.0075
     consistency_rule_enabled: true
     daily_dd_reset_time: 00:00 UTC
+  prop_funded_safe:
+    firm_id: titan_optimized
+    name: Prop Funded Safe
+    initial_balance: 100000.0
+    profit_target_pct: 0.05
+    max_daily_loss_pct: 0.03
+    max_total_loss_pct: 0.08
+    emergency_halt_pct: 0.02
+    daily_caution_pct: 0.015
+    drawdown_mode: static
+    leverage: 100
+    min_rr: 2.0
+    minimum_RR: 2.0
+    risk_per_trade_pct: 0.005
+    max_open_positions: 1
+    max_lot: 0.01
+    news_trading: unknown
+    weekend_holding: unknown
+    consistency_rule_enabled: true
+    min_trading_days: 5
+    ea_allowed: true
+    copy_trading: unknown
+    active_for_production_proof: true
+    simulation_only: false
+    live_allowed: false
+    internal_daily_dd_pct: 0.02
+    internal_total_dd_pct: 0.06
+  prop_funded_growth:
+    firm_id: titan_optimized
+    name: Prop Funded Growth
+    initial_balance: 100000.0
+    profit_target_pct: 0.08
+    max_daily_loss_pct: 0.03
+    max_total_loss_pct: 0.08
+    emergency_halt_pct: 0.025
+    daily_caution_pct: 0.02
+    drawdown_mode: trailing
+    leverage: 100
+    min_rr: 2.0
+    minimum_RR: 2.0
+    risk_per_trade_pct: 0.0075
+    max_open_positions: 1
+    max_lot: 0.01
+    news_trading: unknown
+    weekend_holding: unknown
+    consistency_rule_enabled: true
+    min_trading_days: 5
+    ea_allowed: true
+    copy_trading: unknown
+    active_for_production_proof: true
+    simulation_only: false
+    live_allowed: false
+    internal_daily_dd_pct: 0.025
+    internal_total_dd_pct: 0.07
+  prop_funded_aggressive_20pct_simulation:
+    firm_id: titan_optimized
+    name: Prop Funded Aggressive 20pct Simulation
+    initial_balance: 100000.0
+    profit_target_pct: 0.2
+    max_daily_loss_pct: 0.03
+    max_total_loss_pct: 0.08
+    emergency_halt_pct: 0.025
+    daily_caution_pct: 0.02
+    drawdown_mode: trailing
+    leverage: 100
+    min_rr: 2.0
+    minimum_RR: 2.0
+    risk_per_trade_pct: 0.011
+    max_open_positions: 1
+    max_lot: 0.01
+    news_trading: unknown
+    weekend_holding: unknown
+    consistency_rule_enabled: true
+    min_trading_days: 5
+    ea_allowed: true
+    copy_trading: unknown
+    active_for_production_proof: true
+    simulation_only: true
+    live_allowed: false
+    internal_daily_dd_pct: 0.025
+    internal_total_dd_pct: 0.07
 auto_detect:
   rules:
   - match: FTMO

@@ -4,11 +4,11 @@
 
 **Design:** Every prop-firm profile is validated by PropFirmRuleEngine. Critical unknown rules fail closed for funded/live profiles. Simulation-only profiles (explicitly marked) may ship with unknown non-critical rules. Internal DD stops must sit below external prop-firm limits. The audit NEVER calls mt5.order_send and NEVER contains martingale/grid/averaging logic.
 
-**Timestamp:** 2026-07-01T15:10:33.534173+00:00
+**Timestamp:** 2026-07-01T15:26:19.275476+00:00
 
-**Head:** 463cfe6
+**Head:** 1c580dd
 
-**Profiles:** 15 (from `/home/z/my-project/TITAN_XAU_AI/config/prop_firm_profiles.yaml`)
+**Profiles:** 18 (from `/home/z/my-project/TITAN_XAU_AI/config/prop_firm_profiles.yaml`)
 
 ## Per-profile verdicts
 
@@ -28,11 +28,14 @@
 | institutional_internal_mandate | PROP_RULES_READY_WITH_UNKNOWN_NON_CRITICAL | 0 | 0 | 2 |
 | myfundedfx_challenge | PROP_RULES_READY_WITH_UNKNOWN_NON_CRITICAL | 0 | 0 | 2 |
 | prop_aggressive_20pct_simulation_only | PROP_RULES_READY_WITH_UNKNOWN_NON_CRITICAL | 0 | 0 | 2 |
+| prop_funded_aggressive_20pct_simulation | PROP_RULES_READY_WITH_UNKNOWN_NON_CRITICAL | 0 | 0 | 2 |
+| prop_funded_growth | PROP_RULES_READY_WITH_UNKNOWN_NON_CRITICAL | 0 | 0 | 2 |
+| prop_funded_safe | PROP_RULES_READY_WITH_UNKNOWN_NON_CRITICAL | 0 | 0 | 2 |
 | the5ers_challenge | PROP_RULES_BLOCKED | 0 | 1 | 2 |
 
 ## OK Checks
 
-- PropFirmRuleEngine loaded 15 profiles from /home/z/my-project/TITAN_XAU_AI/config/prop_firm_profiles.yaml
+- PropFirmRuleEngine loaded 18 profiles from /home/z/my-project/TITAN_XAU_AI/config/prop_firm_profiles.yaml
 - prop firm audit never calls mt5.order_send
 - prop firm audit has no martingale/grid/averaging logic
 
@@ -63,6 +66,12 @@
 - [myfundedfx_challenge] LEGACY: 4 unknown NON-CRITICAL rule(s) — operator should resolve before live use
 - [prop_aggressive_20pct_simulation_only] daily_dd_reset_time not declared — defaulting to 00:00 UTC
 - [prop_aggressive_20pct_simulation_only] 4 unknown NON-CRITICAL rule(s) — operator should resolve before live use
+- [prop_funded_aggressive_20pct_simulation] daily_dd_reset_time not declared — defaulting to 00:00 UTC
+- [prop_funded_aggressive_20pct_simulation] 3 unknown NON-CRITICAL rule(s) — operator should resolve before live use
+- [prop_funded_growth] daily_dd_reset_time not declared — defaulting to 00:00 UTC
+- [prop_funded_growth] 3 unknown NON-CRITICAL rule(s) — operator should resolve before live use
+- [prop_funded_safe] daily_dd_reset_time not declared — defaulting to 00:00 UTC
+- [prop_funded_safe] 3 unknown NON-CRITICAL rule(s) — operator should resolve before live use
 - [the5ers_challenge] LEGACY_REVIEW: internal daily stop (daily_caution_pct=0.035) exceeds external daily DD cap (0.04 * 0.8333 = 0.0333)
 
 ## Per-profile detail
@@ -239,6 +248,42 @@
   **Warnings:**
   - daily_dd_reset_time not declared — defaulting to 00:00 UTC
   - 4 unknown NON-CRITICAL rule(s) — operator should resolve before live use
+
+### prop_funded_aggressive_20pct_simulation
+
+- **Verdict:** PROP_RULES_READY_WITH_UNKNOWN_NON_CRITICAL
+- **Unknown critical:** 0
+- **Blockers:** 0
+- **Warnings:** 2
+- **no_martingale / no_grid / no_averaging:** True / True / True
+
+  **Warnings:**
+  - daily_dd_reset_time not declared — defaulting to 00:00 UTC
+  - 3 unknown NON-CRITICAL rule(s) — operator should resolve before live use
+
+### prop_funded_growth
+
+- **Verdict:** PROP_RULES_READY_WITH_UNKNOWN_NON_CRITICAL
+- **Unknown critical:** 0
+- **Blockers:** 0
+- **Warnings:** 2
+- **no_martingale / no_grid / no_averaging:** True / True / True
+
+  **Warnings:**
+  - daily_dd_reset_time not declared — defaulting to 00:00 UTC
+  - 3 unknown NON-CRITICAL rule(s) — operator should resolve before live use
+
+### prop_funded_safe
+
+- **Verdict:** PROP_RULES_READY_WITH_UNKNOWN_NON_CRITICAL
+- **Unknown critical:** 0
+- **Blockers:** 0
+- **Warnings:** 2
+- **no_martingale / no_grid / no_averaging:** True / True / True
+
+  **Warnings:**
+  - daily_dd_reset_time not declared — defaulting to 00:00 UTC
+  - 3 unknown NON-CRITICAL rule(s) — operator should resolve before live use
 
 ### the5ers_challenge
 
