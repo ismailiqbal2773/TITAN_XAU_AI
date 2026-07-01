@@ -185,3 +185,175 @@ class TestSimulatedManagedTrailingPath:
             result = s.simulate_scenario(scenario)
             for f in required_fields:
                 assert f in result, f"Scenario {scenario} missing field: {f}"
+
+    # === Sprint 9.9.3.45.8 adaptive scenarios ===
+
+    def test_19_small_profit_noise_hold(self):
+        """small_profit_noise_hold => HOLD (profit < noise threshold)."""
+        import scripts.operator.simulate_managed_trailing_path as s
+        result = s.simulate_scenario("small_profit_noise_hold")
+        assert result["verdict"] == "SIMULATION_HOLD"
+        assert result["action"] == "HOLD"
+        assert result["matches_expected"] is True
+        assert result["policy_mode"].startswith("adaptive")
+
+    def test_20_profit_1R_breakeven(self):
+        """profit_1R_breakeven => MOVE_TO_BREAKEVEN after 1R + noise clear."""
+        import scripts.operator.simulate_managed_trailing_path as s
+        result = s.simulate_scenario("profit_1R_breakeven")
+        assert result["verdict"] == "SIMULATION_MODIFY"
+        assert result["action"] == "MOVE_TO_BREAKEVEN"
+        assert result["matches_expected"] is True
+        assert result["phase"] == "PHASE_2_SOFT_BREAKEVEN"
+        assert result["profit_R"] == pytest.approx(1.0, abs=0.01)
+
+    def test_21_profit_1R_but_spread_spike_hold(self):
+        """profit_1R_but_spread_spike_hold => HOLD (spread spike blocks)."""
+        import scripts.operator.simulate_managed_trailing_path as s
+        result = s.simulate_scenario("profit_1R_but_spread_spike_hold")
+        assert result["verdict"] == "SIMULATION_HOLD"
+        assert result["action"] == "HOLD"
+        assert result["matches_expected"] is True
+        assert any("SPREAD_SPIKE_FLAG_ACTIVE" in b for b in result.get("anti_whipsaw_blocks", []))
+
+    def test_22_profit_1_5R_trend_hold_until_noise_clear(self):
+        """profit_1_5R_trend_hold_until_noise_clear => HOLD (cooldown)."""
+        import scripts.operator.simulate_managed_trailing_path as s
+        result = s.simulate_scenario("profit_1_5R_trend_hold_until_noise_clear")
+        assert result["verdict"] == "SIMULATION_HOLD"
+        assert result["action"] == "HOLD"
+        assert result["matches_expected"] is True
+        # Cooldown active
+        assert any("COOLDOWN_ACTIVE" in b for b in result.get("anti_whipsaw_blocks", []))
+
+    def test_23_profit_2R_trend_trail_loose(self):
+        """profit_2R_trend_trail_loose => TRAIL with wide ATR distance."""
+        import scripts.operator.simulate_managed_trailing_path as s
+        result = s.simulate_scenario("profit_2R_trend_trail_loose")
+        assert result["verdict"] == "SIMULATION_MODIFY"
+        assert result["action"] == "TRAIL"
+        assert result["matches_expected"] is True
+        assert result["phase"] == "PHASE_3_ADAPTIVE_TRAIL"
+        assert result["regime"] == "trend"
+        # Trend multiplier = 2.0, atr=1.0 => trailing_distance=2.0
+        assert result["trailing_distance"] == pytest.approx(2.0, abs=0.01)
+
+    def test_24_profit_2R_range_trail_tighter(self):
+        """profit_2R_range_trail_tighter => TRAIL with tighter ATR distance."""
+        import scripts.operator.simulate_managed_trailing_path as s
+        result = s.simulate_scenario("profit_2R_range_trail_tighter")
+        assert result["verdict"] == "SIMULATION_MODIFY"
+        assert result["action"] == "TRAIL"
+        assert result["matches_expected"] is True
+        assert result["phase"] == "PHASE_3_ADAPTIVE_TRAIL"
+        assert result["regime"] == "range"
+        # Range multiplier = 1.0, atr=1.0 => trailing_distance=1.0
+        assert result["trailing_distance"] == pytest.approx(1.0, abs=0.01)
+
+    def test_25_profit_3R_profit_lock(self):
+        """profit_3R_profit_lock => PROFIT_LOCK."""
+        import scripts.operator.simulate_managed_trailing_path as s
+        result = s.simulate_scenario("profit_3R_profit_lock")
+        assert result["verdict"] == "SIMULATION_MODIFY"
+        assert result["action"] == "PROFIT_LOCK"
+        assert result["matches_expected"] is True
+        assert result["phase"] == "PHASE_4_PROFIT_LOCK"
+
+    def test_26_pullback_after_trail_no_widen(self):
+        """pullback_after_trail_no_widen => HOLD (no SL widening)."""
+        import scripts.operator.simulate_managed_trailing_path as s
+        result = s.simulate_scenario("pullback_after_trail_no_widen")
+        # Either HOLD or BLOCKED - both acceptable as long as no widening
+        assert result["verdict"] in ("SIMULATION_HOLD", "SIMULATION_BLOCKED")
+        assert result["matches_expected"] is True
+        # final_sl must not be less than current_sl (no widening for BUY)
+        assert result["new_sl"] >= 2018.0  # current_sl was 2018
+
+    def test_27_cooldown_blocks_repeated_modify(self):
+        """cooldown_blocks_repeated_modify => HOLD (cooldown active)."""
+        import scripts.operator.simulate_managed_trailing_path as s
+        result = s.simulate_scenario("cooldown_blocks_repeated_modify")
+        assert result["verdict"] == "SIMULATION_HOLD"
+        assert result["action"] == "HOLD"
+        assert result["matches_expected"] is True
+        assert any("COOLDOWN_ACTIVE" in b for b in result.get("anti_whipsaw_blocks", []))
+
+    def test_28_minimum_step_blocks_tiny_modify(self):
+        """minimum_step_blocks_tiny_modify => HOLD (step too small)."""
+        import scripts.operator.simulate_managed_trailing_path as s
+        result = s.simulate_scenario("minimum_step_blocks_tiny_modify")
+        assert result["verdict"] == "SIMULATION_HOLD"
+        assert result["action"] == "HOLD"
+        assert result["matches_expected"] is True
+        # Must have some anti-whipsaw block
+        assert len(result.get("anti_whipsaw_blocks", [])) > 0
+
+    def test_29_adaptive_scenarios_have_policy_fields(self):
+        """All adaptive scenarios must include adaptive policy fields."""
+        import scripts.operator.simulate_managed_trailing_path as s
+        adaptive_fields = [
+            "phase", "profit_R", "R", "ATR_noise", "regime",
+            "spread_buffer", "stop_level_buffer", "trailing_distance",
+            "proposed_sl", "final_sl", "anti_whipsaw_blocks",
+        ]
+        adaptive_scenarios = [
+            "small_profit_noise_hold", "profit_1R_breakeven",
+            "profit_1R_but_spread_spike_hold",
+            "profit_1_5R_trend_hold_until_noise_clear",
+            "profit_2R_trend_trail_loose",
+            "profit_2R_range_trail_tighter",
+            "profit_3R_profit_lock",
+            "pullback_after_trail_no_widen",
+            "cooldown_blocks_repeated_modify",
+            "minimum_step_blocks_tiny_modify",
+        ]
+        for scenario in adaptive_scenarios:
+            result = s.simulate_scenario(scenario)
+            for f in adaptive_fields:
+                assert f in result, f"Adaptive scenario {scenario} missing field: {f}"
+
+    def test_30_adaptive_scenarios_tp_preserved(self):
+        """All adaptive scenarios must preserve TP."""
+        import scripts.operator.simulate_managed_trailing_path as s
+        adaptive_scenarios = [
+            "small_profit_noise_hold", "profit_1R_breakeven",
+            "profit_2R_trend_trail_loose",
+            "profit_2R_range_trail_tighter",
+            "profit_3R_profit_lock",
+        ]
+        for scenario in adaptive_scenarios:
+            result = s.simulate_scenario(scenario)
+            assert result["tp_preserved"] is True, f"TP not preserved in {scenario}"
+
+    def test_31_adaptive_scenarios_no_widening(self):
+        """All adaptive scenarios must not widen SL."""
+        import scripts.operator.simulate_managed_trailing_path as s
+        adaptive_scenarios = [
+            "small_profit_noise_hold", "profit_1R_breakeven",
+            "profit_1R_but_spread_spike_hold",
+            "profit_1_5R_trend_hold_until_noise_clear",
+            "profit_2R_trend_trail_loose",
+            "profit_2R_range_trail_tighter",
+            "profit_3R_profit_lock",
+            "pullback_after_trail_no_widen",
+            "cooldown_blocks_repeated_modify",
+            "minimum_step_blocks_tiny_modify",
+        ]
+        for scenario in adaptive_scenarios:
+            result = s.simulate_scenario(scenario)
+            # For BUY, new_sl must be >= current_sl (no widening)
+            assert result["no_widening"] is True, f"SL widened in {scenario}"
+
+    def test_32_adaptive_scenarios_no_martingale(self):
+        """Adaptive scenarios must not contain martingale/grid/averaging."""
+        import scripts.operator.simulate_managed_trailing_path as s
+        adaptive_scenarios = [
+            "small_profit_noise_hold", "profit_1R_breakeven",
+            "profit_2R_trend_trail_loose",
+            "profit_3R_profit_lock",
+        ]
+        for scenario in adaptive_scenarios:
+            result = s.simulate_scenario(scenario)
+            assert result["safety"]["no_martingale"] is True
+            assert result["safety"]["no_grid"] is True
+            assert result["safety"]["no_averaging"] is True

@@ -111,7 +111,9 @@ class ManagedTradeOrchestrator:
 
     def __init__(self, duration_minutes: int = 30, interval_seconds: int = 5,
                  apply_modifications: bool = False,
-                 modify_applier: Optional[Callable] = None):
+                 modify_applier: Optional[Callable] = None,
+                 use_adaptive_policy: bool = False,
+                 adaptive_policy_kwargs: Optional[dict] = None):
         self.duration_minutes = max(0, int(duration_minutes))
         self.interval_seconds = max(0, int(interval_seconds))
         self.apply_modifications = apply_modifications
@@ -119,7 +121,34 @@ class ManagedTradeOrchestrator:
         # with keys: retcode, success, reason. Injected by local operator
         # only. Z AI must NOT inject a real applier.
         self.modify_applier = modify_applier
-        self.manager = DemoMicroPositionManager()
+        # Sprint 9.9.3.45.8: optional adaptive trailing policy
+        self.use_adaptive_policy = use_adaptive_policy
+        self.adaptive_policy_kwargs = adaptive_policy_kwargs or {}
+        # Track monitor state for adaptive policy (hold time, iterations,
+        # cooldown)
+        self._hold_seconds = 0
+        self._monitor_iterations = 0
+        self._seconds_since_last_modify = 999
+        self._last_modify_time: Optional[float] = None
+        self.manager = DemoMicroPositionManager(
+            legacy_mode=not use_adaptive_policy,
+            **({"adaptive_policy": None} if use_adaptive_policy else {}),
+        )
+        if use_adaptive_policy:
+            # Re-create with adaptive policy using kwargs
+            from titan.production.adaptive_trailing_policy import (
+                AdaptiveTrailingPolicy, PolicyMode,
+            )
+            mode_str = self.adaptive_policy_kwargs.get("mode", "balanced_conservative")
+            try:
+                mode = PolicyMode(mode_str)
+            except ValueError:
+                mode = PolicyMode.BALANCED_CONSERVATIVE
+            overrides = {k: v for k, v in self.adaptive_policy_kwargs.items() if k != "mode"}
+            adaptive_policy = AdaptiveTrailingPolicy(mode=mode, **overrides)
+            self.manager = DemoMicroPositionManager(
+                legacy_mode=False, adaptive_policy=adaptive_policy,
+            )
         self.events: list[MonitorEvent] = []
         self.kill_switch_active = False
 
@@ -130,17 +159,64 @@ class ManagedTradeOrchestrator:
     def evaluate_single_step(self, position_ticket: int, direction: str,
                               entry_price: float, current_sl: float,
                               current_tp: float, current_price: float,
-                              is_open: bool = True) -> tuple[SLModifyRecommendation, MonitorEvent]:
+                              is_open: bool = True,
+                              atr: float = 0.0,
+                              spread: float = 0.0,
+                              regime=None,
+                              spread_spike_flag: bool = False,
+                              news_flag: bool = False,
+                              structure_buffer: float = 0.0,
+                              stops_level_points: int = 0,
+                              point: float = 0.01) -> tuple[SLModifyRecommendation, MonitorEvent]:
         """Evaluate one position once and return (recommendation, event).
 
         Does NOT send any order. Used by the monitor loop and by tests.
+
+        Sprint 9.9.3.45.8: When use_adaptive_policy=True, passes adaptive
+        kwargs (atr, spread, regime, hold_seconds, monitor_iterations,
+        seconds_since_last_modify, spread_spike_flag, news_flag,
+        structure_buffer, initial_sl) to the AdaptiveTrailingPolicy.
         """
+        # Track monitor state for adaptive policy
+        self._monitor_iterations += 1
+        if self._last_modify_time is not None:
+            import time as _t
+            self._seconds_since_last_modify = int(_t.time() - self._last_modify_time)
+        else:
+            self._seconds_since_last_modify = 999
+
+        # Build kwargs for adaptive mode
+        eval_kwargs = {}
+        if self.use_adaptive_policy:
+            from titan.production.adaptive_trailing_policy import Regime as _Regime
+            if regime is None:
+                regime = _Regime.UNKNOWN
+            elif isinstance(regime, str):
+                try:
+                    regime = _Regime(regime)
+                except ValueError:
+                    regime = _Regime.UNKNOWN
+            eval_kwargs = {
+                "initial_sl": current_sl,  # First iteration uses current_sl as initial_sl
+                "atr": atr, "spread": spread,
+                "stops_level_points": stops_level_points, "point": point,
+                "regime": regime, "structure_buffer": structure_buffer,
+                "hold_seconds": self._hold_seconds,
+                "monitor_iterations": self._monitor_iterations,
+                "seconds_since_last_modify": self._seconds_since_last_modify,
+                "spread_spike_flag": spread_spike_flag,
+                "news_flag": news_flag,
+            }
+
         rec = self.manager.evaluate(
             direction=direction,
             entry_price=entry_price,
             current_price=current_price,
             current_sl=current_sl,
             current_tp=current_tp,
+            stops_level_points=stops_level_points,
+            point=point,
+            **eval_kwargs,
         )
         event_type = "MONITOR_EVALUATION"
         event = MonitorEvent(
@@ -162,6 +238,14 @@ class ManagedTradeOrchestrator:
                           current_tp: float = 0.0,
                           current_price: float = 0.0,
                           is_open: bool = True,
+                          atr: float = 0.0,
+                          spread: float = 0.0,
+                          regime=None,
+                          spread_spike_flag: bool = False,
+                          news_flag: bool = False,
+                          structure_buffer: float = 0.0,
+                          stops_level_points: int = 0,
+                          point: float = 0.01,
                           ) -> ManagedTradeResult:
         """Monitor a single position for breakeven/trailing/profit-lock.
 
@@ -169,6 +253,10 @@ class ManagedTradeOrchestrator:
         Builds SL modify previews. If apply_modifications=True and a
         modify_applier is set, applies the modification exactly once
         per decision step.
+
+        Sprint 9.9.3.45.8: When use_adaptive_policy=True, passes
+        adaptive kwargs (atr, spread, regime, spread_spike_flag,
+        news_flag, structure_buffer) to the AdaptiveTrailingPolicy.
 
         Z AI must NOT use apply mode.
         """
@@ -199,6 +287,10 @@ class ManagedTradeOrchestrator:
             current_tp=current_tp,
             current_price=current_price,
             is_open=True,
+            atr=atr, spread=spread, regime=regime,
+            spread_spike_flag=spread_spike_flag, news_flag=news_flag,
+            structure_buffer=structure_buffer,
+            stops_level_points=stops_level_points, point=point,
         )
 
         if rec.action == SLAction.MOVE_TO_BREAKEVEN:

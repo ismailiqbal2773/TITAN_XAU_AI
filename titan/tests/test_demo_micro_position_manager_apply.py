@@ -530,3 +530,210 @@ class TestPositionManagerApply:
             stub._reset_state()
 
         assert result["modify_success"] is True
+
+    # === Sprint 9.9.3.45.8 adaptive integration ===
+
+    def test_23_position_manager_supports_adaptive_mode(self):
+        """DemoMicroPositionManager must support legacy_mode=False."""
+        from titan.production.demo_micro_position_manager import DemoMicroPositionManager
+        from titan.production.adaptive_trailing_policy import AdaptiveTrailingPolicy
+        mgr = DemoMicroPositionManager(legacy_mode=False)
+        assert mgr.legacy_mode is False
+        assert isinstance(mgr.adaptive_policy, AdaptiveTrailingPolicy)
+
+    def test_24_adaptive_mode_returns_phase_field(self):
+        """Adaptive mode evaluation must populate phase field."""
+        from titan.production.demo_micro_position_manager import (
+            DemoMicroPositionManager, SLAction,
+        )
+        from titan.production.adaptive_trailing_policy import Regime
+        mgr = DemoMicroPositionManager(legacy_mode=False)
+        rec = mgr.evaluate(
+            direction="BUY", entry_price=2000.0, current_price=2010.0,
+            current_sl=1990.0, current_tp=2020.0,
+            initial_sl=1990.0, atr=1.0, spread=0.05,
+            stops_level_points=0, point=0.01,
+            regime=Regime.TREND, structure_buffer=0.0,
+            hold_seconds=120, monitor_iterations=5,
+            seconds_since_last_modify=999,
+            spread_spike_flag=False, news_flag=False,
+        )
+        assert rec.phase != ""
+        assert rec.phase.startswith("PHASE_")
+        assert rec.profit_R > 0
+
+    def test_25_adaptive_mode_no_sl_move_before_min_hold(self):
+        """Adaptive mode must NOT move SL before min hold time."""
+        from titan.production.demo_micro_position_manager import (
+            DemoMicroPositionManager, SLAction,
+        )
+        from titan.production.adaptive_trailing_policy import Regime
+        mgr = DemoMicroPositionManager(legacy_mode=False)
+        rec = mgr.evaluate(
+            direction="BUY", entry_price=2000.0, current_price=2015.0,
+            current_sl=1990.0, current_tp=2030.0,
+            initial_sl=1990.0, atr=1.0, spread=0.05,
+            stops_level_points=0, point=0.01,
+            regime=Regime.TREND, structure_buffer=0.0,
+            hold_seconds=30,  # Below min_hold_seconds=60
+            monitor_iterations=5,
+            seconds_since_last_modify=999,
+            spread_spike_flag=False, news_flag=False,
+        )
+        assert rec.action == SLAction.HOLD
+        assert rec.phase == "PHASE_0_INITIAL_PROTECTION"
+
+    def test_26_adaptive_mode_no_sl_move_below_1R(self):
+        """Adaptive mode must NOT move SL when profit_R < 1.0."""
+        from titan.production.demo_micro_position_manager import (
+            DemoMicroPositionManager, SLAction,
+        )
+        from titan.production.adaptive_trailing_policy import Regime
+        mgr = DemoMicroPositionManager(legacy_mode=False)
+        rec = mgr.evaluate(
+            direction="BUY", entry_price=2000.0, current_price=2005.0,
+            current_sl=1990.0, current_tp=2020.0,
+            initial_sl=1990.0, atr=1.0, spread=0.05,
+            stops_level_points=0, point=0.01,
+            regime=Regime.TREND, structure_buffer=0.0,
+            hold_seconds=120, monitor_iterations=5,
+            seconds_since_last_modify=999,
+            spread_spike_flag=False, news_flag=False,
+        )
+        assert rec.action == SLAction.HOLD
+        assert rec.phase == "PHASE_1_NOISE_FILTER"
+
+    def test_27_adaptive_mode_spread_spike_blocks_modify(self):
+        """Adaptive mode must block modify when spread spike flag is set."""
+        from titan.production.demo_micro_position_manager import (
+            DemoMicroPositionManager, SLAction,
+        )
+        from titan.production.adaptive_trailing_policy import Regime
+        mgr = DemoMicroPositionManager(legacy_mode=False)
+        rec = mgr.evaluate(
+            direction="BUY", entry_price=2000.0, current_price=2010.0,
+            current_sl=1990.0, current_tp=2020.0,
+            initial_sl=1990.0, atr=1.0, spread=0.05,
+            stops_level_points=0, point=0.01,
+            regime=Regime.TREND, structure_buffer=0.0,
+            hold_seconds=120, monitor_iterations=5,
+            seconds_since_last_modify=999,
+            spread_spike_flag=True,  # Spread spike
+            news_flag=False,
+        )
+        assert rec.action == SLAction.HOLD
+        assert any("SPREAD_SPIKE_FLAG_ACTIVE" in b for b in rec.anti_whipsaw_blocks)
+
+    def test_28_adaptive_mode_breakeven_after_1R(self):
+        """Adaptive mode must MOVE_TO_BREAKEVEN after 1R + noise clear."""
+        from titan.production.demo_micro_position_manager import (
+            DemoMicroPositionManager, SLAction,
+        )
+        from titan.production.adaptive_trailing_policy import Regime
+        mgr = DemoMicroPositionManager(legacy_mode=False)
+        rec = mgr.evaluate(
+            direction="BUY", entry_price=2000.0, current_price=2010.0,
+            current_sl=1990.0, current_tp=2020.0,
+            initial_sl=1990.0, atr=1.0, spread=0.05,
+            stops_level_points=0, point=0.01,
+            regime=Regime.TREND, structure_buffer=0.0,
+            hold_seconds=120, monitor_iterations=5,
+            seconds_since_last_modify=999,
+            spread_spike_flag=False, news_flag=False,
+        )
+        assert rec.action == SLAction.MOVE_TO_BREAKEVEN
+        assert rec.phase == "PHASE_2_SOFT_BREAKEVEN"
+        assert rec.favorable is True
+
+    def test_29_adaptive_mode_trend_trail_wider_than_range(self):
+        """Adaptive mode trend trailing distance > range trailing distance."""
+        from titan.production.demo_micro_position_manager import (
+            DemoMicroPositionManager,
+        )
+        from titan.production.adaptive_trailing_policy import Regime
+        mgr = DemoMicroPositionManager(legacy_mode=False)
+        # Trend
+        rec_trend = mgr.evaluate(
+            direction="BUY", entry_price=2000.0, current_price=2020.0,
+            current_sl=1990.0, current_tp=2040.0,
+            initial_sl=1990.0, atr=1.0, spread=0.05,
+            stops_level_points=0, point=0.01,
+            regime=Regime.TREND, structure_buffer=0.0,
+            hold_seconds=120, monitor_iterations=5,
+            seconds_since_last_modify=999,
+            spread_spike_flag=False, news_flag=False,
+        )
+        # Range
+        rec_range = mgr.evaluate(
+            direction="BUY", entry_price=2000.0, current_price=2020.0,
+            current_sl=1990.0, current_tp=2040.0,
+            initial_sl=1990.0, atr=1.0, spread=0.05,
+            stops_level_points=0, point=0.01,
+            regime=Regime.RANGE, structure_buffer=0.0,
+            hold_seconds=120, monitor_iterations=5,
+            seconds_since_last_modify=999,
+            spread_spike_flag=False, news_flag=False,
+        )
+        # Trend multiplier (2.0) > Range multiplier (1.0)
+        assert rec_trend.trailing_distance > rec_range.trailing_distance
+
+    def test_30_adaptive_mode_no_widening(self):
+        """Adaptive mode must NOT widen SL on pullback."""
+        from titan.production.demo_micro_position_manager import (
+            DemoMicroPositionManager, SLAction,
+        )
+        from titan.production.adaptive_trailing_policy import Regime
+        mgr = DemoMicroPositionManager(legacy_mode=False)
+        # current_sl=2018 (trailed), price pulled back to 2015
+        rec = mgr.evaluate(
+            direction="BUY", entry_price=2000.0, current_price=2015.0,
+            current_sl=2018.0, current_tp=2040.0,
+            initial_sl=1990.0, atr=1.0, spread=0.05,
+            stops_level_points=0, point=0.01,
+            regime=Regime.TREND, structure_buffer=0.0,
+            hold_seconds=120, monitor_iterations=5,
+            seconds_since_last_modify=999,
+            spread_spike_flag=False, news_flag=False,
+        )
+        # No widening: final_sl must be >= current_sl (2018) for BUY
+        assert rec.final_sl >= 2018.0
+        assert rec.action in (SLAction.HOLD, SLAction.BLOCKED)
+
+    def test_31_adaptive_mode_tp_preserved(self):
+        """Adaptive mode must preserve TP."""
+        from titan.production.demo_micro_position_manager import (
+            DemoMicroPositionManager,
+        )
+        from titan.production.adaptive_trailing_policy import Regime
+        mgr = DemoMicroPositionManager(legacy_mode=False)
+        rec = mgr.evaluate(
+            direction="BUY", entry_price=2000.0, current_price=2020.0,
+            current_sl=1990.0, current_tp=2040.0,
+            initial_sl=1990.0, atr=1.0, spread=0.05,
+            stops_level_points=0, point=0.01,
+            regime=Regime.TREND, structure_buffer=0.0,
+            hold_seconds=120, monitor_iterations=5,
+            seconds_since_last_modify=999,
+            spread_spike_flag=False, news_flag=False,
+        )
+        assert rec.tp_preserved is True
+
+    def test_32_adaptive_mode_cooldown_blocks_repeated_modify(self):
+        """Adaptive mode must block modify when cooldown active."""
+        from titan.production.demo_micro_position_manager import (
+            DemoMicroPositionManager, SLAction,
+        )
+        from titan.production.adaptive_trailing_policy import Regime
+        mgr = DemoMicroPositionManager(legacy_mode=False)
+        rec = mgr.evaluate(
+            direction="BUY", entry_price=2000.0, current_price=2018.0,
+            current_sl=1990.0, current_tp=2030.0,
+            initial_sl=1990.0, atr=1.0, spread=0.05,
+            stops_level_points=0, point=0.01,
+            regime=Regime.TREND, structure_buffer=0.0,
+            hold_seconds=120, monitor_iterations=5,
+            seconds_since_last_modify=10,  # Within cooldown
+            spread_spike_flag=False, news_flag=False,
+        )
+        assert rec.action == SLAction.HOLD
+        assert any("COOLDOWN_ACTIVE" in b for b in rec.anti_whipsaw_blocks)
