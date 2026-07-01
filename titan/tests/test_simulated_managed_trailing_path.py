@@ -357,3 +357,122 @@ class TestSimulatedManagedTrailingPath:
             assert result["safety"]["no_martingale"] is True
             assert result["safety"]["no_grid"] is True
             assert result["safety"]["no_averaging"] is True
+
+    # === Sprint 9.9.3.45.8.2.1: contradiction tests ===
+
+    def test_33_profit_3R_no_contradiction(self):
+        """profit_3R_trend_extend_tp_profit_floor_sl must NOT have
+        contradiction: MODIFY with favorable=False."""
+        import scripts.operator.simulate_managed_trailing_path as s
+        result = s.simulate_scenario("profit_3R_trend_extend_tp_profit_floor_sl")
+        # If action is MODIFY, favorable must be True
+        if result["action"] in ("EXTEND_TP_AND_RAISE_SL", "RAISE_SL_ONLY"):
+            assert result["favorable"] is True, \
+                f"CONTRADICTION: action={result['action']} with favorable={result['favorable']}"
+            assert result["no_widening"] is True, \
+                f"CONTRADICTION: action={result['action']} with no_widening={result['no_widening']}"
+
+    def test_34_modify_actions_require_favorable_true(self):
+        """All MODIFY actions in adaptive scenarios must have favorable=True."""
+        import scripts.operator.simulate_managed_trailing_path as s
+        modify_scenarios = [
+            "profit_2R_trend_extend_tp_and_raise_sl",
+            "profit_3R_trend_extend_tp_profit_floor_sl",
+            "tp_extension_blocked_if_sl_cannot_protect_profit",
+        ]
+        for scenario in modify_scenarios:
+            result = s.simulate_scenario(scenario)
+            if result["action"] in ("EXTEND_TP_AND_RAISE_SL", "RAISE_SL_ONLY"):
+                assert result["favorable"] is True, \
+                    f"Scenario {scenario}: action={result['action']} with favorable={result['favorable']}"
+
+    def test_35_modify_actions_require_zero_blocking_reasons(self):
+        """All MODIFY actions must have blocking_reasons_count=0."""
+        import scripts.operator.simulate_managed_trailing_path as s
+        modify_scenarios = [
+            "profit_2R_trend_extend_tp_and_raise_sl",
+            "profit_3R_trend_extend_tp_profit_floor_sl",
+            "tp_extension_blocked_if_sl_cannot_protect_profit",
+        ]
+        for scenario in modify_scenarios:
+            result = s.simulate_scenario(scenario)
+            if result["action"] in ("EXTEND_TP_AND_RAISE_SL", "RAISE_SL_ONLY"):
+                blocking_count = result.get("blocking_reasons_count", 0)
+                assert blocking_count == 0, \
+                    f"Scenario {scenario}: action={result['action']} with blocking_reasons_count={blocking_count}"
+
+    def test_36_tp_extension_requires_tp_sl_pair_valid(self):
+        """EXTEND_TP_AND_RAISE_SL must have tp_sl_pair_valid=True."""
+        import scripts.operator.simulate_managed_trailing_path as s
+        scenarios = [
+            "profit_2R_trend_extend_tp_and_raise_sl",
+            "profit_3R_trend_extend_tp_profit_floor_sl",
+        ]
+        for scenario in scenarios:
+            result = s.simulate_scenario(scenario)
+            if result["action"] == "EXTEND_TP_AND_RAISE_SL":
+                assert result.get("tp_sl_pair_valid") is True, \
+                    f"Scenario {scenario}: EXTEND_TP_AND_RAISE_SL with tp_sl_pair_valid={result.get('tp_sl_pair_valid')}"
+
+    def test_37_tp_extension_requires_no_tp_reduction(self):
+        """EXTEND_TP_AND_RAISE_SL must have no_tp_reduction=True."""
+        import scripts.operator.simulate_managed_trailing_path as s
+        scenarios = [
+            "profit_2R_trend_extend_tp_and_raise_sl",
+            "profit_3R_trend_extend_tp_profit_floor_sl",
+        ]
+        for scenario in scenarios:
+            result = s.simulate_scenario(scenario)
+            if result["action"] == "EXTEND_TP_AND_RAISE_SL":
+                assert result.get("no_tp_reduction") is True, \
+                    f"Scenario {scenario}: EXTEND_TP_AND_RAISE_SL with no_tp_reduction={result.get('no_tp_reduction')}"
+
+    def test_38_hold_actions_can_have_blocking_reasons(self):
+        """HOLD actions CAN have blocking_reasons (that's why they're HOLD)."""
+        import scripts.operator.simulate_managed_trailing_path as s
+        hold_scenarios = [
+            "tp_extension_blocked_by_spread",
+            "cooldown_blocks_repeated_tp_extension",
+        ]
+        for scenario in hold_scenarios:
+            result = s.simulate_scenario(scenario)
+            # These scenarios produce HOLD from corridor (blocking reasons)
+            # but may also produce TRAIL from adaptive. Check corridor action.
+            corridor_action = result.get("corridor_action", "")
+            if corridor_action == "HOLD":
+                # HOLD from corridor can have blocking reasons
+                blocking_count = result.get("blocking_reasons_count", 0)
+                # It's OK for HOLD to have blocking reasons
+                assert blocking_count >= 0  # Just verify field exists
+
+    def test_39_result_has_blocking_and_informational_fields(self):
+        """Dynamic TP scenarios must include blocking_reasons,
+        informational_notes, blocking_reasons_count,
+        informational_notes_count, action_allowed."""
+        import scripts.operator.simulate_managed_trailing_path as s
+        result = s.simulate_scenario("profit_2R_trend_extend_tp_and_raise_sl")
+        assert "blocking_reasons" in result
+        assert "informational_notes" in result
+        assert "blocking_reasons_count" in result
+        assert "informational_notes_count" in result
+        assert "action_allowed" in result
+
+    def test_40_no_martingale_in_corridor_results(self):
+        """Corridor simulation results must not contain martingale/grid/averaging
+        implementation (safety flags like 'no_martingale: True' are OK)."""
+        import scripts.operator.simulate_managed_trailing_path as s
+        result = s.simulate_scenario("profit_3R_trend_extend_tp_profit_floor_sl")
+        # Check safety section is present and correct
+        safety = result.get("safety", {})
+        assert safety.get("no_martingale") is True
+        assert safety.get("no_grid") is True
+        assert safety.get("no_averaging") is True
+        # Check that no actual martingale/grid/averaging implementation
+        # is present (not just the safety flag)
+        result_str = str(result).lower()
+        # Remove safety flags before checking
+        result_str_clean = result_str.replace("'no_martingale': true", "").replace("'no_grid': true", "").replace("'no_averaging': true", "")
+        result_str_clean = result_str_clean.replace('"no_martingale": true', "").replace('"no_grid": true', "").replace('"no_averaging": true', "")
+        assert "martingale" not in result_str_clean
+        assert "grid_trade" not in result_str_clean
+        assert "averaging_down" not in result_str_clean

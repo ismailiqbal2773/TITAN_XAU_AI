@@ -196,3 +196,65 @@ class TestIntegratedExitValidation:
         src = (REPO_ROOT / "scripts" / "audit" / "demo_micro_integrated_exit_validation.py").read_text()
         assert "\u2014" not in src
         assert "\u2013" not in src
+
+    # === Sprint 9.9.3.45.8.2.1: contradiction detection tests ===
+
+    def test_27_validation_detects_modify_with_favorable_false(self):
+        """Integrated validation must catch MODIFY with favorable=False
+        contradiction in simulation results."""
+        # Run the profit_3R scenario and verify no contradiction
+        import scripts.operator.simulate_managed_trailing_path as s
+        result = s.simulate_scenario("profit_3R_trend_extend_tp_profit_floor_sl")
+        # If action is MODIFY, favorable must be True
+        if result["action"] in ("EXTEND_TP_AND_RAISE_SL", "RAISE_SL_ONLY"):
+            assert result["favorable"] is True, \
+                f"CONTRADICTION: MODIFY action with favorable=False"
+        # If action is MODIFY, blocking_reasons_count must be 0
+        if result["action"] in ("EXTEND_TP_AND_RAISE_SL", "RAISE_SL_ONLY"):
+            assert result.get("blocking_reasons_count", 0) == 0, \
+                f"CONTRADICTION: MODIFY action with blocking_reasons_count>0"
+
+    def test_28_validation_detects_modify_with_blocking_reasons(self):
+        """Integrated validation must catch MODIFY with blocking reasons."""
+        import scripts.operator.simulate_managed_trailing_path as s
+        # Test all dynamic TP scenarios
+        dynamic_tp_scenarios = [
+            "tp_extension_disabled_preserve",
+            "profit_2R_trend_extend_tp_and_raise_sl",
+            "profit_2R_range_no_tp_extension",
+            "profit_3R_trend_extend_tp_profit_floor_sl",
+            "tp_extension_blocked_by_spread",
+            "tp_extension_blocked_if_sl_cannot_protect_profit",
+            "cooldown_blocks_repeated_tp_extension",
+            "no_tp_reduction",
+            "no_sl_widening",
+            "no_tick_chasing",
+        ]
+        for scenario in dynamic_tp_scenarios:
+            result = s.simulate_scenario(scenario)
+            if result["action"] in ("EXTEND_TP_AND_RAISE_SL", "RAISE_SL_ONLY"):
+                # MODIFY must have favorable=True
+                assert result["favorable"] is True, \
+                    f"Scenario {scenario}: MODIFY with favorable={result['favorable']}"
+                # MODIFY must have blocking_reasons_count=0
+                assert result.get("blocking_reasons_count", 0) == 0, \
+                    f"Scenario {scenario}: MODIFY with blocking_reasons_count={result.get('blocking_reasons_count')}"
+
+    def test_29_validation_profit_2R_no_contradiction(self):
+        """profit_2R_trend_extend_tp_and_raise_sl must not have contradiction."""
+        import scripts.operator.simulate_managed_trailing_path as s
+        result = s.simulate_scenario("profit_2R_trend_extend_tp_and_raise_sl")
+        assert result["action"] == "EXTEND_TP_AND_RAISE_SL"
+        assert result["favorable"] is True
+        assert result.get("blocking_reasons_count", 0) == 0
+        assert result.get("tp_sl_pair_valid") is True
+        assert result.get("no_tp_reduction") is True
+
+    def test_30_validation_raise_sl_only_no_contradiction(self):
+        """tp_extension_blocked_if_sl_cannot_protect_profit (RAISE_SL_ONLY)
+        must not have contradiction."""
+        import scripts.operator.simulate_managed_trailing_path as s
+        result = s.simulate_scenario("tp_extension_blocked_if_sl_cannot_protect_profit")
+        assert result["action"] == "RAISE_SL_ONLY"
+        assert result["favorable"] is True
+        assert result.get("blocking_reasons_count", 0) == 0

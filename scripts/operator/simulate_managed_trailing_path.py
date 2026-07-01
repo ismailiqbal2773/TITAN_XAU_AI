@@ -665,10 +665,19 @@ def _simulate_adaptive(scenario: str, ts: str) -> dict:
             action_label = corridor_decision.action.value
             verdict = "SIMULATION_MODIFY"
             matches_expected = corridor_matches_expected
+            # Sprint 9.9.3.45.8.2.1: override safety fields with corridor
+            # values to prevent contradiction (MODIFY with favorable=False)
+            favorable = corridor_decision.favorable
+            no_widening = corridor_decision.no_sl_widening
+            tp_preserved = corridor_decision.no_tp_reduction
         elif corridor_decision.action == CorridorAction.RAISE_SL_ONLY:
             action_label = corridor_decision.action.value
             verdict = "SIMULATION_MODIFY"
             matches_expected = corridor_matches_expected
+            # Sprint 9.9.3.45.8.2.1: override safety fields with corridor values
+            favorable = corridor_decision.favorable
+            no_widening = corridor_decision.no_sl_widening
+            tp_preserved = corridor_decision.no_tp_reduction
         else:
             # Corridor HOLD/BLOCKED: keep adaptive trailing action but
             # report corridor result separately. matches_expected uses
@@ -734,6 +743,23 @@ def _simulate_adaptive(scenario: str, ts: str) -> dict:
         result["final_tp"] = corridor_result.get("final_tp", cfg["current_tp"])
         result["proposed_tp"] = corridor_result.get("proposed_tp", cfg["current_tp"])
         result["old_tp"] = corridor_result.get("old_tp", cfg["current_tp"])
+        # Sprint 9.9.3.45.8.2.1: separated blocking vs informational
+        result["blocking_reasons"] = corridor_result.get("blocking_reasons", [])
+        result["informational_notes"] = corridor_result.get("informational_notes", [])
+        result["blocking_reasons_count"] = corridor_result.get("blocking_reasons_count", 0)
+        result["informational_notes_count"] = corridor_result.get("informational_notes_count", 0)
+        result["action_allowed"] = corridor_result.get("action_allowed", False)
+        # Sprint 9.9.3.45.8.2.1: when corridor is MODIFY, override top-level
+        # anti_whipsaw_blocks, new_sl, final_sl with corridor values to
+        # prevent contradiction
+        if corridor_decision.action in (CorridorAction.EXTEND_TP_AND_RAISE_SL, CorridorAction.RAISE_SL_ONLY):
+            result["anti_whipsaw_blocks"] = corridor_result.get("blocking_reasons", [])
+            result["new_sl"] = corridor_decision.final_sl
+            result["final_sl"] = corridor_decision.final_sl
+            result["proposed_sl"] = corridor_decision.proposed_sl
+            result["favorable"] = corridor_decision.favorable
+            result["no_widening"] = corridor_decision.no_sl_widening
+            result["tp_preserved"] = corridor_decision.no_tp_reduction
         if paired_preview is not None:
             result["paired_sltp_preview"] = paired_preview
 

@@ -390,3 +390,209 @@ class TestAdaptiveProfitCorridorPolicy:
         assert "\u2013" not in src
         assert "\u2018" not in src
         assert "\u2019" not in src
+
+    # === Sprint 9.9.3.45.8.2.1: hard invariant tests ===
+
+    def test_26_modify_requires_favorable_true(self):
+        """Any MODIFY action (EXTEND_TP_AND_RAISE_SL or RAISE_SL_ONLY)
+        must have favorable=True."""
+        corridor = AdaptiveProfitCorridor(dynamic_tp_enabled=True, locked_R=1.2)
+        # Test EXTEND_TP_AND_RAISE_SL
+        decision = corridor.evaluate(
+            direction="BUY", entry_price=2000.0, initial_sl=1990.0,
+            current_sl=2012.0, current_tp=2025.0, current_price=2020.0,
+            atr=1.0, spread=0.05, regime=Regime.TREND,
+            monitor_iterations=5, hold_seconds=120,
+            seconds_since_last_tp_extension=999,
+            mfe=2020.0, adaptive_trailing_enabled=True,
+        )
+        if decision.action in (CorridorAction.EXTEND_TP_AND_RAISE_SL, CorridorAction.RAISE_SL_ONLY):
+            assert decision.favorable is True, \
+                f"MODIFY action {decision.action} must have favorable=True, got False"
+
+    def test_27_modify_requires_no_widening_true(self):
+        """Any MODIFY action must have no_sl_widening=True."""
+        corridor = AdaptiveProfitCorridor(dynamic_tp_enabled=True, locked_R=1.2)
+        decision = corridor.evaluate(
+            direction="BUY", entry_price=2000.0, initial_sl=1990.0,
+            current_sl=2012.0, current_tp=2025.0, current_price=2020.0,
+            atr=1.0, spread=0.05, regime=Regime.TREND,
+            monitor_iterations=5, hold_seconds=120,
+            seconds_since_last_tp_extension=999,
+            mfe=2020.0, adaptive_trailing_enabled=True,
+        )
+        if decision.action in (CorridorAction.EXTEND_TP_AND_RAISE_SL, CorridorAction.RAISE_SL_ONLY):
+            assert decision.no_sl_widening is True, \
+                f"MODIFY action must have no_sl_widening=True"
+
+    def test_28_tp_extension_requires_no_tp_reduction_true(self):
+        """TP extension (EXTEND_TP_AND_RAISE_SL) must have
+        no_tp_reduction=True."""
+        corridor = AdaptiveProfitCorridor(dynamic_tp_enabled=True, locked_R=1.2)
+        decision = corridor.evaluate(
+            direction="BUY", entry_price=2000.0, initial_sl=1990.0,
+            current_sl=2012.0, current_tp=2025.0, current_price=2020.0,
+            atr=1.0, spread=0.05, regime=Regime.TREND,
+            monitor_iterations=5, hold_seconds=120,
+            seconds_since_last_tp_extension=999,
+            mfe=2020.0, adaptive_trailing_enabled=True,
+        )
+        if decision.action == CorridorAction.EXTEND_TP_AND_RAISE_SL:
+            assert decision.no_tp_reduction is True, \
+                "TP extension must have no_tp_reduction=True"
+
+    def test_29_tp_extension_requires_tp_sl_pair_valid_true(self):
+        """TP extension (EXTEND_TP_AND_RAISE_SL) must have
+        tp_sl_pair_valid=True."""
+        corridor = AdaptiveProfitCorridor(dynamic_tp_enabled=True, locked_R=1.2)
+        decision = corridor.evaluate(
+            direction="BUY", entry_price=2000.0, initial_sl=1990.0,
+            current_sl=2012.0, current_tp=2025.0, current_price=2020.0,
+            atr=1.0, spread=0.05, regime=Regime.TREND,
+            monitor_iterations=5, hold_seconds=120,
+            seconds_since_last_tp_extension=999,
+            mfe=2020.0, adaptive_trailing_enabled=True,
+        )
+        if decision.action == CorridorAction.EXTEND_TP_AND_RAISE_SL:
+            assert decision.tp_sl_pair_valid is True, \
+                "TP extension must have tp_sl_pair_valid=True"
+
+    def test_30_modify_requires_zero_blocking_reasons(self):
+        """Any MODIFY action must have blocking_reasons_count=0."""
+        corridor = AdaptiveProfitCorridor(dynamic_tp_enabled=True, locked_R=1.2)
+        decision = corridor.evaluate(
+            direction="BUY", entry_price=2000.0, initial_sl=1990.0,
+            current_sl=2012.0, current_tp=2025.0, current_price=2020.0,
+            atr=1.0, spread=0.05, regime=Regime.TREND,
+            monitor_iterations=5, hold_seconds=120,
+            seconds_since_last_tp_extension=999,
+            mfe=2020.0, adaptive_trailing_enabled=True,
+        )
+        if decision.action in (CorridorAction.EXTEND_TP_AND_RAISE_SL, CorridorAction.RAISE_SL_ONLY):
+            assert decision.blocking_reasons_count == 0, \
+                f"MODIFY action must have 0 blocking_reasons, got {decision.blocking_reasons_count}"
+
+    def test_31_blocking_reason_forces_hold_or_blocked(self):
+        """Any blocking reason must force action to HOLD or BLOCKED,
+        not MODIFY."""
+        corridor = AdaptiveProfitCorridor(dynamic_tp_enabled=True, locked_R=1.2)
+        # Spread spike -> blocking reason -> HOLD
+        decision = corridor.evaluate(
+            direction="BUY", entry_price=2000.0, initial_sl=1990.0,
+            current_sl=2012.0, current_tp=2025.0, current_price=2020.0,
+            atr=1.0, spread=0.05, regime=Regime.TREND,
+            monitor_iterations=5, hold_seconds=120,
+            seconds_since_last_tp_extension=999,
+            spread_spike_flag=True,  # Blocking
+            mfe=2020.0, adaptive_trailing_enabled=True,
+        )
+        assert decision.blocking_reasons_count > 0
+        assert decision.action in (CorridorAction.HOLD, CorridorAction.BLOCKED), \
+            f"Blocking reason must force HOLD/BLOCKED, got {decision.action}"
+
+    def test_32_decision_has_blocking_and_informational_fields(self):
+        """CorridorDecision must have blocking_reasons and
+        informational_notes fields."""
+        import dataclasses
+        fields = {f.name for f in dataclasses.fields(CorridorDecision)}
+        assert "blocking_reasons" in fields
+        assert "informational_notes" in fields
+        assert "action_allowed" in fields
+
+    def test_33_decision_has_count_properties(self):
+        """CorridorDecision must have blocking_reasons_count and
+        informational_notes_count properties."""
+        corridor = AdaptiveProfitCorridor(dynamic_tp_enabled=True, locked_R=1.2)
+        decision = corridor.evaluate(
+            direction="BUY", entry_price=2000.0, initial_sl=1990.0,
+            current_sl=2012.0, current_tp=2025.0, current_price=2020.0,
+            atr=1.0, spread=0.05, regime=Regime.TREND,
+            monitor_iterations=5, hold_seconds=120,
+            seconds_since_last_tp_extension=999,
+            mfe=2020.0, adaptive_trailing_enabled=True,
+        )
+        assert hasattr(decision, "blocking_reasons_count")
+        assert hasattr(decision, "informational_notes_count")
+        assert isinstance(decision.blocking_reasons_count, int)
+        assert isinstance(decision.informational_notes_count, int)
+
+    def test_34_to_dict_includes_counts(self):
+        """to_dict must include blocking_reasons_count and
+        informational_notes_count."""
+        corridor = AdaptiveProfitCorridor(dynamic_tp_enabled=True, locked_R=1.2)
+        decision = corridor.evaluate(
+            direction="BUY", entry_price=2000.0, initial_sl=1990.0,
+            current_sl=2012.0, current_tp=2025.0, current_price=2020.0,
+            atr=1.0, spread=0.05, regime=Regime.TREND,
+            monitor_iterations=5, hold_seconds=120,
+            seconds_since_last_tp_extension=999,
+            mfe=2020.0, adaptive_trailing_enabled=True,
+        )
+        d = decision.to_dict()
+        assert "blocking_reasons_count" in d
+        assert "informational_notes_count" in d
+        assert "action_allowed" in d
+
+    def test_35_action_allowed_true_for_modify_without_blocking(self):
+        """action_allowed must be True for MODIFY without blocking reasons."""
+        corridor = AdaptiveProfitCorridor(dynamic_tp_enabled=True, locked_R=1.2)
+        decision = corridor.evaluate(
+            direction="BUY", entry_price=2000.0, initial_sl=1990.0,
+            current_sl=2012.0, current_tp=2025.0, current_price=2020.0,
+            atr=1.0, spread=0.05, regime=Regime.TREND,
+            monitor_iterations=5, hold_seconds=120,
+            seconds_since_last_tp_extension=999,
+            mfe=2020.0, adaptive_trailing_enabled=True,
+        )
+        if decision.action == CorridorAction.EXTEND_TP_AND_RAISE_SL:
+            assert decision.action_allowed is True
+
+    def test_36_unfavorable_modify_downgraded_to_hold(self):
+        """If MODIFY would be unfavorable, action must be downgraded to HOLD."""
+        corridor = AdaptiveProfitCorridor(dynamic_tp_enabled=True, locked_R=1.2)
+        # current_sl already at max possible (no improvement possible)
+        # current_sl=2028, proposed_sl would be max(2028, 2012, 2020-2.0=2018) = 2028
+        # So proposed_sl == current_sl -> not favorable -> HOLD
+        decision = corridor.evaluate(
+            direction="BUY", entry_price=2000.0, initial_sl=1990.0,
+            current_sl=2028.0,  # Already at the level corridor would propose
+            current_tp=2040.0, current_price=2020.0,
+            atr=1.0, spread=0.05, regime=Regime.TREND,
+            monitor_iterations=5, hold_seconds=120,
+            seconds_since_last_tp_extension=999,
+            mfe=2020.0, adaptive_trailing_enabled=True,
+        )
+        # If proposed_sl == current_sl (no improvement), should be HOLD not MODIFY
+        if not decision.favorable:
+            assert decision.action in (CorridorAction.HOLD, CorridorAction.BLOCKED), \
+                f"Unfavorable must be HOLD/BLOCKED, got {decision.action}"
+
+    def test_37_no_contradiction_modify_with_favorable_false(self):
+        """Hard invariant: no MODIFY action with favorable=False."""
+        corridor = AdaptiveProfitCorridor(dynamic_tp_enabled=True, locked_R=1.2)
+        # Test multiple scenarios
+        test_cases = [
+            # (current_sl, current_tp, current_price, spread_spike, news, regime)
+            (2012.0, 2025.0, 2020.0, False, False, Regime.TREND),
+            (2012.0, 2025.0, 2030.0, False, False, Regime.TREND),
+            (2005.0, 2025.0, 2020.0, False, False, Regime.TREND),  # SL not protecting
+            (2012.0, 2025.0, 2020.0, True, False, Regime.TREND),   # Spread spike
+            (2012.0, 2025.0, 2020.0, False, True, Regime.TREND),    # News
+            (2012.0, 2025.0, 2020.0, False, False, Regime.RANGE),   # Range
+        ]
+        for sl, tp, price, spike, news, regime in test_cases:
+            decision = corridor.evaluate(
+                direction="BUY", entry_price=2000.0, initial_sl=1990.0,
+                current_sl=sl, current_tp=tp, current_price=price,
+                atr=1.0, spread=0.05, regime=regime,
+                monitor_iterations=5, hold_seconds=120,
+                seconds_since_last_tp_extension=999,
+                spread_spike_flag=spike, news_flag=news,
+                mfe=price, adaptive_trailing_enabled=True,
+            )
+            if decision.action in (CorridorAction.EXTEND_TP_AND_RAISE_SL, CorridorAction.RAISE_SL_ONLY):
+                assert decision.favorable is True, \
+                    f"CONTRADICTION: action={decision.action} with favorable=False " \
+                    f"(sl={sl}, tp={tp}, price={price}, spike={spike}, regime={regime})"
+                assert decision.blocking_reasons_count == 0, \
+                    f"CONTRADICTION: action={decision.action} with blocking_reasons_count>0"

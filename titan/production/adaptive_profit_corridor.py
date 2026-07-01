@@ -69,7 +69,20 @@ class CorridorAction(str, Enum):
 
 @dataclass
 class CorridorDecision:
-    """Output of a single AdaptiveProfitCorridor.evaluate() call."""
+    """Output of a single AdaptiveProfitCorridor.evaluate() call.
+
+    Sprint 9.9.3.45.8.2.1: Safety invariants enforced:
+      - If action is MODIFY (EXTEND_TP_AND_RAISE_SL or RAISE_SL_ONLY):
+        * favorable must be True
+        * no_widening must be True
+        * no_tp_reduction must be True
+        * tp_sl_pair_valid must be True (if TP is extended)
+        * blocking_reasons must be empty (blocking_reasons_count == 0)
+      - If any blocking reason exists, action is downgraded to HOLD or BLOCKED
+      - blocking_reasons vs informational_notes are separated:
+        * blocking_reasons: conditions that prevent MODIFY
+        * informational_notes: non-blocking observations
+    """
     dynamic_tp_enabled: bool = False
     profit_corridor_enabled: bool = False
     action: CorridorAction = CorridorAction.HOLD
@@ -92,17 +105,45 @@ class CorridorDecision:
     max_profit_giveback_R: float = 0.0
     no_tp_reduction: bool = True
     no_sl_widening: bool = True
+    favorable: bool = True
     reason: str = ""
     blocks: list[str] = field(default_factory=list)
+    # Sprint 9.9.3.45.8.2.1: separated blocking vs informational
+    blocking_reasons: list[str] = field(default_factory=list)
+    informational_notes: list[str] = field(default_factory=list)
+    action_allowed: bool = False
     timestamp_utc: str = ""
 
     def __post_init__(self):
         if not self.timestamp_utc:
             self.timestamp_utc = datetime.now(timezone.utc).isoformat()
+        # Sprint 9.9.3.45.8.2.1: compute action_allowed based on action
+        # and blocking_reasons. MODIFY actions require no blocking reasons.
+        if self.action in (CorridorAction.EXTEND_TP_AND_RAISE_SL, CorridorAction.RAISE_SL_ONLY):
+            self.action_allowed = (len(self.blocking_reasons) == 0
+                                    and self.favorable
+                                    and self.no_sl_widening
+                                    and self.no_tp_reduction)
+            if self.action == CorridorAction.EXTEND_TP_AND_RAISE_SL:
+                self.action_allowed = self.action_allowed and self.tp_sl_pair_valid
+        else:
+            # HOLD and BLOCKED are always "allowed" in the sense that
+            # they don't attempt a modify
+            self.action_allowed = True
+
+    @property
+    def blocking_reasons_count(self) -> int:
+        return len(self.blocking_reasons)
+
+    @property
+    def informational_notes_count(self) -> int:
+        return len(self.informational_notes)
 
     def to_dict(self) -> dict:
         d = asdict(self)
         d["action"] = self.action.value
+        d["blocking_reasons_count"] = self.blocking_reasons_count
+        d["informational_notes_count"] = self.informational_notes_count
         return d
 
 
@@ -184,6 +225,7 @@ class AdaptiveProfitCorridor:
         if direction not in ("BUY", "SELL"):
             decision.action = CorridorAction.BLOCKED
             decision.blocks.append(f"Invalid direction: {direction}")
+            decision.blocking_reasons.append(f"Invalid direction: {direction}")
             decision.reason = "BLOCKED: invalid direction"
             return decision
 
@@ -235,6 +277,7 @@ class AdaptiveProfitCorridor:
             decision.tp_extension_allowed = False
             decision.tp_extension_action = "BLOCKED_NO_ADAPTIVE_SL"
             decision.blocks.append("ADAPTIVE_TRAILING_REQUIRED: corridor needs adaptive SL to protect profit")
+            decision.blocking_reasons.append("ADAPTIVE_TRAILING_REQUIRED: corridor needs adaptive SL to protect profit")
             decision.reason = "Corridor requires adaptive trailing enabled"
             decision.no_tp_reduction = True
             decision.no_sl_widening = True
@@ -256,6 +299,7 @@ class AdaptiveProfitCorridor:
             decision.tp_extension_allowed = False
             decision.tp_extension_action = "BLOCKED_RANGE_REGIME"
             decision.blocks.append("RANGE_REGIME: TP extension only allowed in TREND regime")
+            decision.blocking_reasons.append("RANGE_REGIME: TP extension only allowed in TREND regime")
             decision.reason = "TP extension blocked in range regime"
             decision.no_tp_reduction = True
             decision.no_sl_widening = True
@@ -266,6 +310,7 @@ class AdaptiveProfitCorridor:
             decision.tp_extension_allowed = False
             decision.tp_extension_action = "BLOCKED_HIGH_VOL"
             decision.blocks.append("HIGH_VOL_REGIME: TP extension blocked in high volatility")
+            decision.blocking_reasons.append("HIGH_VOL_REGIME: TP extension blocked in high volatility")
             decision.reason = "TP extension blocked in high volatility regime"
             decision.no_tp_reduction = True
             decision.no_sl_widening = True
@@ -277,6 +322,7 @@ class AdaptiveProfitCorridor:
             decision.tp_extension_allowed = False
             decision.tp_extension_action = "BLOCKED_SPREAD_SPIKE"
             decision.blocks.append("SPREAD_SPIKE_FLAG_ACTIVE")
+            decision.blocking_reasons.append("SPREAD_SPIKE_FLAG_ACTIVE")
             decision.reason = "TP extension blocked by spread spike"
             decision.no_tp_reduction = True
             decision.no_sl_widening = True
@@ -288,6 +334,7 @@ class AdaptiveProfitCorridor:
             decision.tp_extension_allowed = False
             decision.tp_extension_action = "BLOCKED_NEWS"
             decision.blocks.append("NEWS_FLAG_ACTIVE")
+            decision.blocking_reasons.append("NEWS_FLAG_ACTIVE")
             decision.reason = "TP extension blocked by news flag"
             decision.no_tp_reduction = True
             decision.no_sl_widening = True
@@ -299,6 +346,9 @@ class AdaptiveProfitCorridor:
             decision.tp_extension_allowed = False
             decision.tp_extension_action = "BLOCKED_COOLDOWN"
             decision.blocks.append(
+                f"COOLDOWN_ACTIVE: seconds_since_last_tp_extension={seconds_since_last_tp_extension} < cooldown={self.tp_extension_cooldown_seconds}"
+            )
+            decision.blocking_reasons.append(
                 f"COOLDOWN_ACTIVE: seconds_since_last_tp_extension={seconds_since_last_tp_extension} < cooldown={self.tp_extension_cooldown_seconds}"
             )
             decision.reason = "TP extension blocked by cooldown"
@@ -316,6 +366,7 @@ class AdaptiveProfitCorridor:
             decision.tp_extension_allowed = False
             decision.tp_extension_action = "BLOCKED_MFE_NOT_IMPROVING"
             decision.blocks.append("MFE_NOT_IMPROVING: price pulled back from MFE, no tick chasing")
+            decision.blocking_reasons.append("MFE_NOT_IMPROVING: price pulled back from MFE, no tick chasing")
             decision.reason = "TP extension blocked: MFE not improving (no tick chasing)"
             decision.no_tp_reduction = True
             decision.no_sl_widening = True
@@ -346,6 +397,24 @@ class AdaptiveProfitCorridor:
                                f"Raising SL to {proposed_sl}")
             decision.no_tp_reduction = True
             decision.no_sl_widening = (proposed_sl >= current_sl) if direction == "BUY" else (proposed_sl <= current_sl or current_sl == 0)
+            # Sprint 9.9.3.45.8.2.1: compute favorable for RAISE_SL_ONLY
+            if direction == "BUY":
+                decision.favorable = proposed_sl > current_sl
+            else:
+                decision.favorable = (proposed_sl < current_sl) or current_sl == 0
+            # Sprint 9.9.3.45.8.2.1: if not favorable, downgrade to HOLD
+            if not decision.favorable:
+                decision.blocking_reasons.append(
+                    f"UNFAVORABLE_RAISE_SL_ONLY: proposed_sl={proposed_sl} does not improve current_sl={current_sl}"
+                )
+                decision.action = CorridorAction.HOLD
+                decision.final_sl = current_sl
+                decision.reason += " | Downgraded to HOLD: no favorable improvement"
+            else:
+                # Favorable RAISE_SL_ONLY: add informational note
+                decision.informational_notes.append(
+                    f"RAISE_SL_FIRST: SL raised to {proposed_sl} to protect locked_R profit before TP extension"
+                )
             return decision
 
         # All conditions met - extend TP and raise SL as paired modify
@@ -390,23 +459,49 @@ class AdaptiveProfitCorridor:
         decision.reason = (f"TP extended to {proposed_tp}, SL raised to {proposed_sl} "
                            f"(profit_R={profit_R:.4f}, regime={regime.value if regime else 'unknown'})")
 
-        # Validate: no TP reduction
+        # Sprint 9.9.3.45.8.2.1: compute favorable, no_tp_reduction, no_sl_widening
         if direction == "BUY":
             decision.no_tp_reduction = proposed_tp >= current_tp
             decision.no_sl_widening = proposed_sl >= current_sl
+            decision.favorable = proposed_sl > current_sl or proposed_tp > current_tp
         else:
             decision.no_tp_reduction = proposed_tp <= current_tp
             decision.no_sl_widening = (proposed_sl <= current_sl) or current_sl == 0
+            decision.favorable = (proposed_sl < current_sl or current_sl == 0) or proposed_tp < current_tp
 
+        # Sprint 9.9.3.45.8.2.1: if safety invariants fail, downgrade to BLOCKED
+        # and add to blocking_reasons (not just blocks)
         if not decision.no_tp_reduction:
+            decision.blocking_reasons.append("TP_REDUCTION_BLOCKED")
             decision.blocks.append("TP_REDUCTION_BLOCKED")
             decision.action = CorridorAction.BLOCKED
             decision.final_tp = current_tp
             decision.final_sl = current_sl
+            decision.tp_extension_allowed = False
+            decision.tp_sl_pair_valid = False
+            decision.favorable = False
         if not decision.no_sl_widening:
+            decision.blocking_reasons.append("SL_WIDENING_BLOCKED")
             decision.blocks.append("SL_WIDENING_BLOCKED")
             decision.action = CorridorAction.BLOCKED
             decision.final_tp = current_tp
             decision.final_sl = current_sl
+            decision.tp_extension_allowed = False
+            decision.tp_sl_pair_valid = False
+            decision.favorable = False
+
+        # Sprint 9.9.3.45.8.2.1: if favorable is False but action is still
+        # MODIFY, downgrade to HOLD (no improvement = no modify)
+        if decision.action in (CorridorAction.EXTEND_TP_AND_RAISE_SL, CorridorAction.RAISE_SL_ONLY):
+            if not decision.favorable:
+                decision.blocking_reasons.append(
+                    f"UNFAVORABLE_NO_IMPROVEMENT: proposed_sl={proposed_sl} does not improve current_sl={current_sl}"
+                )
+                decision.action = CorridorAction.HOLD
+                decision.tp_extension_allowed = False
+                decision.tp_sl_pair_valid = False
+                decision.final_tp = current_tp
+                decision.final_sl = current_sl
+                decision.reason += " | Downgraded to HOLD: no favorable improvement"
 
         return decision
