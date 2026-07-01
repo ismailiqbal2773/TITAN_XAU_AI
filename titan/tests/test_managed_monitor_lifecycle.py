@@ -48,12 +48,18 @@ class TestMonitorLifecycle:
         assert "monitor_stop_reason" in src
 
     def test_05_stop_reasons_supported(self):
-        """All required stop reasons must be present in source."""
+        """All required stop reasons must be present in source.
+
+        Sprint 9.9.3.45.6: TIMEOUT_REACHED was renamed to TIMEOUT. New
+        reasons KILL_SWITCH_BLOCKED, GATE_BLOCKED, ERROR added.
+        """
         src = (REPO_ROOT / "scripts" / "operator" / "run_managed_demo_micro_trade.py").read_text()
         required_reasons = [
             "POSITION_CLOSED",
-            "TIMEOUT_REACHED",
+            "TIMEOUT",
             "POSITION_DISAPPEARED_WITHOUT_HISTORY",
+            "KILL_SWITCH_BLOCKED",
+            "ERROR",
         ]
         for r in required_reasons:
             assert r in src, f"Missing stop reason: {r}"
@@ -70,14 +76,21 @@ class TestMonitorLifecycle:
             "Expected final_position_status=UNKNOWN assignment followed by POSITION_DISAPPEARED_WITHOUT_HISTORY"
 
     def test_07_final_position_status_open_requires_positions_get(self):
-        """final_position_status=OPEN must require final positions_get check."""
+        """final_position_status=OPEN must require final positions_get check.
+
+        Sprint 9.9.3.45.6: TIMEOUT stop reason (renamed from
+        TIMEOUT_REACHED). Final positions_get verification before
+        declaring OPEN. Look for the assignment `monitor_stop_reason = STOP_REASON_TIMEOUT`
+        which only happens after a final positions_get check.
+        """
         src = (REPO_ROOT / "scripts" / "operator" / "run_managed_demo_micro_trade.py").read_text()
-        # The timeout branch must do a final positions_get
-        idx = src.find("TIMEOUT_REACHED")
-        assert idx > 0
+        # Find the assignment to STOP_REASON_TIMEOUT (the actual code path)
+        idx = src.find("monitor_stop_reason = STOP_REASON_TIMEOUT")
+        assert idx > 0, "monitor_stop_reason = STOP_REASON_TIMEOUT assignment not found"
         # Look backwards for the verification logic
         before = src[max(0, idx-2000):idx]
-        assert "still_open" in before or "final_positions" in before
+        assert "still_open" in before or "final_positions" in before, \
+            "Final positions_get verification must precede TIMEOUT assignment"
 
     def test_08_monitor_loop_checks_positions_each_iteration(self):
         """Each iteration must poll positions_get to check if position
@@ -250,10 +263,12 @@ class TestMonitorLifecycle:
             stub._reset_state()
 
         # With duration_minutes=0 and interval_seconds=0, max_iterations=1
-        # Position still open at end of single iteration => OPEN, TIMEOUT_REACHED
+        # Position still open at end of single iteration => OPEN, TIMEOUT
+        # Sprint 9.9.3.45.6: TIMEOUT_REACHED was renamed to TIMEOUT.
         assert result["final_position_status"] == "OPEN", \
             f"Expected OPEN, got {result['final_position_status']} (stop={result['monitor_stop_reason']})"
-        assert result["monitor_stop_reason"] == "TIMEOUT_REACHED"
+        assert result["monitor_stop_reason"] == "TIMEOUT", \
+            f"Expected TIMEOUT, got {result['monitor_stop_reason']}"
         assert result["verdict"] == "MANAGED_DEMO_MICRO_STARTED"
         assert result["monitor_iterations"] >= 1
 
@@ -360,3 +375,411 @@ class TestMonitorLifecycle:
         assert result["close_deal_ticket"] == 50001
         assert result["realized_pl"] == -3.0
         assert result["final_history_match_found"] is True
+
+    # === Sprint 9.9.3.45.6 new tests ===
+
+    def test_20_monitor_does_not_exit_after_one_hold_while_open(self):
+        """Monitor must NOT exit after one HOLD evaluation while position
+        is still open. monitor_iterations > 1 when position remains open
+        beyond one interval.
+        """
+        import scripts.operator.run_managed_demo_micro_trade as m
+        import titan.mt5_stub as stub
+
+        stub._reset_state()
+        stub.initialize()
+        # Position in HOLD territory (loss scenario)
+        position = stub._Position(
+            ticket=11111, magic=202619, comment="TITAN_DEMO_MICRO",
+            price_open=2000.0, price_current=1995.0, sl=1990.0, tp=2010.0,
+        )
+        stub._POSITIONS.append(position)
+
+        detected = {
+            "detected_position_ticket": 11111,
+            "detected_position_identifier": 11111,
+            "detected_position_direction": "BUY",
+            "detected_position_entry_price": 2000.0,
+            "detected_position_sl": 1990.0,
+            "detected_position_tp": 2010.0,
+            "detected_position_current_price": 1995.0,
+            "detection_method": "positions_get_magic_comment",
+            "position_open_verified": True,
+            "history_verified": False,
+            "pending_history": True,
+            "resolved_history_position_id": None,
+            "history_order_ticket": None,
+            "history_deal_ticket": None,
+            "warnings": [],
+        }
+
+        # Set duration such that max_iterations > 1
+        class FakeArgs:
+            monitor_duration_minutes = 0
+            monitor_interval_seconds = 0
+            duration_minutes = 0
+            interval_seconds = 0
+            # Override via monitor_duration_minutes / monitor_interval_seconds
+            # but with both = 0, max_iterations = 1. To force multiple
+            # iterations we need duration*60 / interval > 1.
+            # We'll override at module level below.
+
+        # Use a config that gives 3 iterations: 0 minutes, 0 seconds is 1 iter.
+        # Use duration_minutes=0 but force max_iterations via duration=15s, interval=5s
+        # But our duration_minutes is int minutes. Set duration_minutes=1, interval=15s => 4 iters
+        # However that means 4 sleeps of 15s = 60s. Too slow for tests.
+        # Override _time.sleep to no-op.
+        import scripts.operator.run_managed_demo_micro_trade as rm
+        orig_sleep = None
+        try:
+            import time as _t
+            orig_sleep = _t.sleep
+            _t.sleep = lambda x: None
+            # Patch the import inside _run_monitor_loop
+            # The function does `import time as _time` so we need to patch
+            # that specific import. Easier: just use 0-duration for fast tests.
+            # For multi-iteration test, we'll directly construct FakeArgs with
+            # monitor_duration_minutes that yields 3 iterations.
+            # max_iterations = (duration_minutes * 60) // interval_seconds
+            # For 3 iterations: duration_minutes=0, but we can't get 3 from 0.
+            # Use a custom max_iterations override.
+            #
+            # Actually, let's patch _time.sleep at the module level instead.
+            # The function imports `time as _time` so we patch time.sleep.
+            # Done above. Now use duration_minutes=1, interval_seconds=20
+            # => (60) // 20 = 3 iterations.
+            class FakeArgs2:
+                monitor_duration_minutes = 1
+                monitor_interval_seconds = 20
+                duration_minutes = 1
+                interval_seconds = 20
+                kill_switch = False
+                confirm_managed_trailing = False
+                confirm_local_operator = False
+
+            result = m._run_monitor_loop(
+                mt5=stub, detected_position=detected,
+                args=FakeArgs2(), ok_checks=[],
+            )
+        finally:
+            if orig_sleep is not None:
+                _t.sleep = orig_sleep
+            stub._reset_state()
+
+        # Position is still open at end. monitor_iterations must be > 1.
+        assert result["monitor_iterations"] > 1, \
+            f"Expected monitor_iterations > 1 (HOLD should not exit early), got {result['monitor_iterations']}"
+        assert result["final_position_status"] == "OPEN"
+        assert result["monitor_stop_reason"] == "TIMEOUT"
+
+    def test_21_monitor_stops_on_timeout(self):
+        """Monitor must stop on timeout with TIMEOUT stop reason."""
+        import scripts.operator.run_managed_demo_micro_trade as m
+        import titan.mt5_stub as stub
+        import time as _t
+
+        stub._reset_state()
+        stub.initialize()
+        position = stub._Position(
+            ticket=22222, magic=202619, comment="TITAN_DEMO_MICRO",
+            price_open=2000.0, price_current=2000.5, sl=1990.0, tp=2010.0,
+        )
+        stub._POSITIONS.append(position)
+
+        detected = {
+            "detected_position_ticket": 22222,
+            "detected_position_identifier": 22222,
+            "detected_position_direction": "BUY",
+            "detected_position_entry_price": 2000.0,
+            "detected_position_sl": 1990.0,
+            "detected_position_tp": 2010.0,
+            "detected_position_current_price": 2000.5,
+            "detection_method": "positions_get_magic_comment",
+            "position_open_verified": True,
+            "history_verified": False,
+            "pending_history": True,
+            "resolved_history_position_id": None,
+            "history_order_ticket": None,
+            "history_deal_ticket": None,
+            "warnings": [],
+        }
+
+        orig_sleep = _t.sleep
+        _t.sleep = lambda x: None
+        try:
+            class FakeArgs:
+                monitor_duration_minutes = 0
+                monitor_interval_seconds = 0
+                duration_minutes = 0
+                interval_seconds = 0
+                kill_switch = False
+                confirm_managed_trailing = False
+                confirm_local_operator = False
+
+            result = m._run_monitor_loop(
+                mt5=stub, detected_position=detected,
+                args=FakeArgs(), ok_checks=[],
+            )
+        finally:
+            _t.sleep = orig_sleep
+            stub._reset_state()
+
+        assert result["monitor_stop_reason"] == "TIMEOUT"
+        assert result["final_position_status"] == "OPEN"
+
+    def test_22_monitor_stops_on_kill_switch(self):
+        """Monitor must stop on kill switch with KILL_SWITCH_BLOCKED."""
+        import scripts.operator.run_managed_demo_micro_trade as m
+        import titan.mt5_stub as stub
+        import time as _t
+
+        stub._reset_state()
+        stub.initialize()
+        position = stub._Position(
+            ticket=33333, magic=202619, comment="TITAN_DEMO_MICRO",
+            price_open=2000.0, price_current=2001.0, sl=1990.0, tp=2010.0,
+        )
+        stub._POSITIONS.append(position)
+
+        detected = {
+            "detected_position_ticket": 33333,
+            "detected_position_identifier": 33333,
+            "detected_position_direction": "BUY",
+            "detected_position_entry_price": 2000.0,
+            "detected_position_sl": 1990.0,
+            "detected_position_tp": 2010.0,
+            "detected_position_current_price": 2001.0,
+            "detection_method": "positions_get_magic_comment",
+            "position_open_verified": True,
+            "history_verified": False,
+            "pending_history": True,
+            "resolved_history_position_id": None,
+            "history_order_ticket": None,
+            "history_deal_ticket": None,
+            "warnings": [],
+        }
+
+        orig_sleep = _t.sleep
+        _t.sleep = lambda x: None
+        try:
+            class FakeArgs:
+                monitor_duration_minutes = 1
+                monitor_interval_seconds = 5
+                duration_minutes = 1
+                interval_seconds = 5
+                kill_switch = True  # Activate kill switch
+                confirm_managed_trailing = False
+                confirm_local_operator = False
+
+            result = m._run_monitor_loop(
+                mt5=stub, detected_position=detected,
+                args=FakeArgs(), ok_checks=[],
+            )
+        finally:
+            _t.sleep = orig_sleep
+            stub._reset_state()
+
+        assert result["monitor_stop_reason"] == "KILL_SWITCH_BLOCKED"
+        assert result["final_position_status"] == "UNKNOWN"
+
+    def test_23_monitor_stops_on_error(self):
+        """Monitor must stop on error with ERROR stop reason."""
+        import scripts.operator.run_managed_demo_micro_trade as m
+        import titan.mt5_stub as stub
+        import time as _t
+
+        stub._reset_state()
+        stub.initialize()
+
+        detected = {
+            "detected_position_ticket": 44444,
+            "detected_position_identifier": 44444,
+            "detected_position_direction": "BUY",
+            "detected_position_entry_price": 2000.0,
+            "detected_position_sl": 1990.0,
+            "detected_position_tp": 2010.0,
+            "detected_position_current_price": 2001.0,
+            "detection_method": "positions_get_magic_comment",
+            "position_open_verified": True,
+            "history_verified": False,
+            "pending_history": True,
+            "resolved_history_position_id": None,
+            "history_order_ticket": None,
+            "history_deal_ticket": None,
+            "warnings": [],
+        }
+
+        # Make positions_get raise an exception
+        def raise_exc(*args, **kwargs):
+            raise RuntimeError("simulated MT5 error")
+
+        orig_positions_get = stub.positions_get
+        orig_sleep = _t.sleep
+        stub.positions_get = raise_exc
+        _t.sleep = lambda x: None
+        try:
+            class FakeArgs:
+                monitor_duration_minutes = 1
+                monitor_interval_seconds = 5
+                duration_minutes = 1
+                interval_seconds = 5
+                kill_switch = False
+                confirm_managed_trailing = False
+                confirm_local_operator = False
+
+            result = m._run_monitor_loop(
+                mt5=stub, detected_position=detected,
+                args=FakeArgs(), ok_checks=[],
+            )
+        finally:
+            stub.positions_get = orig_positions_get
+            _t.sleep = orig_sleep
+            stub._reset_state()
+
+        assert result["monitor_stop_reason"] == "ERROR"
+        assert result["final_position_status"] == "UNKNOWN"
+
+    def test_24_monitor_final_open_only_when_positions_get_confirms(self):
+        """final_position_status=OPEN must come from final positions_get."""
+        import scripts.operator.run_managed_demo_micro_trade as m
+        import titan.mt5_stub as stub
+        import time as _t
+
+        stub._reset_state()
+        stub.initialize()
+        position = stub._Position(
+            ticket=55555, magic=202619, comment="TITAN_DEMO_MICRO",
+            price_open=2000.0, price_current=2001.0, sl=1990.0, tp=2010.0,
+        )
+        stub._POSITIONS.append(position)
+
+        detected = {
+            "detected_position_ticket": 55555,
+            "detected_position_identifier": 55555,
+            "detected_position_direction": "BUY",
+            "detected_position_entry_price": 2000.0,
+            "detected_position_sl": 1990.0,
+            "detected_position_tp": 2010.0,
+            "detected_position_current_price": 2001.0,
+            "detection_method": "positions_get_magic_comment",
+            "position_open_verified": True,
+            "history_verified": False,
+            "pending_history": True,
+            "resolved_history_position_id": None,
+            "history_order_ticket": None,
+            "history_deal_ticket": None,
+            "warnings": [],
+        }
+
+        orig_sleep = _t.sleep
+        _t.sleep = lambda x: None
+        try:
+            class FakeArgs:
+                monitor_duration_minutes = 0
+                monitor_interval_seconds = 0
+                duration_minutes = 0
+                interval_seconds = 0
+                kill_switch = False
+                confirm_managed_trailing = False
+                confirm_local_operator = False
+
+            result = m._run_monitor_loop(
+                mt5=stub, detected_position=detected,
+                args=FakeArgs(), ok_checks=[],
+            )
+        finally:
+            _t.sleep = orig_sleep
+            stub._reset_state()
+
+        # Position confirmed open via final positions_get
+        assert result["final_position_status"] == "OPEN"
+        assert result["final_position_source"] == "positions_get"
+        assert result["final_positions_get_count"] == 1
+
+    def test_25_monitor_iterations_greater_than_one_when_open(self):
+        """monitor_iterations must be > 1 when position remains open
+        beyond one interval."""
+        import scripts.operator.run_managed_demo_micro_trade as m
+        import titan.mt5_stub as stub
+        import time as _t
+
+        stub._reset_state()
+        stub.initialize()
+        position = stub._Position(
+            ticket=66666, magic=202619, comment="TITAN_DEMO_MICRO",
+            price_open=2000.0, price_current=2000.5, sl=1990.0, tp=2010.0,
+        )
+        stub._POSITIONS.append(position)
+
+        detected = {
+            "detected_position_ticket": 66666,
+            "detected_position_identifier": 66666,
+            "detected_position_direction": "BUY",
+            "detected_position_entry_price": 2000.0,
+            "detected_position_sl": 1990.0,
+            "detected_position_tp": 2010.0,
+            "detected_position_current_price": 2000.5,
+            "detection_method": "positions_get_magic_comment",
+            "position_open_verified": True,
+            "history_verified": False,
+            "pending_history": True,
+            "resolved_history_position_id": None,
+            "history_order_ticket": None,
+            "history_deal_ticket": None,
+            "warnings": [],
+        }
+
+        orig_sleep = _t.sleep
+        _t.sleep = lambda x: None
+        try:
+            # 2 iterations: duration_minutes=0, but use monitor_duration_minutes=1
+            # and monitor_interval_seconds=30 => 60//30 = 2 iterations
+            class FakeArgs:
+                monitor_duration_minutes = 1
+                monitor_interval_seconds = 30
+                duration_minutes = 1
+                interval_seconds = 30
+                kill_switch = False
+                confirm_managed_trailing = False
+                confirm_local_operator = False
+
+            result = m._run_monitor_loop(
+                mt5=stub, detected_position=detected,
+                args=FakeArgs(), ok_checks=[],
+            )
+        finally:
+            _t.sleep = orig_sleep
+            stub._reset_state()
+
+        assert result["monitor_iterations"] == 2, \
+            f"Expected 2 iterations, got {result['monitor_iterations']}"
+        assert result["final_position_status"] == "OPEN"
+
+    def test_26_monitor_loop_has_modify_applier_param(self):
+        """_run_monitor_loop must accept modify_applier parameter."""
+        src = (REPO_ROOT / "scripts" / "operator" / "run_managed_demo_micro_trade.py").read_text()
+        assert "modify_applier=None" in src
+        assert "def _build_modify_applier" in src
+
+    def test_27_monitor_loop_has_sl_modify_attempts(self):
+        """Loop must track sl_modify_attempts list."""
+        src = (REPO_ROOT / "scripts" / "operator" / "run_managed_demo_micro_trade.py").read_text()
+        assert "sl_modify_attempts" in src
+
+    def test_28_monitor_loop_has_apply_mode_field(self):
+        """Loop result must include apply_mode field."""
+        src = (REPO_ROOT / "scripts" / "operator" / "run_managed_demo_micro_trade.py").read_text()
+        assert "apply_mode" in src
+        assert "apply_allowed" in src
+
+    def test_29_no_martingale_in_monitor_loop(self):
+        """Monitor loop must NOT contain martingale/grid/averaging."""
+        src = (REPO_ROOT / "scripts" / "operator" / "run_managed_demo_micro_trade.py").read_text()
+        code = _strip(src).lower()
+        for term in ["martingale", "grid_trade", "averaging_down", "double_lot", "add_position"]:
+            assert term not in code, f"Forbidden term '{term}' in code"
+
+    def test_30_no_mojibake(self):
+        src = (REPO_ROOT / "scripts" / "operator" / "run_managed_demo_micro_trade.py").read_text()
+        assert "\u2014" not in src
+        assert "\u2013" not in src

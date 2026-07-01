@@ -134,10 +134,27 @@ class TestManagePosition:
             assert term not in code, f"Forbidden term '{term}' in code"
 
     def test_17_no_position_modification_in_preview(self):
-        """Preview must NOT call order_modify or positions_modify."""
+        """Preview must NOT call order_modify/positions_modify/order_send.
+
+        Sprint 9.9.3.45.6: apply-once (run_apply_once) is allowed to
+        call mt5.order_send, but run_preview_trailing and run_check_only
+        must not.
+        """
         src = (REPO_ROOT / "scripts" / "operator" / "manage_demo_micro_position.py").read_text()
         code = _strip(src)
-        assert not re.search(r"\bmt5\.(order_modify|positions_modify|order_send)\s*\(", code)
+        lines = code.splitlines()
+        # Track which function we're in
+        current_fn = None
+        for line in lines:
+            m = re.match(r"^def (\w+)", line)
+            if m:
+                current_fn = m.group(1)
+            # Preview and check_only must not call mt5.order_send
+            if current_fn in ("run_preview_trailing", "run_check_only"):
+                if re.search(r"\bmt5\.(order_modify|positions_modify|order_send)\s*\(", line):
+                    pytest.fail(
+                        f"mt5 order/modify call in {current_fn}: {line.strip()}"
+                    )
 
     def test_18_preview_with_mock_position_that_disappears(self, monkeypatch):
         """Simulate: first positions_get returns a TITAN position, second

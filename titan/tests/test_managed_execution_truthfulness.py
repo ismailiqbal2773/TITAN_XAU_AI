@@ -136,18 +136,23 @@ class TestTruthfulness:
         assert "\u2019" not in src
 
     def test_14_order_send_isolated(self):
-        """order_send must only be inside run_execute_and_monitor."""
+        """order_send must only be inside run_execute_and_monitor or
+        _build_modify_applier (Sprint 9.9.3.45.6)."""
         src = (REPO_ROOT / "scripts" / "operator" / "run_managed_demo_micro_trade.py").read_text()
         code = _strip(src)
         lines = code.splitlines()
-        in_execute = False
+        allowed_functions = {"run_execute_and_monitor", "_build_modify_applier"}
+        current_fn = None
         for line in lines:
-            if "def run_execute_and_monitor" in line:
-                in_execute = True
-            elif line and not line[0].isspace() and "def " in line:
-                in_execute = False
-            if "mt5.order_send" in line and not in_execute:
-                pytest.fail(f"order_send found outside run_execute_and_monitor: {line.strip()}")
+            # Track current function context
+            m = re.match(r"^def (\w+)", line)
+            if m:
+                current_fn = m.group(1)
+            if "mt5.order_send" in line and current_fn not in allowed_functions:
+                pytest.fail(
+                    f"order_send found outside run_execute_and_monitor / "
+                    f"_build_modify_applier (in {current_fn}): {line.strip()}"
+                )
 
     def test_15_no_demo_micro_execute(self):
         src = (REPO_ROOT / "scripts" / "operator" / "run_managed_demo_micro_trade.py").read_text()
@@ -308,9 +313,11 @@ class TestTruthfulness:
         assert "realized_pl" in src
 
     def test_37_timeout_reached_stop_reason(self):
-        """Monitor must support TIMEOUT_REACHED stop reason."""
+        """Monitor must support TIMEOUT stop reason (Sprint 9.9.3.45.6
+        renamed TIMEOUT_REACHED -> TIMEOUT)."""
         src = (REPO_ROOT / "scripts" / "operator" / "run_managed_demo_micro_trade.py").read_text()
-        assert "TIMEOUT_REACHED" in src
+        # Accept either TIMEOUT or TIMEOUT_REACHED for backwards compat
+        assert "TIMEOUT" in src, "Missing TIMEOUT stop reason"
 
     def test_38_position_closed_stop_reason(self):
         """Monitor must support POSITION_CLOSED stop reason."""

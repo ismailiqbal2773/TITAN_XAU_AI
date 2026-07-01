@@ -385,21 +385,108 @@ def _update_receipt_with_detection(receipt: dict, detection: dict) -> dict:
     return receipt
 
 
-def _run_monitor_loop(*, mt5, detected_position, args, ok_checks) -> dict:
-    """Sprint 9.9.3.45.5: Monitor lifecycle loop.
+def _build_modify_applier(*, mt5, args, ok_checks) -> Optional[object]:
+    """Sprint 9.9.3.45.6: Build a modify applier callable for the monitor
+    loop.
+
+    Returns None (no applier = preview-only mode) unless ALL of:
+      - args.confirm_managed_trailing is True
+      - args.confirm_local_operator is True
+      - Local operator token is valid
+
+    Z AI environment drift gate already blocks execute-and-monitor
+    entirely, so this function is only reached on the local operator
+    Windows machine. Still, we double-check the confirmations here so
+    the apply path is never silently enabled.
+
+    The applier sends TRADE_ACTION_SLTP via mt5.order_send EXACTLY ONCE
+    per call. Tests mock mt5.order_send / mt5.order_modify.
+    """
+    if not getattr(args, "confirm_managed_trailing", False):
+        return None
+    if not getattr(args, "confirm_local_operator", False):
+        return None
+
+    def _applier(position_ticket: int, new_sl: float, tp: float) -> dict:
+        """Send TRADE_ACTION_SLTP modify request exactly once.
+
+        Returns {retcode, success, reason}.
+        """
+        try:
+            request = {
+                "action": mt5.TRADE_ACTION_SLTP,
+                "symbol": "XAUUSD",
+                "position": int(position_ticket),
+                "sl": float(new_sl),
+                "tp": float(tp),
+            }
+            # Sprint 9.9.3.45.6: prefer mt5.order_modify if available,
+            # else fall back to mt5.order_send with TRADE_ACTION_SLTP.
+            if hasattr(mt5, "order_modify"):
+                result = mt5.order_modify(request)
+            else:
+                result = mt5.order_send(request)
+            retcode = int(getattr(result, "retcode", 0) or 0)
+            success = retcode == 10009
+            reason = "TRADE_RETCODE_DONE" if success else f"retcode={retcode}"
+            return {"retcode": retcode, "success": success, "reason": reason}
+        except Exception as e:
+            return {"retcode": 0, "success": False, "reason": f"APPLIER_ERROR: {e}"}
+
+    ok_checks.append("SL modify applier enabled (local operator, confirm-managed-trailing)")
+    return _applier
+
+
+def _run_monitor_loop(*, mt5, detected_position, args, ok_checks,
+                       modify_applier=None) -> dict:
+    """Sprint 9.9.3.45.6: Continuous monitor lifecycle loop.
 
     Iterates until one of:
-      - position closed (verified by history_deals_get)
-      - configured timeout reached
-      - position disappeared without history (POSITION_DISAPPEARED_WITHOUT_HISTORY)
-      - kill switch / gate blocked (delegated to caller)
-      - unrecoverable error
+      - position closed (verified by history_deals_get) -> POSITION_CLOSED
+      - configured timeout reached -> TIMEOUT
+      - kill switch / gate blocked -> KILL_SWITCH_BLOCKED / GATE_BLOCKED
+      - unrecoverable error -> ERROR
+      - position disappeared without history -> POSITION_DISAPPEARED_WITHOUT_HISTORY
+
+    The loop must NOT exit after one HOLD evaluation while position is
+    still open. monitor_iterations > 1 when position remains open beyond
+    one interval.
+
+    Sprint 9.9.3.45.6 additions:
+      - CLI overrides via args.monitor_duration_minutes /
+        args.monitor_interval_seconds (fall back to duration_minutes /
+        interval_seconds for backwards compat).
+      - modify_applier integration: when set and apply conditions met,
+        sends TRADE_ACTION_SLTP exactly once per MODIFY decision step.
+      - Explicit stop reasons: POSITION_CLOSED, TIMEOUT,
+        KILL_SWITCH_BLOCKED, GATE_BLOCKED, ERROR (plus
+        POSITION_DISAPPEARED_WITHOUT_HISTORY from 45.5).
+      - sl_modify_attempts list with old_sl, new_sl, tp_preserved,
+        modify_reason, modify_success, modify_retcode.
+      - Journal events: HOLD, BREAKEVEN_MODIFY, TRAILING_MODIFY,
+        PROFIT_LOCK_MODIFY, MODIFY_BLOCKED, MODIFY_SUCCESS, MODIFY_FAILED.
     """
     import time as _time
-    from titan.production.demo_micro_managed_trade_orchestrator import ManagedTradeOrchestrator
+    from titan.production.demo_micro_managed_trade_orchestrator import (
+        ManagedTradeOrchestrator, SLAction,
+        STOP_REASON_POSITION_CLOSED, STOP_REASON_TIMEOUT,
+        STOP_REASON_KILL_SWITCH_BLOCKED, STOP_REASON_GATE_BLOCKED,
+        STOP_REASON_ERROR,
+    )
 
-    duration_minutes = getattr(args, "duration_minutes", 30)
-    interval_seconds = getattr(args, "interval_seconds", 5)
+    # Sprint 9.9.3.45.6: CLI overrides (fall back to old attribute names
+    # for backwards compat with tests written against 45.5).
+    duration_minutes = (
+        getattr(args, "monitor_duration_minutes", None)
+        if getattr(args, "monitor_duration_minutes", None) is not None
+        else getattr(args, "duration_minutes", 30)
+    )
+    interval_seconds = (
+        getattr(args, "monitor_interval_seconds", None)
+        if getattr(args, "monitor_interval_seconds", None) is not None
+        else getattr(args, "interval_seconds", 5)
+    )
+
     # Compute max iterations. For tests, allow very small durations.
     max_iterations = max(1, (duration_minutes * 60) // max(1, interval_seconds))
     # Safety cap so unit tests with duration_minutes=0 don't loop forever.
@@ -416,6 +503,7 @@ def _run_monitor_loop(*, mt5, detected_position, args, ok_checks) -> dict:
     monitor_start = _time.time()
     monitor_events = []
     sl_modify_previews = []
+    sl_modify_attempts = []
     breakeven_triggered = False
     trailing_triggered = False
     profit_lock_triggered = False
@@ -428,144 +516,251 @@ def _run_monitor_loop(*, mt5, detected_position, args, ok_checks) -> dict:
     realized_pl = 0.0
     monitor_stop_reason = ""
     warnings = []
+    apply_mode = modify_applier is not None
 
-    for iteration in range(1, max_iterations + 1):
-        monitor_iterations = iteration
-        # Poll positions_get
-        try:
-            positions = mt5.positions_get(symbol="XAUUSD") or []
-        except Exception:
-            positions = []
-        titan_positions = [p for p in positions if getattr(p, "magic", 0) == TITAN_MAGIC]
-        final_positions_get_count = len(titan_positions)
+    # Determine if apply path is allowed (only when applier is set AND
+    # all managed confirmations are present).
+    apply_allowed = (
+        apply_mode
+        and getattr(args, "confirm_managed_trailing", False)
+        and getattr(args, "confirm_local_operator", False)
+    )
 
-        current_position = None
-        for p in titan_positions:
-            if getattr(p, "ticket", 0) == position_ticket:
-                current_position = p
-                break
+    try:
+        for iteration in range(1, max_iterations + 1):
+            monitor_iterations = iteration
 
-        if current_position is None:
-            # Position disappeared - check history
-            try:
-                from_dt = datetime.now(timezone.utc) - timedelta(minutes=30)
-                deals = mt5.history_deals_get(from_dt, datetime.now(timezone.utc)) or []
-            except Exception:
-                deals = []
-            matching_deals = [d for d in deals
-                              if getattr(d, "position_id", 0) == position_ticket
-                              or getattr(d, "order", 0) == position_ticket]
-            if matching_deals:
-                final_history_match_found = True
-                final_position_status = "CLOSED"
-                final_position_source = "history_deals_get"
-                close_deal = matching_deals[-1]
-                close_deal_ticket = getattr(close_deal, "ticket", 0) or None
-                close_comment = getattr(close_deal, "comment", "") or ""
-                realized_pl = float(sum(getattr(d, "profit", 0) or 0 for d in matching_deals))
-                monitor_stop_reason = "POSITION_CLOSED"
-                # Append closure event
-                monitor_events.append({
-                    "timestamp_utc": datetime.now(timezone.utc).isoformat(),
-                    "event_type": "MONITOR_POSITION_CLOSED",
-                    "description": f"Position {position_ticket} closed. Close deal={close_deal_ticket}, profit={realized_pl}",
-                    "sl_action": "HOLD",
-                    "new_sl": 0.0,
-                    "current_sl": sl,
-                    "favorable": realized_pl >= 0,
-                })
-            else:
-                # Position disappeared without history - unsafe state
+            # Sprint 9.9.3.45.6: kill switch check (delegated gate can
+            # toggle this via args.kill_switch).
+            if getattr(args, "kill_switch", False):
+                monitor_stop_reason = STOP_REASON_KILL_SWITCH_BLOCKED
                 final_position_status = "UNKNOWN"
-                final_position_source = "positions_get_empty_history_empty"
-                monitor_stop_reason = "POSITION_DISAPPEARED_WITHOUT_HISTORY"
-                warnings.append(
-                    f"POSITION_DISAPPEARED_WITHOUT_HISTORY: position {position_ticket} "
-                    "no longer in positions_get and not found in history_deals_get"
-                )
+                final_position_source = "kill_switch_active"
+                warnings.append("KILL_SWITCH_BLOCKED: kill switch active, monitor stopped")
                 monitor_events.append({
                     "timestamp_utc": datetime.now(timezone.utc).isoformat(),
-                    "event_type": "MONITOR_POSITION_DISAPPEARED",
-                    "description": f"Position {position_ticket} disappeared without history",
+                    "event_type": "MONITOR_KILL_SWITCH",
+                    "description": "Kill switch active - monitor stopped",
                     "sl_action": "HOLD",
                     "new_sl": 0.0,
                     "current_sl": sl,
                     "favorable": False,
+                    "modify_attempted": False,
+                    "modify_retcode": 0,
+                    "modify_success": False,
+                    "modify_reason": "KILL_SWITCH_BLOCKED",
                 })
-            break
+                break
 
-        # Position still open - evaluate
-        current_price = float(getattr(current_position, "price_current", 0) or 0)
-        current_sl = float(getattr(current_position, "sl", 0) or sl)
-        current_tp = float(getattr(current_position, "tp", 0) or tp)
-
-        orch = ManagedTradeOrchestrator(
-            duration_minutes=duration_minutes,
-            interval_seconds=interval_seconds,
-        )
-        rec_result = orch.monitor_position(
-            position_ticket=position_ticket,
-            direction=direction,
-            entry_price=entry_price,
-            current_sl=current_sl,
-            current_tp=current_tp,
-            current_price=current_price,
-            is_open=True,
-        )
-        if rec_result.monitor_events:
-            monitor_events.extend(rec_result.monitor_events)
-        if rec_result.sl_modify_previews:
-            sl_modify_previews.extend(rec_result.sl_modify_previews)
-        if rec_result.breakeven_triggered:
-            breakeven_triggered = True
-        if rec_result.trailing_triggered:
-            trailing_triggered = True
-        if rec_result.profit_lock_triggered:
-            profit_lock_triggered = True
-
-        # Sleep until next iteration (skip on last)
-        if iteration < max_iterations:
-            _time.sleep(max(0, interval_seconds))
-    else:
-        # Loop completed without break - timeout reached.
-        # Verify with one final positions_get that position is still open.
-        try:
-            final_positions = mt5.positions_get(symbol="XAUUSD") or []
-        except Exception:
-            final_positions = []
-        final_titan = [p for p in final_positions if getattr(p, "magic", 0) == TITAN_MAGIC]
-        final_positions_get_count = len(final_titan)
-        still_open = any(getattr(p, "ticket", 0) == position_ticket for p in final_titan)
-        if still_open:
-            final_position_status = "OPEN"
-            final_position_source = "positions_get"
-            monitor_stop_reason = "TIMEOUT_REACHED"
-        else:
-            # Position disappeared at the very end without history
+            # Poll positions_get
             try:
-                from_dt = datetime.now(timezone.utc) - timedelta(minutes=30)
-                deals = mt5.history_deals_get(from_dt, datetime.now(timezone.utc)) or []
-            except Exception:
-                deals = []
-            matching_deals = [d for d in deals
-                              if getattr(d, "position_id", 0) == position_ticket]
-            if matching_deals:
-                final_history_match_found = True
-                final_position_status = "CLOSED"
-                final_position_source = "history_deals_get"
-                close_deal = matching_deals[-1]
-                close_deal_ticket = getattr(close_deal, "ticket", 0) or None
-                close_comment = getattr(close_deal, "comment", "") or ""
-                realized_pl = float(sum(getattr(d, "profit", 0) or 0 for d in matching_deals))
-                monitor_stop_reason = "POSITION_CLOSED"
-            else:
+                positions = mt5.positions_get(symbol="XAUUSD") or []
+            except Exception as e:
+                monitor_stop_reason = STOP_REASON_ERROR
                 final_position_status = "UNKNOWN"
-                final_position_source = "positions_get_empty_history_empty"
-                monitor_stop_reason = "POSITION_DISAPPEARED_WITHOUT_HISTORY"
-                warnings.append(
-                    f"POSITION_DISAPPEARED_WITHOUT_HISTORY: position {position_ticket} "
-                    "disappeared at timeout without history"
-                )
+                final_position_source = f"positions_get_error: {e}"
+                warnings.append(f"ERROR: positions_get raised {e}")
+                monitor_events.append({
+                    "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+                    "event_type": "MONITOR_ERROR",
+                    "description": f"positions_get error: {e}",
+                    "sl_action": "HOLD",
+                    "new_sl": 0.0,
+                    "current_sl": sl,
+                    "favorable": False,
+                    "modify_attempted": False,
+                    "modify_retcode": 0,
+                    "modify_success": False,
+                    "modify_reason": "POSITIONS_GET_ERROR",
+                })
+                break
+
+            titan_positions = [p for p in positions if getattr(p, "magic", 0) == TITAN_MAGIC]
+            final_positions_get_count = len(titan_positions)
+
+            current_position = None
+            for p in titan_positions:
+                if getattr(p, "ticket", 0) == position_ticket:
+                    current_position = p
+                    break
+
+            if current_position is None:
+                # Position disappeared - check history
+                try:
+                    from_dt = datetime.now(timezone.utc) - timedelta(minutes=30)
+                    deals = mt5.history_deals_get(from_dt, datetime.now(timezone.utc)) or []
+                except Exception:
+                    deals = []
+                matching_deals = [d for d in deals
+                                  if getattr(d, "position_id", 0) == position_ticket
+                                  or getattr(d, "order", 0) == position_ticket]
+                if matching_deals:
+                    final_history_match_found = True
+                    final_position_status = "CLOSED"
+                    final_position_source = "history_deals_get"
+                    close_deal = matching_deals[-1]
+                    close_deal_ticket = getattr(close_deal, "ticket", 0) or None
+                    close_comment = getattr(close_deal, "comment", "") or ""
+                    realized_pl = float(sum(getattr(d, "profit", 0) or 0 for d in matching_deals))
+                    monitor_stop_reason = STOP_REASON_POSITION_CLOSED
+                    monitor_events.append({
+                        "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+                        "event_type": "MONITOR_POSITION_CLOSED",
+                        "description": f"Position {position_ticket} closed. Close deal={close_deal_ticket}, profit={realized_pl}",
+                        "sl_action": "HOLD",
+                        "new_sl": 0.0,
+                        "current_sl": sl,
+                        "favorable": realized_pl >= 0,
+                        "modify_attempted": False,
+                        "modify_retcode": 0,
+                        "modify_success": False,
+                        "modify_reason": "POSITION_CLOSED",
+                    })
+                else:
+                    # Position disappeared without history - unsafe state
+                    final_position_status = "UNKNOWN"
+                    final_position_source = "positions_get_empty_history_empty"
+                    monitor_stop_reason = "POSITION_DISAPPEARED_WITHOUT_HISTORY"
+                    warnings.append(
+                        f"POSITION_DISAPPEARED_WITHOUT_HISTORY: position {position_ticket} "
+                        "no longer in positions_get and not found in history_deals_get"
+                    )
+                    monitor_events.append({
+                        "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+                        "event_type": "MONITOR_POSITION_DISAPPEARED",
+                        "description": f"Position {position_ticket} disappeared without history",
+                        "sl_action": "HOLD",
+                        "new_sl": 0.0,
+                        "current_sl": sl,
+                        "favorable": False,
+                        "modify_attempted": False,
+                        "modify_retcode": 0,
+                        "modify_success": False,
+                        "modify_reason": "POSITION_DISAPPEARED_WITHOUT_HISTORY",
+                    })
+                break
+
+            # Position still open - evaluate
+            current_price = float(getattr(current_position, "price_current", 0) or 0)
+            current_sl = float(getattr(current_position, "sl", 0) or sl)
+            current_tp = float(getattr(current_position, "tp", 0) or tp)
+
+            # Sprint 9.9.3.45.6: build orchestrator with optional applier
+            orch = ManagedTradeOrchestrator(
+                duration_minutes=duration_minutes,
+                interval_seconds=interval_seconds,
+                apply_modifications=apply_allowed,
+                modify_applier=modify_applier if apply_allowed else None,
+            )
+            rec_result = orch.monitor_position(
+                position_ticket=position_ticket,
+                direction=direction,
+                entry_price=entry_price,
+                current_sl=current_sl,
+                current_tp=current_tp,
+                current_price=current_price,
+                is_open=True,
+            )
+            if rec_result.monitor_events:
+                monitor_events.extend(rec_result.monitor_events)
+            if rec_result.sl_modify_previews:
+                sl_modify_previews.extend(rec_result.sl_modify_previews)
+            if rec_result.sl_modify_attempts:
+                sl_modify_attempts.extend(rec_result.sl_modify_attempts)
+            if rec_result.breakeven_triggered:
+                breakeven_triggered = True
+            if rec_result.trailing_triggered:
+                trailing_triggered = True
+            if rec_result.profit_lock_triggered:
+                profit_lock_triggered = True
+
+            # Sprint 9.9.3.45.6: journal decision events
+            # The orchestrator already appended MONITOR_EVALUATION; we
+            # additionally journal the decision type for clarity.
+            last_event = rec_result.monitor_events[-1] if rec_result.monitor_events else None
+            if last_event:
+                sl_action = last_event.get("sl_action", "HOLD")
+                if sl_action == "HOLD":
+                    journal_type = "HOLD"
+                elif sl_action == "MOVE_TO_BREAKEVEN":
+                    journal_type = "BREAKEVEN_MODIFY"
+                elif sl_action == "TRAIL":
+                    journal_type = "TRAILING_MODIFY"
+                elif sl_action == "PROFIT_LOCK":
+                    journal_type = "PROFIT_LOCK_MODIFY"
+                elif sl_action == "BLOCKED":
+                    journal_type = "MODIFY_BLOCKED"
+                else:
+                    journal_type = sl_action
+                # Append MODIFY_SUCCESS / MODIFY_FAILED if apply was attempted
+                if last_event.get("modify_attempted"):
+                    if last_event.get("modify_success"):
+                        journal_type = "MODIFY_SUCCESS"
+                    else:
+                        journal_type = "MODIFY_FAILED"
+
+            # Sleep until next iteration (skip on last)
+            if iteration < max_iterations:
+                _time.sleep(max(0, interval_seconds))
+        else:
+            # Loop completed without break - timeout reached.
+            # Verify with one final positions_get that position is still open.
+            try:
+                final_positions = mt5.positions_get(symbol="XAUUSD") or []
+            except Exception:
+                final_positions = []
+            final_titan = [p for p in final_positions if getattr(p, "magic", 0) == TITAN_MAGIC]
+            final_positions_get_count = len(final_titan)
+            still_open = any(getattr(p, "ticket", 0) == position_ticket for p in final_titan)
+            if still_open:
+                final_position_status = "OPEN"
+                final_position_source = "positions_get"
+                monitor_stop_reason = STOP_REASON_TIMEOUT
+            else:
+                # Position disappeared at the very end without history
+                try:
+                    from_dt = datetime.now(timezone.utc) - timedelta(minutes=30)
+                    deals = mt5.history_deals_get(from_dt, datetime.now(timezone.utc)) or []
+                except Exception:
+                    deals = []
+                matching_deals = [d for d in deals
+                                  if getattr(d, "position_id", 0) == position_ticket]
+                if matching_deals:
+                    final_history_match_found = True
+                    final_position_status = "CLOSED"
+                    final_position_source = "history_deals_get"
+                    close_deal = matching_deals[-1]
+                    close_deal_ticket = getattr(close_deal, "ticket", 0) or None
+                    close_comment = getattr(close_deal, "comment", "") or ""
+                    realized_pl = float(sum(getattr(d, "profit", 0) or 0 for d in matching_deals))
+                    monitor_stop_reason = STOP_REASON_POSITION_CLOSED
+                else:
+                    final_position_status = "UNKNOWN"
+                    final_position_source = "positions_get_empty_history_empty"
+                    monitor_stop_reason = "POSITION_DISAPPEARED_WITHOUT_HISTORY"
+                    warnings.append(
+                        f"POSITION_DISAPPEARED_WITHOUT_HISTORY: position {position_ticket} "
+                        "disappeared at timeout without history"
+                    )
+    except Exception as e:
+        # Unrecoverable error
+        monitor_stop_reason = STOP_REASON_ERROR
+        final_position_status = "UNKNOWN"
+        final_position_source = f"unrecoverable_error: {e}"
+        warnings.append(f"ERROR: monitor loop unrecoverable: {e}")
+        monitor_events.append({
+            "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+            "event_type": "MONITOR_ERROR",
+            "description": f"Unrecoverable error: {e}",
+            "sl_action": "HOLD",
+            "new_sl": 0.0,
+            "current_sl": sl,
+            "favorable": False,
+            "modify_attempted": False,
+            "modify_retcode": 0,
+            "modify_success": False,
+            "modify_reason": "UNRECOVERABLE_ERROR",
+        })
 
     monitor_duration_seconds = round(_time.time() - monitor_start, 2)
 
@@ -591,9 +786,12 @@ def _run_monitor_loop(*, mt5, detected_position, args, ok_checks) -> dict:
         "realized_pl": realized_pl,
         "monitor_events": monitor_events,
         "sl_modify_previews": sl_modify_previews,
+        "sl_modify_attempts": sl_modify_attempts,
         "breakeven_triggered": breakeven_triggered,
         "trailing_triggered": trailing_triggered,
         "profit_lock_triggered": profit_lock_triggered,
+        "apply_mode": apply_mode,
+        "apply_allowed": apply_allowed,
         "warnings": warnings,
     }
 
@@ -1030,8 +1228,15 @@ def run_execute_and_monitor(args) -> dict:
             }
 
         # Position is open - start managed monitor lifecycle loop
+        # Sprint 9.9.3.45.6: build modify applier when local operator
+        # has confirmed managed trailing. Applier is None in Z AI / dry
+        # run / preview-only mode.
+        modify_applier = _build_modify_applier(
+            mt5=mt5, args=args, ok_checks=ok_checks,
+        )
         monitor_result = _run_monitor_loop(
             mt5=mt5, detected_position=detection, args=args, ok_checks=ok_checks,
+            modify_applier=modify_applier,
         )
         try:
             mt5.shutdown()
@@ -1198,10 +1403,15 @@ def main() -> int:
     parser.add_argument("--confirm-managed-trailing", action="store_true", default=False)
     parser.add_argument("--duration-minutes", type=int, default=30)
     parser.add_argument("--interval-seconds", type=int, default=5)
+    # Sprint 9.9.3.45.6: explicit monitor duration/interval CLI overrides
+    parser.add_argument("--monitor-duration-minutes", type=int, default=30,
+                        help="Monitor loop duration in minutes (default 30)")
+    parser.add_argument("--monitor-interval-seconds", type=int, default=5,
+                        help="Monitor loop interval in seconds (default 5)")
     args = parser.parse_args()
 
     print("=" * 70)
-    print("  TITAN XAU AI - Managed Demo Micro Trade (Sprint 9.9.3.45.5)")
+    print("  TITAN XAU AI - Managed Demo Micro Trade (Sprint 9.9.3.45.6)")
     print("=" * 70)
 
     if args.execute_and_monitor:

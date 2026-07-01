@@ -27,6 +27,7 @@ POSITION_TYPE_SELL = 1
 TRADE_ACTION_DEAL = 1
 TRADE_ACTION_PENDING = 5
 TRADE_ACTION_REMOVE = 3
+TRADE_ACTION_SLTP = 6  # Sprint 9.9.3.45.6: SL/TP modify action
 
 # Filling modes
 ORDER_FILLING_IOC = 1
@@ -64,11 +65,20 @@ _ORDER_RESULT: dict = {
     "request_id": 0,
     "retcode_external": 0,
 }
+# Sprint 9.9.3.45.6: order_modify result and call tracking
+_ORDER_MODIFY_RESULT: dict = {
+    "retcode": TRADE_RETCODE_DONE,
+    "comment": "TRADE_RETCODE_DONE",
+}
+_ORDER_SEND_CALLS: list = []
+_ORDER_MODIFY_CALLS: list = []
 
 
 def _reset_state():
     """Reset all mutable state. Tests should call this in setup."""
-    global _POSITIONS, _HISTORY_DEALS, _HISTORY_ORDERS, _ORDER_RESULT, _initialized, _last_error
+    global _POSITIONS, _HISTORY_DEALS, _HISTORY_ORDERS, _ORDER_RESULT
+    global _ORDER_MODIFY_RESULT, _ORDER_SEND_CALLS, _ORDER_MODIFY_CALLS
+    global _initialized, _last_error
     _POSITIONS = []
     _HISTORY_DEALS = []
     _HISTORY_ORDERS = []
@@ -85,6 +95,12 @@ def _reset_state():
         "request_id": 0,
         "retcode_external": 0,
     }
+    _ORDER_MODIFY_RESULT = {
+        "retcode": TRADE_RETCODE_DONE,
+        "comment": "TRADE_RETCODE_DONE",
+    }
+    _ORDER_SEND_CALLS = []
+    _ORDER_MODIFY_CALLS = []
     _initialized = False
     _last_error = (1, "No error")
 
@@ -155,6 +171,23 @@ class _OrderResult:
         self.ask = cfg.get("ask", 2000.18)
         self.request_id = cfg.get("request_id", 0)
         self.retcode_external = cfg.get("retcode_external", 0)
+
+
+class _OrderModifyResult:
+    """Sprint 9.9.3.45.6: Mock of MqlTradeResult for order_modify.
+
+    Tests can override _ORDER_MODIFY_RESULT to simulate success or
+    failure of SL modification.
+    """
+    def __init__(self):
+        cfg = _ORDER_MODIFY_RESULT or {}
+        self.retcode = cfg.get("retcode", TRADE_RETCODE_DONE)
+        self.comment = cfg.get("comment", "TRADE_RETCODE_DONE")
+        self.order = cfg.get("order", 0)
+        self.volume = cfg.get("volume", 0.01)
+        self.price = cfg.get("price", 0.0)
+        self.bid = cfg.get("bid", 0.0)
+        self.ask = cfg.get("ask", 0.0)
 
 
 class _Position:
@@ -279,7 +312,20 @@ def symbols_get(pattern=""):
 def order_send(request):
     if not _initialized:
         return None
+    _ORDER_SEND_CALLS.append(request)
     return _OrderResult()
+
+
+def order_modify(request):
+    """Sprint 9.9.3.45.6: Mock of mt5.order_modify.
+
+    Tracks call so tests can assert it was/was not called. Returns
+    _OrderModifyResult populated from _ORDER_MODIFY_RESULT.
+    """
+    if not _initialized:
+        return None
+    _ORDER_MODIFY_CALLS.append(request)
+    return _OrderModifyResult()
 
 
 def positions_get(ticket=None, symbol=None):

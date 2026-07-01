@@ -63,20 +63,27 @@ class TestEnvironmentDetection:
         assert "frozen_python" in src
 
     def test_11_order_send_isolated_to_execute_path(self):
-        """order_send must only be inside run_execute_and_monitor, not in other functions."""
+        """order_send must only be inside run_execute_and_monitor or
+        _build_modify_applier (Sprint 9.9.3.45.6 apply path), not in
+        other functions."""
         src = (REPO_ROOT / "scripts" / "operator" / "run_managed_demo_micro_trade.py").read_text()
         code = re.sub(r'"""[\s\S]*?"""','""',src)
         code = re.sub(r'"(?:[^"\\]|\\.)*"','""',code)
         code = re.sub(r"'(?:[^'\\]|\\.)*'","''",code)
         lines = code.splitlines()
-        in_execute = False
+        # Sprint 9.9.3.45.6: order_send is now allowed in
+        # _build_modify_applier as well as run_execute_and_monitor
+        allowed_functions = {"run_execute_and_monitor", "_build_modify_applier"}
+        current_fn = None
         for line in lines:
-            if "def run_execute_and_monitor" in line:
-                in_execute = True
-            elif line and not line[0].isspace() and "def " in line:
-                in_execute = False
-            if "mt5.order_send" in line and not in_execute:
-                pytest.fail(f"order_send found outside run_execute_and_monitor: {line.strip()}")
+            m = re.match(r"^def (\w+)", line)
+            if m:
+                current_fn = m.group(1)
+            if "mt5.order_send" in line and current_fn not in allowed_functions:
+                pytest.fail(
+                    f"order_send found outside run_execute_and_monitor / "
+                    f"_build_modify_applier (in {current_fn}): {line.strip()}"
+                )
 
     def test_12_no_demo_micro_execute(self):
         src = (REPO_ROOT / "scripts" / "operator" / "run_managed_demo_micro_trade.py").read_text()
