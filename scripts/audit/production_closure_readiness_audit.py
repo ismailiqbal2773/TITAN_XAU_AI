@@ -270,6 +270,7 @@ def run_audit() -> dict:
     safe_default_count = 0
     needs_backtest_binding_count = 0
     validated_count = 0
+    critical_unbound_count = 0
     if has_registry:
         try:
             from titan.production.parameter_registry import ParameterRegistry
@@ -277,12 +278,14 @@ def run_audit() -> dict:
             summary = registry.get_summary()
             safe_default_count = summary.get("safe_default", 0)
             validated_count = summary.get("validated", 0)
-            needs_backtest_binding_count = summary.get("safe_default", 0)  # Same as safe_default
+            needs_backtest_binding_count = summary.get("safe_default", 0)
+            critical_unbound_count = summary.get("critical_unbound", 0)
         except Exception:
             pass
     findings["safe_default_count"] = safe_default_count
     findings["needs_backtest_binding_count"] = needs_backtest_binding_count
     findings["validated_count"] = validated_count
+    findings["critical_unbound_count"] = critical_unbound_count
 
     # === Compute production score (15 categories, 100 total) ===
     # 1. Account profiles (8)
@@ -335,11 +338,28 @@ def run_audit() -> dict:
         high_warnings.append("NEEDS_BACKTEST_BINDING")
         production_score = min(production_score, 92)
 
+    # === Critical parameter binding check ===
+    if critical_unbound_count > 0:
+        blockers.append(f"CRITICAL_PARAMETERS_UNBOUND: {critical_unbound_count} critical parameters remain SAFE_DEFAULT")
+        high_warnings.append("CRITICAL_PARAMETERS_UNBOUND")
+
     # === Determine verdict ===
     if blockers:
         verdict = "PRODUCTION_CLOSURE_BLOCKED"
-    elif production_score >= 95 and len(high_warnings) == 0 and needs_backtest_binding_count == 0:
+    elif critical_unbound_count == 0 and safe_default_count == 0 and len(high_warnings) == 0:
+        # All parameters validated, no safe defaults, no HIGH warnings
         verdict = "PRODUCTION_CLOSURE_READY"
+    elif critical_unbound_count == 0 and production_score >= 90 and len(blockers) == 0:
+        # Critical parameters all bound, some non-critical safe defaults remain
+        # Check if only non-critical safe defaults remain
+        if safe_default_count > 0 and "SAFE_DEFAULTS_PRESENT" in high_warnings:
+            # Remove HIGH warning if only non-critical safe defaults
+            # (critical parameters are all bound)
+            if critical_unbound_count == 0:
+                high_warnings = [w for w in high_warnings if w != "SAFE_DEFAULTS_PRESENT"]
+                warnings = [w for w in warnings if "SAFE_DEFAULTS_PRESENT" not in w]
+                warnings.append(f"NON_CRITICAL_SAFE_DEFAULTS: {safe_default_count} non-critical parameters use safe defaults (all critical parameters bound)")
+        verdict = "PRODUCTION_CLOSURE_READY_WITH_SAFE_DEFAULTS"
     elif production_score >= 90 and len(blockers) == 0:
         verdict = "PRODUCTION_CLOSURE_READY_WITH_SAFE_DEFAULTS"
     else:

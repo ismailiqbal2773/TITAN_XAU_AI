@@ -1,0 +1,37 @@
+{
+  "timestamp_utc": "2026-07-01T12:11:40.372115+00:00",
+  "total_parameters_checked": 32,
+  "parameters_bound": 15,
+  "parameters_safe_default": 17,
+  "parameters_needs_review": 0,
+  "critical_parameters_unbound": 0,
+  "artifact_paths_used": [
+    "/home/z/my-project/TITAN_XAU_AI/config/runtime.yaml",
+    "/home/z/my-project/TITAN_XAU_AI/data/audit/parameter_optimization/best_parameter_sets.csv",
+    "/home/z/my-project/TITAN_XAU_AI/titan/data/models/xgboost_v1.pkl",
+    "/home/z/my-project/TITAN_XAU_AI/data/audit/frozen_balanced_validation/broker_validation.csv",
+    "/home/z/my-project/TITAN_XAU_AI/data/audit/virtual_lifecycle/virtual_lifecycle_report.json",
+    "/home/z/my-project/TITAN_XAU_AI/titan/data/hpo/best_params_xgb.json",
+    "/home/z/my-project/TITAN_XAU_AI/data/validation/atr_execution_validation_report.json",
+    "/home/z/my-project/TITAN_XAU_AI/data/audit/demo_micro/pass_evidence/metaquotes-demo/20260629T232904Z/broker_execution_profile.json"
+  ],
+  "metric_summaries": {
+    "atr_sl_multiplier": "PF=1.63, Sharpe=3.33, Sortino=16.97, MaxDD=1.52%, Trades=183, FTMO pass=100.0%",
+    "tp_multiplier_initial_tp_R": "PF=1.63, Sharpe=3.33, Sortino=16.97, MaxDD=1.52%, Trades=183, FTMO pass=100.0%",
+    "minimum_RR": "PF=1.63, Sharpe=3.33, Sortino=16.97, MaxDD=1.52%, Trades=183, FTMO pass=100.0%",
+    "dynamic_tp_trigger_R": "avg_monthly=5.18%, PF=inf, WR=72.37%, MaxDD=4.51%, verdict=REALISTIC",
+    "risk_per_trade_pct": "avg_monthly=5.18%, PF=inf, WR=72.37%, MaxDD=4.51%, verdict=REALISTIC",
+    "max_daily_dd_pct": "avg_monthly=8.7%, PF=4.85, WR=65.45%, MaxDD=8.39%, verdict=PASS",
+    "max_total_dd_pct": "avg_monthly=8.7%, PF=4.85, WR=65.45%, MaxDD=8.39%, verdict=PASS",
+    "confidence_threshold": "max_depth=7, lr=0.01754437325582038, n_est=397",
+    "target_net_RR": "closed=17, net_pnl=44.1, WR=52.94%, PF=1.85",
+    "max_spread_threshold": "spread=0.35, slippage=0.02, verdict=SUCCESS",
+    "max_slippage_threshold": "spread=0.35, slippage=0.02, verdict=SUCCESS",
+    "spread_cost_assumption": "spread=0.35, slippage=0.02, verdict=SUCCESS",
+    "timeframe": "timeframe=H1",
+    "model_family": "size=1930KB",
+    "model_version": "size=1930KB"
+  },
+  "score_impact": "Score capped at 92 due to 17 safe defaults",
+  "final_verdict": "BACKTEST_BINDING_READY_WITH_GAPS"
+}
