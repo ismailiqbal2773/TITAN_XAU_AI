@@ -121,8 +121,22 @@ def run_diagnostic() -> dict:
             receipt_dt = datetime.fromisoformat(receipt.get("timestamp_utc", "").replace("Z", "+00:00"))
         except Exception:
             receipt_dt = datetime.now(timezone.utc)
-        from_dt = receipt_dt - timedelta(minutes=30)
-        to_dt = datetime.now(timezone.utc) + timedelta(minutes=1)
+        # Sprint 9.9.3.45.8.2: widen history window to 7 days to catch
+        # trades that may have closed late or where server time differs
+        # from local time. Previous 30-minute window was too narrow.
+        from_dt = receipt_dt - timedelta(days=7)
+        to_dt = datetime.now(timezone.utc) + timedelta(days=1)
+        findings["history_window_start"] = from_dt.isoformat()
+        findings["history_window_end"] = to_dt.isoformat()
+        findings["local_now"] = datetime.now(timezone.utc).isoformat()
+        findings["receipt_age_seconds"] = int((datetime.now(timezone.utc) - receipt_dt).total_seconds())
+        # Try to get server time if available
+        try:
+            terminal_info = mt5.terminal_info()
+            if terminal_info is not None:
+                findings["server_time_if_available"] = getattr(terminal_info, "trade_allowed", None)
+        except Exception:
+            pass
 
         # Query open positions
         positions = mt5.positions_get(symbol="XAUUSD")

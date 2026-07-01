@@ -307,3 +307,122 @@ class TestRunManagedDemoMicroTradeAdaptiveCLI:
             pass
         cfg = m._build_adaptive_config(EmptyArgs())
         assert cfg["adaptive_trailing_enabled"] is False
+
+    # === Sprint 9.9.3.45.8.2: dynamic TP extension CLI tests ===
+
+    def test_29_dynamic_tp_extension_flag_exists(self):
+        """--use-dynamic-tp-extension flag must exist."""
+        src = (REPO_ROOT / "scripts" / "operator" / "run_managed_demo_micro_trade.py").read_text()
+        assert "--use-dynamic-tp-extension" in src
+
+    def test_30_tp_extension_trigger_r_flag_exists(self):
+        """--tp-extension-trigger-r flag must exist."""
+        src = (REPO_ROOT / "scripts" / "operator" / "run_managed_demo_micro_trade.py").read_text()
+        assert "--tp-extension-trigger-r" in src
+
+    def test_31_tp_extension_r_flag_exists(self):
+        """--tp-extension-r flag must exist."""
+        src = (REPO_ROOT / "scripts" / "operator" / "run_managed_demo_micro_trade.py").read_text()
+        assert "--tp-extension-r" in src
+
+    def test_32_tp_extension_atr_mult_flag_exists(self):
+        """--tp-extension-atr-mult flag must exist."""
+        src = (REPO_ROOT / "scripts" / "operator" / "run_managed_demo_micro_trade.py").read_text()
+        assert "--tp-extension-atr-mult" in src
+
+    def test_33_tp_extension_cooldown_seconds_flag_exists(self):
+        """--tp-extension-cooldown-seconds flag must exist."""
+        src = (REPO_ROOT / "scripts" / "operator" / "run_managed_demo_micro_trade.py").read_text()
+        assert "--tp-extension-cooldown-seconds" in src
+
+    def test_34_min_profit_lock_after_tp_extension_r_flag_exists(self):
+        """--min-profit-lock-after-tp-extension-r flag must exist."""
+        src = (REPO_ROOT / "scripts" / "operator" / "run_managed_demo_micro_trade.py").read_text()
+        assert "--min-profit-lock-after-tp-extension-r" in src
+
+    def test_35_max_profit_giveback_r_trend_flag_exists(self):
+        """--max-profit-giveback-r-trend flag must exist."""
+        src = (REPO_ROOT / "scripts" / "operator" / "run_managed_demo_micro_trade.py").read_text()
+        assert "--max-profit-giveback-r-trend" in src
+
+    def test_36_max_profit_giveback_r_range_flag_exists(self):
+        """--max-profit-giveback-r-range flag must exist."""
+        src = (REPO_ROOT / "scripts" / "operator" / "run_managed_demo_micro_trade.py").read_text()
+        assert "--max-profit-giveback-r-range" in src
+
+    def test_37_dynamic_tp_defaults_to_false(self):
+        """--use-dynamic-tp-extension must default to False."""
+        src = (REPO_ROOT / "scripts" / "operator" / "run_managed_demo_micro_trade.py").read_text()
+        assert 'use-dynamic-tp-extension", action="store_true", default=False' in src
+
+    def test_38_build_adaptive_config_includes_dynamic_tp(self):
+        """_build_adaptive_config must include dynamic_tp_enabled field."""
+        import scripts.operator.run_managed_demo_micro_trade as m
+        args = FakeArgs(use_adaptive_trailing=True)
+        # Add dynamic TP attrs
+        args.use_dynamic_tp_extension = True
+        args.tp_extension_trigger_r = 2.0
+        args.tp_extension_r = 1.0
+        args.tp_extension_atr_mult = 2.0
+        args.tp_extension_cooldown_seconds = 120
+        args.min_profit_lock_after_tp_extension_r = 1.0
+        args.max_profit_giveback_r_trend = 1.0
+        args.max_profit_giveback_r_range = 0.5
+        cfg = m._build_adaptive_config(args)
+        assert cfg["dynamic_tp_enabled"] is True
+        assert cfg["profit_corridor_enabled"] is True  # adaptive + dynamic_tp
+        assert cfg["tp_extension_trigger_R"] == 2.0
+        assert cfg["tp_extension_R"] == 1.0
+        assert cfg["tp_extension_atr_mult"] == 2.0
+        assert cfg["tp_extension_cooldown_seconds"] == 120
+        assert cfg["min_profit_lock_after_tp_extension_R"] == 1.0
+        assert cfg["max_profit_giveback_r_trend"] == 1.0
+        assert cfg["max_profit_giveback_r_range"] == 0.5
+
+    def test_39_build_adaptive_config_dynamic_tp_disabled_by_default(self):
+        """_build_adaptive_config must default dynamic_tp_enabled=False."""
+        import scripts.operator.run_managed_demo_micro_trade as m
+        args = FakeArgs(use_adaptive_trailing=True)
+        # use_dynamic_tp_extension not set -> should default to False
+        cfg = m._build_adaptive_config(args)
+        assert cfg["dynamic_tp_enabled"] is False
+        assert cfg["profit_corridor_enabled"] is False  # adaptive only, no dynamic_tp
+
+    def test_40_profit_corridor_requires_both_flags(self):
+        """profit_corridor_enabled must be True only if both
+        adaptive_trailing AND dynamic_tp are enabled."""
+        import scripts.operator.run_managed_demo_micro_trade as m
+        # Both off
+        args1 = FakeArgs(use_adaptive_trailing=False)
+        args1.use_dynamic_tp_extension = False
+        cfg1 = m._build_adaptive_config(args1)
+        assert cfg1["profit_corridor_enabled"] is False
+
+        # Adaptive only
+        args2 = FakeArgs(use_adaptive_trailing=True)
+        args2.use_dynamic_tp_extension = False
+        cfg2 = m._build_adaptive_config(args2)
+        assert cfg2["profit_corridor_enabled"] is False
+
+        # Dynamic TP only (without adaptive)
+        args3 = FakeArgs(use_adaptive_trailing=False)
+        args3.use_dynamic_tp_extension = True
+        cfg3 = m._build_adaptive_config(args3)
+        assert cfg3["profit_corridor_enabled"] is False  # Both required
+
+        # Both on
+        args4 = FakeArgs(use_adaptive_trailing=True)
+        args4.use_dynamic_tp_extension = True
+        cfg4 = m._build_adaptive_config(args4)
+        assert cfg4["profit_corridor_enabled"] is True
+
+    def test_41_run_check_only_includes_dynamic_tp_config(self):
+        """run_check_only(args) must include dynamic_tp_enabled in config."""
+        import scripts.operator.run_managed_demo_micro_trade as m
+        args = FakeArgs(use_adaptive_trailing=True)
+        args.use_dynamic_tp_extension = True
+        args.tp_extension_trigger_r = 2.5  # Custom
+        result = m.run_check_only(args)
+        cfg = result["adaptive_trailing_config"]
+        assert cfg["dynamic_tp_enabled"] is True
+        assert cfg["tp_extension_trigger_R"] == 2.5

@@ -50,9 +50,12 @@ TITAN_COMMENT = "TITAN_DEMO_MICRO"
 
 def _build_adaptive_config(args) -> dict:
     """Sprint 9.9.3.45.8.1: Build adaptive trailing config dict from CLI args.
+    Sprint 9.9.3.45.8.2: Added dynamic TP extension config fields.
 
     Returns dict with:
       - adaptive_trailing_enabled (bool)
+      - dynamic_tp_enabled (bool)
+      - profit_corridor_enabled (bool) [True only if adaptive AND dynamic_tp both enabled]
       - adaptive_policy_mode (str)
       - breakeven_trigger_R (float)
       - trailing_trigger_R (float)
@@ -60,9 +63,20 @@ def _build_adaptive_config(args) -> dict:
       - min_hold_seconds (int)
       - min_monitor_iterations (int)
       - cooldown_seconds (int)
+      - tp_extension_trigger_R (float)
+      - tp_extension_R (float)
+      - tp_extension_atr_mult (float)
+      - tp_extension_cooldown_seconds (int)
+      - min_profit_lock_after_tp_extension_R (float)
+      - max_profit_giveback_r_trend (float)
+      - max_profit_giveback_r_range (float)
     """
+    adaptive_enabled = bool(getattr(args, "use_adaptive_trailing", False))
+    dynamic_tp_enabled = bool(getattr(args, "use_dynamic_tp_extension", False))
     return {
-        "adaptive_trailing_enabled": bool(getattr(args, "use_adaptive_trailing", False)),
+        "adaptive_trailing_enabled": adaptive_enabled,
+        "dynamic_tp_enabled": dynamic_tp_enabled,
+        "profit_corridor_enabled": adaptive_enabled and dynamic_tp_enabled,
         "adaptive_policy_mode": getattr(args, "adaptive_policy_mode", "balanced_conservative"),
         "breakeven_trigger_R": float(getattr(args, "breakeven_trigger_r", 1.0)),
         "trailing_trigger_R": float(getattr(args, "trailing_trigger_r", 1.75)),
@@ -70,6 +84,14 @@ def _build_adaptive_config(args) -> dict:
         "min_hold_seconds": int(getattr(args, "min_hold_seconds", 60)),
         "min_monitor_iterations": int(getattr(args, "min_monitor_iterations", 3)),
         "cooldown_seconds": int(getattr(args, "sl_update_cooldown_seconds", 60)),
+        # Sprint 9.9.3.45.8.2: dynamic TP extension config
+        "tp_extension_trigger_R": float(getattr(args, "tp_extension_trigger_r", 2.0)),
+        "tp_extension_R": float(getattr(args, "tp_extension_r", 1.0)),
+        "tp_extension_atr_mult": float(getattr(args, "tp_extension_atr_mult", 2.0)),
+        "tp_extension_cooldown_seconds": int(getattr(args, "tp_extension_cooldown_seconds", 120)),
+        "min_profit_lock_after_tp_extension_R": float(getattr(args, "min_profit_lock_after_tp_extension_r", 1.0)),
+        "max_profit_giveback_r_trend": float(getattr(args, "max_profit_giveback_r_trend", 1.0)),
+        "max_profit_giveback_r_range": float(getattr(args, "max_profit_giveback_r_range", 0.5)),
     }
 
 
@@ -698,6 +720,10 @@ def _run_monitor_loop(*, mt5, detected_position, args, ok_checks,
             # Sprint 9.9.3.45.8.1: wire adaptive trailing policy when
             # --use-adaptive-trailing flag is set. Legacy default
             # preserved when flag absent.
+            # Sprint 9.9.3.45.8.2: pass actual monitor_iterations and
+            # hold_seconds to orchestrator.monitor_position() so the
+            # adaptive policy receives the correct iteration count
+            # (fixes stale monitor_iterations=1 bug).
             use_adaptive = bool(getattr(args, "use_adaptive_trailing", False))
             orch_kwargs = dict(
                 duration_minutes=duration_minutes,
@@ -709,10 +735,10 @@ def _run_monitor_loop(*, mt5, detected_position, args, ok_checks,
                 orch_kwargs["use_adaptive_policy"] = True
                 orch_kwargs["adaptive_policy_kwargs"] = _build_adaptive_policy_kwargs(args)
             orch = ManagedTradeOrchestrator(**orch_kwargs)
-            # Sprint 9.9.3.45.8.1: increment orchestrator hold_seconds
-            # tracker based on iteration count for adaptive policy
-            if use_adaptive:
-                orch._hold_seconds = monitor_iterations * interval_seconds
+            # Sprint 9.9.3.45.8.2: compute actual hold_seconds for this
+            # iteration = monitor_iterations * interval_seconds
+            actual_hold_seconds = monitor_iterations * interval_seconds
+            actual_seconds_since_last_modify = 999  # TODO: track last modify time
             rec_result = orch.monitor_position(
                 position_ticket=position_ticket,
                 direction=direction,
@@ -721,6 +747,9 @@ def _run_monitor_loop(*, mt5, detected_position, args, ok_checks,
                 current_tp=current_tp,
                 current_price=current_price,
                 is_open=True,
+                monitor_iterations=monitor_iterations,
+                hold_seconds=actual_hold_seconds,
+                seconds_since_last_modify=actual_seconds_since_last_modify,
             )
             if rec_result.monitor_events:
                 monitor_events.extend(rec_result.monitor_events)
@@ -1401,6 +1430,8 @@ def write_report(result: dict) -> dict:
             f.write("\n## Adaptive Trailing Config\n\n")
             f.write("| Field | Value |\n|---|---|\n")
             f.write(f"| adaptive_trailing_enabled | {adaptive_cfg.get('adaptive_trailing_enabled', False)} |\n")
+            f.write(f"| dynamic_tp_enabled | {adaptive_cfg.get('dynamic_tp_enabled', False)} |\n")
+            f.write(f"| profit_corridor_enabled | {adaptive_cfg.get('profit_corridor_enabled', False)} |\n")
             f.write(f"| adaptive_policy_mode | {adaptive_cfg.get('adaptive_policy_mode', 'N/A')} |\n")
             f.write(f"| breakeven_trigger_R | {adaptive_cfg.get('breakeven_trigger_R', 'N/A')} |\n")
             f.write(f"| trailing_trigger_R | {adaptive_cfg.get('trailing_trigger_R', 'N/A')} |\n")
@@ -1408,6 +1439,14 @@ def write_report(result: dict) -> dict:
             f.write(f"| min_hold_seconds | {adaptive_cfg.get('min_hold_seconds', 'N/A')} |\n")
             f.write(f"| min_monitor_iterations | {adaptive_cfg.get('min_monitor_iterations', 'N/A')} |\n")
             f.write(f"| cooldown_seconds | {adaptive_cfg.get('cooldown_seconds', 'N/A')} |\n")
+            # Sprint 9.9.3.45.8.2: dynamic TP extension config
+            f.write(f"| tp_extension_trigger_R | {adaptive_cfg.get('tp_extension_trigger_R', 'N/A')} |\n")
+            f.write(f"| tp_extension_R | {adaptive_cfg.get('tp_extension_R', 'N/A')} |\n")
+            f.write(f"| tp_extension_atr_mult | {adaptive_cfg.get('tp_extension_atr_mult', 'N/A')} |\n")
+            f.write(f"| tp_extension_cooldown_seconds | {adaptive_cfg.get('tp_extension_cooldown_seconds', 'N/A')} |\n")
+            f.write(f"| min_profit_lock_after_tp_extension_R | {adaptive_cfg.get('min_profit_lock_after_tp_extension_R', 'N/A')} |\n")
+            f.write(f"| max_profit_giveback_r_trend | {adaptive_cfg.get('max_profit_giveback_r_trend', 'N/A')} |\n")
+            f.write(f"| max_profit_giveback_r_range | {adaptive_cfg.get('max_profit_giveback_r_range', 'N/A')} |\n")
         # Execution truthfulness fields (Sprint 9.9.3.45.5)
         truth_fields = [
             ("order_send_called", "Order send called"),
@@ -1502,15 +1541,39 @@ def main() -> int:
                         help="Minimum monitor iterations before any SL move (default: 3)")
     parser.add_argument("--sl-update-cooldown-seconds", type=int, default=60,
                         help="SL update cooldown in seconds (default: 60)")
+    # Sprint 9.9.3.45.8.2: dynamic TP extension opt-in CLI flags
+    parser.add_argument("--use-dynamic-tp-extension", action="store_true", default=False,
+                        help="Enable dynamic TP extension (profit corridor). Default: OFF. Requires --use-adaptive-trailing.")
+    parser.add_argument("--tp-extension-trigger-r", type=float, default=2.0,
+                        help="TP extension trigger in R-multiple (default: 2.0)")
+    parser.add_argument("--tp-extension-r", type=float, default=1.0,
+                        help="TP extension distance in R-multiple (default: 1.0)")
+    parser.add_argument("--tp-extension-atr-mult", type=float, default=2.0,
+                        help="TP extension ATR multiplier (default: 2.0)")
+    parser.add_argument("--tp-extension-cooldown-seconds", type=int, default=120,
+                        help="TP extension cooldown in seconds (default: 120)")
+    parser.add_argument("--min-profit-lock-after-tp-extension-r", type=float, default=1.0,
+                        help="Minimum profit lock R after TP extension (default: 1.0)")
+    parser.add_argument("--max-profit-giveback-r-trend", type=float, default=1.0,
+                        help="Max profit giveback R in trend regime (default: 1.0)")
+    parser.add_argument("--max-profit-giveback-r-range", type=float, default=0.5,
+                        help="Max profit giveback R in range regime (default: 0.5)")
     args = parser.parse_args()
 
     print("=" * 70)
-    print("  TITAN XAU AI - Managed Demo Micro Trade (Sprint 9.9.3.45.8.1)")
+    print("  TITAN XAU AI - Managed Demo Micro Trade (Sprint 9.9.3.45.8.2)")
     print("=" * 70)
     if getattr(args, "use_adaptive_trailing", False):
         print(f"  Adaptive trailing: ENABLED (mode={args.adaptive_policy_mode})")
     else:
         print("  Adaptive trailing: disabled (legacy mode)")
+    if getattr(args, "use_dynamic_tp_extension", False):
+        if getattr(args, "use_adaptive_trailing", False):
+            print(f"  Dynamic TP extension: ENABLED (profit corridor active, trigger_R={args.tp_extension_trigger_r})")
+        else:
+            print("  Dynamic TP extension: ENABLED but BLOCKED (requires --use-adaptive-trailing)")
+    else:
+        print("  Dynamic TP extension: disabled (TP preserved at original value)")
 
     if args.execute_and_monitor:
         result = run_execute_and_monitor(args)
@@ -1531,6 +1594,10 @@ def main() -> int:
         print(f"  Adaptive trailing enabled: {adaptive_cfg.get('adaptive_trailing_enabled', False)}")
         if adaptive_cfg.get("adaptive_trailing_enabled"):
             print(f"  Adaptive policy mode: {adaptive_cfg.get('adaptive_policy_mode')}")
+        # Sprint 9.9.3.45.8.2: print dynamic TP extension status
+        print(f"  Dynamic TP extension enabled: {adaptive_cfg.get('dynamic_tp_enabled', False)}")
+        if adaptive_cfg.get('profit_corridor_enabled'):
+            print(f"  Profit corridor active: True (adaptive + dynamic_tp)")
     print(f"\n  JSON: {report['json_path']}")
     print(f"  MD:   {report['md_path']}")
     print("\n" + "=" * 70)

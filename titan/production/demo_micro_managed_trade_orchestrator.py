@@ -64,6 +64,12 @@ class MonitorEvent:
     modify_retcode: int = 0
     modify_success: bool = False
     modify_reason: str = ""
+    # Sprint 9.9.3.45.8.2: adaptive state propagation fields
+    actual_monitor_iteration: int = 0
+    policy_monitor_iteration: int = 0
+    hold_seconds: int = 0
+    phase: str = ""
+    profit_R: float = 0.0
 
 
 @dataclass
@@ -167,7 +173,11 @@ class ManagedTradeOrchestrator:
                               news_flag: bool = False,
                               structure_buffer: float = 0.0,
                               stops_level_points: int = 0,
-                              point: float = 0.01) -> tuple[SLModifyRecommendation, MonitorEvent]:
+                              point: float = 0.01,
+                              monitor_iterations: Optional[int] = None,
+                              hold_seconds: Optional[int] = None,
+                              seconds_since_last_modify: Optional[int] = None,
+                              ) -> tuple[SLModifyRecommendation, MonitorEvent]:
         """Evaluate one position once and return (recommendation, event).
 
         Does NOT send any order. Used by the monitor loop and by tests.
@@ -176,14 +186,43 @@ class ManagedTradeOrchestrator:
         kwargs (atr, spread, regime, hold_seconds, monitor_iterations,
         seconds_since_last_modify, spread_spike_flag, news_flag,
         structure_buffer, initial_sl) to the AdaptiveTrailingPolicy.
+
+        Sprint 9.9.3.45.8.2: Accept explicit monitor_iterations,
+        hold_seconds, seconds_since_last_modify parameters. When
+        provided, these OVERRIDE the internal tracker state. This
+        fixes the stale monitor_iterations=1 bug where the orchestrator
+        was constructed fresh per iteration in _run_monitor_loop,
+        causing _monitor_iterations to reset to 0 each time.
         """
-        # Track monitor state for adaptive policy
-        self._monitor_iterations += 1
-        if self._last_modify_time is not None:
+        # Sprint 9.9.3.45.8.2: Use explicit params if provided,
+        # otherwise fall back to internal tracker (for backwards
+        # compat with single-evaluation tests).
+        if monitor_iterations is not None:
+            actual_monitor_iterations = int(monitor_iterations)
+            # Also update internal tracker so subsequent calls without
+            # explicit param remain consistent.
+            self._monitor_iterations = actual_monitor_iterations
+        else:
+            # Internal tracker increments per call (legacy behavior)
+            self._monitor_iterations += 1
+            actual_monitor_iterations = self._monitor_iterations
+
+        if hold_seconds is not None:
+            actual_hold_seconds = int(hold_seconds)
+            self._hold_seconds = actual_hold_seconds
+        else:
+            actual_hold_seconds = self._hold_seconds
+
+        if seconds_since_last_modify is not None:
+            actual_seconds_since_last_modify = int(seconds_since_last_modify)
+            self._seconds_since_last_modify = actual_seconds_since_last_modify
+        elif self._last_modify_time is not None:
             import time as _t
             self._seconds_since_last_modify = int(_t.time() - self._last_modify_time)
+            actual_seconds_since_last_modify = self._seconds_since_last_modify
         else:
             self._seconds_since_last_modify = 999
+            actual_seconds_since_last_modify = 999
 
         # Build kwargs for adaptive mode
         eval_kwargs = {}
@@ -200,9 +239,9 @@ class ManagedTradeOrchestrator:
                 "initial_sl": current_sl,  # First iteration uses current_sl as initial_sl
                 "atr": atr, "spread": spread,
                 "regime": regime, "structure_buffer": structure_buffer,
-                "hold_seconds": self._hold_seconds,
-                "monitor_iterations": self._monitor_iterations,
-                "seconds_since_last_modify": self._seconds_since_last_modify,
+                "hold_seconds": actual_hold_seconds,
+                "monitor_iterations": actual_monitor_iterations,
+                "seconds_since_last_modify": actual_seconds_since_last_modify,
                 "spread_spike_flag": spread_spike_flag,
                 "news_flag": news_flag,
             }
@@ -227,6 +266,13 @@ class ManagedTradeOrchestrator:
             current_sl=rec.current_sl,
             favorable=rec.favorable,
         )
+        # Sprint 9.9.3.45.8.2: include actual/policy iteration and
+        # hold_seconds in event for auditability
+        event.actual_monitor_iteration = actual_monitor_iterations
+        event.policy_monitor_iteration = actual_monitor_iterations
+        event.hold_seconds = actual_hold_seconds
+        event.phase = rec.phase
+        event.profit_R = rec.profit_R
         self.events.append(event)
         return rec, event
 
@@ -245,6 +291,9 @@ class ManagedTradeOrchestrator:
                           structure_buffer: float = 0.0,
                           stops_level_points: int = 0,
                           point: float = 0.01,
+                          monitor_iterations: Optional[int] = None,
+                          hold_seconds: Optional[int] = None,
+                          seconds_since_last_modify: Optional[int] = None,
                           ) -> ManagedTradeResult:
         """Monitor a single position for breakeven/trailing/profit-lock.
 
@@ -256,6 +305,11 @@ class ManagedTradeOrchestrator:
         Sprint 9.9.3.45.8: When use_adaptive_policy=True, passes
         adaptive kwargs (atr, spread, regime, spread_spike_flag,
         news_flag, structure_buffer) to the AdaptiveTrailingPolicy.
+
+        Sprint 9.9.3.45.8.2: Accept explicit monitor_iterations,
+        hold_seconds, seconds_since_last_modify parameters. These
+        override internal tracker state. Required for _run_monitor_loop
+        which constructs a fresh orchestrator per iteration.
 
         Z AI must NOT use apply mode.
         """
@@ -290,6 +344,9 @@ class ManagedTradeOrchestrator:
             spread_spike_flag=spread_spike_flag, news_flag=news_flag,
             structure_buffer=structure_buffer,
             stops_level_points=stops_level_points, point=point,
+            monitor_iterations=monitor_iterations,
+            hold_seconds=hold_seconds,
+            seconds_since_last_modify=seconds_since_last_modify,
         )
 
         if rec.action == SLAction.MOVE_TO_BREAKEVEN:

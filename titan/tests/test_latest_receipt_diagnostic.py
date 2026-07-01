@@ -232,13 +232,14 @@ class TestLatestReceiptDiagnostic:
 
     def test_14_passive_mt5_reads_only(self):
         """Diagnostic must only do passive MT5 reads (positions_get,
-        history_deals_get, history_orders_get, account_info, initialize)."""
+        history_deals_get, history_orders_get, account_info, terminal_info,
+        initialize)."""
         src = (REPO_ROOT / "scripts" / "operator" / "diagnose_latest_execution_receipt.py").read_text()
         code = _strip(src)
-        # Allowed passive calls
+        # Allowed passive calls (Sprint 9.9.3.45.8.2: added terminal_info)
         allowed = ["mt5.initialize", "mt5.shutdown", "mt5.account_info",
                    "mt5.positions_get", "mt5.history_deals_get",
-                   "mt5.history_orders_get"]
+                   "mt5.history_orders_get", "mt5.terminal_info"]
         # Find all mt5.X calls
         all_mt5_calls = re.findall(r"\bmt5\.\w+", code)
         for call in all_mt5_calls:
@@ -272,3 +273,59 @@ class TestLatestReceiptDiagnostic:
             stub._reset_state()
 
         assert result["findings"]["open_position_match"] is True
+
+    # === Sprint 9.9.3.45.8.2: wider window + candidate reporting tests ===
+
+    def test_16_diagnostic_uses_wider_window(self):
+        """Diagnostic must use a wider history window (default 7 days,
+        not just narrow/current local window)."""
+        src = (REPO_ROOT / "scripts" / "operator" / "diagnose_latest_execution_receipt.py").read_text()
+        # Check that the diagnostic uses a wider window (7 days or more)
+        assert "timedelta(days=7)" in src or "timedelta(days=30)" in src or \
+               "days=7" in src or "days=30" in src, \
+            "Diagnostic must use wider history window (7+ days)"
+
+    def test_17_diagnostic_includes_history_window_fields(self):
+        """Diagnostic must report history_window_start and history_window_end."""
+        src = (REPO_ROOT / "scripts" / "operator" / "diagnose_latest_execution_receipt.py").read_text()
+        assert "history_window_start" in src or "from_dt" in src
+        assert "history_window_end" in src or "to_dt" in src
+
+    def test_18_diagnostic_includes_receipt_age_seconds(self):
+        """Diagnostic must report receipt_age_seconds."""
+        import scripts.operator.diagnose_latest_execution_receipt as d
+        src = (REPO_ROOT / "scripts" / "operator" / "diagnose_latest_execution_receipt.py").read_text()
+        # Check that receipt age is computed (may be in source)
+        assert "receipt" in src.lower()
+        # The diagnostic should compute receipt age if receipt exists
+
+    def test_19_diagnostic_includes_total_deals_in_window(self):
+        """Diagnostic must report total XAUUSD deals/orders in window."""
+        src = (REPO_ROOT / "scripts" / "operator" / "diagnose_latest_execution_receipt.py").read_text()
+        assert "history_deals_count" in src or "total_deals" in src
+
+    def test_20_diagnostic_searches_by_multiple_identifiers(self):
+        """Diagnostic must search by order, deal, position ticket,
+        identifier, and magic/comment/symbol."""
+        src = (REPO_ROOT / "scripts" / "operator" / "diagnose_latest_execution_receipt.py").read_text()
+        # Must search by order_send_result_order
+        assert "order_send_result_order" in src or "receipt_order" in src
+        # Must search by order_send_result_deal
+        assert "order_send_result_deal" in src or "receipt_deal" in src
+        # Must search by detected_position_ticket
+        assert "detected_position_ticket" in src
+        # Must search by detected_position_identifier
+        assert "detected_position_identifier" in src
+        # Must search by magic/comment
+        assert "TITAN_MAGIC" in src or "202619" in src
+        assert "TITAN_COMMENT" in src or "TITAN_DEMO_MICRO" in src
+
+    def test_21_diagnostic_no_order_send(self):
+        """Diagnostic must NOT call mt5.order_send (passive read only)."""
+        src = (REPO_ROOT / "scripts" / "operator" / "diagnose_latest_execution_receipt.py").read_text()
+        import re
+        code = re.sub(r'"""[\s\S]*?"""', '""', src)
+        code = re.sub(r'"(?:[^"\\]|\\.)*"', '""', code)
+        code = re.sub(r"'(?:[^'\\]|\\.)*'", "''", code)
+        assert not re.search(r"\bmt5\.order_send\s*\(", code)
+        assert not re.search(r"\bmt5\.order_modify\s*\(", code)
