@@ -2722,6 +2722,63 @@ def main() -> int:
             for b in result["autonomous_demo_blockers"][:3]:
                 print(f"    - {b}")
 
+        # === Sprint v2.8.3.1: Normalize build-request verdict ===
+        from titan.production.verdict_normalizer import (
+            is_alpha_entry_pass, is_entry_gate_pass, is_autonomous_readiness_pass,
+        )
+        _ae_verdict = result.get('end_to_end_entry_gate_status', '') or ''
+        # Also check cached autonomous entry decision
+        _ae_cached = ''
+        _ae_path = REPO_ROOT / "data" / "audit" / "demo_micro_execution" / "autonomous_entry_decision.json"
+        if _ae_path.exists():
+            try:
+                import json as _ae_j
+                with open(_ae_path, "r") as _f:
+                    _ae_data = _ae_j.load(_f)
+                _ae_cached = _ae_data.get("final_decision", "") or ""
+            except Exception:
+                pass
+
+        _all_gates_pass = (
+            is_entry_gate_pass(result.get('end_to_end_entry_gate_status', '')) and
+            is_autonomous_readiness_pass(result.get('autonomous_demo_readiness_status', '')) and
+            is_alpha_entry_pass(_ae_cached) and
+            not result.get("end_to_end_entry_gate_blockers") and
+            not result.get("autonomous_demo_blockers")
+        )
+        if _all_gates_pass:
+            # Override the top-level verdict and blockers for display
+            print()
+            print("  " + "-" * 66)
+            print("  v2.8.3.1 Build-Request Verdict Normalization")
+            print("  " + "-" * 66)
+            print(f"  Normalized verdict: PASS")
+            print(f"  Normalized blockers: 0")
+            print(f"  Request status: READY_FOR_SUPERVISED_OPERATOR_ARM")
+            print(f"  autonomous_entry_decision_pass: {is_alpha_entry_pass(_ae_cached)}")
+            print(f"  entry_gate_pass: {is_entry_gate_pass(result.get('end_to_end_entry_gate_status', ''))}")
+            print(f"  autonomous_readiness_pass: {is_autonomous_readiness_pass(result.get('autonomous_demo_readiness_status', ''))}")
+            print(f"  supervised_only: True")
+            print(f"  execution_now_allowed: False")
+            print(f"  execution_blocker: OPERATOR_ARM_TOKEN_REQUIRED")
+        else:
+            _reasons = []
+            if not is_entry_gate_pass(result.get('end_to_end_entry_gate_status', '')):
+                _reasons.append(f"entry_gate_not_pass={result.get('end_to_end_entry_gate_status', '')}")
+            if not is_autonomous_readiness_pass(result.get('autonomous_demo_readiness_status', '')):
+                _reasons.append(f"autonomous_readiness_not_pass={result.get('autonomous_demo_readiness_status', '')}")
+            if not is_alpha_entry_pass(_ae_cached):
+                _reasons.append(f"alpha_entry_not_pass={_ae_cached or 'missing'}")
+            print()
+            print("  " + "-" * 66)
+            print("  v2.8.3.1 Build-Request Verdict Normalization")
+            print("  " + "-" * 66)
+            print(f"  Normalized verdict: BLOCKED")
+            print(f"  Normalized blockers: {len(_reasons)}")
+            for r in _reasons:
+                print(f"    - {r}")
+            print(f"  execution_now_allowed: False")
+
     # === Sprint v2.8: autonomous-entry-check console output ===
     if getattr(args, "autonomous_entry_check", False):
         print()
@@ -2765,7 +2822,16 @@ def main() -> int:
             print(f"  Warnings: {len(result.get('warnings', []))}")
             for w in result["warnings"][:3]:
                 print(f"    - {w}")
-        print(f"  Autonomous allowed: False (verdict is not PASS)")
+        # v2.8.3.1: Use verdict_normalizer to check pass correctly
+        from titan.production.verdict_normalizer import is_alpha_entry_pass
+        _ae_verdict = result.get('verdict', '')
+        _ae_pass = is_alpha_entry_pass(_ae_verdict)
+        if _ae_pass:
+            print(f"  Autonomous allowed: True (supervised demo only)")
+            print(f"  Supervised only: True")
+            print(f"  Execution now: False (OPERATOR_ARM_TOKEN_REQUIRED)")
+        else:
+            print(f"  Autonomous allowed: False (verdict is {_ae_verdict})")
         print()
         print("  Dry-run mode: no order_send, no position modification, no token.")
         rp = result.get("report_paths", {})
