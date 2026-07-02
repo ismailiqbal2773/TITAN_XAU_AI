@@ -472,6 +472,9 @@ def evaluate_entry(
         decision.evidence_sources.append("geometry_gate_result:missing")
 
     # ─── Final decision ───────────────────────────────────────────────────────────
+    # v2.8.3: Remove UNCAUGHT_BLOCKER. Every gate must produce an explicit
+    # blocker if it fails. If all known gates pass, the decision is PASS.
+    # If an unknown gate fails, output UNKNOWN_GATE_FAILED.
     if not decision.regime_detected:
         decision.final_decision = ALPHA_REGIME_ENTRY_BLOCKED_NO_REGIME
     elif not decision.alpha_signal_detected:
@@ -490,14 +493,28 @@ def evaluate_entry(
         decision.final_decision = ALPHA_REGIME_ENTRY_BLOCKED_SPREAD
     elif not decision.news_gate_pass:
         decision.final_decision = ALPHA_REGIME_ENTRY_BLOCKED_NEWS
-    elif (decision.prop_funded_gate_pass
-          and decision.session_gate_pass
-          and decision.slippage_gate_pass
-          and decision.calibration_pass):
-        decision.final_decision = ALPHA_REGIME_ENTRY_PASS
-    else:
-        # Should not reach here, but default to BLOCKED_RISK for safety
+    elif not decision.prop_funded_gate_pass:
+        # v2.8.3: Explicit blocker for prop-funded gate failure
         decision.final_decision = ALPHA_REGIME_ENTRY_BLOCKED_RISK
-        decision.blockers.append("UNCAUGHT_BLOCKER: one or more gates did not pass")
+        if not any("PROP_FUNDED_GATE_BLOCKED" in b for b in decision.blockers):
+            decision.blockers.append(
+                f"PROP_FUNDED_GATE_BLOCKED: gate_pass=False, "
+                f"reason={decision.prop_funded_gate_reason or 'not_provided'}"
+            )
+    elif not decision.session_gate_pass:
+        # v2.8.3: Explicit blocker for session gate failure
+        decision.final_decision = ALPHA_REGIME_ENTRY_BLOCKED_RISK
+        decision.blockers.append("SESSION_GATE_BLOCKED: outside allowed trading session")
+    elif not decision.slippage_gate_pass:
+        # v2.8.3: Explicit blocker for slippage gate failure
+        decision.final_decision = ALPHA_REGIME_ENTRY_BLOCKED_SPREAD
+        decision.blockers.append("SLIPPAGE_GATE_BLOCKED: slippage exceeds limit")
+    elif not decision.calibration_pass:
+        # v2.8.3: Explicit blocker for calibration gate failure
+        decision.final_decision = ALPHA_REGIME_ENTRY_BLOCKED_META_LABEL
+        decision.blockers.append("CALIBRATION_GATE_BLOCKED: calibration gate did not pass")
+    else:
+        # All known gates pass
+        decision.final_decision = ALPHA_REGIME_ENTRY_PASS
 
     return decision

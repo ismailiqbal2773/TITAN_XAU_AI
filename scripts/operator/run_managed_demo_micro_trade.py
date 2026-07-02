@@ -443,31 +443,40 @@ def run_autonomous_entry_check(args=None) -> dict:
     journal.log_broker_gate_result(broker_gate_result)
 
     # ─── 6. Prop/funded gate ────────────────────────────────────────────
-    # v2.8.2: Prop-funded gate dependency handling.
-    # - If broker is CONTROLLED_DEMO_ALLOWED and profile constraints pass -> PASS
-    # - If broker is UNKNOWN_STALE_OR_MISMATCHED -> BLOCKED_PENDING_BROKER_VALIDATION
-    # - If broker is actual fresh FAILED -> BLOCKED_BY_BROKER
-    # - prop_funded_safe = rules/profile simulation, not broker server requirement.
+    # v2.8.3: Use canonical prop_funded_verdict_mapper for verdict taxonomy.
+    # - PROP_FUNDED_READY_CONSERVATIVE -> PASS_CONSERVATIVE (gate_pass=True)
+    # - PROP_FUNDED_PASS -> PASS (gate_pass=True)
+    # - PROP_FUNDED_BLOCKED -> BLOCKED (gate_pass=False)
+    # Conservative mode adds restrictions but does not block supervised demo.
     prop_funded_gate_result = {"pass": False, "source": "", "reason": "", "blockers": [], "status": ""}
+    prop_funded_raw_verdict = ""
+    prop_funded_conservative_mode = False
     try:
         from titan.production.prop_funded_optimizer import PropFundedOptimizer
+        from titan.production.prop_funded_verdict_mapper import map_verdict, check_conservative_restrictions
         optimizer = PropFundedOptimizer()
         opt_result = optimizer.optimize()
         prop_funded_gate_result["source"] = "prop_funded_optimizer"
         for p in opt_result.profiles:
             if p.profile_name == selected_profile:
-                pf_constraints_pass = p.verdict == "PROP_FUNDED_PASS"
+                prop_funded_raw_verdict = p.verdict
+                # v2.8.3: Use canonical mapper
+                pf_mapping = map_verdict(p.verdict)
                 prop_funded_gate_result = {
-                    "pass": pf_constraints_pass,
+                    "pass": pf_mapping.gate_pass,
                     "verdict": p.verdict,
+                    "raw_verdict": p.verdict,
+                    "canonical_status": pf_mapping.canonical_status,
                     "source": "prop_funded_optimizer",
-                    "reason": "" if pf_constraints_pass else f"verdict={p.verdict}",
+                    "reason": pf_mapping.gate_reason,
                     "blockers": list(getattr(p, "blockers", []) or []),
-                    "status": "PASS" if pf_constraints_pass else "CONSTRAINTS_FAILED",
-                    "constraints_pass": pf_constraints_pass,
+                    "status": pf_mapping.gate_status,
+                    "constraints_pass": pf_mapping.gate_pass,
+                    "conservative_mode": pf_mapping.conservative_mode,
                     "prop_rules_profile_only": True,
                     "current_execution_server": current_broker_server,
                 }
+                prop_funded_conservative_mode = pf_mapping.conservative_mode
                 break
         else:
             prop_funded_gate_result = {
@@ -488,14 +497,16 @@ def run_autonomous_entry_check(args=None) -> dict:
             "prop_rules_profile_only": True,
             "current_execution_server": current_broker_server,
         }
-    # v2.8.2: Prop-funded gate dependency handling based on broker gate status
+    # v2.8.2/v2.8.3: Prop-funded gate dependency handling based on broker gate status
     broker_status = broker_gate_result.get("status", "")
     if broker_status == "CONTROLLED_DEMO_ALLOWED":
         # MetaQuotes-Demo controlled broker allowed - prop-funded can pass if constraints pass
         if prop_funded_gate_result.get("constraints_pass", False):
-            prop_funded_gate_result["pass"] = True
-            prop_funded_gate_result["status"] = "PASS"
-            prop_funded_gate_result["reason"] = "PROP_FUNDED_SAFE_PROFILE_PASS_CONTROLLED_DEMO"
+            # v2.8.3: gate_pass already set by mapper (True for PASS and PASS_CONSERVATIVE)
+            if not prop_funded_gate_result.get("status"):
+                prop_funded_gate_result["status"] = "PASS"
+            if not prop_funded_gate_result.get("reason"):
+                prop_funded_gate_result["reason"] = "PROP_FUNDED_SAFE_PROFILE_PASS_CONTROLLED_DEMO"
         else:
             prop_funded_gate_result["pass"] = False
             prop_funded_gate_result["status"] = "CONSTRAINTS_FAILED"
