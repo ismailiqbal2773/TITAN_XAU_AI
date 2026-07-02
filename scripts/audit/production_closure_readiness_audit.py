@@ -433,6 +433,18 @@ def run_audit() -> dict:
     findings["autonomous_demo_readiness_verdict"] = latest_autonomous_verdict
     findings["autonomous_allowed"] = autonomous_allowed
 
+    # v2.7.4: Selected profile (from shared resolver) and prop_funded_safe_active
+    try:
+        from titan.production.selected_profile_resolver import resolve_selected_profile
+        resolved_profile = resolve_selected_profile(REPO_ROOT)
+        findings["selected_profile"] = resolved_profile["selected_profile"]
+        findings["selected_profile_source"] = resolved_profile["selected_profile_source"]
+        findings["prop_funded_safe_active"] = resolved_profile["prop_funded_safe_active"]
+    except Exception:
+        findings["selected_profile"] = ""
+        findings["selected_profile_source"] = ""
+        findings["prop_funded_safe_active"] = False
+
     # Compute autonomous_execution_status: BLOCKED / OBSERVATION_ONLY / SUPERVISED_READY
     if latest_autonomous_verdict == "AUTONOMOUS_DEMO_READY_SUPERVISED":
         autonomous_execution_status = "SUPERVISED_READY"

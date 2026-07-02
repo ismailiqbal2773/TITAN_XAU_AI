@@ -145,7 +145,55 @@ def run_build_request(direction: str = "BUY", entry_price: float = 2000.0,
     builder = DemoMicroOrderBuilder()
 
     # Sprint 9.9.3.45.8.3: profile-driven geometry
-    account_profile_name = getattr(args, "account_profile", "retail_demo_micro") if args else "retail_demo_micro"
+    # Sprint 9.9.3.45.8.17 v2.7.4: Profile source priority:
+    #   1. CLI --prop-funded-profile (highest priority - operator's explicit selection)
+    #   2. CLI --account-profile
+    #   3. managed_trade_report selected profile
+    #   4. latest receipt selected profile
+    #   5. config default (retail_demo_micro)
+    cli_prop_funded_profile = (getattr(args, "prop_funded_profile", "") or "") if args else ""
+    cli_account_profile = (getattr(args, "account_profile", "") or "") if args else ""
+    selected_profile_source = "config_default"
+    if cli_prop_funded_profile:
+        account_profile_name = cli_prop_funded_profile
+        selected_profile_source = "cli_prop_funded_profile"
+    elif cli_account_profile:
+        account_profile_name = cli_account_profile
+        selected_profile_source = "cli_account_profile"
+    else:
+        # Try managed_trade_report
+        managed_report_path = REPO_ROOT / "data" / "audit" / "demo_micro_execution" / "managed_trade_report.json"
+        if managed_report_path.exists():
+            try:
+                with open(managed_report_path, "r", encoding="utf-8") as f:
+                    managed_rep = json.load(f)
+                # v2.7.4: Prefer prop_funded_profile over account_profile
+                m_profile = managed_rep.get("prop_funded_profile") or managed_rep.get("account_profile") or ""
+                if m_profile:
+                    account_profile_name = m_profile
+                    selected_profile_source = "managed_trade_report"
+                else:
+                    account_profile_name = "retail_demo_micro"
+            except Exception:
+                account_profile_name = "retail_demo_micro"
+        else:
+            # Try latest receipt
+            receipt_path = REPO_ROOT / "data" / "runtime" / "demo_micro_execution_receipt.json"
+            if receipt_path.exists():
+                try:
+                    with open(receipt_path, "r", encoding="utf-8") as f:
+                        receipt_data = json.load(f)
+                    # v2.7.4: Prefer prop_funded_profile over account_profile
+                    r_profile = receipt_data.get("prop_funded_profile") or receipt_data.get("account_profile") or ""
+                    if r_profile:
+                        account_profile_name = r_profile
+                        selected_profile_source = "latest_receipt"
+                    else:
+                        account_profile_name = "retail_demo_micro"
+                except Exception:
+                    account_profile_name = "retail_demo_micro"
+            else:
+                account_profile_name = "retail_demo_micro"
     initial_tp_r = getattr(args, "initial_tp_r", 3.0) if args else 3.0
     use_dynamic_tp = bool(getattr(args, "use_dynamic_tp_extension", False)) if args else False
     use_adaptive = bool(getattr(args, "use_adaptive_trailing", False)) if args else False
@@ -187,6 +235,11 @@ def run_build_request(direction: str = "BUY", entry_price: float = 2000.0,
         "preview": build_result.get("preview"),
         "next_action": "If EXECUTABLE_WITH_PROTECTIVE_SL_TP, run --execute-and-monitor locally",
     }
+    # v2.7.4: Record selected_profile, selected_profile_source, and
+    # prop_funded_safe_active for downstream audits and console display.
+    result["selected_profile"] = account_profile_name
+    result["selected_profile_source"] = selected_profile_source
+    result["prop_funded_safe_active"] = (account_profile_name == "prop_funded_safe")
     # Sprint 9.9.3.45.8.1: include adaptive trailing config in report
     if args is not None:
         result["adaptive_trailing_config"] = _build_adaptive_config(args)
@@ -2072,7 +2125,9 @@ def main() -> int:
         print(f"  Latest actual RR: {result.get('latest_actual_RR', 'N/A')}")
         print(f"  Minimum RR: {result.get('latest_minimum_RR', 'N/A')}")
         print(f"  Initial TP R: {result.get('latest_initial_tp_R', 'N/A')}")
-        print(f"  Selected profile: {result.get('account_profile', 'N/A')}")
+        print(f"  Selected profile: {result.get('selected_profile', result.get('account_profile', 'N/A'))}")
+        print(f"  Selected profile source: {result.get('selected_profile_source', 'N/A')}")
+        print(f"  prop_funded_safe_active: {result.get('prop_funded_safe_active', False)}")
         print(f"  Broker status: score={result.get('broker_score', 'N/A')}, verdict={result.get('broker_verdict', 'N/A')}")
         print(f"  Final demo readiness: {result.get('final_demo_readiness_status', 'N/A')}")
         print(f"  Previous micro proof: {result.get('previous_micro_proof_status', 'N/A')}")

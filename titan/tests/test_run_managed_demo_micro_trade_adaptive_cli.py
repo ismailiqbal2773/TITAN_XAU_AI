@@ -711,3 +711,89 @@ class TestRunManagedDemoMicroTradeAdaptiveCLI:
         assert "autonomous_allowed" in result
         assert "final_demo_readiness_status" in result
         assert "previous_micro_proof_status" in result
+
+    # === Sprint 9.9.3.45.8.17 v2.7.4: Profile source priority ===
+
+    def test_60_v2_7_4_build_request_shows_prop_funded_safe_when_cli_selected(self):
+        """When --prop-funded-profile prop_funded_safe is used, build-request
+        must show selected_profile=prop_funded_safe (not retail_demo_micro)."""
+        import scripts.operator.run_managed_demo_micro_trade as m
+        import argparse
+        args = argparse.Namespace(
+            direction="BUY", entry_price=4075.27, sl=0, tp=0,
+            account_profile="",  # No account_profile
+            prop_funded_profile="prop_funded_safe",  # CLI selects prop_funded_safe
+            initial_tp_r=3.0,
+            use_dynamic_tp_extension=True,
+            use_adaptive_trailing=True,
+            tp_extension_trigger_r=2.0,
+            risk_mode="conservative",
+            broker_profile="metaquotes_demo",
+        )
+        result = m.run_build_request(
+            direction="BUY", entry_price=4075.27, sl=0, tp=0, args=args
+        )
+        assert result.get("selected_profile") == "prop_funded_safe", \
+            f"Expected prop_funded_safe, got {result.get('selected_profile')}"
+        assert result.get("selected_profile_source") == "cli_prop_funded_profile", \
+            f"Expected cli_prop_funded_profile, got {result.get('selected_profile_source')}"
+        assert result.get("prop_funded_safe_active") is True, \
+            f"Expected True, got {result.get('prop_funded_safe_active')}"
+
+    def test_61_v2_7_4_profile_source_priority_cli_first(self):
+        """Profile source priority: CLI --prop-funded-profile takes precedence
+        over managed_trade_report and receipt."""
+        src = (REPO_ROOT / "scripts" / "operator" / "run_managed_demo_micro_trade.py").read_text()
+        # CLI prop_funded_profile must be checked first
+        assert "cli_prop_funded_profile" in src
+        assert "cli_account_profile" in src
+        # Find the profile resolution code section (after the comment block,
+        # starting with the actual variable assignment).
+        idx_cli_code = src.find('if cli_prop_funded_profile:')
+        assert idx_cli_code > 0, "cli_prop_funded_profile if-block not found"
+        # The managed_trade_report path check must come AFTER the CLI check
+        idx_managed_path = src.find('managed_report_path = REPO_ROOT', idx_cli_code)
+        assert idx_managed_path > 0, \
+            "managed_report_path assignment not found after CLI check"
+        # Verify the if/elif structure: cli_prop_funded_profile first,
+        # then cli_account_profile, then else (managed/receipt)
+        idx_cli_if = src.find('if cli_prop_funded_profile:')
+        idx_cli_elif = src.find('elif cli_account_profile:')
+        idx_else = src.find('else:', idx_cli_elif)
+        assert idx_cli_if < idx_cli_elif < idx_else, \
+            "Profile resolution must be: if cli_prop_funded -> elif cli_account -> else managed/receipt"
+
+    def test_62_v2_7_4_profile_resolver_module_exists(self):
+        """Shared profile resolver module must exist."""
+        from titan.production.selected_profile_resolver import resolve_selected_profile
+        assert callable(resolve_selected_profile)
+
+    def test_63_v2_7_4_profile_resolver_returns_dict_with_required_fields(self):
+        """Profile resolver must return dict with selected_profile, source, active."""
+        from titan.production.selected_profile_resolver import resolve_selected_profile
+        result = resolve_selected_profile(REPO_ROOT)
+        assert "selected_profile" in result
+        assert "selected_profile_source" in result
+        assert "prop_funded_safe_active" in result
+
+    def test_64_v2_7_4_no_order_send_in_build_request(self):
+        """Build-request must never call mt5.order_send."""
+        src = (REPO_ROOT / "scripts" / "operator" / "run_managed_demo_micro_trade.py").read_text()
+        code = _strip(src)
+        # The build_request function specifically must not call order_send
+        idx = src.find("def run_build_request")
+        assert idx > 0
+        end_idx = src.find("\ndef ", idx + 1)
+        body = src[idx:end_idx if end_idx > 0 else len(src)]
+        body_stripped = _strip(body)
+        assert not re.search(r"\bmt5\.order_send\s*\(", body_stripped)
+
+    def test_65_v2_7_4_no_execution_token_creation_in_build_request(self):
+        """Build-request must never create execution tokens."""
+        src = (REPO_ROOT / "scripts" / "operator" / "run_managed_demo_micro_trade.py").read_text()
+        idx = src.find("def run_build_request")
+        assert idx > 0
+        end_idx = src.find("\ndef ", idx + 1)
+        body = src[idx:end_idx if end_idx > 0 else len(src)]
+        body_lower = body.lower()
+        assert "create_local_operator_execution_token" not in body_lower

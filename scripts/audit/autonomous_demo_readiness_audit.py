@@ -229,20 +229,34 @@ def run_audit(receipt_path: Optional[Path] = None) -> dict:
     findings["broker_demo"] = broker_demo
 
     # === 6. prop_funded_safe selected ===
+    # v2.7.4: Use shared profile resolver (priority: CLI > managed > receipt
+    # > final_demo > config default). The receipt may have stale profile info.
     selected_profile = ""
-    if receipt:
-        selected_profile = (
-            receipt.get("account_profile")
-            or receipt.get("prop_funded_profile")
-            or ""
-        )
+    selected_profile_source = ""
+    try:
+        from titan.production.selected_profile_resolver import resolve_selected_profile
+        resolved = resolve_selected_profile(REPO_ROOT)
+        selected_profile = resolved["selected_profile"]
+        selected_profile_source = resolved["selected_profile_source"]
+    except Exception:
+        if receipt:
+            selected_profile = (
+                receipt.get("prop_funded_profile")
+                or receipt.get("account_profile")
+                or ""
+            )
+            selected_profile_source = "latest_receipt"
     findings["selected_profile"] = selected_profile
+    findings["selected_profile_source"] = selected_profile_source
     prop_funded_safe_selected = selected_profile == "prop_funded_safe"
     if prop_funded_safe_selected:
-        ok_checks.append("prop_funded_safe selected")
+        ok_checks.append(f"prop_funded_safe selected (source={selected_profile_source})")
     else:
         # Not strictly a blocker - other safe profiles may be acceptable
-        warnings.append(f"prop_funded_safe not selected (current: {selected_profile})")
+        warnings.append(
+            f"prop_funded_safe not selected (current: {selected_profile}, "
+            f"source={selected_profile_source})"
+        )
     findings["prop_funded_safe_selected"] = prop_funded_safe_selected
 
     # === 7. RR gate enforced ===
@@ -385,29 +399,90 @@ def run_audit(receipt_path: Optional[Path] = None) -> dict:
         ok_checks.append("No stale execution token")
 
     # === Final verdict logic ===
+    # v2.7.4: Verdict precedence per spec:
+    #   1. open position blocker
+    #   2. geometry fail (evidence incomplete)
+    #   3. forensics fail (evidence incomplete)
+    #   4. risk config hard fail (martingale present, RR gate missing,
+    #      risk > 0.5%, max_open_positions > 1)
+    #   5. broker actual fail (entry gate explicitly FAILED broker)
+    #   6. alpha/regime entry unknown (execution-only proof)
+    #   7. forward demo incomplete (warning, not blocker)
+    #   8. supervised ready
     evidence_incomplete = (
         not forensics_pass
         or not geom_audit
         or not geometry_pass
     )
-    alpha_entry_unknown = entry_gate_execution_only  # execution-only means alpha unknown
+    # v2.7.4: Hard risk blockers only - soft "not specified" warnings do NOT
+    # trigger BLOCKED_RISK. Max_open_positions == 0 means "not specified"
+    # (warning, not blocker). Max_open_positions > 1 means "violates policy"
+    # (blocker). Risk_per_trade_pct == 0.0 means "not specified" (warning).
+    # Risk_per_trade_pct > 0.005 means "exceeds 0.5%" (blocker).
+    hard_risk_blocker = (
+        not no_martingale
+        or not rr_gate_enforced
+        or (risk_per_trade_pct > 0.005)  # strictly greater = exceeds limit
+        or (max_open_positions > 1)  # strictly greater = violates policy
+    )
+    # v2.7.4: Broker actual fail = entry gate verdict explicitly failed broker
+    # (broker_gate_status == "FAILED"). If broker gate is UNKNOWN (no artifact),
+    # that's a warning, not a blocker.
+    broker_actual_fail = False
+    if entry_gate_audit:
+        eg_findings = entry_gate_audit.get("findings", {}) or {}
+        broker_actual_fail = eg_findings.get("broker_gate_status", "") == "FAILED"
+    alpha_entry_unknown = (
+        entry_gate_execution_only
+        or entry_gate_verdict == "ENTRY_GATE_EXECUTION_ONLY_PASS_ALPHA_UNKNOWN"
+    )
 
     if supervisor_observation_only and not forward_demo_complete:
         verdict = AUTONOMOUS_DEMO_OBSERVATION_ONLY
         ok_checks.append("Verdict: OBSERVATION_ONLY (supervisor override active)")
     elif open_positions_count > 0:
         verdict = AUTONOMOUS_DEMO_BLOCKED_OPEN_POSITION
-    elif not no_martingale or not rr_gate_enforced or not risk_within_limit or max_open_positions != 1:
-        verdict = AUTONOMOUS_DEMO_BLOCKED_RISK
     elif evidence_incomplete:
         verdict = AUTONOMOUS_DEMO_BLOCKED_EVIDENCE_INCOMPLETE
+    elif hard_risk_blocker:
+        verdict = AUTONOMOUS_DEMO_BLOCKED_RISK
+        if not no_martingale:
+            blockers.append("RISK_CONFIG_FAIL: forbidden patterns present (martingale/grid/averaging/loss_multiplier)")
+        if not rr_gate_enforced:
+            blockers.append("RISK_CONFIG_FAIL: RR gate not enforced in run_managed_demo_micro_trade.py")
+        if risk_per_trade_pct > 0.005:
+            blockers.append(f"RISK_CONFIG_FAIL: risk_per_trade_pct={risk_per_trade_pct} > 0.005")
+        if max_open_positions > 1:
+            blockers.append(f"RISK_CONFIG_FAIL: max_open_positions={max_open_positions} > 1")
+    elif broker_actual_fail:
+        verdict = AUTONOMOUS_DEMO_BLOCKED_RISK
+        blockers.append("BROKER_ACTUAL_FAIL: entry gate broker_gate_status=FAILED")
     elif alpha_entry_unknown:
         verdict = AUTONOMOUS_DEMO_BLOCKED_ALPHA_ENTRY_UNKNOWN
+        blockers.append(
+            "ALPHA_REGIME_ENTRY_NOT_PROVEN: end-to-end entry gate is "
+            "EXECUTION_ONLY_PASS_ALPHA_UNKNOWN. Alpha/regime chain was not "
+            "used for entry - autonomous strategy proof not complete."
+        )
+        # Forward demo incomplete is a secondary warning, not the primary blocker
+        if not forward_demo_complete:
+            warnings.append(
+                f"FORWARD_DEMO_INCOMPLETE: {findings.get('forward_demo_daily_reports_count', 0)}/7 days "
+                "completed. This is a secondary concern - alpha/regime entry is the primary blocker."
+            )
+    elif not forward_demo_complete and not supervisor_observation_only:
+        # v2.7.4: Forward demo incomplete without alpha issue is its own blocker
+        verdict = AUTONOMOUS_DEMO_BLOCKED_EVIDENCE_INCOMPLETE
+        blockers.append(
+            f"FORWARD_DEMO_INCOMPLETE: {findings.get('forward_demo_daily_reports_count', 0)}/7 days "
+            "completed. 7-day forward demo rollup is required for autonomous readiness."
+        )
     elif not final_demo_ready and not supervisor_observation_only:
         verdict = AUTONOMOUS_DEMO_BLOCKED_EVIDENCE_INCOMPLETE
         blockers.append("FINAL_DEMO_NOT_READY: final demo readiness report not READY")
     elif not broker_demo:
         verdict = AUTONOMOUS_DEMO_BLOCKED_RISK
+        blockers.append("BROKER_NOT_DEMO: account is not DEMO")
     else:
         # All checks pass
         verdict = AUTONOMOUS_DEMO_READY_SUPERVISED
@@ -415,6 +490,9 @@ def run_audit(receipt_path: Optional[Path] = None) -> dict:
 
     autonomous_allowed = verdict == AUTONOMOUS_DEMO_READY_SUPERVISED
     findings["autonomous_allowed"] = autonomous_allowed
+    findings["alpha_entry_unknown"] = alpha_entry_unknown
+    findings["hard_risk_blocker"] = hard_risk_blocker
+    findings["broker_actual_fail"] = broker_actual_fail
 
     return {
         "timestamp_utc": ts,

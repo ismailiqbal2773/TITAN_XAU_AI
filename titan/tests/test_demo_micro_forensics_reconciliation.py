@@ -276,3 +276,69 @@ class TestForensicsReconciliation:
         src = (REPO_ROOT / "scripts" / "audit" / "demo_micro_evidence_verifier.py").read_text()
         assert "DEMO_MICRO_EVIDENCE_DIAGNOSTIC_ONLY_RESOLVED" in src
         assert "MICRO_PROOF_INCOMPLETE" in src
+
+    # === Sprint 9.9.3.45.8.17 v2.7.4: Scanner integration into forensics ===
+
+    def test_34_v2_7_4_forensics_reads_ticket_scanner(self):
+        """Forensics must read ticket_history_scanner.json."""
+        src = (REPO_ROOT / "scripts" / "operator" / "collect_demo_micro_trade_forensics.py").read_text()
+        assert "ticket_history_scanner.json" in src
+        assert "ticket_scanner_verdict" in src
+        assert "ticket_scanner_match_method" in src
+        assert "scanner_matched_deals" in src
+        assert "scanner_matched_orders" in src
+
+    def test_35_v2_7_4_scanner_match_prevents_history_not_found(self):
+        """When scanner verdict is TICKET_HISTORY_MATCH_FOUND, forensics must
+        NOT return generic HISTORY_NOT_FOUND."""
+        src = (REPO_ROOT / "scripts" / "operator" / "collect_demo_micro_trade_forensics.py").read_text()
+        # The scanner-supported match block must exist
+        assert "TICKET_HISTORY_MATCH_FOUND" in src
+        assert "scanner_supported" in src
+        assert "TICKET_HISTORY_MATCH_CONFIRMED" in src
+        # The "not matched_deals" block must check scanner first
+        idx_scanner_check = src.find('findings.get("ticket_scanner_verdict") == "TICKET_HISTORY_MATCH_FOUND"')
+        idx_history_not_found = src.find('findings["root_cause"] = "HISTORY_NOT_FOUND"')
+        assert idx_scanner_check > 0, "scanner check block not found"
+        assert idx_history_not_found > 0, "HISTORY_NOT_FOUND block not found"
+        assert idx_scanner_check < idx_history_not_found, \
+            "scanner check must come before HISTORY_NOT_FOUND fallback"
+
+    def test_36_v2_7_4_scanner_supported_verdict_is_receipt_diagnostic_confirmed(self):
+        """Scanner-supported match must produce DEMO_MICRO_EVIDENCE_RECEIPT_DIAGNOSTIC_CONFIRMED
+        or DEMO_MICRO_FORENSICS_COMPLETE_WITH_WARNINGS."""
+        src = (REPO_ROOT / "scripts" / "operator" / "collect_demo_micro_trade_forensics.py").read_text()
+        assert "DEMO_MICRO_EVIDENCE_RECEIPT_DIAGNOSTIC_CONFIRMED" in src
+        # The scanner_supported block must set root_cause to TICKET_HISTORY_MATCH_CONFIRMED
+        assert 'findings["root_cause"] = "TICKET_HISTORY_MATCH_CONFIRMED"' in src
+
+    def test_37_v2_7_4_scanner_fallback_not_used_as_proof(self):
+        """Scanner fallback_used and old_trades_used_as_proof must both be
+        checked before accepting scanner match as proof."""
+        src = (REPO_ROOT / "scripts" / "operator" / "collect_demo_micro_trade_forensics.py").read_text()
+        assert "scanner_fallback_used" in src
+        assert "scanner_old_trades" in src
+        # The scanner match condition must require not scanner_fallback_used
+        assert "not scanner_fallback_used" in src
+        assert "not scanner_old_trades" in src
+
+    def test_38_v2_7_4_scanner_exact_match_methods(self):
+        """Scanner match must only be accepted for exact ticket match methods
+        (exact_deal_ticket, exact_order_ticket, exact_position_id, exact_deal_order)."""
+        src = (REPO_ROOT / "scripts" / "operator" / "collect_demo_micro_trade_forensics.py").read_text()
+        assert "exact_deal_ticket" in src
+        assert "exact_order_ticket" in src
+        assert "exact_position_id" in src
+        assert "exact_deal_order" in src
+
+    def test_39_v2_7_4_no_order_send_in_forensics(self):
+        """Forensics must never call mt5.order_send."""
+        src = (REPO_ROOT / "scripts" / "operator" / "collect_demo_micro_trade_forensics.py").read_text()
+        code = _strip(src)
+        assert not re.search(r"\bmt5\.order_send\s*\(", code)
+
+    def test_40_v2_7_4_no_position_modification_in_forensics(self):
+        """Forensics must never modify positions."""
+        src = (REPO_ROOT / "scripts" / "operator" / "collect_demo_micro_trade_forensics.py").read_text()
+        code = _strip(src)
+        assert not re.search(r"\bmt5\.(order_modify|positions_modify)\s*\(", code)

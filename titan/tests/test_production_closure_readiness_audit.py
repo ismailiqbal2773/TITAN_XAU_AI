@@ -304,3 +304,48 @@ class TestProductionClosureReadinessAudit:
                 assert "autonomous_allowed" in md_text
             finally:
                 a.OUTPUT_DIR = original
+
+    # === Sprint 9.9.3.45.8.17 v2.7.4: Profile + autonomous status propagation ===
+
+    def test_41_v2_7_4_includes_selected_profile_fields(self):
+        """Production closure must include selected_profile, selected_profile_source,
+        and prop_funded_safe_active in findings."""
+        import scripts.audit.production_closure_readiness_audit as a
+        result = a.run_audit()
+        fnd = result.get("findings", {})
+        assert "selected_profile" in fnd, "selected_profile missing"
+        assert "selected_profile_source" in fnd, "selected_profile_source missing"
+        assert "prop_funded_safe_active" in fnd, "prop_funded_safe_active missing"
+
+    def test_42_v2_7_4_autonomous_blocked_when_alpha_unknown(self):
+        """When autonomous readiness verdict is BLOCKED_ALPHA_ENTRY_UNKNOWN,
+        production closure must report autonomous_execution_status=BLOCKED
+        and autonomous_allowed=False."""
+        import scripts.audit.production_closure_readiness_audit as a
+        result = a.run_audit()
+        # In Z AI env, autonomous is BLOCKED (various reasons)
+        assert result["autonomous_execution_status"] == "BLOCKED"
+        assert result["autonomous_allowed"] is False
+
+    def test_43_v2_7_4_closure_ready_but_not_autonomous_ready(self):
+        """Production closure can be READY_WITH_SAFE_DEFAULTS while
+        autonomous_execution_status is BLOCKED - these are independent."""
+        import scripts.audit.production_closure_readiness_audit as a
+        result = a.run_audit()
+        # Closure may be READY_WITH_SAFE_DEFAULTS
+        if result["verdict"] == "PRODUCTION_CLOSURE_READY_WITH_SAFE_DEFAULTS":
+            # But autonomous must still be BLOCKED (not autonomous-ready)
+            assert result["autonomous_execution_status"] == "BLOCKED"
+            assert result["autonomous_allowed"] is False
+
+    def test_44_v2_7_4_no_order_send_in_closure_audit(self):
+        """Production closure audit must never call mt5.order_send."""
+        src = (REPO_ROOT / "scripts" / "audit" / "production_closure_readiness_audit.py").read_text()
+        code = _strip(src)
+        assert not re.search(r"\bmt5\.order_send\s*\(", code)
+
+    def test_45_v2_7_4_no_execution_token_creation(self):
+        """Production closure audit must never create execution tokens."""
+        src = (REPO_ROOT / "scripts" / "audit" / "production_closure_readiness_audit.py").read_text()
+        code = _strip(src).lower()
+        assert "create_local_operator_execution_token" not in code

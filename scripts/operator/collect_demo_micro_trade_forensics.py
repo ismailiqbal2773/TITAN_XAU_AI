@@ -338,6 +338,48 @@ def collect_forensics(days: int = 30, symbol: str = "XAUUSD",
                 except Exception:
                     pass
 
+            # Sprint 9.9.3.45.8.17 v2.7.4: Load ticket history scanner as
+            # authoritative receipt-supported proof. The scanner uses a
+            # wider history window (14 days) and exact-ticket matching,
+            # so if it reports TICKET_HISTORY_MATCH_FOUND with fallback=false
+            # and old_trades_used_as_proof=false, forensics must NOT emit
+            # generic HISTORY_NOT_FOUND.
+            scanner_path = REPO_ROOT / "data" / "audit" / "demo_micro_execution" / "ticket_history_scanner.json"
+            scanner = None
+            if scanner_path.exists():
+                try:
+                    with open(scanner_path, "r", encoding="utf-8") as f:
+                        scanner = json.load(f)
+                except Exception:
+                    pass
+
+            if scanner:
+                scanner_verdict = scanner.get("verdict", "") or ""
+                scanner_match_method = scanner.get("findings", {}).get("match_method", "") or ""
+                scanner_matched_deals = scanner.get("matched_deals", []) or []
+                scanner_matched_orders = scanner.get("matched_orders", []) or []
+                scanner_fallback_used = scanner.get("fallback_used", False)
+                scanner_old_trades = scanner.get("old_trades_used_as_proof", False)
+                findings["ticket_scanner_verdict"] = scanner_verdict
+                findings["ticket_scanner_match_method"] = scanner_match_method
+                findings["scanner_matched_deals"] = scanner_matched_deals
+                findings["scanner_matched_orders"] = scanner_matched_orders
+                findings["scanner_fallback_used"] = scanner_fallback_used
+                findings["scanner_old_trades_used_as_proof"] = scanner_old_trades
+            else:
+                scanner_verdict = ""
+                scanner_match_method = ""
+                scanner_matched_deals = []
+                scanner_matched_orders = []
+                scanner_fallback_used = False
+                scanner_old_trades = False
+                findings["ticket_scanner_verdict"] = ""
+                findings["ticket_scanner_match_method"] = ""
+                findings["scanner_matched_deals"] = []
+                findings["scanner_matched_orders"] = []
+                findings["scanner_fallback_used"] = False
+                findings["scanner_old_trades_used_as_proof"] = False
+
             # Sprint 9.9.3.45.8.11: Helper to read diagnostic fields from
             # either top-level or nested under "findings"
             def _diag_get(diag, key, default=None):
@@ -528,6 +570,49 @@ def collect_forensics(days: int = 30, symbol: str = "XAUUSD",
                         f"diag_pos_id={diag_pos_id} "
                         f"(diag_history_match=True, forensics normalised history did not list the deal). "
                         "NOT fallback, NOT old trade."
+                    )
+
+            # Sprint 9.9.3.45.8.17 v2.7.4: Scanner-supported match (authoritative)
+            # The ticket scanner uses a wider window (14 days) and exact-ticket
+            # matching. If it reports TICKET_HISTORY_MATCH_FOUND with
+            # fallback_used=false and old_trades_used_as_proof=false, this is
+            # receipt-supported proof. Forensics must NOT emit HISTORY_NOT_FOUND.
+            if not receipt_matched and scanner:
+                if (scanner_verdict == "TICKET_HISTORY_MATCH_FOUND"
+                        and not scanner_fallback_used
+                        and not scanner_old_trades
+                        and scanner_match_method
+                        and ("exact_deal_ticket" in scanner_match_method
+                             or "exact_order_ticket" in scanner_match_method
+                             or "exact_position_id" in scanner_match_method
+                             or "exact_deal_order" in scanner_match_method)):
+                    # Scanner confirmed exact ticket match - use scanner's
+                    # matched deals/orders as authoritative proof.
+                    matched_deals = list(scanner_matched_deals)
+                    matched_orders = list(scanner_matched_orders)
+                    # Derive matched_pos_id from scanner data
+                    matched_pos_id = 0
+                    for d in matched_deals:
+                        if d.get("position_id"):
+                            matched_pos_id = d["position_id"]
+                            break
+                    if not matched_pos_id:
+                        for o in matched_orders:
+                            if o.get("position_id"):
+                                matched_pos_id = o["position_id"]
+                                break
+                    match_method = f"scanner_supported_{scanner_match_method}"
+                    receipt_matched = True
+                    findings["old_trades_used_as_proof"] = False
+                    findings["root_cause"] = "TICKET_HISTORY_MATCH_CONFIRMED"
+                    findings["scanner_supported_match"] = True
+                    ok_checks.append(
+                        f"Scanner-supported match: {scanner_match_method}, "
+                        f"matched_deals={len(matched_deals)}, "
+                        f"matched_orders={len(matched_orders)}, "
+                        f"position_id={matched_pos_id} "
+                        "(NOT fallback, NOT old trade). "
+                        "Scanner used wide 14-day window with exact ticket matching."
                     )
 
             findings["receipt_match_found"] = receipt_matched
@@ -771,6 +856,28 @@ def collect_forensics(days: int = 30, symbol: str = "XAUUSD",
         findings["matched_orders"] = matched_orders
 
         if not matched_deals:
+            # Sprint 9.9.3.45.8.17 v2.7.4: If scanner confirmed TICKET_HISTORY_MATCH_FOUND,
+            # do NOT return generic HISTORY_NOT_FOUND. Use DIAGNOSTIC_ONLY_RESOLVED
+            # or RECEIPT_DIAGNOSTIC_CONFIRMED with scanner-supported match.
+            if findings.get("ticket_scanner_verdict") == "TICKET_HISTORY_MATCH_FOUND" and not findings.get("scanner_fallback_used"):
+                # Scanner confirmed match but forensics normalized history
+                # did not include the deal. Treat as receipt-supported proof
+                # via scanner. This is the v2.7.4 fix.
+                findings["root_cause"] = "TICKET_HISTORY_MATCH_CONFIRMED"
+                findings["fallback_blocked_reason"] = ""
+                findings["old_trades_used_as_proof"] = False
+                warnings.append(
+                    "Scanner confirmed TICKET_HISTORY_MATCH_FOUND but forensics "
+                    "normalized history did not include the deal. Returning "
+                    "DEMO_MICRO_EVIDENCE_RECEIPT_DIAGNOSTIC_CONFIRMED (scanner-supported)."
+                )
+                return {
+                    "timestamp_utc": ts,
+                    "verdict": "DEMO_MICRO_EVIDENCE_RECEIPT_DIAGNOSTIC_CONFIRMED",
+                    "ok_checks": ok_checks, "blockers": blockers, "warnings": warnings,
+                    "findings": findings,
+                    "safety": {"order_send_called": False, "position_modified": False},
+                }
             # Sprint 9.9.3.45.8.16 v2.7.3: If diagnostic says resolved_closed,
             # do NOT return generic HISTORY_NOT_FOUND. Use DIAGNOSTIC_ONLY_RESOLVED.
             if findings.get("diagnostic_resolved_closed") and not findings.get("diagnostic_history_deal_match"):
@@ -877,11 +984,16 @@ def collect_forensics(days: int = 30, symbol: str = "XAUUSD",
         if sl_modification_events == 0 and sl_hit:
             root_cause = "TRAILING_MANAGER_NOT_RUNNING"
         elif not matched_deals:
+            # v2.7.4: scanner-supported match already returned earlier; this
+            # path only runs if no match at all, so HISTORY_NOT_FOUND is fine.
             root_cause = "HISTORY_NOT_FOUND"
         elif not sl_hit and not exit_deal:
             root_cause = "NO_OPEN_POSITION_TO_MANAGE"
         else:
             root_cause = "TRAILING_MANAGER_NOT_RUNNING"
+        # v2.7.4: Preserve scanner-confirmed root cause if already set
+        if findings.get("root_cause") == "TICKET_HISTORY_MATCH_CONFIRMED":
+            root_cause = "TICKET_HISTORY_MATCH_CONFIRMED"
         findings["root_cause"] = root_cause
         ok_checks.append(f"Root cause: {root_cause}")
 
@@ -895,9 +1007,18 @@ def collect_forensics(days: int = 30, symbol: str = "XAUUSD",
         # Verdict - Sprint 9.9.3.45.8.10: New evidence-based verdicts
         # Sprint 9.9.3.45.8.16 v2.7.3: Treat diagnostic_supported_* as
         # receipt-supported proof (NOT fallback, NOT old trade).
+        # Sprint 9.9.3.45.8.17 v2.7.4: Treat scanner_supported_* as
+        # receipt-supported proof (authoritative, wide-window exact match).
         is_explicit_match = "explicit" in match_method or "receipt" in match_method
         is_diagnostic_supported = "diagnostic_supported" in match_method
-        is_strict_match = "magic" in match_method or "comment" in match_method or is_explicit_match or is_diagnostic_supported
+        is_scanner_supported = "scanner_supported" in match_method
+        is_strict_match = (
+            "magic" in match_method
+            or "comment" in match_method
+            or is_explicit_match
+            or is_diagnostic_supported
+            or is_scanner_supported
+        )
         is_likely_match = "likely" in match_method
 
         if is_explicit_match and entry_deal and exit_deal:
@@ -911,6 +1032,25 @@ def collect_forensics(days: int = 30, symbol: str = "XAUUSD",
                 "Diagnostic-supported match: entry confirmed, exit not yet in forensics history. "
                 "Diagnostic confirms closed."
             )
+        elif is_scanner_supported and (entry_deal or exit_deal):
+            # v2.7.4: Scanner-supported match is authoritative receipt proof.
+            # Scanner uses wider 14-day window with exact ticket matching.
+            if entry_deal and exit_deal:
+                verdict = "DEMO_MICRO_EVIDENCE_RECEIPT_DIAGNOSTIC_CONFIRMED"
+            elif entry_deal:
+                verdict = "DEMO_MICRO_EVIDENCE_RECEIPT_DIAGNOSTIC_CONFIRMED"
+                warnings.append(
+                    "Scanner-supported match: entry confirmed, exit not yet in "
+                    "forensics normalized history. Scanner confirms exact ticket match."
+                )
+            else:
+                verdict = "DEMO_MICRO_FORENSICS_COMPLETE_WITH_WARNINGS"
+                warnings.append(
+                    "Scanner-supported match: scanner confirmed exact ticket but "
+                    "entry deal not classified in forensics normalized history."
+                )
+        elif is_scanner_supported and matched_deals:
+            verdict = "DEMO_MICRO_FORENSICS_COMPLETE_WITH_WARNINGS"
         elif is_explicit_match and entry_deal and not exit_deal:
             # Entry confirmed but exit deal missing
             # Check if diagnostic says resolved_closed

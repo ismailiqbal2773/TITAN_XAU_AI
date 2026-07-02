@@ -106,3 +106,64 @@ class TestDemoMicroEvidenceVerifier:
         src = (REPO_ROOT / "scripts" / "audit" / "demo_micro_evidence_verifier.py").read_text()
         assert "DEMO_MICRO_EVIDENCE_ENTRY_CONFIRMED_CLOSE_DEAL_MISSING" in src
         assert "MICRO_PROOF_INCOMPLETE" in src
+
+    # === Sprint 9.9.3.45.8.17 v2.7.4: Scanner-confirmed forensics ===
+
+    def test_14_v2_7_4_verifier_reads_scanner_evidence(self):
+        """Verifier must load ticket_history_scanner.json for scanner-confirmed proof."""
+        src = (REPO_ROOT / "scripts" / "audit" / "demo_micro_evidence_verifier.py").read_text()
+        assert "ticket_history_scanner.json" in src
+        assert "_load_scanner_evidence" in src
+
+    def test_15_v2_7_4_verifier_reads_geometry_evidence(self):
+        """Verifier must load execution_geometry_audit.json for geometry-aware proof."""
+        src = (REPO_ROOT / "scripts" / "audit" / "demo_micro_evidence_verifier.py").read_text()
+        assert "execution_geometry_audit.json" in src
+        assert "_load_geometry_evidence" in src
+
+    def test_16_v2_7_4_verifier_accepts_scanner_confirmed_as_pass(self):
+        """Verifier must accept scanner-confirmed forensics as MICRO_PROOF_PASS."""
+        src = (REPO_ROOT / "scripts" / "audit" / "demo_micro_evidence_verifier.py").read_text()
+        assert "scanner_confirmed" in src
+        assert "TICKET_HISTORY_MATCH_FOUND" in src
+        # Must accept these forensics verdicts when scanner confirms
+        assert "DEMO_MICRO_EVIDENCE_RECEIPT_DIAGNOSTIC_CONFIRMED" in src
+        assert "DEMO_MICRO_FORENSICS_COMPLETE_WITH_WARNINGS" in src
+
+    def test_17_v2_7_4_verifier_blocks_on_geometry_fail(self):
+        """Verifier must FAIL when geometry audit exists but is not PASS."""
+        src = (REPO_ROOT / "scripts" / "audit" / "demo_micro_evidence_verifier.py").read_text()
+        assert "GEOMETRY_FAIL" in src
+        assert "geometry_pass" in src
+
+    def test_18_v2_7_4_verifier_blocks_fallback_old_trades(self):
+        """Verifier must NEVER accept old fallback trades as proof."""
+        src = (REPO_ROOT / "scripts" / "audit" / "demo_micro_evidence_verifier.py").read_text()
+        assert "FALLBACK_USED" in src
+        assert "old_trades_used_as_proof" in src
+
+    def test_19_v2_7_4_verifier_no_order_send(self):
+        """Verifier must never call mt5.order_send."""
+        import re
+        def _strip(s):
+            s = re.sub(r'"""[\s\S]*?"""', '""', s)
+            s = re.sub(r"'''[\s\S]*?'''", "''", s)
+            s = re.sub(r'"(?:[^"\\]|\\.)*"', '""', s)
+            s = re.sub(r"'(?:[^'\\]|\\.)*'", "''", s)
+            return s
+        src = (REPO_ROOT / "scripts" / "audit" / "demo_micro_evidence_verifier.py").read_text()
+        code = _strip(src)
+        assert not re.search(r"\bmt5\.order_send\s*\(", code)
+
+    def test_20_v2_7_4_verifier_no_position_modification(self):
+        """Verifier must never modify positions."""
+        import re
+        def _strip(s):
+            s = re.sub(r'"""[\s\S]*?"""', '""', s)
+            s = re.sub(r"'''[\s\S]*?'''", "''", s)
+            s = re.sub(r'"(?:[^"\\]|\\.)*"', '""', s)
+            s = re.sub(r"'(?:[^'\\]|\\.)*'", "''", s)
+            return s
+        src = (REPO_ROOT / "scripts" / "audit" / "demo_micro_evidence_verifier.py").read_text()
+        code = _strip(src)
+        assert not re.search(r"\bmt5\.(order_modify|positions_modify)\s*\(", code)

@@ -204,6 +204,8 @@ def run_audit(receipt_path: Optional[Path] = None) -> dict:
     # === Receipt-derived execution fields ===
     execution_success = False
     selected_profile = ""
+    selected_profile_source = ""
+    prop_funded_safe_active = False
     symbol = ""
     side = ""
     entry = 0.0
@@ -213,9 +215,29 @@ def run_audit(receipt_path: Optional[Path] = None) -> dict:
     geometry_pass = False
     order_send_success = False
 
+    # v2.7.4: Resolve selected profile using priority chain (CLI > managed >
+    # receipt > final_demo > config default). The receipt may have stale
+    # profile info, so the resolver is authoritative.
+    try:
+        from titan.production.selected_profile_resolver import resolve_selected_profile
+        resolved = resolve_selected_profile(REPO_ROOT)
+        selected_profile = resolved["selected_profile"]
+        selected_profile_source = resolved["selected_profile_source"]
+        prop_funded_safe_active = resolved["prop_funded_safe_active"]
+    except Exception:
+        # Fallback: use receipt only
+        if receipt:
+            selected_profile = _to_str(receipt.get("prop_funded_profile") or receipt.get("account_profile"))
+            selected_profile_source = "latest_receipt"
+            prop_funded_safe_active = selected_profile == "prop_funded_safe"
+
     if receipt:
         execution_success = bool(receipt.get("success", False))
-        selected_profile = _to_str(receipt.get("account_profile") or receipt.get("prop_funded_profile"))
+        # If resolver returned empty, fall back to receipt
+        if not selected_profile:
+            selected_profile = _to_str(receipt.get("prop_funded_profile") or receipt.get("account_profile"))
+            selected_profile_source = "latest_receipt"
+            prop_funded_safe_active = selected_profile == "prop_funded_safe"
         symbol = _to_str(receipt.get("symbol"))
         side = _to_str(receipt.get("side") or receipt.get("direction"))
         entry = _safe_float(receipt.get("order_send_result_price") or receipt.get("detected_position_entry_price"))
@@ -243,6 +265,8 @@ def run_audit(receipt_path: Optional[Path] = None) -> dict:
 
     findings["execution_success"] = execution_success
     findings["selected_profile"] = selected_profile
+    findings["selected_profile_source"] = selected_profile_source
+    findings["prop_funded_safe_active"] = prop_funded_safe_active
     findings["symbol"] = symbol
     findings["side"] = side
     findings["entry"] = entry
@@ -308,22 +332,54 @@ def run_audit(receipt_path: Optional[Path] = None) -> dict:
     findings["risk_gate_pass"] = risk_gate_pass
 
     # === Broker gate ===
-    broker_gate_pass = False
+    # v2.7.4: Missing broker score artifact must be UNKNOWN, not FAIL.
+    # Only fail when an actual broker-score artifact exists and the score
+    # is below threshold.
+    broker_gate_pass: object = None  # None = UNKNOWN, True = PASS, False = FAIL
+    broker_gate_status = "UNKNOWN"
     broker_score_report_path = REPO_ROOT / "data" / "audit" / "broker_scoring" / "broker_score_report.json"
     broker_score_report = _load_json(broker_score_report_path)
     findings["broker_score_report_available"] = broker_score_report is not None
     broker_score = 0
+    broker_score_source = ""
+
+    # Try broker score report first
     if broker_score_report:
-        broker_score = broker_score_report.get("overall_score", 0)
+        broker_score = broker_score_report.get("overall_score", 0) or 0
+        broker_score_source = "broker_score_report"
+    # Then try managed trade report
     if managed and "broker_score" in managed:
-        broker_score = managed.get("broker_score", 0)
-    if broker_score >= 70:
-        broker_gate_pass = True
-        ok_checks.append(f"Broker gate PASS: score={broker_score}")
+        managed_broker_score = managed.get("broker_score", 0) or 0
+        if managed_broker_score > 0:
+            broker_score = managed_broker_score
+            broker_score_source = "managed_trade_report"
+
+    if broker_score_source and broker_score > 0:
+        # We have a real broker score artifact
+        if broker_score >= 70:
+            broker_gate_pass = True
+            broker_gate_status = "PASS"
+            ok_checks.append(f"Broker gate PASS: score={broker_score} (source={broker_score_source})")
+        else:
+            broker_gate_pass = False
+            broker_gate_status = "FAILED"
+            blockers.append(
+                f"BROKER_GATE_FAILED: score={broker_score} < 70 (source={broker_score_source})"
+            )
     else:
-        blockers.append(f"BROKER_GATE_FAILED: score={broker_score} < 70")
+        # v2.7.4: No broker score artifact available - UNKNOWN, not FAIL
+        broker_gate_pass = None
+        broker_gate_status = "UNKNOWN"
+        warnings.append(
+            "BROKER_GATE_UNKNOWN_NO_ARTIFACT: no broker score artifact available "
+            "(broker_score_report.json missing and managed_trade_report has no broker_score). "
+            "Broker gate status is UNKNOWN - not failed."
+        )
+
     findings["broker_gate_pass"] = broker_gate_pass
+    findings["broker_gate_status"] = broker_gate_status
     findings["broker_score"] = broker_score
+    findings["broker_score_source"] = broker_score_source
 
     # Spread/slippage gates (usually unknown in demo micro)
     findings["spread_gate_pass"] = "unknown"
@@ -394,17 +450,22 @@ def run_audit(receipt_path: Optional[Path] = None) -> dict:
     alpha_missing = not alpha_evidence["alpha_signal_detected"]
     regime_missing = not alpha_evidence["regime_detected"]
 
+    # v2.7.4: broker_gate_pass can be None (UNKNOWN), True (PASS), or False (FAILED).
+    # Treat None as "not blocked" - the broker gate is unknown but not failed.
+    broker_gate_failed = broker_gate_pass is False
+    risk_or_broker_failed = (not risk_gate_pass) or broker_gate_failed
+
     if not execution_success:
         # Execution didn't happen - blocked
         if not geometry_pass:
             verdict = ENTRY_GATE_BLOCKED_GEOMETRY
-        elif not (risk_gate_pass and broker_gate_pass):
+        elif risk_or_broker_failed:
             verdict = ENTRY_GATE_BLOCKED_RISK_OR_BROKER
         else:
             verdict = ENTRY_GATE_BLOCKED_GEOMETRY  # default
     elif not geometry_pass:
         verdict = ENTRY_GATE_BLOCKED_GEOMETRY
-    elif not (risk_gate_pass and broker_gate_pass):
+    elif risk_or_broker_failed:
         verdict = ENTRY_GATE_BLOCKED_RISK_OR_BROKER
     elif alpha_missing or regime_missing:
         # v2.7.3: Demo micro is a controlled execution proof that does NOT
@@ -468,10 +529,12 @@ def write_report(result: dict) -> dict:
             "alpha_signal_detected", "alpha_signal_value", "alpha_confidence",
             "alpha_threshold", "alpha_pass", "alpha_source_file",
             "meta_label_pass", "risk_gate_pass", "broker_gate_pass",
-            "broker_score", "prop_funded_gate_pass",
+            "broker_gate_status", "broker_score", "broker_score_source",
+            "prop_funded_gate_pass",
             "spread_gate_pass", "slippage_gate_pass",
             "journal_event_found", "order_send_success",
             "final_entry_verdict", "execution_proof_mode_alpha_unknown",
+            "selected_profile_source", "prop_funded_safe_active",
         ]
         for k in gate_fields:
             if k in fnd:
@@ -545,7 +608,9 @@ def main() -> int:
     print(f"  Alpha signal detected: {fnd.get('alpha_signal_detected', False)}")
     print(f"  Alpha confidence: {fnd.get('alpha_confidence', None)}")
     print(f"  Risk gate pass: {fnd.get('risk_gate_pass', False)}")
-    print(f"  Broker gate pass: {fnd.get('broker_gate_pass', False)}")
+    print(f"  Broker gate pass: {fnd.get('broker_gate_pass', False)} (status={fnd.get('broker_gate_status', 'UNKNOWN')})")
+    print(f"  Selected profile source: {fnd.get('selected_profile_source', '')}")
+    print(f"  prop_funded_safe_active: {fnd.get('prop_funded_safe_active', False)}")
     print(f"  Prop/funded gate pass: {fnd.get('prop_funded_gate_pass', False)}")
     print(f"  Blockers: {len(result.get('blockers', []))}")
     if result.get("blockers"):
