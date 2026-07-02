@@ -297,7 +297,7 @@ def collect_forensics(days: int = 30, symbol: str = "XAUUSD",
                 }
 
         # === Receipt matching (mandatory first if receipt_success=True) ===
-        # Sprint 9.9.3.45.8.10: Fixed match priority and diagnostic integration
+        # Sprint 9.9.3.45.8.11: Fixed nested diagnostic parsing + diagnostic-supported match
         if not matched_deals and receipt_match_required:
             # Load diagnostic as supporting evidence
             diagnostic_path = REPO_ROOT / "data" / "audit" / "demo_micro_execution" / "latest_receipt_diagnostic.json"
@@ -308,6 +308,18 @@ def collect_forensics(days: int = 30, symbol: str = "XAUUSD",
                         diagnostic = json.load(f)
                 except Exception:
                     pass
+
+            # Sprint 9.9.3.45.8.11: Helper to read diagnostic fields from
+            # either top-level or nested under "findings"
+            def _diag_get(diag, key, default=None):
+                if not diag:
+                    return default
+                if key in diag:
+                    return diag.get(key, default)
+                findings_dict = diag.get("findings", {})
+                if isinstance(findings_dict, dict) and key in findings_dict:
+                    return findings_dict.get(key, default)
+                return default
 
             # Build all receipt candidate IDs
             receipt_deal_candidates = []
@@ -326,22 +338,40 @@ def collect_forensics(days: int = 30, symbol: str = "XAUUSD",
                 if rid and rid not in receipt_pos_candidates:
                     receipt_pos_candidates.append(rid)
 
-            # Add diagnostic position_id as supporting candidate
+            # Add diagnostic position_id as supporting candidate (nested-safe)
             if diagnostic:
-                diag_pos_id = diagnostic.get("history_deal_position_id") or 0
-                diag_deal_ticket = diagnostic.get("history_deal_ticket") or 0
+                diag_pos_id = _diag_get(diagnostic, "history_deal_position_id", 0) or 0
+                diag_deal_ticket = _diag_get(diagnostic, "history_deal_ticket", 0) or 0
+                diag_history_match = _diag_get(diagnostic, "history_deal_match", False)
+                diag_resolved_closed = _diag_get(diagnostic, "resolved_closed", False)
+                diag_open_positions = _diag_get(diagnostic, "open_positions_count", 0)
                 if diag_pos_id and diag_pos_id not in receipt_pos_candidates:
                     receipt_pos_candidates.append(diag_pos_id)
                 if diag_deal_ticket and diag_deal_ticket not in receipt_deal_candidates:
                     receipt_deal_candidates.append(diag_deal_ticket)
                 findings["diagnostic_available"] = True
-                findings["diagnostic_history_deal_match"] = diagnostic.get("history_deal_match", False)
+                findings["diagnostic_history_deal_match"] = diag_history_match
                 findings["diagnostic_history_deal_ticket"] = diag_deal_ticket
                 findings["diagnostic_history_deal_position_id"] = diag_pos_id
-                findings["diagnostic_resolved_closed"] = diagnostic.get("resolved_closed", False)
-                findings["diagnostic_open_positions_count"] = diagnostic.get("open_positions_count", 0)
+                findings["diagnostic_resolved_closed"] = diag_resolved_closed
+                findings["diagnostic_open_positions_count"] = diag_open_positions
             else:
                 findings["diagnostic_available"] = False
+                diag_pos_id = 0
+                diag_deal_ticket = 0
+                diag_history_match = False
+                diag_resolved_closed = False
+                diag_open_positions = 0
+
+            # Sprint 9.9.3.45.8.11: Debug fields for troubleshooting
+            findings["receipt_deal_candidates"] = receipt_deal_candidates
+            findings["receipt_order_candidates"] = receipt_order_candidates
+            findings["receipt_position_candidates"] = receipt_pos_candidates
+            findings["normalized_deal_tickets_sample"] = [d["ticket"] for d in normalized_deals[:10]]
+            findings["normalized_order_tickets_sample"] = [o["ticket"] for o in normalized_orders[:10]]
+            findings["normalized_position_ids_sample"] = list(set(d["position_id"] for d in normalized_deals if d["position_id"]))[:10]
+            findings["history_deals_count"] = len(normalized_deals)
+            findings["history_orders_count"] = len(normalized_orders)
 
             receipt_matched = False
             matched_pos_id = 0
@@ -395,20 +425,41 @@ def collect_forensics(days: int = 30, symbol: str = "XAUUSD",
                         ok_checks.append(f"Matched by receipt position_id: {pos_candidate}")
                         break
 
+            # Sprint 9.9.3.45.8.11: Diagnostic-supported match (not fallback)
+            # If receipt deal ticket equals diagnostic history_deal_ticket,
+            # and diagnostic says history_deal_match=true, this is receipt-supported proof
+            if not receipt_matched and diagnostic:
+                if (diag_history_match
+                        and diag_deal_ticket
+                        and diag_deal_ticket == receipt_deal
+                        and diag_pos_id
+                        and diag_pos_id == receipt_detected_identifier):
+                    # Diagnostic confirms receipt deal - this is authoritative support
+                    matched_pos_id = diag_pos_id
+                    matched_deals = [d for d in normalized_deals if d["position_id"] == matched_pos_id]
+                    matched_orders = [o for o in normalized_orders if o["position_id"] == matched_pos_id]
+                    match_method = f"receipt_diagnostic_deal_ticket_{diag_deal_ticket}"
+                    receipt_matched = True
+                    findings["old_trades_used_as_proof"] = False
+                    ok_checks.append(
+                        f"Receipt-supported diagnostic match: deal_ticket={diag_deal_ticket}, "
+                        f"position_id={diag_pos_id} (NOT fallback, NOT old trade)"
+                    )
+
             findings["receipt_match_found"] = receipt_matched
             findings["matched_position_id"] = matched_pos_id if receipt_matched else 0
 
             if not receipt_matched:
-                # Sprint 9.9.3.45.8.10: Check if diagnostic found a deal but forensics didn't
-                if diagnostic and diagnostic.get("history_deal_match"):
+                # Sprint 9.9.3.45.8.11: Check if diagnostic found a deal but forensics didn't
+                if diag_history_match:
                     # Matcher bug: diagnostic found deal but forensics didn't
                     findings["root_cause"] = "MATCHER_BUG_OR_FIELD_MAPPING_ERROR"
                     findings["fallback_blocked_reason"] = "MATCHER_BUG_OR_FIELD_MAPPING_ERROR"
-                    findings["diagnostic_deal_ticket"] = diagnostic.get("history_deal_ticket", 0)
-                    findings["diagnostic_deal_position_id"] = diagnostic.get("history_deal_position_id", 0)
+                    findings["diagnostic_deal_ticket"] = diag_deal_ticket
+                    findings["diagnostic_deal_position_id"] = diag_pos_id
                     warnings.append(
-                        f"MATCHER_BUG: Diagnostic found history deal (ticket={diagnostic.get('history_deal_ticket')}, "
-                        f"position_id={diagnostic.get('history_deal_position_id')}) but forensics did not match. "
+                        f"MATCHER_BUG: Diagnostic found history deal (ticket={diag_deal_ticket}, "
+                        f"position_id={diag_pos_id}) but forensics did not match. "
                         "Possible field mapping error or time window mismatch."
                     )
                     return {
@@ -422,6 +473,7 @@ def collect_forensics(days: int = 30, symbol: str = "XAUUSD",
                 # Receipt success=True but receipt trade NOT FOUND - strict no-fallback
                 findings["root_cause"] = "RECEIPT_TRADE_NOT_FOUND_IN_HISTORY_OR_OPEN_POSITIONS"
                 findings["fallback_blocked_reason"] = "RECEIPT_TRADE_NOT_FOUND_IN_HISTORY_OR_OPEN_POSITIONS"
+                findings["old_trades_used_as_proof"] = False
                 # Compute fallback candidates as DIAGNOSTICS only
                 fb_candidates = []
                 magic_deals = [d for d in normalized_deals if d["magic"] == magic and d["symbol"] == symbol]

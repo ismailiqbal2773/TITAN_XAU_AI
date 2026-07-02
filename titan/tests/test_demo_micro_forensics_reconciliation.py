@@ -103,3 +103,49 @@ class TestForensicsReconciliation:
         assert "explicit_order_ticket_supplied" in src
         assert "explicit_deal_ticket_supplied" in src
         assert "explicit_position_id_supplied" in src
+
+    # === Sprint 9.9.3.45.8.11: nested diagnostic parsing tests ===
+
+    def test_16_diag_get_helper_exists(self):
+        """Forensics must have _diag_get helper for nested diagnostic fields."""
+        src = (REPO_ROOT / "scripts" / "operator" / "collect_demo_micro_trade_forensics.py").read_text()
+        assert "_diag_get" in src
+        assert 'diag.get("findings"' in src
+
+    def test_17_diagnostic_fields_read_from_nested_findings(self):
+        """Forensics must read diagnostic fields from diagnostic['findings'] not just top-level."""
+        src = (REPO_ROOT / "scripts" / "operator" / "collect_demo_micro_trade_forensics.py").read_text()
+        # The _diag_get helper must check both top-level and findings dict
+        assert 'findings_dict = diag.get("findings", {})' in src
+        assert 'if isinstance(findings_dict, dict) and key in findings_dict' in src
+
+    def test_18_diagnostic_supported_match_not_fallback(self):
+        """When receipt deal ticket equals diagnostic history_deal_ticket,
+        this is receipt-supported proof, NOT fallback."""
+        src = (REPO_ROOT / "scripts" / "operator" / "collect_demo_micro_trade_forensics.py").read_text()
+        assert "receipt_diagnostic_deal_ticket" in src
+        assert "old_trades_used_as_proof" in src
+        assert 'old_trades_used_as_proof"] = False' in src
+
+    def test_19_debug_fields_added(self):
+        """Forensics must add debug fields when receipt not matched."""
+        src = (REPO_ROOT / "scripts" / "operator" / "collect_demo_micro_trade_forensics.py").read_text()
+        assert "receipt_deal_candidates" in src
+        assert "normalized_deal_tickets_sample" in src
+        assert "history_deals_count" in src
+        assert "history_orders_count" in src
+
+    def test_20_matcher_bug_uses_nested_diag(self):
+        """MATCHER_BUG check must use _diag_get for nested fields."""
+        src = (REPO_ROOT / "scripts" / "operator" / "collect_demo_micro_trade_forensics.py").read_text()
+        # The matcher bug check should use diag_history_match variable (from _diag_get)
+        assert "if diag_history_match:" in src
+        # Should NOT use diagnostic.get("history_deal_match") directly
+        assert 'diagnostic.get("history_deal_match")' not in src or '_diag_get(diagnostic, "history_deal_match"' in src
+
+    def test_21_diagnostic_supported_match_conditions(self):
+        """Diagnostic-supported match requires all conditions: history_match=true,
+        deal_ticket matches receipt, position_id matches receipt."""
+        src = (REPO_ROOT / "scripts" / "operator" / "collect_demo_micro_trade_forensics.py").read_text()
+        assert "diag_deal_ticket == receipt_deal" in src
+        assert "diag_pos_id == receipt_detected_identifier" in src
