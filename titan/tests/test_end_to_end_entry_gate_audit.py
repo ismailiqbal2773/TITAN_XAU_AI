@@ -307,3 +307,95 @@ class TestEndToEndEntryGateAudit:
         src = (REPO_ROOT / "scripts" / "audit" / "end_to_end_entry_gate_audit.py").read_text()
         code = _strip(src).lower()
         assert "create_local_operator_execution_token" not in code
+
+    # === Sprint v2.8: Autonomous entry decision integration ===
+
+    def test_25_v2_8_reads_autonomous_entry_decision(self):
+        """Entry gate audit must read autonomous_entry_decision.json."""
+        src = (REPO_ROOT / "scripts" / "audit" / "end_to_end_entry_gate_audit.py").read_text()
+        assert "autonomous_entry_decision.json" in src
+        assert "autonomous_entry_decision_available" in src
+        assert "autonomous_entry_decision_pass" in src
+
+    def test_26_v2_8_full_pass_when_autonomous_decision_pass(self, tmp_path, monkeypatch):
+        """When autonomous entry decision is ALPHA_REGIME_ENTRY_PASS, entry gate
+        must upgrade to ENTRY_GATE_FULL_PASS."""
+        import scripts.audit.end_to_end_entry_gate_audit as a
+
+        out_dir = tmp_path / "audit_out"
+        out_dir.mkdir()
+
+        ae_decision = {
+            "final_decision": "ALPHA_REGIME_ENTRY_PASS",
+            "regime_detected": True,
+            "alpha_signal_detected": True,
+            "alpha_pass": True,
+            "risk_gate_pass": True,
+            "broker_gate_pass": True,
+            "prop_funded_gate_pass": True,
+            "geometry_gate_pass": True,
+            "actual_RR": 3.0,
+        }
+        (out_dir / "autonomous_entry_decision.json").write_text(json.dumps(ae_decision))
+
+        receipt = {
+            "success": True,
+            "account_profile": "prop_funded_safe",
+            "symbol": "XAUUSD",
+            "side": "BUY",
+            "order_send_result_price": 4075.27,
+            "requested_sl": 4072.27,
+            "requested_tp": 4084.27,
+            "account_server": "MetaQuotes-Demo",
+        }
+        receipt_path = tmp_path / "receipt.json"
+        receipt_path.write_text(json.dumps(receipt))
+
+        monkeypatch.setattr(a, "OUTPUT_DIR", out_dir)
+        result = a.run_audit(receipt_path=receipt_path)
+        assert result["verdict"] == a.ENTRY_GATE_FULL_PASS, \
+            f"Expected FULL_PASS, got {result['verdict']}"
+        assert result["findings"]["autonomous_entry_decision_pass"] is True
+
+    def test_27_v2_8_execution_only_when_decision_missing(self, tmp_path, monkeypatch):
+        """When autonomous entry decision is missing, entry gate must report
+        autonomous_entry_decision_available=False."""
+        import scripts.audit.end_to_end_entry_gate_audit as a
+        # Use a clean tmp_path with no autonomous_entry_decision.json
+        monkeypatch.setattr(a, "OUTPUT_DIR", tmp_path)
+        result = a.run_audit()
+        assert result["findings"].get("autonomous_entry_decision_available") is False
+
+    def test_28_v2_8_blocked_when_decision_exists_but_failed(self, tmp_path, monkeypatch):
+        """When autonomous entry decision exists but is BLOCKED, entry gate
+        must return an appropriate blocked verdict."""
+        import scripts.audit.end_to_end_entry_gate_audit as a
+
+        out_dir = tmp_path / "audit_out"
+        out_dir.mkdir()
+
+        ae_decision = {
+            "final_decision": "ALPHA_REGIME_ENTRY_BLOCKED_NO_REGIME",
+            "regime_detected": False,
+        }
+        (out_dir / "autonomous_entry_decision.json").write_text(json.dumps(ae_decision))
+
+        receipt = {
+            "success": True,
+            "account_profile": "prop_funded_safe",
+            "symbol": "XAUUSD",
+            "side": "BUY",
+            "order_send_result_price": 4075.27,
+            "requested_sl": 4072.27,
+            "requested_tp": 4084.27,
+            "account_server": "MetaQuotes-Demo",
+        }
+        receipt_path = tmp_path / "receipt.json"
+        receipt_path.write_text(json.dumps(receipt))
+
+        monkeypatch.setattr(a, "OUTPUT_DIR", out_dir)
+        result = a.run_audit(receipt_path=receipt_path)
+        assert "BLOCKED" in result["verdict"], \
+            f"Expected BLOCKED verdict, got {result['verdict']}"
+        assert result["verdict"] != a.ENTRY_GATE_FULL_PASS
+        assert result["verdict"] != a.ENTRY_GATE_EXECUTION_ONLY_PASS_ALPHA_UNKNOWN

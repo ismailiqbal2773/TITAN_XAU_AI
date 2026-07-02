@@ -35,6 +35,30 @@ MICRO_PROOF_INCOMPLETE = "MICRO_PROOF_INCOMPLETE"
 MICRO_PROOF_FAIL = "MICRO_PROOF_FAIL"
 
 
+def _build_v28_fields(
+    forensics_verdict: str,
+    scanner_confirmed: bool,
+    geometry_pass: bool,
+    geometry_verdict: str,
+    ticket_scanner_verdict: str,
+    proof_source: str = "",
+) -> dict:
+    """Build v2.8 consistency fields for the verifier result.
+
+    Ensures scanner_confirmed and geometry_pass are always present and
+    correct in the output, fixing the v2.8 display inconsistency where
+    MICRO_PROOF_PASS was returned with scanner_confirmed=False.
+    """
+    return {
+        "proof_source": proof_source,
+        "scanner_confirmed": scanner_confirmed,
+        "geometry_pass": geometry_pass,
+        "receipt_geometry_verdict": geometry_verdict,
+        "ticket_history_verdict": ticket_scanner_verdict,
+        "forensics_verdict": forensics_verdict,
+    }
+
+
 def _load_scanner_evidence() -> dict:
     """Load ticket_history_scanner.json for v2.7.4 scanner-confirmed proof."""
     scanner_path = OUTPUT_DIR / "ticket_history_scanner.json"
@@ -169,6 +193,28 @@ def run_verification() -> dict:
             or "exact_deal_order" in ticket_scanner_match_method
         )
     )
+    # v2.8: Also check scanner evidence loaded directly from file (in case
+    # forensics findings didn't carry it through).
+    if not scanner_confirmed and scanner_evidence["scanner_available"]:
+        scanner_confirmed = (
+            scanner_evidence["scanner_verdict"] == "TICKET_HISTORY_MATCH_FOUND"
+            and not scanner_evidence["scanner_fallback_used"]
+            and not scanner_evidence["scanner_old_trades_used_as_proof"]
+            and bool(scanner_evidence["scanner_match_method"])
+            and (
+                "exact_deal_ticket" in scanner_evidence["scanner_match_method"]
+                or "exact_order_ticket" in scanner_evidence["scanner_match_method"]
+                or "exact_position_id" in scanner_evidence["scanner_match_method"]
+                or "exact_deal_order" in scanner_evidence["scanner_match_method"]
+            )
+        )
+        # Propagate to findings-level fields for consistent display
+        if scanner_confirmed:
+            ticket_scanner_verdict = scanner_evidence["scanner_verdict"]
+            ticket_scanner_match_method = scanner_evidence["scanner_match_method"]
+
+    # v2.8: Determine geometry_pass from geometry evidence (direct file load)
+    geometry_pass = geometry_evidence["geometry_pass"] if geometry_evidence["geometry_available"] else False
 
     # Rules
     if fallback_used or old_trades_used_as_proof:
@@ -200,19 +246,26 @@ def run_verification() -> dict:
         }
 
     # v2.7.3: Receipt-supported diagnostic match counts as PASS.
+    # v2.8: proof_source is 'receipt_diagnostic_confirmed' or 'scanner_confirmed'.
     if (forensics_verdict == "DEMO_MICRO_EVIDENCE_RECEIPT_DIAGNOSTIC_CONFIRMED"
             and not fallback_used
             and not old_trades_used_as_proof):
+        _proof_source = "scanner_confirmed" if scanner_confirmed else "receipt_diagnostic_confirmed"
         return {
             "timestamp_utc": ts,
             "verdict": MICRO_PROOF_PASS,
             "blockers": blockers,
             "ok_checks": ok_checks + [
-                "PASS: receipt-supported diagnostic match confirmed "
-                "(fallback=false, old_trades=false)"
+                f"PASS: {_proof_source} "
+                f"(fallback=false, old_trades=false, scanner_confirmed={scanner_confirmed}, "
+                f"geometry_pass={geometry_pass})"
             ],
             "warnings": warnings,
-            "forensics_verdict": forensics_verdict,
+            **_build_v28_fields(
+                forensics_verdict, scanner_confirmed, geometry_pass,
+                geometry_evidence["geometry_verdict"],
+                ticket_scanner_verdict, _proof_source,
+            ),
             "safety": {"order_send_called": False, "position_modified": False},
         }
 
@@ -231,10 +284,15 @@ def run_verification() -> dict:
             "ok_checks": ok_checks + [
                 f"PASS: scanner-confirmed match ({ticket_scanner_match_method}), "
                 f"forensics_verdict={forensics_verdict}, "
-                "fallback=false, old_trades=false, geometry_pass=True"
+                f"fallback=false, old_trades=false, scanner_confirmed={scanner_confirmed}, "
+                f"geometry_pass={geometry_pass}"
             ],
             "warnings": warnings,
-            "forensics_verdict": forensics_verdict,
+            **_build_v28_fields(
+                forensics_verdict, scanner_confirmed, geometry_pass,
+                geometry_evidence["geometry_verdict"],
+                ticket_scanner_verdict, "scanner_confirmed",
+            ),
             "safety": {"order_send_called": False, "position_modified": False},
         }
 
@@ -282,30 +340,40 @@ def run_verification() -> dict:
 
     if forensics_verdict == "DEMO_MICRO_EVIDENCE_PASS":
         verdict = MICRO_PROOF_PASS
-        ok_checks.append("PASS: exact receipt match with entry and exit deals")
+        _ps = "scanner_confirmed" if scanner_confirmed else "exact_receipt_match"
+        ok_checks.append(
+            f"PASS: exact receipt match with entry and exit deals "
+            f"(scanner_confirmed={scanner_confirmed}, geometry_pass={geometry_pass})"
+        )
     elif forensics_verdict == "DEMO_MICRO_EVIDENCE_ENTRY_CONFIRMED_CLOSE_DEAL_MISSING":
         # v2.7.4: With entry confirmed and close deal missing, this is
         # PASS if scanner confirms the trade closed.
         if scanner_confirmed:
             verdict = MICRO_PROOF_PASS
+            _ps = "scanner_confirmed"
             ok_checks.append(
                 "PASS: entry confirmed and scanner confirms trade closure "
-                f"(scanner_match={ticket_scanner_match_method})"
+                f"(scanner_match={ticket_scanner_match_method}, geometry_pass={geometry_pass})"
             )
         else:
             verdict = MICRO_PROOF_INCOMPLETE
+            _ps = ""
             warnings.append("Entry confirmed but close deal missing - proof incomplete")
     elif forensics_verdict == "DEMO_MICRO_EVIDENCE_HISTORY_PENDING":
         verdict = MICRO_PROOF_INCOMPLETE
+        _ps = ""
         warnings.append("History pending - retry forensics after a short delay")
     elif forensics_verdict == "DEMO_MICRO_EVIDENCE_INCOMPLETE":
         verdict = MICRO_PROOF_INCOMPLETE
+        _ps = ""
         warnings.append("Forensics incomplete")
     elif forensics_verdict == "DEMO_MICRO_EVIDENCE_FAIL":
         verdict = MICRO_PROOF_FAIL
+        _ps = ""
         blockers.append("Forensics evidence FAIL")
     else:
         verdict = MICRO_PROOF_INCOMPLETE
+        _ps = ""
         warnings.append(f"Unknown forensics verdict: {forensics_verdict}")
 
     return {
@@ -314,22 +382,28 @@ def run_verification() -> dict:
         "blockers": blockers,
         "ok_checks": ok_checks,
         "warnings": warnings,
-        "forensics_verdict": forensics_verdict,
-        "scanner_confirmed": scanner_confirmed,
-        "geometry_pass": geometry_evidence["geometry_pass"],
+        **_build_v28_fields(
+            forensics_verdict, scanner_confirmed, geometry_pass,
+            geometry_evidence["geometry_verdict"],
+            ticket_scanner_verdict, _ps,
+        ),
         "safety": {"order_send_called": False, "position_modified": False},
     }
 
 
 def main() -> int:
     print("=" * 70)
-    print("  TITAN XAU AI - Demo Micro Evidence Verifier (v2.7.4)")
+    print("  TITAN XAU AI - Demo Micro Evidence Verifier (v2.8)")
     print("=" * 70)
     result = run_verification()
     print(f"\n  Verdict: {result['verdict']}")
     print(f"  Blockers: {len(result.get('blockers', []))}")
     print(f"  Scanner confirmed: {result.get('scanner_confirmed', False)}")
     print(f"  Geometry pass: {result.get('geometry_pass', False)}")
+    print(f"  Proof source: {result.get('proof_source', '')}")
+    print(f"  Receipt geometry verdict: {result.get('receipt_geometry_verdict', '')}")
+    print(f"  Ticket history verdict: {result.get('ticket_history_verdict', '')}")
+    print(f"  Forensics verdict: {result.get('forensics_verdict', '')}")
     if result.get("blockers"):
         for b in result["blockers"]:
             print(f"    - {b}")

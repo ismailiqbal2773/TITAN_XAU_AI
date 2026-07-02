@@ -50,6 +50,7 @@ RECEIPT_PATH = REPO_ROOT / "data" / "runtime" / "demo_micro_execution_receipt.js
 AUTONOMOUS_DEMO_READY_SUPERVISED = "AUTONOMOUS_DEMO_READY_SUPERVISED"
 AUTONOMOUS_DEMO_BLOCKED_EVIDENCE_INCOMPLETE = "AUTONOMOUS_DEMO_BLOCKED_EVIDENCE_INCOMPLETE"
 AUTONOMOUS_DEMO_BLOCKED_ALPHA_ENTRY_UNKNOWN = "AUTONOMOUS_DEMO_BLOCKED_ALPHA_ENTRY_UNKNOWN"
+AUTONOMOUS_DEMO_BLOCKED_ALPHA_ENTRY_FAILED = "AUTONOMOUS_DEMO_BLOCKED_ALPHA_ENTRY_FAILED"
 AUTONOMOUS_DEMO_BLOCKED_RISK = "AUTONOMOUS_DEMO_BLOCKED_RISK"
 AUTONOMOUS_DEMO_BLOCKED_OPEN_POSITION = "AUTONOMOUS_DEMO_BLOCKED_OPEN_POSITION"
 AUTONOMOUS_DEMO_OBSERVATION_ONLY = "AUTONOMOUS_DEMO_OBSERVATION_ONLY"
@@ -58,6 +59,7 @@ ALL_VERDICTS = (
     AUTONOMOUS_DEMO_READY_SUPERVISED,
     AUTONOMOUS_DEMO_BLOCKED_EVIDENCE_INCOMPLETE,
     AUTONOMOUS_DEMO_BLOCKED_ALPHA_ENTRY_UNKNOWN,
+    AUTONOMOUS_DEMO_BLOCKED_ALPHA_ENTRY_FAILED,
     AUTONOMOUS_DEMO_BLOCKED_RISK,
     AUTONOMOUS_DEMO_BLOCKED_OPEN_POSITION,
     AUTONOMOUS_DEMO_OBSERVATION_ONLY,
@@ -437,6 +439,29 @@ def run_audit(receipt_path: Optional[Path] = None) -> dict:
         or entry_gate_verdict == "ENTRY_GATE_EXECUTION_ONLY_PASS_ALPHA_UNKNOWN"
     )
 
+    # v2.8: Read autonomous entry decision to distinguish UNKNOWN vs FAILED.
+    # UNKNOWN = no decision artifact exists (run --autonomous-entry-check first)
+    # FAILED = decision exists but is not ALPHA_REGIME_ENTRY_PASS
+    autonomous_decision_path = OUTPUT_DIR / "autonomous_entry_decision.json"
+    autonomous_decision = _load_json(autonomous_decision_path)
+    findings["autonomous_entry_decision_available"] = autonomous_decision is not None
+    ae_final_decision = ""
+    ae_pass = False
+    if autonomous_decision:
+        ae_final_decision = autonomous_decision.get("final_decision", "") or ""
+        ae_pass = ae_final_decision == "ALPHA_REGIME_ENTRY_PASS"
+        findings["autonomous_entry_decision_verdict"] = ae_final_decision
+        findings["autonomous_entry_decision_pass"] = ae_pass
+    else:
+        findings["autonomous_entry_decision_verdict"] = ""
+        findings["autonomous_entry_decision_pass"] = False
+
+    # v2.8: entry_gate_full_pass requires autonomous entry decision PASS
+    entry_gate_full_pass_v28 = (
+        entry_gate_verdict == "ENTRY_GATE_FULL_PASS"
+        and ae_pass
+    )
+
     if supervisor_observation_only and not forward_demo_complete:
         verdict = AUTONOMOUS_DEMO_OBSERVATION_ONLY
         ok_checks.append("Verdict: OBSERVATION_ONLY (supervisor override active)")
@@ -457,40 +482,66 @@ def run_audit(receipt_path: Optional[Path] = None) -> dict:
     elif broker_actual_fail:
         verdict = AUTONOMOUS_DEMO_BLOCKED_RISK
         blockers.append("BROKER_ACTUAL_FAIL: entry gate broker_gate_status=FAILED")
-    elif alpha_entry_unknown:
+    elif autonomous_decision is None:
+        # v2.8: No autonomous entry decision artifact exists.
+        # This means --autonomous-entry-check has not been run yet.
         verdict = AUTONOMOUS_DEMO_BLOCKED_ALPHA_ENTRY_UNKNOWN
         blockers.append(
-            "ALPHA_REGIME_ENTRY_NOT_PROVEN: end-to-end entry gate is "
-            "EXECUTION_ONLY_PASS_ALPHA_UNKNOWN. Alpha/regime chain was not "
-            "used for entry - autonomous strategy proof not complete."
+            "ALPHA_REGIME_ENTRY_NOT_PROVEN: autonomous_entry_decision.json not found. "
+            "Run --autonomous-entry-check to evaluate the alpha/regime entry chain."
         )
-        # Forward demo incomplete is a secondary warning, not the primary blocker
-        if not forward_demo_complete:
-            warnings.append(
-                f"FORWARD_DEMO_INCOMPLETE: {findings.get('forward_demo_daily_reports_count', 0)}/7 days "
-                "completed. This is a secondary concern - alpha/regime entry is the primary blocker."
-            )
-    elif not forward_demo_complete and not supervisor_observation_only:
-        # v2.7.4: Forward demo incomplete without alpha issue is its own blocker
-        verdict = AUTONOMOUS_DEMO_BLOCKED_EVIDENCE_INCOMPLETE
+    elif not ae_pass:
+        # v2.8: Autonomous entry decision exists but did not pass.
+        verdict = AUTONOMOUS_DEMO_BLOCKED_ALPHA_ENTRY_FAILED
         blockers.append(
-            f"FORWARD_DEMO_INCOMPLETE: {findings.get('forward_demo_daily_reports_count', 0)}/7 days "
-            "completed. 7-day forward demo rollup is required for autonomous readiness."
+            f"ALPHA_REGIME_ENTRY_FAILED: autonomous entry decision verdict={ae_final_decision}. "
+            "The alpha/regime entry chain was evaluated but did not pass all gates."
+        )
+    elif not entry_gate_full_pass_v28:
+        # v2.8: Autonomous decision passed but entry gate audit hasn't
+        # upgraded to FULL_PASS yet (stale audit). Re-run entry gate audit.
+        verdict = AUTONOMOUS_DEMO_BLOCKED_ALPHA_ENTRY_UNKNOWN
+        blockers.append(
+            "ENTRY_GATE_NOT_FULL_PASS: autonomous entry decision is PASS but "
+            "end-to-end entry gate audit has not upgraded to FULL_PASS. "
+            "Re-run end_to_end_entry_gate_audit.py."
         )
     elif not final_demo_ready and not supervisor_observation_only:
+        # v2.8: For supervised demo, final demo readiness is required.
         verdict = AUTONOMOUS_DEMO_BLOCKED_EVIDENCE_INCOMPLETE
         blockers.append("FINAL_DEMO_NOT_READY: final demo readiness report not READY")
     elif not broker_demo:
         verdict = AUTONOMOUS_DEMO_BLOCKED_RISK
         blockers.append("BROKER_NOT_DEMO: account is not DEMO")
     else:
-        # All checks pass
+        # v2.8: All supervised prerequisites pass:
+        # - execution geometry PASS
+        # - micro proof PASS
+        # - no open positions
+        # - broker DEMO
+        # - prop_funded_safe active
+        # - RR gate enforced
+        # - risk per trade <= 0.5%
+        # - max open positions = 1
+        # - no martingale/grid/averaging/loss multiplier
+        # - autonomous entry decision PASS
+        # - entry gate FULL_PASS
+        # - no stale token
+        # 7-day forward demo incomplete is a WARNING for supervised demo, not a blocker.
         verdict = AUTONOMOUS_DEMO_READY_SUPERVISED
         ok_checks.append("All autonomous readiness checks PASSED")
+        if not forward_demo_complete:
+            warnings.append(
+                f"FORWARD_DEMO_INCOMPLETE: {findings.get('forward_demo_daily_reports_count', 0)}/7 days "
+                "completed. This is a warning for supervised demo - not a hard blocker."
+            )
 
     autonomous_allowed = verdict == AUTONOMOUS_DEMO_READY_SUPERVISED
     findings["autonomous_allowed"] = autonomous_allowed
     findings["alpha_entry_unknown"] = alpha_entry_unknown
+    findings["alpha_entry_failed"] = (
+        verdict == AUTONOMOUS_DEMO_BLOCKED_ALPHA_ENTRY_FAILED
+    )
     findings["hard_risk_blocker"] = hard_risk_blocker
     findings["broker_actual_fail"] = broker_actual_fail
 

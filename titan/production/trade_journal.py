@@ -198,6 +198,18 @@ class EventType(str, Enum):
     DEMO_MICRO_POSITION_CLOSED_DETECTED = "DEMO_MICRO_POSITION_CLOSED_DETECTED"
     DEMO_MICRO_HISTORY_DIAGNOSTIC_COMPLETE = "DEMO_MICRO_HISTORY_DIAGNOSTIC_COMPLETE"
 
+    # ─── Sprint v2.8: Autonomous alpha/regime entry check events ──────────
+    AUTONOMOUS_ENTRY_CHECK_STARTED = "AUTONOMOUS_ENTRY_CHECK_STARTED"
+    REGIME_DETECTION_RESULT = "REGIME_DETECTION_RESULT"
+    ALPHA_SIGNAL_RESULT = "ALPHA_SIGNAL_RESULT"
+    META_LABEL_GATE_RESULT = "META_LABEL_GATE_RESULT"
+    RISK_GATE_RESULT = "RISK_GATE_RESULT"
+    BROKER_GATE_RESULT = "BROKER_GATE_RESULT"
+    PROP_FUNDED_GATE_RESULT = "PROP_FUNDED_GATE_RESULT"
+    EXECUTION_GEOMETRY_GATE_RESULT = "EXECUTION_GEOMETRY_GATE_RESULT"
+    AUTONOMOUS_ENTRY_DECISION = "AUTONOMOUS_ENTRY_DECISION"
+    AUTONOMOUS_DEMO_NOT_READY = "AUTONOMOUS_DEMO_NOT_READY"
+
 
 @dataclass
 class JournalRecord:
@@ -336,6 +348,55 @@ class TradeJournal:
     def log_weekly_summary(self, summary: dict) -> str:
         """Log weekly trading summary."""
         return self.log_event(EventType.WEEKLY_SUMMARY, summary)
+
+    # ─── Sprint v2.8: Autonomous entry check journal helpers ────────────
+
+    def log_autonomous_entry_check_started(self, data: dict) -> str:
+        """Log that the autonomous entry check has started."""
+        return self.log_event(EventType.AUTONOMOUS_ENTRY_CHECK_STARTED, data)
+
+    def log_regime_detection_result(self, data: dict) -> str:
+        """Log regime detection result from the entry check chain."""
+        return self.log_event(EventType.REGIME_DETECTION_RESULT, data)
+
+    def log_alpha_signal_result(self, data: dict) -> str:
+        """Log alpha signal result from the entry check chain."""
+        return self.log_event(EventType.ALPHA_SIGNAL_RESULT, data)
+
+    def log_meta_label_gate_result(self, data: dict) -> str:
+        """Log meta-label gate result from the entry check chain."""
+        return self.log_event(EventType.META_LABEL_GATE_RESULT, data)
+
+    def log_risk_gate_result(self, data: dict) -> str:
+        """Log risk gate result from the entry check chain."""
+        return self.log_event(EventType.RISK_GATE_RESULT, data)
+
+    def log_broker_gate_result(self, data: dict) -> str:
+        """Log broker gate result from the entry check chain."""
+        return self.log_event(EventType.BROKER_GATE_RESULT, data)
+
+    def log_prop_funded_gate_result(self, data: dict) -> str:
+        """Log prop/funded gate result from the entry check chain."""
+        return self.log_event(EventType.PROP_FUNDED_GATE_RESULT, data)
+
+    def log_execution_geometry_gate_result(self, data: dict) -> str:
+        """Log execution geometry gate result from the entry check chain."""
+        return self.log_event(EventType.EXECUTION_GEOMETRY_GATE_RESULT, data)
+
+    def log_autonomous_entry_decision(self, data: dict) -> str:
+        """Log the final autonomous entry decision.
+
+        The data dict must include:
+          - final_decision (verdict)
+          - blockers (list)
+          - warnings (list)
+          - confidence, thresholds, profile, RR
+        """
+        return self.log_event(EventType.AUTONOMOUS_ENTRY_DECISION, data)
+
+    def log_autonomous_demo_not_ready(self, data: dict) -> str:
+        """Log that autonomous demo was attempted but is not ready."""
+        return self.log_event(EventType.AUTONOMOUS_DEMO_NOT_READY, data)
 
     # ─── Verification methods (Sprint 6) ────────────────────────────────
 

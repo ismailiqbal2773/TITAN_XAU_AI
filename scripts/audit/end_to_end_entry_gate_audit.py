@@ -446,6 +446,40 @@ def run_audit(receipt_path: Optional[Path] = None) -> dict:
     # === Meta-label pass (usually unknown in demo micro) ===
     findings["meta_label_pass"] = "unknown"
 
+    # === v2.8: Read autonomous entry decision if it exists ===
+    autonomous_decision_path = OUTPUT_DIR / "autonomous_entry_decision.json"
+    autonomous_decision = _load_json(autonomous_decision_path)
+    findings["autonomous_entry_decision_available"] = autonomous_decision is not None
+    ae_verdict = ""
+    ae_regime_detected = False
+    ae_alpha_signal_detected = False
+    ae_alpha_pass = False
+    ae_risk_gate_pass = False
+    ae_broker_gate_pass = False
+    ae_prop_funded_gate_pass = False
+    ae_geometry_gate_pass = False
+    ae_actual_RR = 0.0
+    if autonomous_decision:
+        ae_verdict = autonomous_decision.get("final_decision", "") or ""
+        ae_regime_detected = bool(autonomous_decision.get("regime_detected", False))
+        ae_alpha_signal_detected = bool(autonomous_decision.get("alpha_signal_detected", False))
+        ae_alpha_pass = bool(autonomous_decision.get("alpha_pass", False))
+        ae_risk_gate_pass = bool(autonomous_decision.get("risk_gate_pass", False))
+        ae_broker_gate_pass = bool(autonomous_decision.get("broker_gate_pass", False))
+        ae_prop_funded_gate_pass = bool(autonomous_decision.get("prop_funded_gate_pass", False))
+        ae_geometry_gate_pass = bool(autonomous_decision.get("geometry_gate_pass", False))
+        ae_actual_RR = _safe_float(autonomous_decision.get("actual_RR", 0.0))
+        findings["autonomous_entry_decision_verdict"] = ae_verdict
+        findings["autonomous_entry_regime_detected"] = ae_regime_detected
+        findings["autonomous_entry_alpha_signal_detected"] = ae_alpha_signal_detected
+        findings["autonomous_entry_alpha_pass"] = ae_alpha_pass
+        findings["autonomous_entry_risk_gate_pass"] = ae_risk_gate_pass
+        findings["autonomous_entry_broker_gate_pass"] = ae_broker_gate_pass
+        findings["autonomous_entry_prop_funded_gate_pass"] = ae_prop_funded_gate_pass
+        findings["autonomous_entry_geometry_gate_pass"] = ae_geometry_gate_pass
+        findings["autonomous_entry_actual_RR"] = ae_actual_RR
+        ok_checks.append(f"Autonomous entry decision available: {ae_verdict}")
+
     # === Final verdict logic ===
     alpha_missing = not alpha_evidence["alpha_signal_detected"]
     regime_missing = not alpha_evidence["regime_detected"]
@@ -454,6 +488,20 @@ def run_audit(receipt_path: Optional[Path] = None) -> dict:
     # Treat None as "not blocked" - the broker gate is unknown but not failed.
     broker_gate_failed = broker_gate_pass is False
     risk_or_broker_failed = (not risk_gate_pass) or broker_gate_failed
+
+    # v2.8: If autonomous entry decision exists and is ALPHA_REGIME_ENTRY_PASS,
+    # upgrade verdict to ENTRY_GATE_FULL_PASS.
+    autonomous_decision_pass = (
+        autonomous_decision is not None
+        and ae_verdict == "ALPHA_REGIME_ENTRY_PASS"
+        and ae_regime_detected
+        and ae_alpha_signal_detected
+        and ae_alpha_pass
+        and ae_risk_gate_pass
+        and ae_prop_funded_gate_pass
+        and ae_geometry_gate_pass
+        and ae_actual_RR >= 2.0
+    )
 
     if not execution_success:
         # Execution didn't happen - blocked
@@ -467,6 +515,38 @@ def run_audit(receipt_path: Optional[Path] = None) -> dict:
         verdict = ENTRY_GATE_BLOCKED_GEOMETRY
     elif risk_or_broker_failed:
         verdict = ENTRY_GATE_BLOCKED_RISK_OR_BROKER
+    elif autonomous_decision_pass:
+        # v2.8: Autonomous entry decision is PASS - upgrade to FULL_PASS
+        verdict = ENTRY_GATE_FULL_PASS
+        ok_checks.append(
+            "All entry gates passed via autonomous entry decision: "
+            "regime + alpha + risk + broker + prop/funded + geometry"
+        )
+    elif autonomous_decision is not None and ae_verdict != "ALPHA_REGIME_ENTRY_PASS":
+        # v2.8: Autonomous entry decision exists but did not pass.
+        # Map the specific block reason to the entry gate verdict.
+        if ae_verdict == "ALPHA_REGIME_ENTRY_BLOCKED_NO_REGIME":
+            verdict = ENTRY_GATE_BLOCKED_REGIME_MISSING
+            blockers.append("AUTONOMOUS_ENTRY: no regime detected")
+        elif ae_verdict == "ALPHA_REGIME_ENTRY_BLOCKED_NO_ALPHA":
+            verdict = ENTRY_GATE_BLOCKED_ALPHA_MISSING
+            blockers.append("AUTONOMOUS_ENTRY: no alpha signal")
+        elif ae_verdict == "ALPHA_REGIME_ENTRY_BLOCKED_CONFIDENCE":
+            verdict = ENTRY_GATE_BLOCKED_ALPHA_MISSING
+            blockers.append("AUTONOMOUS_ENTRY: alpha confidence below threshold")
+        elif ae_verdict == "ALPHA_REGIME_ENTRY_BLOCKED_RISK":
+            verdict = ENTRY_GATE_BLOCKED_RISK_OR_BROKER
+            blockers.append("AUTONOMOUS_ENTRY: risk gate failed")
+        elif ae_verdict == "ALPHA_REGIME_ENTRY_BLOCKED_BROKER":
+            verdict = ENTRY_GATE_BLOCKED_RISK_OR_BROKER
+            blockers.append("AUTONOMOUS_ENTRY: broker gate failed")
+        elif ae_verdict == "ALPHA_REGIME_ENTRY_BLOCKED_GEOMETRY":
+            verdict = ENTRY_GATE_BLOCKED_GEOMETRY
+            blockers.append("AUTONOMOUS_ENTRY: geometry gate failed")
+        else:
+            # Other blocks (spread, news, meta-label) - default to ALPHA_MISSING
+            verdict = ENTRY_GATE_BLOCKED_ALPHA_MISSING
+            blockers.append(f"AUTONOMOUS_ENTRY: {ae_verdict}")
     elif alpha_missing or regime_missing:
         # v2.7.3: Demo micro is a controlled execution proof that does NOT
         # use live alpha/regime for entry. If either is missing, the audit
@@ -488,6 +568,7 @@ def run_audit(receipt_path: Optional[Path] = None) -> dict:
     findings["execution_proof_mode_alpha_unknown"] = (
         verdict == ENTRY_GATE_EXECUTION_ONLY_PASS_ALPHA_UNKNOWN
     )
+    findings["autonomous_entry_decision_pass"] = autonomous_decision_pass
 
     return {
         "timestamp_utc": ts,

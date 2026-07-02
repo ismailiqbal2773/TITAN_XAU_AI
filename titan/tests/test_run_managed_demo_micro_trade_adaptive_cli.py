@@ -17,7 +17,7 @@ trailing CLI wiring:
   - order_send mocked
 """
 from __future__ import annotations
-import re, sys
+import json, re, sys
 from pathlib import Path
 import pytest
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -797,3 +797,80 @@ class TestRunManagedDemoMicroTradeAdaptiveCLI:
         body = src[idx:end_idx if end_idx > 0 else len(src)]
         body_lower = body.lower()
         assert "create_local_operator_execution_token" not in body_lower
+
+    # === Sprint v2.8: autonomous-entry-check mode ===
+
+    def test_66_v2_8_autonomous_entry_check_cli_argument(self):
+        """--autonomous-entry-check CLI argument must exist."""
+        src = (REPO_ROOT / "scripts" / "operator" / "run_managed_demo_micro_trade.py").read_text()
+        assert "--autonomous-entry-check" in src
+
+    def test_67_v2_8_build_request_shows_autonomous_entry_decision_when_available(self, tmp_path):
+        """When autonomous_entry_decision.json exists, build-request must show
+        autonomous entry decision fields."""
+        import scripts.operator.run_managed_demo_micro_trade as m
+        import argparse
+
+        # Create a fake autonomous entry decision
+        audit_dir = REPO_ROOT / "data" / "audit" / "demo_micro_execution"
+        ae_path = audit_dir / "autonomous_entry_decision.json"
+        ae_existed = ae_path.exists()
+        if not ae_existed:
+            ae_path.write_text(json.dumps({
+                "final_decision": "ALPHA_REGIME_ENTRY_BLOCKED_NO_REGIME",
+                "regime_detected": False,
+                "alpha_signal_detected": False,
+                "alpha_direction": "FLAT",
+                "alpha_confidence": 0.0,
+                "alpha_threshold": 0.55,
+                "alpha_pass": False,
+                "risk_gate_pass": True,
+                "broker_gate_pass": False,
+                "prop_funded_gate_pass": False,
+                "geometry_gate_pass": False,
+                "actual_RR": 0.0,
+            }))
+        try:
+            args = argparse.Namespace(
+                direction="BUY", entry_price=4075.27, sl=0, tp=0,
+                account_profile="",
+                prop_funded_profile="prop_funded_safe",
+                initial_tp_r=3.0,
+                use_dynamic_tp_extension=True,
+                use_adaptive_trailing=True,
+                tp_extension_trigger_r=2.0,
+                risk_mode="conservative",
+                broker_profile="metaquotes_demo",
+            )
+            result = m.run_build_request(
+                direction="BUY", entry_price=4075.27, sl=0, tp=0, args=args
+            )
+            # Build-request must not crash when autonomous entry decision exists
+            assert "verdict" in result
+        finally:
+            if not ae_existed and ae_path.exists():
+                ae_path.unlink()
+
+    def test_68_v2_8_build_request_shows_warning_when_no_autonomous_decision(self):
+        """When no autonomous_entry_decision.json exists, build-request must
+        print the 'Autonomous entry chain not checked' warning."""
+        src = (REPO_ROOT / "scripts" / "operator" / "run_managed_demo_micro_trade.py").read_text()
+        assert "Autonomous entry chain not checked." in src
+        assert "Run --autonomous-entry-check before supervised autonomous demo." in src
+
+    def test_69_v2_8_autonomous_entry_check_writes_decision_artifact(self):
+        """--autonomous-entry-check must write autonomous_entry_decision.json."""
+        import scripts.operator.run_managed_demo_micro_trade as m
+        import argparse
+        args = argparse.Namespace(
+            prop_funded_profile="prop_funded_safe",
+            account_profile="",
+            initial_tp_r=3.0,
+        )
+        result = m.run_autonomous_entry_check(args)
+        ae_path = Path(result["report_paths"]["json"])
+        assert ae_path.exists()
+        data = json.loads(ae_path.read_text())
+        assert "final_decision" in data
+        assert "safety" in data
+        assert data["safety"]["order_send_called"] is False

@@ -417,3 +417,86 @@ class TestAutonomousDemoReadinessAudit:
         src = (REPO_ROOT / "scripts" / "audit" / "autonomous_demo_readiness_audit.py").read_text()
         code = _strip(src).lower()
         assert "create_local_operator_execution_token" not in code
+
+    # === Sprint v2.8: Autonomous entry decision integration ===
+
+    def test_27_v2_8_new_verdict_blocked_alpha_entry_failed(self):
+        """AUTONOMOUS_DEMO_BLOCKED_ALPHA_ENTRY_FAILED verdict must exist."""
+        import scripts.audit.autonomous_demo_readiness_audit as a
+        assert hasattr(a, "AUTONOMOUS_DEMO_BLOCKED_ALPHA_ENTRY_FAILED")
+        assert a.AUTONOMOUS_DEMO_BLOCKED_ALPHA_ENTRY_FAILED in a.ALL_VERDICTS
+
+    def test_28_v2_8_reads_autonomous_entry_decision(self):
+        """Autonomous readiness audit must read autonomous_entry_decision.json."""
+        src = (REPO_ROOT / "scripts" / "audit" / "autonomous_demo_readiness_audit.py").read_text()
+        assert "autonomous_entry_decision.json" in src
+        assert "autonomous_entry_decision_available" in src
+
+    def test_29_v2_8_blocked_alpha_entry_failed_when_decision_not_pass(
+        self, tmp_path, monkeypatch
+    ):
+        """When autonomous entry decision exists but is not PASS, verdict
+        must be AUTONOMOUS_DEMO_BLOCKED_ALPHA_ENTRY_FAILED."""
+        import scripts.audit.autonomous_demo_readiness_audit as a
+
+        out_dir = tmp_path / "audit_out"
+        out_dir.mkdir()
+        (out_dir / "execution_geometry_audit.json").write_text(json.dumps({
+            "verdict": "EXECUTION_GEOMETRY_PASS",
+        }))
+        (out_dir / "post_trade_forensics.json").write_text(json.dumps({
+            "verdict": "DEMO_MICRO_EVIDENCE_PASS",
+            "findings": {"open_positions_count": 0},
+        }))
+        (out_dir / "autonomous_entry_decision.json").write_text(json.dumps({
+            "final_decision": "ALPHA_REGIME_ENTRY_BLOCKED_NO_ALPHA",
+        }))
+
+        receipt_dir = tmp_path / "runtime"
+        receipt_dir.mkdir()
+        receipt_path = receipt_dir / "demo_micro_execution_receipt.json"
+        receipt_path.write_text(json.dumps({
+            "success": True,
+            "account_server": "MetaQuotes-Demo",
+            "prop_funded_profile": "prop_funded_safe",
+        }))
+
+        monkeypatch.setattr(a, "OUTPUT_DIR", out_dir)
+        monkeypatch.setattr(a, "RECEIPT_PATH", receipt_path)
+
+        result = a.run_audit(receipt_path=receipt_path)
+        assert result["verdict"] == a.AUTONOMOUS_DEMO_BLOCKED_ALPHA_ENTRY_FAILED, \
+            f"Expected BLOCKED_ALPHA_ENTRY_FAILED, got {result['verdict']}"
+
+    def test_30_v2_8_blocked_alpha_entry_unknown_when_decision_missing(
+        self, tmp_path, monkeypatch
+    ):
+        """When autonomous entry decision is missing, verdict must be
+        AUTONOMOUS_DEMO_BLOCKED_ALPHA_ENTRY_UNKNOWN."""
+        import scripts.audit.autonomous_demo_readiness_audit as a
+
+        out_dir = tmp_path / "audit_out"
+        out_dir.mkdir()
+        (out_dir / "execution_geometry_audit.json").write_text(json.dumps({
+            "verdict": "EXECUTION_GEOMETRY_PASS",
+        }))
+        (out_dir / "post_trade_forensics.json").write_text(json.dumps({
+            "verdict": "DEMO_MICRO_EVIDENCE_PASS",
+            "findings": {"open_positions_count": 0},
+        }))
+
+        receipt_dir = tmp_path / "runtime"
+        receipt_dir.mkdir()
+        receipt_path = receipt_dir / "demo_micro_execution_receipt.json"
+        receipt_path.write_text(json.dumps({
+            "success": True,
+            "account_server": "MetaQuotes-Demo",
+            "prop_funded_profile": "prop_funded_safe",
+        }))
+
+        monkeypatch.setattr(a, "OUTPUT_DIR", out_dir)
+        monkeypatch.setattr(a, "RECEIPT_PATH", receipt_path)
+
+        result = a.run_audit(receipt_path=receipt_path)
+        assert result["verdict"] == a.AUTONOMOUS_DEMO_BLOCKED_ALPHA_ENTRY_UNKNOWN, \
+            f"Expected BLOCKED_ALPHA_ENTRY_UNKNOWN, got {result['verdict']}"
