@@ -313,6 +313,44 @@ def run_audit() -> dict:
     else:
         findings["aggressive_simulation_only"] = False
 
+    # === Sprint 9.9.3.45.8.12: Forward demo + trailing manager status ===
+    archive_path = REPO_ROOT / "scripts" / "audit" / "archive_micro_proof_pass.py"
+    daily_report_path = REPO_ROOT / "scripts" / "audit" / "forward_demo_daily_report.py"
+    rollup_path = REPO_ROOT / "scripts" / "audit" / "forward_demo_rollup_report.py"
+    trailing_audit_path = REPO_ROOT / "scripts" / "audit" / "trailing_manager_verification_audit.py"
+    findings["archive_micro_proof_exists"] = _check_module_exists(archive_path)
+    findings["forward_daily_report_exists"] = _check_module_exists(daily_report_path)
+    findings["forward_rollup_exists"] = _check_module_exists(rollup_path)
+    findings["trailing_manager_audit_exists"] = _check_module_exists(trailing_audit_path)
+    if findings["archive_micro_proof_exists"]:
+        ok_checks.append("Archive micro proof script exists")
+    if findings["forward_daily_report_exists"]:
+        ok_checks.append("Forward daily report script exists")
+    if findings["forward_rollup_exists"]:
+        ok_checks.append("Forward rollup report script exists")
+    if findings["trailing_manager_audit_exists"]:
+        ok_checks.append("Trailing manager verification audit exists")
+
+    # Check for existing daily reports
+    forward_demo_dir = REPO_ROOT / "data" / "audit" / "forward_demo"
+    daily_report_count = 0
+    if forward_demo_dir.exists():
+        daily_report_count = len(list(forward_demo_dir.glob("daily_report_*.json")))
+    findings["forward_demo_daily_reports_count"] = daily_report_count
+    if daily_report_count > 0:
+        ok_checks.append(f"Forward demo daily reports: {daily_report_count}")
+    if daily_report_count >= 7:
+        ok_checks.append("7-day forward demo complete")
+        findings["forward_demo_complete"] = True
+    else:
+        findings["forward_demo_complete"] = False
+
+    # Check for micro proof archive
+    micro_proof_archives = list((REPO_ROOT / "data" / "audit" / "demo_micro").glob("micro_proof_pass_*"))
+    findings["micro_proof_archived"] = len(micro_proof_archives) > 0
+    if findings["micro_proof_archived"]:
+        ok_checks.append("Micro proof archived")
+
     # === Get parameter binding status ===
     safe_default_count = 0
     needs_backtest_binding_count = 0

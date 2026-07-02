@@ -1,0 +1,45 @@
+{
+  "timestamp_utc": "2026-07-02T04:07:49.336714+00:00",
+  "date": "20260702",
+  "profile": "prop_funded_safe",
+  "account_server": "metaquotes-demo",
+  "account_type": "demo",
+  "broker_score": 0.0,
+  "open_positions_count": 0,
+  "titan_magic_positions_count": 0,
+  "trades_today": 0,
+  "closed_trades_today": 0,
+  "net_pnl_today": 0.0,
+  "max_daily_dd": 0.0,
+  "total_dd": 0.0,
+  "spread_slippage_notes": "",
+  "rejected_signals": 0,
+  "risk_events": [],
+  "journal_integrity": "OK",
+  "receipt_integrity": "OK",
+  "no_martingale": true,
+  "no_grid": true,
+  "no_averaging": true,
+  "no_loss_multiplier": true,
+  "forward_day_verdict": "FORWARD_DAY_WARN",
+  "blockers": [],
+  "warnings": [
+    "NO_TRADES_TODAY: no trades were placed or closed today - observation may continue but flag for review"
+  ],
+  "ok_checks": [
+    "Account is DEMO (metaquotes-demo)",
+    "Profile approved: prop_funded_safe",
+    "Open TITAN positions: 0 (<= 1)",
+    "max_daily_dd=0.0000 <= 0.0300",
+    "No old fallback trade used as proof",
+    "No martingale / grid / averaging / loss-based lot multiplier"
+  ],
+  "safety": {
+    "order_send_called": false,
+    "position_modified": false,
+    "no_martingale": true,
+    "no_grid": true,
+    "no_averaging": true,
+    "no_loss_multiplier": true
+  }
+}
