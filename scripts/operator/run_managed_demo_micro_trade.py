@@ -188,27 +188,84 @@ def run_autonomous_entry_check(args=None) -> dict:
     })
 
     # ─── 1. Regime detection ────────────────────────────────────────────
-    regime_result = {"detected": False, "regime_value": "UNKNOWN", "confidence": 0.0}
+    # v2.8.1: Wire the existing regime detection engine if available.
+    # If features are available, run detect_regime(). If not, check for
+    # cached regime artifact. If neither, report exact missing source.
+    regime_result = {
+        "detected": False, "regime_value": "UNKNOWN", "confidence": 0.0,
+        "source": "", "artifact_found": False, "detector_available": False,
+        "error": "", "features_available": False,
+    }
     try:
-        from titan.production.regime_detection import RegimeType
-        # Passive: we don't have live MT5 data in Z AI env.
-        # The operator env will have live data. For dry-run, we check
-        # if there's a cached regime result.
+        from titan.production.regime_detection import detect_regime as _detect_regime
+        regime_result["detector_available"] = True
+        # Try to get latest features from feature stream
+        try:
+            from titan.production.feature_stream import H1FeatureStream
+            stream = H1FeatureStream()
+            fv = stream.latest()
+            if fv is not None:
+                regime_result["features_available"] = True
+                # Extract regime-relevant scores from feature vector
+                trend_score = float(getattr(fv, "trend_score", 0.0) or 0.0)
+                volatility_score = float(getattr(fv, "volatility_score", 0.0) or 0.0)
+                range_score = float(getattr(fv, "range_score", 0.0) or 0.0)
+                spread_score = float(getattr(fv, "spread_score", 0.0) or 0.0)
+                liquidity_score = float(getattr(fv, "liquidity_score", 1.0) or 1.0)
+                regime_status = _detect_regime(
+                    trend_score=trend_score,
+                    volatility_score=volatility_score,
+                    range_score=range_score,
+                    spread_score=spread_score,
+                    liquidity_score=liquidity_score,
+                )
+                regime_result = {
+                    "detected": regime_status.primary_regime != "UNKNOWN",
+                    "regime_value": str(regime_status.primary_regime.value),
+                    "confidence": float(regime_status.confidence),
+                    "source": "regime_detection_engine",
+                    "artifact_found": True,
+                    "detector_available": True,
+                    "error": "",
+                    "features_available": True,
+                }
+            else:
+                regime_result["error"] = "REGIME_FEATURES_MISSING: H1FeatureStream.latest() returned None"
+        except Exception as fe:
+            regime_result["error"] = f"REGIME_DETECTOR_ERROR: {fe}"
+    except ImportError:
+        regime_result["detector_available"] = False
+        regime_result["error"] = "REGIME_DETECTOR_NOT_WIRED: titan.production.regime_detection.detect_regime not importable"
+    except Exception as e:
+        regime_result["error"] = f"REGIME_DETECTOR_ERROR: {e}"
+
+    # Fallback: check for cached regime artifact
+    if not regime_result["detected"]:
         regime_cache_path = REPO_ROOT / "data" / "runtime" / "latest_regime.json"
         if regime_cache_path.exists():
-            import json as _json
-            with open(regime_cache_path, "r") as f:
-                cached = _json.load(f)
-            regime_result = {
-                "detected": True,
-                "regime_value": cached.get("regime_value", "UNKNOWN"),
-                "confidence": cached.get("confidence", 0.0),
-            }
+            try:
+                import json as _json
+                with open(regime_cache_path, "r") as f:
+                    cached = _json.load(f)
+                regime_result = {
+                    "detected": True,
+                    "regime_value": cached.get("regime_value", "UNKNOWN"),
+                    "confidence": cached.get("confidence", 0.0),
+                    "source": "cached_regime_artifact",
+                    "artifact_found": True,
+                    "detector_available": regime_result.get("detector_available", False),
+                    "error": "",
+                    "features_available": regime_result.get("features_available", False),
+                }
+            except Exception:
+                pass
         else:
-            # No cached regime - mark as not detected
-            regime_result = {"detected": False, "regime_value": "UNKNOWN", "confidence": 0.0}
-    except Exception as e:
-        regime_result = {"detected": False, "regime_value": "UNKNOWN", "confidence": 0.0}
+            regime_result["artifact_found"] = False
+            if not regime_result.get("source"):
+                regime_result["source"] = "missing"
+                if not regime_result.get("error"):
+                    regime_result["error"] = "REGIME_SOURCE_MISSING: no live features and no cached regime artifact"
+
     journal.log_regime_detection_result(regime_result)
 
     # ─── 2. Alpha signal / inference ────────────────────────────────────
@@ -247,7 +304,8 @@ def run_autonomous_entry_check(args=None) -> dict:
     journal.log_risk_gate_result(risk_gate_result)
 
     # ─── 5. Broker gate ─────────────────────────────────────────────────
-    broker_gate_result = {"pass": False, "status": "UNKNOWN"}
+    # v2.8.1: Add source/reason/artifact_found diagnostic fields.
+    broker_gate_result = {"pass": False, "status": "UNKNOWN", "source": "", "reason": "", "artifact_found": False}
     try:
         broker_score_path = REPO_ROOT / "data" / "audit" / "broker_scoring" / "broker_score_report.json"
         if broker_score_path.exists():
@@ -255,33 +313,82 @@ def run_autonomous_entry_check(args=None) -> dict:
             with open(broker_score_path, "r") as f:
                 broker_report = _json2.load(f)
             score = broker_report.get("overall_score", 0) or 0
+            broker_gate_result["artifact_found"] = True
+            broker_gate_result["source"] = "broker_score_report.json"
+            broker_gate_result["score"] = score
+            broker_gate_result["threshold"] = 70
             if score >= 70:
-                broker_gate_result = {"pass": True, "status": "PASS", "score": score}
+                broker_gate_result = {"pass": True, "status": "PASS", "score": score, "threshold": 70, "source": "broker_score_report.json", "reason": "", "artifact_found": True}
             else:
-                broker_gate_result = {"pass": False, "status": "FAILED", "score": score}
+                broker_gate_result = {"pass": False, "status": "FAILED", "score": score, "threshold": 70, "source": "broker_score_report.json", "reason": f"BROKER_SCORE_BELOW_THRESHOLD: score={score} < 70", "artifact_found": True}
         else:
-            broker_gate_result = {"pass": False, "status": "UNKNOWN"}
-    except Exception:
-        broker_gate_result = {"pass": False, "status": "UNKNOWN"}
+            # v2.8.1: No broker score artifact. Check if receipt says MetaQuotes-Demo.
+            receipt_path = REPO_ROOT / "data" / "runtime" / "demo_micro_execution_receipt.json"
+            broker_server = ""
+            if receipt_path.exists():
+                try:
+                    import json as _json_r
+                    with open(receipt_path, "r") as f:
+                        receipt_data = _json_r.load(f)
+                    broker_server = receipt_data.get("account_server", "") or ""
+                except Exception:
+                    pass
+            if "metaquotes-demo" in broker_server.lower() or "demo" in broker_server.lower():
+                # v2.8.1: MetaQuotes-Demo is a controlled demo broker.
+                # For controlled demo profile, this is allowed.
+                broker_gate_result = {
+                    "pass": True, "status": "CONTROLLED_DEMO_ALLOWED",
+                    "source": "receipt_account_server",
+                    "reason": "MetaQuotes-Demo allowed for controlled demo profile",
+                    "artifact_found": False,
+                    "server": broker_server,
+                    "account_type": "demo",
+                }
+            else:
+                broker_gate_result = {
+                    "pass": False, "status": "UNKNOWN",
+                    "source": "missing",
+                    "reason": "BROKER_GATE_UNKNOWN_NO_ARTIFACT: no broker score artifact and no receipt broker server",
+                    "artifact_found": False,
+                }
+    except Exception as e:
+        broker_gate_result = {"pass": False, "status": "UNKNOWN", "source": "error", "reason": str(e), "artifact_found": False}
     journal.log_broker_gate_result(broker_gate_result)
 
     # ─── 6. Prop/funded gate ────────────────────────────────────────────
-    prop_funded_gate_result = {"pass": False}
+    # v2.8.1: Add source/reason/blockers diagnostic fields.
+    prop_funded_gate_result = {"pass": False, "source": "", "reason": "", "blockers": []}
     try:
         from titan.production.prop_funded_optimizer import PropFundedOptimizer
         optimizer = PropFundedOptimizer()
         opt_result = optimizer.optimize()
+        prop_funded_gate_result["source"] = "prop_funded_optimizer"
         for p in opt_result.profiles:
             if p.profile_name == selected_profile:
+                pf_pass = p.verdict == "PROP_FUNDED_PASS"
                 prop_funded_gate_result = {
-                    "pass": p.verdict == "PROP_FUNDED_PASS",
+                    "pass": pf_pass,
                     "verdict": p.verdict,
+                    "source": "prop_funded_optimizer",
+                    "reason": "" if pf_pass else f"verdict={p.verdict}",
+                    "blockers": list(getattr(p, "blockers", []) or []),
                 }
                 break
         else:
-            prop_funded_gate_result = {"pass": False, "reason": "profile_not_found"}
+            prop_funded_gate_result = {
+                "pass": False, "source": "prop_funded_optimizer",
+                "reason": "PROP_FUNDED_PROFILE_ARTIFACT_MISSING",
+                "blockers": [f"profile_not_found: {selected_profile}"],
+            }
     except Exception as e:
-        prop_funded_gate_result = {"pass": False, "reason": str(e)}
+        prop_funded_gate_result = {
+            "pass": False, "source": "prop_funded_optimizer_error",
+            "reason": str(e), "blockers": [str(e)],
+        }
+    # v2.8.1: If broker gate failed, prop/funded is blocked by broker dependency
+    if not broker_gate_result.get("pass", False) and not prop_funded_gate_result.get("pass", False):
+        if not prop_funded_gate_result.get("reason"):
+            prop_funded_gate_result["reason"] = "PROP_FUNDED_GATE_BLOCKED_BY_BROKER"
     journal.log_prop_funded_gate_result(prop_funded_gate_result)
 
     # ─── 7. Spread/slippage/news/session gates ──────────────────────────
@@ -334,6 +441,12 @@ def run_autonomous_entry_check(args=None) -> dict:
         minimum_RR=2.0,
         initial_tp_R=initial_tp_r,
     )
+    # v2.8.1: Populate regime diagnostic fields on decision from regime_result
+    decision.regime_source = regime_result.get("source", "")
+    decision.regime_artifact_found = regime_result.get("artifact_found", False)
+    decision.regime_detector_available = regime_result.get("detector_available", False)
+    decision.regime_error = regime_result.get("error", "")
+    decision.regime_features_available = regime_result.get("features_available", False)
 
     # Journal the final decision
     journal.log_autonomous_entry_decision({
@@ -408,6 +521,11 @@ def run_autonomous_entry_check(args=None) -> dict:
         "prop_funded_safe_active": selected_profile == "prop_funded_safe",
         "regime_detected": decision.regime_detected,
         "regime_value": decision.regime_value,
+        "regime_source": decision.regime_source,
+        "regime_artifact_found": decision.regime_artifact_found,
+        "regime_detector_available": decision.regime_detector_available,
+        "regime_error": decision.regime_error,
+        "regime_features_available": decision.regime_features_available,
         "alpha_signal_detected": decision.alpha_signal_detected,
         "alpha_direction": decision.alpha_direction,
         "alpha_confidence": decision.alpha_confidence,
@@ -415,8 +533,15 @@ def run_autonomous_entry_check(args=None) -> dict:
         "alpha_pass": decision.alpha_pass,
         "risk_gate_pass": decision.risk_gate_pass,
         "broker_gate_pass": decision.broker_gate_pass,
-        "broker_gate_status": broker_gate_result.get("status", "UNKNOWN"),
+        "broker_gate_status": decision.broker_gate_status,
+        "broker_gate_source": decision.broker_gate_source,
+        "broker_gate_score": decision.broker_gate_score,
+        "broker_gate_threshold": decision.broker_gate_threshold,
+        "broker_gate_reason": decision.broker_gate_reason,
+        "broker_artifact_found": decision.broker_artifact_found,
         "prop_funded_gate_pass": decision.prop_funded_gate_pass,
+        "prop_funded_gate_source": decision.prop_funded_gate_source,
+        "prop_funded_gate_reason": decision.prop_funded_gate_reason,
         "geometry_gate_pass": decision.geometry_gate_pass,
         "actual_RR": decision.actual_RR,
         "blockers": decision.blockers,
@@ -2451,7 +2576,7 @@ def main() -> int:
     if getattr(args, "autonomous_entry_check", False):
         print()
         print("  " + "-" * 66)
-        print("  v2.8 Autonomous Alpha/Regime Entry Decision")
+        print("  v2.8.1 Autonomous Alpha/Regime Entry Decision")
         print("  " + "-" * 66)
         print(f"  Verdict: {result.get('verdict', 'N/A')}")
         print(f"  Selected profile: {result.get('selected_profile', 'N/A')}")
@@ -2459,6 +2584,12 @@ def main() -> int:
         print(f"  prop_funded_safe_active: {result.get('prop_funded_safe_active', False)}")
         print(f"  Regime detected: {result.get('regime_detected', False)}")
         print(f"  Regime value: {result.get('regime_value', 'N/A')}")
+        print(f"  Regime source: {result.get('regime_source', 'N/A')}")
+        print(f"  Regime artifact found: {result.get('regime_artifact_found', False)}")
+        print(f"  Regime detector available: {result.get('regime_detector_available', False)}")
+        print(f"  Regime features available: {result.get('regime_features_available', False)}")
+        if result.get("regime_error"):
+            print(f"  Regime error: {result.get('regime_error')}")
         print(f"  Alpha signal detected: {result.get('alpha_signal_detected', False)}")
         print(f"  Alpha direction: {result.get('alpha_direction', 'N/A')}")
         print(f"  Alpha confidence: {result.get('alpha_confidence', 0.0):.4f}")
@@ -2466,13 +2597,25 @@ def main() -> int:
         print(f"  Alpha pass: {result.get('alpha_pass', False)}")
         print(f"  Risk gate pass: {result.get('risk_gate_pass', False)}")
         print(f"  Broker gate status: {result.get('broker_gate_status', 'UNKNOWN')}")
+        print(f"  Broker gate source: {result.get('broker_gate_source', 'N/A')}")
+        print(f"  Broker gate score: {result.get('broker_gate_score', 0.0)}")
+        print(f"  Broker gate threshold: {result.get('broker_gate_threshold', 70.0)}")
+        print(f"  Broker gate reason: {result.get('broker_gate_reason', 'N/A')}")
+        print(f"  Broker artifact found: {result.get('broker_artifact_found', False)}")
         print(f"  Prop funded gate pass: {result.get('prop_funded_gate_pass', False)}")
+        print(f"  Prop funded gate source: {result.get('prop_funded_gate_source', 'N/A')}")
+        print(f"  Prop funded gate reason: {result.get('prop_funded_gate_reason', 'N/A')}")
         print(f"  Geometry gate pass: {result.get('geometry_gate_pass', False)}")
         print(f"  Actual RR: {result.get('actual_RR', 0.0):.4f}")
         print(f"  Blockers: {len(result.get('blockers', []))}")
         if result.get("blockers"):
-            for b in result["blockers"][:5]:
+            for b in result["blockers"]:
                 print(f"    - {b}")
+        if result.get("warnings"):
+            print(f"  Warnings: {len(result.get('warnings', []))}")
+            for w in result["warnings"][:3]:
+                print(f"    - {w}")
+        print(f"  Autonomous allowed: False (verdict is not PASS)")
         print()
         print("  Dry-run mode: no order_send, no position modification, no token.")
         rp = result.get("report_paths", {})

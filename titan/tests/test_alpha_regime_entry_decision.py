@@ -38,7 +38,7 @@ class TestAlphaRegimeEntryDecision:
         )
         assert decision.final_decision == ALPHA_REGIME_ENTRY_BLOCKED_NO_REGIME
         assert not decision.regime_detected
-        assert any("NO_REGIME" in b for b in decision.blockers)
+        assert any("REGIME_NOT_DETECTED" in b for b in decision.blockers)
 
     def test_03_no_alpha_blocks(self):
         """No alpha signal -> ALPHA_REGIME_ENTRY_BLOCKED_NO_ALPHA."""
@@ -271,3 +271,111 @@ class TestAlphaRegimeEntryDecision:
             geometry_gate_result={"pass": True, "actual_RR": 3.0},
         )
         assert d.final_decision == ALPHA_REGIME_ENTRY_BLOCKED_NEWS
+
+    # === Sprint v2.8.1: Verdict/blocker alignment + diagnostic fields ===
+
+    def test_18_v2_8_1_no_regime_adds_regime_not_detected_blocker(self):
+        """When regime_detected=False, REGIME_NOT_DETECTED must be in blockers."""
+        from titan.production.alpha_regime_entry_decision import evaluate_entry
+        d = evaluate_entry(
+            regime_result={"detected": False, "regime_value": "UNKNOWN"},
+            alpha_signal={"detected": True, "direction": "LONG", "confidence": 0.7},
+            risk_gate_result={"pass": True},
+            broker_gate_result={"pass": True},
+            prop_funded_gate_result={"pass": True},
+            geometry_gate_result={"pass": True, "actual_RR": 3.0},
+        )
+        assert any("REGIME_NOT_DETECTED" in b for b in d.blockers), \
+            f"REGIME_NOT_DETECTED not in blockers: {d.blockers}"
+
+    def test_19_v2_8_1_all_blockers_preserved(self):
+        """All blockers must be preserved, not just the first one."""
+        from titan.production.alpha_regime_entry_decision import evaluate_entry
+        d = evaluate_entry(
+            regime_result={"detected": False},
+            alpha_signal={"detected": True, "direction": "LONG", "confidence": 0.7},
+            risk_gate_result={"pass": True},
+            broker_gate_result={"pass": False, "status": "FAILED"},
+            prop_funded_gate_result={"pass": False},
+            geometry_gate_result={"pass": True, "actual_RR": 3.0},
+        )
+        # Must have at least 3 blockers: REGIME_NOT_DETECTED, BROKER, PROP_FUNDED
+        assert len(d.blockers) >= 3, \
+            f"Expected >= 3 blockers, got {len(d.blockers)}: {d.blockers}"
+        blockers_text = " ".join(d.blockers)
+        assert "REGIME_NOT_DETECTED" in blockers_text
+        assert "BROKER_GATE_BLOCKED" in blockers_text
+        assert "PROP_FUNDED_GATE_BLOCKED" in blockers_text
+
+    def test_20_v2_8_1_broker_gate_diagnostic_fields(self):
+        """Broker gate must populate source/reason/score/threshold fields."""
+        from titan.production.alpha_regime_entry_decision import evaluate_entry
+        d = evaluate_entry(
+            regime_result={"detected": True},
+            alpha_signal={"detected": True, "direction": "LONG", "confidence": 0.7},
+            risk_gate_result={"pass": True},
+            broker_gate_result={
+                "pass": False, "status": "FAILED", "source": "broker_score_report.json",
+                "score": 50, "threshold": 70, "artifact_found": True,
+            },
+            prop_funded_gate_result={"pass": True},
+            geometry_gate_result={"pass": True, "actual_RR": 3.0},
+        )
+        assert d.broker_gate_source == "broker_score_report.json"
+        assert d.broker_gate_score == 50
+        assert d.broker_gate_threshold == 70
+        assert d.broker_artifact_found is True
+        assert "BROKER_SCORE_BELOW_THRESHOLD" in d.broker_gate_reason
+
+    def test_21_v2_8_1_broker_controlled_demo_allowed(self):
+        """CONTROLLED_DEMO_ALLOWED status must pass broker gate."""
+        from titan.production.alpha_regime_entry_decision import evaluate_entry
+        d = evaluate_entry(
+            regime_result={"detected": True},
+            alpha_signal={"detected": True, "direction": "LONG", "confidence": 0.7},
+            risk_gate_result={"pass": True},
+            broker_gate_result={
+                "pass": True, "status": "CONTROLLED_DEMO_ALLOWED",
+                "server": "MetaQuotes-Demo",
+            },
+            prop_funded_gate_result={"pass": True},
+            geometry_gate_result={"pass": True, "actual_RR": 3.0},
+        )
+        assert d.broker_gate_pass is True
+        assert d.broker_gate_status == "CONTROLLED_DEMO_ALLOWED"
+
+    def test_22_v2_8_1_prop_funded_blocked_by_broker(self):
+        """When broker fails and prop_funded fails, reason must mention BY_BROKER."""
+        from titan.production.alpha_regime_entry_decision import evaluate_entry
+        d = evaluate_entry(
+            regime_result={"detected": True},
+            alpha_signal={"detected": True, "direction": "LONG", "confidence": 0.7},
+            risk_gate_result={"pass": True},
+            broker_gate_result={"pass": False, "status": "FAILED"},
+            prop_funded_gate_result={"pass": False, "source": "prop_funded_optimizer"},
+            geometry_gate_result={"pass": True, "actual_RR": 3.0},
+        )
+        assert "PROP_FUNDED_GATE_BLOCKED_BY_BROKER" in d.prop_funded_gate_reason
+
+    def test_23_v2_8_1_prop_funded_artifact_missing(self):
+        """When profile not found, reason must be PROP_FUNDED_PROFILE_ARTIFACT_MISSING."""
+        from titan.production.alpha_regime_entry_decision import evaluate_entry
+        d = evaluate_entry(
+            regime_result={"detected": True},
+            alpha_signal={"detected": True, "direction": "LONG", "confidence": 0.7},
+            risk_gate_result={"pass": True},
+            broker_gate_result={"pass": True},
+            prop_funded_gate_result={"pass": False, "reason": "profile_not_found"},
+            geometry_gate_result={"pass": True, "actual_RR": 3.0},
+        )
+        assert d.prop_funded_gate_reason == "PROP_FUNDED_PROFILE_ARTIFACT_MISSING"
+
+    def test_24_v2_8_1_regime_source_fields_present(self):
+        """Decision must have regime_source, regime_artifact_found, etc. fields."""
+        from titan.production.alpha_regime_entry_decision import AlphaRegimeEntryDecision
+        d = AlphaRegimeEntryDecision()
+        assert hasattr(d, "regime_source")
+        assert hasattr(d, "regime_artifact_found")
+        assert hasattr(d, "regime_detector_available")
+        assert hasattr(d, "regime_error")
+        assert hasattr(d, "regime_features_available")

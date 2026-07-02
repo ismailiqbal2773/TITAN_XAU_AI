@@ -492,11 +492,24 @@ def run_audit(receipt_path: Optional[Path] = None) -> dict:
         )
     elif not ae_pass:
         # v2.8: Autonomous entry decision exists but did not pass.
+        # v2.8.1: Include the exact decision blockers so the operator knows
+        # exactly which gates failed.
         verdict = AUTONOMOUS_DEMO_BLOCKED_ALPHA_ENTRY_FAILED
         blockers.append(
             f"ALPHA_REGIME_ENTRY_FAILED: autonomous entry decision verdict={ae_final_decision}. "
             "The alpha/regime entry chain was evaluated but did not pass all gates."
         )
+        # v2.8.1: Append the exact decision blockers
+        ae_blockers_list = autonomous_decision.get("blockers", []) or []
+        if ae_blockers_list:
+            blockers.append(
+                "AUTONOMOUS_ENTRY_DECISION_BLOCKERS: " + "; ".join(str(b) for b in ae_blockers_list)
+            )
+        else:
+            blockers.append(
+                "AUTONOMOUS_ENTRY_DECISION_BLOCKERS: (no specific blockers in decision - "
+                f"verdict={ae_final_decision})"
+            )
     elif not entry_gate_full_pass_v28:
         # v2.8: Autonomous decision passed but entry gate audit hasn't
         # upgraded to FULL_PASS yet (stale audit). Re-run entry gate audit.

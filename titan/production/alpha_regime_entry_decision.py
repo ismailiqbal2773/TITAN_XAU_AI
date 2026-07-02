@@ -68,6 +68,12 @@ class AlphaRegimeEntryDecision:
     regime_detected: bool = False
     regime_value: str = ""
     regime_confidence: float = 0.0
+    # v2.8.1: regime source/diagnostic fields
+    regime_source: str = ""
+    regime_artifact_found: bool = False
+    regime_detector_available: bool = False
+    regime_error: str = ""
+    regime_features_available: bool = False
     alpha_signal_detected: bool = False
     alpha_direction: str = ""  # LONG / SHORT / FLAT / ""
     alpha_confidence: float = 0.0
@@ -77,7 +83,23 @@ class AlphaRegimeEntryDecision:
     calibration_pass: bool = False
     risk_gate_pass: bool = False
     broker_gate_pass: bool = False
+    # v2.8.1: broker gate diagnostic fields
+    broker_gate_status: str = ""  # PASS / FAILED / UNKNOWN / CONTROLLED_DEMO_ALLOWED
+    broker_gate_source: str = ""
+    broker_gate_score: float = 0.0
+    broker_gate_threshold: float = 70.0
+    broker_gate_reason: str = ""
+    broker_gate_blockers: list = field(default_factory=list)
+    broker_server: str = ""
+    broker_account_type: str = ""
+    broker_symbol: str = ""
+    broker_registry_status: str = ""
+    broker_artifact_found: bool = False
     prop_funded_gate_pass: bool = False
+    # v2.8.1: prop/funded gate diagnostic fields
+    prop_funded_gate_source: str = ""
+    prop_funded_gate_reason: str = ""
+    prop_funded_gate_blockers: list = field(default_factory=list)
     spread_gate_pass: bool = False
     slippage_gate_pass: bool = False
     news_gate_pass: bool = False
@@ -101,6 +123,11 @@ class AlphaRegimeEntryDecision:
             "regime_detected": self.regime_detected,
             "regime_value": self.regime_value,
             "regime_confidence": self.regime_confidence,
+            "regime_source": self.regime_source,
+            "regime_artifact_found": self.regime_artifact_found,
+            "regime_detector_available": self.regime_detector_available,
+            "regime_error": self.regime_error,
+            "regime_features_available": self.regime_features_available,
             "alpha_signal_detected": self.alpha_signal_detected,
             "alpha_direction": self.alpha_direction,
             "alpha_confidence": self.alpha_confidence,
@@ -110,7 +137,21 @@ class AlphaRegimeEntryDecision:
             "calibration_pass": self.calibration_pass,
             "risk_gate_pass": self.risk_gate_pass,
             "broker_gate_pass": self.broker_gate_pass,
+            "broker_gate_status": self.broker_gate_status,
+            "broker_gate_source": self.broker_gate_source,
+            "broker_gate_score": self.broker_gate_score,
+            "broker_gate_threshold": self.broker_gate_threshold,
+            "broker_gate_reason": self.broker_gate_reason,
+            "broker_gate_blockers": list(self.broker_gate_blockers),
+            "broker_server": self.broker_server,
+            "broker_account_type": self.broker_account_type,
+            "broker_symbol": self.broker_symbol,
+            "broker_registry_status": self.broker_registry_status,
+            "broker_artifact_found": self.broker_artifact_found,
             "prop_funded_gate_pass": self.prop_funded_gate_pass,
+            "prop_funded_gate_source": self.prop_funded_gate_source,
+            "prop_funded_gate_reason": self.prop_funded_gate_reason,
+            "prop_funded_gate_blockers": list(self.prop_funded_gate_blockers),
             "spread_gate_pass": self.spread_gate_pass,
             "slippage_gate_pass": self.slippage_gate_pass,
             "news_gate_pass": self.news_gate_pass,
@@ -193,8 +234,11 @@ def evaluate_entry(
         )
         decision.regime_confidence = _safe_float(regime_result.get("confidence", 0.0))
         decision.evidence_sources.append("regime_result")
+        # v2.8.1: If regime result exists but detected=False, add explicit blocker.
+        if not decision.regime_detected:
+            decision.blockers.append("REGIME_NOT_DETECTED: regime result provided but detected=False")
     else:
-        decision.blockers.append("NO_REGIME: regime result not provided")
+        decision.blockers.append("REGIME_NOT_DETECTED: regime result not provided")
         decision.evidence_sources.append("regime_result:missing")
 
     # ─── Alpha signal ─────────────────────────────────────────────────────────
@@ -287,30 +331,81 @@ def evaluate_entry(
     # ─── Broker gate ────────────────────────────────────────────────────────────
     if broker_gate_result:
         broker_status = _to_str(broker_gate_result.get("status", "")).upper()
-        if broker_status == "PASS" or broker_gate_result.get("pass", False):
+        # v2.8.1: Populate diagnostic fields
+        decision.broker_gate_source = _to_str(broker_gate_result.get("source", "broker_gate_result"))
+        decision.broker_gate_score = _safe_float(broker_gate_result.get("score", 0.0))
+        decision.broker_gate_threshold = _safe_float(broker_gate_result.get("threshold", 70.0))
+        decision.broker_server = _to_str(broker_gate_result.get("server", ""))
+        decision.broker_account_type = _to_str(broker_gate_result.get("account_type", ""))
+        decision.broker_symbol = _to_str(broker_gate_result.get("symbol", ""))
+        decision.broker_registry_status = _to_str(broker_gate_result.get("registry_status", ""))
+        decision.broker_artifact_found = bool(broker_gate_result.get("artifact_found", True))
+        decision.broker_gate_blockers = list(broker_gate_result.get("blockers", []) or [])
+
+        if broker_status == "CONTROLLED_DEMO_ALLOWED":
             decision.broker_gate_pass = True
+            decision.broker_gate_status = "CONTROLLED_DEMO_ALLOWED"
+            decision.broker_gate_reason = "MetaQuotes-Demo allowed for controlled demo profile"
+        elif broker_status == "PASS" or broker_gate_result.get("pass", False):
+            decision.broker_gate_pass = True
+            decision.broker_gate_status = "PASS"
         elif broker_status == "UNKNOWN":
             decision.broker_gate_pass = False
-            decision.warnings.append("BROKER_GATE_UNKNOWN: no broker score artifact")
+            decision.broker_gate_status = "UNKNOWN"
+            decision.broker_gate_reason = "BROKER_GATE_UNKNOWN_NO_ARTIFACT: no broker score artifact available"
+            decision.warnings.append(decision.broker_gate_reason)
         else:
             decision.broker_gate_pass = False
+            decision.broker_gate_status = "FAILED"
+            score = decision.broker_gate_score
+            threshold = decision.broker_gate_threshold
+            if decision.broker_artifact_found and score > 0 and score < threshold:
+                decision.broker_gate_reason = (
+                    f"BROKER_SCORE_BELOW_THRESHOLD: score={score} < threshold={threshold}"
+                )
+            elif not decision.broker_artifact_found:
+                decision.broker_gate_reason = "BROKER_ARTIFACT_NOT_FOUND"
+            else:
+                decision.broker_gate_reason = _to_str(
+                    broker_gate_result.get("reason", "BROKER_NOT_APPROVED_FOR_AUTONOMOUS_DEMO")
+                )
             decision.blockers.append(
-                f"BROKER_GATE_BLOCKED: broker gate status={broker_status or 'FAILED'}"
+                f"BROKER_GATE_BLOCKED: status={decision.broker_gate_status}, "
+                f"reason={decision.broker_gate_reason}, source={decision.broker_gate_source}"
             )
         decision.evidence_sources.append("broker_gate_result")
     else:
         decision.broker_gate_pass = False
+        decision.broker_gate_status = "UNKNOWN"
+        decision.broker_gate_reason = "BROKER_GATE_RESULT_NOT_PROVIDED"
+        decision.broker_artifact_found = False
         decision.blockers.append("BROKER_GATE_BLOCKED: broker gate result not provided")
         decision.evidence_sources.append("broker_gate_result:missing")
 
     # ─── Prop/funded gate ────────────────────────────────────────────────────────
     if prop_funded_gate_result:
         decision.prop_funded_gate_pass = bool(prop_funded_gate_result.get("pass", False))
+        decision.prop_funded_gate_source = _to_str(prop_funded_gate_result.get("source", "prop_funded_optimizer"))
+        decision.prop_funded_gate_blockers = list(prop_funded_gate_result.get("blockers", []) or [])
         decision.evidence_sources.append("prop_funded_gate_result")
         if not decision.prop_funded_gate_pass:
-            decision.blockers.append("PROP_FUNDED_GATE_BLOCKED: prop/funded gate did not pass")
+            # v2.8.1: Determine exact reason for prop/funded gate failure.
+            reason = _to_str(prop_funded_gate_result.get("reason", ""))
+            if reason == "profile_not_found":
+                decision.prop_funded_gate_reason = "PROP_FUNDED_PROFILE_ARTIFACT_MISSING"
+            elif not decision.broker_gate_pass:
+                decision.prop_funded_gate_reason = "PROP_FUNDED_GATE_BLOCKED_BY_BROKER"
+            elif decision.prop_funded_gate_blockers:
+                decision.prop_funded_gate_reason = "; ".join(str(b) for b in decision.prop_funded_gate_blockers)
+            else:
+                decision.prop_funded_gate_reason = reason or "PROP_FUNDED_GATE_RULE_FAILED"
+            decision.blockers.append(
+                f"PROP_FUNDED_GATE_BLOCKED: reason={decision.prop_funded_gate_reason}, "
+                f"source={decision.prop_funded_gate_source}"
+            )
     else:
         decision.prop_funded_gate_pass = False
+        decision.prop_funded_gate_reason = "PROP_FUNDED_GATE_RESULT_NOT_PROVIDED"
         decision.blockers.append("PROP_FUNDED_GATE_BLOCKED: prop/funded gate result not provided")
         decision.evidence_sources.append("prop_funded_gate_result:missing")
 

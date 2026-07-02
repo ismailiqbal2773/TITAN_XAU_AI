@@ -263,11 +263,15 @@ class TestEndToEndEntryGateAudit:
         # Must check prop_funded_profile first
         assert 'm.get("prop_funded_profile") or m.get("account_profile")' in src
 
-    def test_22_v2_7_4_execution_only_when_alpha_missing_and_broker_unknown(self, tmp_path):
+    def test_22_v2_7_4_execution_only_when_alpha_missing_and_broker_unknown(self, tmp_path, monkeypatch):
         """When execution succeeds, geometry passes, risk passes, broker is
         UNKNOWN (not failed), but alpha/regime missing, verdict must be
         ENTRY_GATE_EXECUTION_ONLY_PASS_ALPHA_UNKNOWN."""
         import scripts.audit.end_to_end_entry_gate_audit as a
+
+        # v2.8.1: Use a clean tmp_path as OUTPUT_DIR so no stale
+        # autonomous_entry_decision.json overrides the broker gate status.
+        monkeypatch.setattr(a, "OUTPUT_DIR", tmp_path)
 
         # Build a receipt that passes geometry: entry=4075.27, SL=4072.27, TP=4084.27
         receipt = {

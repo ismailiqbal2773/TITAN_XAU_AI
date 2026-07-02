@@ -447,38 +447,112 @@ def run_audit(receipt_path: Optional[Path] = None) -> dict:
     findings["meta_label_pass"] = "unknown"
 
     # === v2.8: Read autonomous entry decision if it exists ===
+    # v2.8.1: When autonomous_entry_decision.json exists, use it as the
+    # PRIMARY source for alpha/regime/risk/broker/prop/geometry fields.
+    # Do not downgrade alpha=true to alpha=false when the decision says true.
     autonomous_decision_path = OUTPUT_DIR / "autonomous_entry_decision.json"
     autonomous_decision = _load_json(autonomous_decision_path)
     findings["autonomous_entry_decision_available"] = autonomous_decision is not None
+    findings["autonomous_decision_loaded"] = autonomous_decision is not None
+    findings["autonomous_decision_source"] = (
+        str(autonomous_decision_path) if autonomous_decision else ""
+    )
     ae_verdict = ""
     ae_regime_detected = False
     ae_alpha_signal_detected = False
+    ae_alpha_direction = ""
+    ae_alpha_confidence = 0.0
+    ae_alpha_threshold = 0.0
     ae_alpha_pass = False
     ae_risk_gate_pass = False
     ae_broker_gate_pass = False
+    ae_broker_gate_status = ""
     ae_prop_funded_gate_pass = False
     ae_geometry_gate_pass = False
     ae_actual_RR = 0.0
+    ae_blockers = []
+    ae_warnings = []
     if autonomous_decision:
         ae_verdict = autonomous_decision.get("final_decision", "") or ""
         ae_regime_detected = bool(autonomous_decision.get("regime_detected", False))
         ae_alpha_signal_detected = bool(autonomous_decision.get("alpha_signal_detected", False))
+        ae_alpha_direction = _to_str(autonomous_decision.get("alpha_direction", ""))
+        ae_alpha_confidence = _safe_float(autonomous_decision.get("alpha_confidence", 0.0))
+        ae_alpha_threshold = _safe_float(autonomous_decision.get("alpha_threshold", 0.0))
         ae_alpha_pass = bool(autonomous_decision.get("alpha_pass", False))
         ae_risk_gate_pass = bool(autonomous_decision.get("risk_gate_pass", False))
         ae_broker_gate_pass = bool(autonomous_decision.get("broker_gate_pass", False))
+        ae_broker_gate_status = _to_str(autonomous_decision.get("broker_gate_status", ""))
         ae_prop_funded_gate_pass = bool(autonomous_decision.get("prop_funded_gate_pass", False))
         ae_geometry_gate_pass = bool(autonomous_decision.get("geometry_gate_pass", False))
         ae_actual_RR = _safe_float(autonomous_decision.get("actual_RR", 0.0))
+        ae_blockers = autonomous_decision.get("blockers", []) or []
+        ae_warnings = autonomous_decision.get("warnings", []) or []
         findings["autonomous_entry_decision_verdict"] = ae_verdict
         findings["autonomous_entry_regime_detected"] = ae_regime_detected
         findings["autonomous_entry_alpha_signal_detected"] = ae_alpha_signal_detected
+        findings["autonomous_entry_alpha_direction"] = ae_alpha_direction
+        findings["autonomous_entry_alpha_confidence"] = ae_alpha_confidence
+        findings["autonomous_entry_alpha_threshold"] = ae_alpha_threshold
         findings["autonomous_entry_alpha_pass"] = ae_alpha_pass
         findings["autonomous_entry_risk_gate_pass"] = ae_risk_gate_pass
         findings["autonomous_entry_broker_gate_pass"] = ae_broker_gate_pass
+        findings["autonomous_entry_broker_gate_status"] = ae_broker_gate_status
         findings["autonomous_entry_prop_funded_gate_pass"] = ae_prop_funded_gate_pass
         findings["autonomous_entry_geometry_gate_pass"] = ae_geometry_gate_pass
         findings["autonomous_entry_actual_RR"] = ae_actual_RR
         ok_checks.append(f"Autonomous entry decision available: {ae_verdict}")
+
+    # v2.8.1: If autonomous decision is loaded, override the scan-based
+    # alpha/regime fields with the decision's values. The autonomous
+    # decision is the authoritative source for alpha/regime because it
+    # actually ran the inference + regime detection chain.
+    if autonomous_decision:
+        # Override alpha_evidence with autonomous decision values
+        alpha_evidence["alpha_signal_detected"] = ae_alpha_signal_detected
+        alpha_evidence["alpha_signal_value"] = ae_alpha_direction
+        alpha_evidence["alpha_confidence"] = ae_alpha_confidence if ae_alpha_confidence > 0 else None
+        alpha_evidence["alpha_threshold"] = ae_alpha_threshold if ae_alpha_threshold > 0 else None
+        alpha_evidence["alpha_pass"] = ae_alpha_pass
+        alpha_evidence["alpha_source_file"] = str(autonomous_decision_path)
+        alpha_evidence["regime_detected"] = ae_regime_detected
+        alpha_evidence["regime_value"] = autonomous_decision.get("regime_value", "")
+        alpha_evidence["regime_source_file"] = str(autonomous_decision_path)
+        # Override findings with autonomous decision values
+        findings["regime_detected"] = ae_regime_detected
+        findings["regime_value"] = autonomous_decision.get("regime_value", "")
+        findings["alpha_signal_detected"] = ae_alpha_signal_detected
+        findings["alpha_signal_value"] = ae_alpha_direction
+        findings["alpha_confidence"] = ae_alpha_confidence if ae_alpha_confidence > 0 else None
+        findings["alpha_threshold"] = ae_alpha_threshold if ae_alpha_threshold > 0 else None
+        findings["alpha_pass"] = ae_alpha_pass
+        # Override broker/prop/geometry with autonomous decision values
+        if ae_broker_gate_status:
+            broker_gate_status = ae_broker_gate_status
+            if ae_broker_gate_status in ("PASS", "CONTROLLED_DEMO_ALLOWED"):
+                broker_gate_pass = True
+            elif ae_broker_gate_status == "UNKNOWN":
+                broker_gate_pass = None
+            else:
+                broker_gate_pass = False
+        findings["broker_gate_status"] = broker_gate_status
+        findings["broker_gate_pass"] = broker_gate_pass
+        findings["prop_funded_gate_pass"] = ae_prop_funded_gate_pass
+        findings["geometry_pass"] = ae_geometry_gate_pass
+        findings["actual_RR"] = ae_actual_RR
+        # Carry forward broker/prop diagnostic fields
+        for diag_field in [
+            "broker_gate_source", "broker_gate_score", "broker_gate_threshold",
+            "broker_gate_reason", "broker_gate_blockers", "broker_server",
+            "broker_account_type", "broker_symbol", "broker_registry_status",
+            "broker_artifact_found",
+            "prop_funded_gate_source", "prop_funded_gate_reason",
+            "prop_funded_gate_blockers",
+            "regime_source", "regime_artifact_found", "regime_detector_available",
+            "regime_error", "regime_features_available",
+        ]:
+            if diag_field in autonomous_decision:
+                findings[diag_field] = autonomous_decision[diag_field]
 
     # === Final verdict logic ===
     alpha_missing = not alpha_evidence["alpha_signal_detected"]

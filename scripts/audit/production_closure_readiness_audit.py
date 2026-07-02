@@ -465,6 +465,57 @@ def run_audit() -> dict:
             "code-ready but is NOT autonomous-ready."
         )
 
+    # === Sprint v2.8.1: Model artifact compatibility + autonomous entry decision ===
+    model_compat_path = audit_dir / "model_artifact_compatibility_audit.json"
+    model_compat_verdict = ""
+    if model_compat_path.exists():
+        try:
+            with open(model_compat_path, "r", encoding="utf-8") as f:
+                mc_data = json.load(f)
+            model_compat_verdict = mc_data.get("verdict", "") or ""
+        except Exception:
+            pass
+    findings["model_artifact_compatibility_verdict"] = model_compat_verdict
+    if model_compat_verdict == "MODEL_ARTIFACTS_BLOCKED_VERSION_MISMATCH":
+        warnings.append("MODEL_ARTIFACT_VERSION_WARNING: model artifacts blocked by version mismatch")
+    elif model_compat_verdict == "MODEL_ARTIFACTS_COMPATIBLE_WITH_WARNINGS":
+        warnings.append("MODEL_ARTIFACT_VERSION_WARNING: model artifacts compatible with version warnings")
+    elif model_compat_verdict == "MODEL_ARTIFACTS_NOT_FOUND":
+        warnings.append("MODEL_ARTIFACT_VERSION_WARNING: no model artifacts found")
+
+    # Autonomous entry decision verdict
+    ae_decision_path = audit_dir / "autonomous_entry_decision.json"
+    ae_decision_verdict = ""
+    ae_regime_source = ""
+    ae_broker_gate_status = ""
+    ae_broker_gate_source = ""
+    ae_broker_gate_reason = ""
+    ae_prop_funded_gate_pass = False
+    ae_prop_funded_gate_source = ""
+    ae_prop_funded_gate_reason = ""
+    if ae_decision_path.exists():
+        try:
+            with open(ae_decision_path, "r", encoding="utf-8") as f:
+                ae_data = json.load(f)
+            ae_decision_verdict = ae_data.get("final_decision", "") or ""
+            ae_regime_source = ae_data.get("regime_source", "") or ""
+            ae_broker_gate_status = ae_data.get("broker_gate_status", "") or ""
+            ae_broker_gate_source = ae_data.get("broker_gate_source", "") or ""
+            ae_broker_gate_reason = ae_data.get("broker_gate_reason", "") or ""
+            ae_prop_funded_gate_pass = bool(ae_data.get("prop_funded_gate_pass", False))
+            ae_prop_funded_gate_source = ae_data.get("prop_funded_gate_source", "") or ""
+            ae_prop_funded_gate_reason = ae_data.get("prop_funded_gate_reason", "") or ""
+        except Exception:
+            pass
+    findings["autonomous_entry_decision_verdict"] = ae_decision_verdict
+    findings["regime_source"] = ae_regime_source
+    findings["broker_gate_status"] = ae_broker_gate_status
+    findings["broker_gate_source"] = ae_broker_gate_source
+    findings["broker_gate_reason"] = ae_broker_gate_reason
+    findings["prop_funded_gate_pass"] = ae_prop_funded_gate_pass
+    findings["prop_funded_gate_source"] = ae_prop_funded_gate_source
+    findings["prop_funded_gate_reason"] = ae_prop_funded_gate_reason
+
     # === Get parameter binding status ===
     safe_default_count = 0
     needs_backtest_binding_count = 0
