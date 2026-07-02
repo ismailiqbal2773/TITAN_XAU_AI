@@ -349,10 +349,14 @@ def evaluate_entry(
         elif broker_status == "PASS" or broker_gate_result.get("pass", False):
             decision.broker_gate_pass = True
             decision.broker_gate_status = "PASS"
-        elif broker_status == "UNKNOWN":
+        elif broker_status in ("UNKNOWN", "UNKNOWN_STALE_OR_MISMATCHED"):
             decision.broker_gate_pass = False
-            decision.broker_gate_status = "UNKNOWN"
-            decision.broker_gate_reason = "BROKER_GATE_UNKNOWN_NO_ARTIFACT: no broker score artifact available"
+            decision.broker_gate_status = broker_status
+            decision.broker_gate_reason = (
+                "BROKER_GATE_UNKNOWN_NO_ARTIFACT: no broker score artifact available"
+                if broker_status == "UNKNOWN"
+                else "BROKER_SCORE_STALE_OR_MISMATCHED: broker score is stale or from mismatched account"
+            )
             decision.warnings.append(decision.broker_gate_reason)
         else:
             decision.broker_gate_pass = False

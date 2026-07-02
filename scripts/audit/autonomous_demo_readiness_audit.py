@@ -53,6 +53,7 @@ AUTONOMOUS_DEMO_BLOCKED_ALPHA_ENTRY_UNKNOWN = "AUTONOMOUS_DEMO_BLOCKED_ALPHA_ENT
 AUTONOMOUS_DEMO_BLOCKED_ALPHA_ENTRY_FAILED = "AUTONOMOUS_DEMO_BLOCKED_ALPHA_ENTRY_FAILED"
 AUTONOMOUS_DEMO_BLOCKED_RISK = "AUTONOMOUS_DEMO_BLOCKED_RISK"
 AUTONOMOUS_DEMO_BLOCKED_OPEN_POSITION = "AUTONOMOUS_DEMO_BLOCKED_OPEN_POSITION"
+AUTONOMOUS_DEMO_BLOCKED_BROKER_VALIDATION_PENDING = "AUTONOMOUS_DEMO_BLOCKED_BROKER_VALIDATION_PENDING"
 AUTONOMOUS_DEMO_OBSERVATION_ONLY = "AUTONOMOUS_DEMO_OBSERVATION_ONLY"
 
 ALL_VERDICTS = (
@@ -62,6 +63,7 @@ ALL_VERDICTS = (
     AUTONOMOUS_DEMO_BLOCKED_ALPHA_ENTRY_FAILED,
     AUTONOMOUS_DEMO_BLOCKED_RISK,
     AUTONOMOUS_DEMO_BLOCKED_OPEN_POSITION,
+    AUTONOMOUS_DEMO_BLOCKED_BROKER_VALIDATION_PENDING,
     AUTONOMOUS_DEMO_OBSERVATION_ONLY,
 )
 
@@ -430,10 +432,15 @@ def run_audit(receipt_path: Optional[Path] = None) -> dict:
     # v2.7.4: Broker actual fail = entry gate verdict explicitly failed broker
     # (broker_gate_status == "FAILED"). If broker gate is UNKNOWN (no artifact),
     # that's a warning, not a blocker.
+    # v2.8.2: Also check for UNKNOWN_STALE_OR_MISMATCHED - this is broker
+    # validation pending, not an actual risk fail.
     broker_actual_fail = False
+    broker_validation_pending = False
     if entry_gate_audit:
         eg_findings = entry_gate_audit.get("findings", {}) or {}
-        broker_actual_fail = eg_findings.get("broker_gate_status", "") == "FAILED"
+        eg_broker_status = eg_findings.get("broker_gate_status", "")
+        broker_actual_fail = eg_broker_status == "FAILED"
+        broker_validation_pending = eg_broker_status in ("UNKNOWN_STALE_OR_MISMATCHED", "UNKNOWN")
     alpha_entry_unknown = (
         entry_gate_execution_only
         or entry_gate_verdict == "ENTRY_GATE_EXECUTION_ONLY_PASS_ALPHA_UNKNOWN"
@@ -455,6 +462,14 @@ def run_audit(receipt_path: Optional[Path] = None) -> dict:
     else:
         findings["autonomous_entry_decision_verdict"] = ""
         findings["autonomous_entry_decision_pass"] = False
+
+    # v2.8.2: Also check autonomous decision for broker status
+    if autonomous_decision:
+        ae_broker_status = str(autonomous_decision.get("broker_gate_status", "") or "")
+        if ae_broker_status == "FAILED":
+            broker_actual_fail = True
+        elif ae_broker_status in ("UNKNOWN_STALE_OR_MISMATCHED", "UNKNOWN"):
+            broker_validation_pending = True
 
     # v2.8: entry_gate_full_pass requires autonomous entry decision PASS
     entry_gate_full_pass_v28 = (
@@ -510,6 +525,12 @@ def run_audit(receipt_path: Optional[Path] = None) -> dict:
                 "AUTONOMOUS_ENTRY_DECISION_BLOCKERS: (no specific blockers in decision - "
                 f"verdict={ae_final_decision})"
             )
+    elif broker_validation_pending:
+        # v2.8.2: Broker validation pending (stale/mismatched score) - not a risk fail.
+        # This comes AFTER alpha entry checks because alpha entry is the primary
+        # blocker for autonomous demo. Broker validation pending is secondary.
+        verdict = AUTONOMOUS_DEMO_BLOCKED_BROKER_VALIDATION_PENDING
+        blockers.append("BROKER_VALIDATION_PENDING: broker score is stale/mismatched - run broker_score_freshness_audit.py")
     elif not entry_gate_full_pass_v28:
         # v2.8: Autonomous decision passed but entry gate audit hasn't
         # upgraded to FULL_PASS yet (stale audit). Re-run entry gate audit.

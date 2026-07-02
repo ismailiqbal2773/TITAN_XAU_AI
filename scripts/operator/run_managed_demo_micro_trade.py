@@ -188,39 +188,36 @@ def run_autonomous_entry_check(args=None) -> dict:
     })
 
     # ─── 1. Regime detection ────────────────────────────────────────────
-    # v2.8.1: Wire the existing regime detection engine if available.
-    # If features are available, run detect_regime(). If not, check for
-    # cached regime artifact. If neither, report exact missing source.
+    # v2.8.2: Use shared live_feature_context_adapter instead of calling
+    # H1FeatureStream.latest() directly (which doesn't exist).
+    # The adapter tries latest_vector, latest_features, get_latest, snapshot,
+    # read_latest, and artifact fallbacks.
     regime_result = {
         "detected": False, "regime_value": "UNKNOWN", "confidence": 0.0,
         "source": "", "artifact_found": False, "detector_available": False,
         "error": "", "features_available": False,
+        "feature_adapter_method": "", "feature_source": "",
     }
     try:
         from titan.production.regime_detection import detect_regime as _detect_regime
         regime_result["detector_available"] = True
-        # Try to get latest features from feature stream
+        # v2.8.2: Use the shared adapter
         try:
-            from titan.production.feature_stream import H1FeatureStream
-            stream = H1FeatureStream()
-            fv = stream.latest()
-            if fv is not None:
-                regime_result["features_available"] = True
-                # Extract regime-relevant scores from feature vector
-                trend_score = float(getattr(fv, "trend_score", 0.0) or 0.0)
-                volatility_score = float(getattr(fv, "volatility_score", 0.0) or 0.0)
-                range_score = float(getattr(fv, "range_score", 0.0) or 0.0)
-                spread_score = float(getattr(fv, "spread_score", 0.0) or 0.0)
-                liquidity_score = float(getattr(fv, "liquidity_score", 1.0) or 1.0)
+            from titan.production.live_feature_context_adapter import get_live_feature_context
+            feat_ctx = get_live_feature_context(symbol="XAUUSD", repo_root=REPO_ROOT)
+            regime_result["features_available"] = feat_ctx.features_available
+            regime_result["feature_adapter_method"] = feat_ctx.adapter_method_used
+            regime_result["feature_source"] = feat_ctx.feature_source
+            if feat_ctx.features_available:
                 regime_status = _detect_regime(
-                    trend_score=trend_score,
-                    volatility_score=volatility_score,
-                    range_score=range_score,
-                    spread_score=spread_score,
-                    liquidity_score=liquidity_score,
+                    trend_score=feat_ctx.trend_score,
+                    volatility_score=feat_ctx.volatility_score,
+                    range_score=feat_ctx.range_score,
+                    spread_score=feat_ctx.spread_score,
+                    liquidity_score=feat_ctx.liquidity_score,
                 )
                 regime_result = {
-                    "detected": regime_status.primary_regime != "UNKNOWN",
+                    "detected": regime_status.primary_regime.value != "UNKNOWN",
                     "regime_value": str(regime_status.primary_regime.value),
                     "confidence": float(regime_status.confidence),
                     "source": "regime_detection_engine",
@@ -228,9 +225,14 @@ def run_autonomous_entry_check(args=None) -> dict:
                     "detector_available": True,
                     "error": "",
                     "features_available": True,
+                    "feature_adapter_method": feat_ctx.adapter_method_used,
+                    "feature_source": feat_ctx.feature_source,
                 }
+                if regime_status.primary_regime.value == "UNKNOWN" and regime_status.confidence == 0.0:
+                    regime_result["error"] = "REGIME_UNKNOWN_LOW_CONFIDENCE: detector returned UNKNOWN with confidence 0.0"
+                    regime_result["detected"] = False
             else:
-                regime_result["error"] = "REGIME_FEATURES_MISSING: H1FeatureStream.latest() returned None"
+                regime_result["error"] = feat_ctx.adapter_error or "REGIME_FEATURES_MISSING: no features available from adapter"
         except Exception as fe:
             regime_result["error"] = f"REGIME_DETECTOR_ERROR: {fe}"
     except ImportError:
@@ -256,6 +258,8 @@ def run_autonomous_entry_check(args=None) -> dict:
                     "detector_available": regime_result.get("detector_available", False),
                     "error": "",
                     "features_available": regime_result.get("features_available", False),
+                    "feature_adapter_method": regime_result.get("feature_adapter_method", ""),
+                    "feature_source": regime_result.get("feature_source", ""),
                 }
             except Exception:
                 pass
@@ -304,60 +308,147 @@ def run_autonomous_entry_check(args=None) -> dict:
     journal.log_risk_gate_result(risk_gate_result)
 
     # ─── 5. Broker gate ─────────────────────────────────────────────────
-    # v2.8.1: Add source/reason/artifact_found diagnostic fields.
+    # v2.8.2: MetaQuotes-Demo controlled broker validation.
+    # - FundedNext demo = NOT allowed for algo execution.
+    # - MetaQuotes-Demo = allowed controlled local demo test account.
+    # - Stale/default broker score=0 is NOT treated as actual fail.
+    # - prop_funded_safe = rules/profile simulation, not broker server requirement.
     broker_gate_result = {"pass": False, "status": "UNKNOWN", "source": "", "reason": "", "artifact_found": False}
-    try:
+    # Get current broker server from receipt
+    current_broker_server = ""
+    receipt_path = REPO_ROOT / "data" / "runtime" / "demo_micro_execution_receipt.json"
+    if receipt_path.exists():
+        try:
+            import json as _json_r
+            with open(receipt_path, "r") as f:
+                receipt_data = _json_r.load(f)
+            current_broker_server = receipt_data.get("account_server", "") or ""
+        except Exception:
+            pass
+    # Also check managed_trade_report for broker server
+    if not current_broker_server:
+        managed_report_path = REPO_ROOT / "data" / "audit" / "demo_micro_execution" / "managed_trade_report.json"
+        if managed_report_path.exists():
+            try:
+                import json as _json_m
+                with open(managed_report_path, "r") as f:
+                    m_data = _json_m.load(f)
+                current_broker_server = m_data.get("account_server", "") or ""
+            except Exception:
+                pass
+
+    broker_server_lower = current_broker_server.lower()
+    is_fundednext_demo = "fundednext" in broker_server_lower
+    is_metaquotes_demo = "metaquotes" in broker_server_lower or ("demo" in broker_server_lower and not is_fundednext_demo)
+
+    # v2.8.2: Block FundedNext demo for algo execution
+    if is_fundednext_demo:
+        broker_gate_result = {
+            "pass": False, "status": "FAILED",
+            "source": "broker_server_check",
+            "reason": "FUNDEDNEXT_DEMO_ALGO_NOT_ALLOWED: FundedNext demo does not allow algo trading",
+            "artifact_found": False,
+            "server": current_broker_server,
+            "account_type": "demo",
+            "execution_venue_allowed": False,
+            "execution_venue_reason": "FUNDEDNEXT_DEMO_ALGO_NOT_ALLOWED",
+        }
+    else:
+        # Check broker score report
         broker_score_path = REPO_ROOT / "data" / "audit" / "broker_scoring" / "broker_score_report.json"
+        broker_report_exists = False
+        broker_report_score = 0
+        broker_report_stale = False
+        broker_report_generated_without_mt5 = False
         if broker_score_path.exists():
-            import json as _json2
-            with open(broker_score_path, "r") as f:
-                broker_report = _json2.load(f)
-            score = broker_report.get("overall_score", 0) or 0
-            broker_gate_result["artifact_found"] = True
-            broker_gate_result["source"] = "broker_score_report.json"
-            broker_gate_result["score"] = score
-            broker_gate_result["threshold"] = 70
-            if score >= 70:
-                broker_gate_result = {"pass": True, "status": "PASS", "score": score, "threshold": 70, "source": "broker_score_report.json", "reason": "", "artifact_found": True}
-            else:
-                broker_gate_result = {"pass": False, "status": "FAILED", "score": score, "threshold": 70, "source": "broker_score_report.json", "reason": f"BROKER_SCORE_BELOW_THRESHOLD: score={score} < 70", "artifact_found": True}
+            try:
+                import json as _json2
+                with open(broker_score_path, "r") as f:
+                    broker_report = _json2.load(f)
+                broker_report_exists = True
+                broker_report_score = broker_report.get("overall_score", 0) or 0
+                # v2.8.2: Check if score=0 is stale/default (generated without MT5)
+                broker_report_generated_without_mt5 = (
+                    broker_report_score == 0
+                    and not broker_report.get("brokers_evaluated", 0)
+                )
+                broker_report_stale = broker_report_generated_without_mt5
+            except Exception:
+                pass
+
+        if broker_report_exists and not broker_report_stale and broker_report_score >= 70:
+            # Fresh valid broker report with passing score
+            broker_gate_result = {
+                "pass": True, "status": "PASS",
+                "score": broker_report_score, "threshold": 70,
+                "source": "broker_score_report.json",
+                "reason": "", "artifact_found": True,
+                "server": current_broker_server,
+                "execution_venue_allowed": True,
+                "execution_venue_reason": "BROKER_SCORE_PASS",
+            }
+        elif broker_report_exists and not broker_report_stale and broker_report_score < 70:
+            # Fresh valid broker report with failing score
+            broker_gate_result = {
+                "pass": False, "status": "FAILED",
+                "score": broker_report_score, "threshold": 70,
+                "source": "broker_score_report.json",
+                "reason": f"BROKER_SCORE_BELOW_THRESHOLD: score={broker_report_score} < 70",
+                "artifact_found": True,
+                "server": current_broker_server,
+                "execution_venue_allowed": False,
+                "execution_venue_reason": "BROKER_SCORE_BELOW_THRESHOLD",
+            }
+        elif is_metaquotes_demo:
+            # v2.8.2: MetaQuotes-Demo is the allowed controlled local demo test account.
+            # Even if broker score is stale/0 or missing, MetaQuotes-Demo is allowed
+            # for controlled supervised demo testing.
+            broker_gate_result = {
+                "pass": True, "status": "CONTROLLED_DEMO_ALLOWED",
+                "source": "broker_server_check",
+                "reason": "METAQUOTES_DEMO_ALLOWED_FOR_CONTROLLED_LOCAL_DEMO",
+                "artifact_found": broker_report_exists,
+                "score": broker_report_score,
+                "threshold": 70,
+                "broker_report_stale": broker_report_stale,
+                "server": current_broker_server,
+                "account_type": "demo",
+                "execution_venue_allowed": True,
+                "execution_venue_reason": "METAQUOTES_DEMO_ALLOWED_FOR_CONTROLLED_LOCAL_DEMO",
+            }
+        elif broker_report_stale:
+            # Stale/default broker score - not treated as actual fail
+            broker_gate_result = {
+                "pass": False, "status": "UNKNOWN_STALE_OR_MISMATCHED",
+                "source": "broker_score_report.json",
+                "reason": "BROKER_SCORE_STALE_OR_DEFAULT: score=0 generated without MT5 data",
+                "artifact_found": True,
+                "score": 0, "threshold": 70,
+                "broker_report_stale": True,
+                "server": current_broker_server,
+                "execution_venue_allowed": False,
+                "execution_venue_reason": "BROKER_VALIDATION_PENDING",
+            }
         else:
-            # v2.8.1: No broker score artifact. Check if receipt says MetaQuotes-Demo.
-            receipt_path = REPO_ROOT / "data" / "runtime" / "demo_micro_execution_receipt.json"
-            broker_server = ""
-            if receipt_path.exists():
-                try:
-                    import json as _json_r
-                    with open(receipt_path, "r") as f:
-                        receipt_data = _json_r.load(f)
-                    broker_server = receipt_data.get("account_server", "") or ""
-                except Exception:
-                    pass
-            if "metaquotes-demo" in broker_server.lower() or "demo" in broker_server.lower():
-                # v2.8.1: MetaQuotes-Demo is a controlled demo broker.
-                # For controlled demo profile, this is allowed.
-                broker_gate_result = {
-                    "pass": True, "status": "CONTROLLED_DEMO_ALLOWED",
-                    "source": "receipt_account_server",
-                    "reason": "MetaQuotes-Demo allowed for controlled demo profile",
-                    "artifact_found": False,
-                    "server": broker_server,
-                    "account_type": "demo",
-                }
-            else:
-                broker_gate_result = {
-                    "pass": False, "status": "UNKNOWN",
-                    "source": "missing",
-                    "reason": "BROKER_GATE_UNKNOWN_NO_ARTIFACT: no broker score artifact and no receipt broker server",
-                    "artifact_found": False,
-                }
-    except Exception as e:
-        broker_gate_result = {"pass": False, "status": "UNKNOWN", "source": "error", "reason": str(e), "artifact_found": False}
+            # No broker report and not MetaQuotes-Demo
+            broker_gate_result = {
+                "pass": False, "status": "UNKNOWN",
+                "source": "missing",
+                "reason": "BROKER_GATE_UNKNOWN_NO_ARTIFACT: no broker score artifact and no known demo server",
+                "artifact_found": False,
+                "server": current_broker_server,
+                "execution_venue_allowed": False,
+                "execution_venue_reason": "BROKER_VALIDATION_PENDING",
+            }
     journal.log_broker_gate_result(broker_gate_result)
 
     # ─── 6. Prop/funded gate ────────────────────────────────────────────
-    # v2.8.1: Add source/reason/blockers diagnostic fields.
-    prop_funded_gate_result = {"pass": False, "source": "", "reason": "", "blockers": []}
+    # v2.8.2: Prop-funded gate dependency handling.
+    # - If broker is CONTROLLED_DEMO_ALLOWED and profile constraints pass -> PASS
+    # - If broker is UNKNOWN_STALE_OR_MISMATCHED -> BLOCKED_PENDING_BROKER_VALIDATION
+    # - If broker is actual fresh FAILED -> BLOCKED_BY_BROKER
+    # - prop_funded_safe = rules/profile simulation, not broker server requirement.
+    prop_funded_gate_result = {"pass": False, "source": "", "reason": "", "blockers": [], "status": ""}
     try:
         from titan.production.prop_funded_optimizer import PropFundedOptimizer
         optimizer = PropFundedOptimizer()
@@ -365,13 +456,17 @@ def run_autonomous_entry_check(args=None) -> dict:
         prop_funded_gate_result["source"] = "prop_funded_optimizer"
         for p in opt_result.profiles:
             if p.profile_name == selected_profile:
-                pf_pass = p.verdict == "PROP_FUNDED_PASS"
+                pf_constraints_pass = p.verdict == "PROP_FUNDED_PASS"
                 prop_funded_gate_result = {
-                    "pass": pf_pass,
+                    "pass": pf_constraints_pass,
                     "verdict": p.verdict,
                     "source": "prop_funded_optimizer",
-                    "reason": "" if pf_pass else f"verdict={p.verdict}",
+                    "reason": "" if pf_constraints_pass else f"verdict={p.verdict}",
                     "blockers": list(getattr(p, "blockers", []) or []),
+                    "status": "PASS" if pf_constraints_pass else "CONSTRAINTS_FAILED",
+                    "constraints_pass": pf_constraints_pass,
+                    "prop_rules_profile_only": True,
+                    "current_execution_server": current_broker_server,
                 }
                 break
         else:
@@ -379,14 +474,50 @@ def run_autonomous_entry_check(args=None) -> dict:
                 "pass": False, "source": "prop_funded_optimizer",
                 "reason": "PROP_FUNDED_PROFILE_ARTIFACT_MISSING",
                 "blockers": [f"profile_not_found: {selected_profile}"],
+                "status": "ARTIFACT_MISSING",
+                "constraints_pass": False,
+                "prop_rules_profile_only": True,
+                "current_execution_server": current_broker_server,
             }
     except Exception as e:
         prop_funded_gate_result = {
             "pass": False, "source": "prop_funded_optimizer_error",
             "reason": str(e), "blockers": [str(e)],
+            "status": "ERROR",
+            "constraints_pass": False,
+            "prop_rules_profile_only": True,
+            "current_execution_server": current_broker_server,
         }
-    # v2.8.1: If broker gate failed, prop/funded is blocked by broker dependency
-    if not broker_gate_result.get("pass", False) and not prop_funded_gate_result.get("pass", False):
+    # v2.8.2: Prop-funded gate dependency handling based on broker gate status
+    broker_status = broker_gate_result.get("status", "")
+    if broker_status == "CONTROLLED_DEMO_ALLOWED":
+        # MetaQuotes-Demo controlled broker allowed - prop-funded can pass if constraints pass
+        if prop_funded_gate_result.get("constraints_pass", False):
+            prop_funded_gate_result["pass"] = True
+            prop_funded_gate_result["status"] = "PASS"
+            prop_funded_gate_result["reason"] = "PROP_FUNDED_SAFE_PROFILE_PASS_CONTROLLED_DEMO"
+        else:
+            prop_funded_gate_result["pass"] = False
+            prop_funded_gate_result["status"] = "CONSTRAINTS_FAILED"
+            if not prop_funded_gate_result.get("reason"):
+                prop_funded_gate_result["reason"] = "PROP_FUNDED_GATE_CONSTRAINTS_FAILED"
+    elif broker_status == "UNKNOWN_STALE_OR_MISMATCHED":
+        # Broker validation pending - prop-funded cannot be evaluated
+        prop_funded_gate_result["pass"] = False
+        prop_funded_gate_result["status"] = "BLOCKED_PENDING_BROKER_VALIDATION"
+        prop_funded_gate_result["reason"] = "PROP_FUNDED_GATE_PENDING_BROKER_VALIDATION"
+    elif broker_status == "FAILED":
+        # Actual fresh broker fail - prop-funded blocked by broker
+        prop_funded_gate_result["pass"] = False
+        prop_funded_gate_result["status"] = "BLOCKED_BY_BROKER"
+        prop_funded_gate_result["reason"] = "PROP_FUNDED_GATE_BLOCKED_BY_BROKER"
+    elif broker_status == "PASS":
+        # Broker passed - prop-funded depends on constraints only
+        if not prop_funded_gate_result.get("constraints_pass", False):
+            prop_funded_gate_result["pass"] = False
+            prop_funded_gate_result["status"] = "CONSTRAINTS_FAILED"
+    elif not prop_funded_gate_result.get("pass", False):
+        # Unknown broker status and prop-funded didn't pass
         if not prop_funded_gate_result.get("reason"):
             prop_funded_gate_result["reason"] = "PROP_FUNDED_GATE_BLOCKED_BY_BROKER"
     journal.log_prop_funded_gate_result(prop_funded_gate_result)
@@ -526,6 +657,8 @@ def run_autonomous_entry_check(args=None) -> dict:
         "regime_detector_available": decision.regime_detector_available,
         "regime_error": decision.regime_error,
         "regime_features_available": decision.regime_features_available,
+        "feature_adapter_method": regime_result.get("feature_adapter_method", ""),
+        "feature_source": regime_result.get("feature_source", ""),
         "alpha_signal_detected": decision.alpha_signal_detected,
         "alpha_direction": decision.alpha_direction,
         "alpha_confidence": decision.alpha_confidence,
@@ -539,9 +672,15 @@ def run_autonomous_entry_check(args=None) -> dict:
         "broker_gate_threshold": decision.broker_gate_threshold,
         "broker_gate_reason": decision.broker_gate_reason,
         "broker_artifact_found": decision.broker_artifact_found,
+        "current_mt5_server": current_broker_server,
+        "broker_execution_venue_allowed": broker_gate_result.get("execution_venue_allowed", False),
+        "broker_execution_venue_reason": broker_gate_result.get("execution_venue_reason", ""),
+        "fundednext_demo_blocked": "fundednext" in current_broker_server.lower(),
+        "metaquotes_demo_allowed": is_metaquotes_demo,
         "prop_funded_gate_pass": decision.prop_funded_gate_pass,
         "prop_funded_gate_source": decision.prop_funded_gate_source,
         "prop_funded_gate_reason": decision.prop_funded_gate_reason,
+        "prop_funded_gate_status": prop_funded_gate_result.get("status", ""),
         "geometry_gate_pass": decision.geometry_gate_pass,
         "actual_RR": decision.actual_RR,
         "blockers": decision.blockers,

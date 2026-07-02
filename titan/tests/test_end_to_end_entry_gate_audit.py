@@ -204,7 +204,7 @@ class TestEndToEndEntryGateAudit:
         assert "broker_gate_status" in result.get("findings", {}), \
             "broker_gate_status field missing from findings"
         status = result["findings"]["broker_gate_status"]
-        assert status in ("PASS", "FAILED", "UNKNOWN"), \
+        assert status in ("PASS", "FAILED", "UNKNOWN", "UNKNOWN_STALE_OR_MISMATCHED", "CONTROLLED_DEMO_ALLOWED"), \
             f"Invalid broker_gate_status: {status}"
 
     def test_18_v2_7_4_broker_gate_unknown_when_no_artifact(self):

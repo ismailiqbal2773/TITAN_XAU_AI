@@ -71,9 +71,11 @@ def _get_runtime_versions() -> dict:
 
 
 def _find_model_artifacts() -> list:
-    """Find model artifact files in the project."""
+    """Find model artifact files using the same paths as InferenceEngine/ModelLoader."""
     model_paths = []
+    # v2.8.2: Use the same paths as titan/production/model_loader.py
     search_dirs = [
+        REPO_ROOT / "titan" / "data" / "models",   # Primary: matches DEFAULT_XGB_PATH/DEFAULT_META_PATH
         REPO_ROOT / "models",
         REPO_ROOT / "data" / "models",
         REPO_ROOT / "artifacts" / "models",
@@ -162,6 +164,20 @@ def run_audit() -> dict:
     model_artifacts = _find_model_artifacts()
     findings["model_artifacts_found"] = len(model_artifacts)
     findings["model_artifact_paths"] = [str(p) for p in model_artifacts[:20]]
+    # v2.8.2: Model locator source - same as InferenceEngine/ModelLoader
+    findings["model_locator_source"] = "titan/production/model_loader.py"
+    findings["discovered_model_paths"] = [str(p) for p in model_artifacts[:20]]
+    # Identify XGBoost and sklearn model paths specifically
+    xgb_path = ""
+    meta_path = ""
+    for p in model_artifacts:
+        name = str(p).lower()
+        if "xgboost_v1" in name and name.endswith(".pkl"):
+            xgb_path = str(p)
+        if "meta_label_v2" in name and name.endswith(".pkl"):
+            meta_path = str(p)
+    findings["xgboost_model_path"] = xgb_path
+    findings["sklearn_model_path"] = meta_path
 
     if not model_artifacts:
         verdict = MODEL_ARTIFACTS_NOT_FOUND

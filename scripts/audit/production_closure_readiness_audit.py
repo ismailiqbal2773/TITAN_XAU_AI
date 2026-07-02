@@ -516,6 +516,27 @@ def run_audit() -> dict:
     findings["prop_funded_gate_source"] = ae_prop_funded_gate_source
     findings["prop_funded_gate_reason"] = ae_prop_funded_gate_reason
 
+    # === Sprint v2.8.2: Broker score freshness + execution venue ===
+    broker_freshness_path = audit_dir / "broker_score_freshness_audit.json"
+    broker_freshness_verdict = ""
+    broker_execution_venue_status = ""
+    broker_execution_venue_reason = ""
+    if broker_freshness_path.exists():
+        try:
+            with open(broker_freshness_path, "r", encoding="utf-8") as f:
+                bf_data = json.load(f)
+            broker_freshness_verdict = bf_data.get("verdict", "") or ""
+            bf_findings = bf_data.get("findings", {}) or {}
+            broker_execution_venue_status = (
+                "ALLOWED" if bf_findings.get("broker_execution_venue_allowed", False) else "BLOCKED"
+            )
+            broker_execution_venue_reason = bf_findings.get("broker_execution_venue_reason", "") or ""
+        except Exception:
+            pass
+    findings["broker_score_freshness_verdict"] = broker_freshness_verdict
+    findings["broker_execution_venue_status"] = broker_execution_venue_status
+    findings["broker_execution_venue_reason"] = broker_execution_venue_reason
+
     # === Get parameter binding status ===
     safe_default_count = 0
     needs_backtest_binding_count = 0
