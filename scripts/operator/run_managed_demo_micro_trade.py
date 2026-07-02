@@ -191,6 +191,41 @@ def run_build_request(direction: str = "BUY", entry_price: float = 2000.0,
     if args is not None:
         result["adaptive_trailing_config"] = _build_adaptive_config(args)
 
+    # Sprint 9.9.3.45.8.14: Build-request geometry proof
+    if computed_sl > 0 and computed_tp > 0:
+        if direction == "BUY":
+            req_risk_distance = entry_price - computed_sl
+            req_reward_distance = computed_tp - entry_price
+        else:
+            req_risk_distance = computed_sl - entry_price
+            req_reward_distance = entry_price - computed_tp
+        req_actual_rr = req_reward_distance / req_risk_distance if req_risk_distance > 0 else 0.0
+        req_minimum_rr = 2.0
+        if account_profile_name and ("prop" in account_profile_name or "funded" in account_profile_name):
+            req_minimum_rr = 2.0
+        result["execution_geometry"] = {
+            "side": direction,
+            "estimated_entry": entry_price,
+            "estimated_sl": computed_sl,
+            "estimated_tp": computed_tp,
+            "sl_distance": req_risk_distance,
+            "tp_distance": req_reward_distance,
+            "actual_RR": round(req_actual_rr, 4),
+            "minimum_RR": req_minimum_rr,
+            "initial_tp_R": initial_tp_r,
+            "geometry_verdict": "EXECUTION_GEOMETRY_PASS" if req_actual_rr >= req_minimum_rr else "EXECUTION_GEOMETRY_RR_BELOW_MINIMUM",
+            "geometry_blockers": [] if req_actual_rr >= req_minimum_rr else [
+                f"EXECUTION_GEOMETRY_RR_BELOW_MINIMUM: actual_RR={req_actual_rr:.4f} < minimum_RR={req_minimum_rr}"
+            ],
+        }
+        if req_actual_rr < req_minimum_rr:
+            result["verdict"] = "BLOCKED"
+            if "blockers" not in result:
+                result["blockers"] = []
+            result["blockers"].append(
+                f"EXECUTION_GEOMETRY_RR_BELOW_MINIMUM: actual_RR={req_actual_rr:.4f} < minimum_RR={req_minimum_rr}"
+            )
+
     # Sprint 9.9.3.45.8.3: profile-driven geometry and cost/RR validation
     result["account_profile"] = account_profile_name
     result["initial_tp_R"] = initial_tp_r
@@ -1403,12 +1438,83 @@ def run_execute_and_monitor(args) -> dict:
             }
         ok_checks.append("Open positions: 0")
 
+        # Sprint 9.9.3.45.8.14: RR Geometry enforcement before order_send
+        # If prop_funded_profile is selected, enforce minimum_RR >= 2.0
+        # and recompute TP from initial_tp_R if needed.
+        prop_funded_profile = getattr(args, "prop_funded_profile", "") if args else ""
+        initial_tp_r = getattr(args, "initial_tp_r", 3.0) if args else 3.0
+
         # Build and send order (exactly once, no retry)
         preview = build_result["preview"]
         direction = preview["order_type"]
         volume = preview["volume"]
-        sl = preview["sl"]
-        tp = preview["tp"]
+        sl = float(preview["sl"])
+        tp = float(preview["tp"])
+
+        # Sprint 9.9.3.45.8.14: If prop_funded_profile is set, enforce TP = entry + initial_tp_R * risk
+        if prop_funded_profile and initial_tp_r > 0 and sl > 0:
+            tick_for_geom = mt5.symbol_info_tick("XAUUSD")
+            entry_for_geom = tick_for_geom.ask if direction == "BUY" else tick_for_geom.bid
+            risk_distance = abs(entry_for_geom - sl)
+            if risk_distance > 0:
+                if direction == "BUY":
+                    tp = entry_for_geom + (initial_tp_r * risk_distance)
+                else:
+                    tp = entry_for_geom - (initial_tp_r * risk_distance)
+                ok_checks.append(
+                    f"RR geometry: prop_funded_profile={prop_funded_profile}, "
+                    f"initial_tp_R={initial_tp_r}, risk={risk_distance:.4f}, "
+                    f"tp_distance={initial_tp_r * risk_distance:.4f}, TP={tp:.4f}"
+                )
+
+        # Sprint 9.9.3.45.8.14: RR Geometry gate - block if RR < minimum_RR
+        tick_for_rr = mt5.symbol_info_tick("XAUUSD")
+        entry_for_rr = tick_for_rr.ask if direction == "BUY" else tick_for_rr.bid
+        if direction == "BUY":
+            risk_distance = entry_for_rr - sl
+            reward_distance = tp - entry_for_rr
+        else:
+            risk_distance = sl - entry_for_rr
+            reward_distance = entry_for_rr - tp
+
+        actual_rr = reward_distance / risk_distance if risk_distance > 0 else 0.0
+        minimum_rr = 2.0  # Hard minimum for all execution
+        if prop_funded_profile:
+            minimum_rr = 2.0  # prop_funded_safe requires minimum_RR >= 2.0
+
+        if actual_rr < minimum_rr:
+            mt5.shutdown()
+            return {
+                "mode": "execute_and_monitor",
+                "verdict": "MANAGED_DEMO_MICRO_BLOCKED",
+                "blockers": [
+                    f"EXECUTION_GEOMETRY_RR_BELOW_MINIMUM: actual_RR={actual_rr:.4f} < minimum_RR={minimum_rr} "
+                    f"(entry={entry_for_rr}, SL={sl}, TP={tp}, risk={risk_distance}, reward={reward_distance})"
+                ],
+                "important_note": "No order was sent. RR geometry below minimum. "
+                                  "TP must be at least initial_tp_R * risk_distance from entry.",
+                "timestamp_utc": ts,
+                "env_info": env_info,
+                "ok_checks": ok_checks,
+                "execution_attempted": False,
+                "order_send_called": False,
+                "receipt_written": False,
+                "execution_geometry": {
+                    "side": direction,
+                    "entry": entry_for_rr,
+                    "sl": sl,
+                    "tp": tp,
+                    "risk_distance": risk_distance,
+                    "reward_distance": reward_distance,
+                    "actual_rr": actual_rr,
+                    "minimum_rr": minimum_rr,
+                    "initial_tp_r": initial_tp_r,
+                    "geometry_verdict": "EXECUTION_GEOMETRY_RR_BELOW_MINIMUM",
+                },
+            }
+        ok_checks.append(
+            f"RR geometry PASS: actual_RR={actual_rr:.4f} >= minimum_RR={minimum_rr}"
+        )
 
         tick = mt5.symbol_info_tick("XAUUSD")
         price = tick.ask if direction == "BUY" else tick.bid

@@ -570,3 +570,77 @@ class TestRunManagedDemoMicroTradeAdaptiveCLI:
         code = _strip(src).lower()
         for term in ["martingale", "grid_trade", "averaging_down", "loss_based_lot"]:
             assert term not in code, f"Forbidden term '{term}' in code"
+
+    # === Sprint 9.9.3.45.8.15: execution geometry tests ===
+
+    def test_50_build_request_includes_execution_geometry(self):
+        """Build-request must include execution_geometry field."""
+        import scripts.operator.run_managed_demo_micro_trade as m
+        args = FakeArgs(use_adaptive_trailing=False)
+        args.account_profile = "retail_demo_micro"
+        args.initial_tp_r = 3.0
+        args.use_dynamic_tp_extension = False
+        args.tp_extension_trigger_r = 2.0
+        args.adaptive_policy_mode = "balanced_conservative"
+        args.breakeven_trigger_r = 1.0
+        args.trailing_trigger_r = 1.75
+        args.profit_lock_trigger_r = 3.0
+        args.min_hold_seconds = 60
+        args.min_monitor_iterations = 3
+        args.sl_update_cooldown_seconds = 60
+        args.tp_extension_r = 1.0
+        args.tp_extension_atr_mult = 2.0
+        args.tp_extension_cooldown_seconds = 120
+        args.min_profit_lock_after_tp_extension_r = 1.0
+        args.max_profit_giveback_r_trend = 1.0
+        args.max_profit_giveback_r_range = 0.5
+        result = m.run_build_request(args=args)
+        assert "execution_geometry" in result
+        geom = result["execution_geometry"]
+        assert "actual_RR" in geom
+        assert "minimum_RR" in geom
+        assert "initial_tp_R" in geom
+        assert "geometry_verdict" in geom
+
+    def test_51_build_request_geometry_pass_for_3R(self):
+        """Build-request with initial_tp_r=3.0 should have actual_RR=3.0 and PASS."""
+        import scripts.operator.run_managed_demo_micro_trade as m
+        args = FakeArgs(use_adaptive_trailing=False)
+        args.account_profile = "prop_firm_100x_demo"
+        args.initial_tp_r = 3.0
+        args.use_dynamic_tp_extension = False
+        args.tp_extension_trigger_r = 2.0
+        args.adaptive_policy_mode = "balanced_conservative"
+        args.breakeven_trigger_r = 1.0
+        args.trailing_trigger_r = 1.75
+        args.profit_lock_trigger_r = 3.0
+        args.min_hold_seconds = 60
+        args.min_monitor_iterations = 3
+        args.sl_update_cooldown_seconds = 60
+        args.tp_extension_r = 1.0
+        args.tp_extension_atr_mult = 2.0
+        args.tp_extension_cooldown_seconds = 120
+        args.min_profit_lock_after_tp_extension_r = 1.0
+        args.max_profit_giveback_r_trend = 1.0
+        args.max_profit_giveback_r_range = 0.5
+        result = m.run_build_request(args=args)
+        geom = result["execution_geometry"]
+        assert geom["actual_RR"] == 3.0
+        assert geom["geometry_verdict"] == "EXECUTION_GEOMETRY_PASS"
+
+    def test_52_geometry_source_has_rr_below_minimum_blocker(self):
+        """Source must contain EXECUTION_GEOMETRY_RR_BELOW_MINIMUM blocker."""
+        src = (REPO_ROOT / "scripts" / "operator" / "run_managed_demo_micro_trade.py").read_text()
+        assert "EXECUTION_GEOMETRY_RR_BELOW_MINIMUM" in src
+
+    def test_53_execute_path_has_geometry_gate(self):
+        """Execute-and-monitor path must have geometry gate before order_send."""
+        src = (REPO_ROOT / "scripts" / "operator" / "run_managed_demo_micro_trade.py").read_text()
+        # Find the execute path section
+        idx = src.find("def run_execute_and_monitor")
+        assert idx > 0
+        end_idx = src.find("\ndef ", idx + 1)
+        body = src[idx:end_idx if end_idx > 0 else len(src)]
+        assert "EXECUTION_GEOMETRY_RR_BELOW_MINIMUM" in body
+        assert "actual_rr" in body
+        assert "minimum_rr" in body

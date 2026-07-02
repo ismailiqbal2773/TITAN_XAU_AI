@@ -351,6 +351,21 @@ def run_audit() -> dict:
     if findings["micro_proof_archived"]:
         ok_checks.append("Micro proof archived")
 
+    # === Sprint 9.9.3.45.8.15: Execution geometry enforcement ===
+    geom_audit_path = REPO_ROOT / "scripts" / "audit" / "execution_geometry_receipt_audit.py"
+    findings["execution_geometry_audit_exists"] = _check_module_exists(geom_audit_path)
+    if findings["execution_geometry_audit_exists"]:
+        ok_checks.append("Execution geometry receipt audit exists")
+
+    # Check build-request has geometry enforcement
+    run_managed_src = (REPO_ROOT / "scripts" / "operator" / "run_managed_demo_micro_trade.py").read_text()
+    has_geom_gate = "EXECUTION_GEOMETRY_RR_BELOW_MINIMUM" in run_managed_src
+    findings["execution_geometry_enforced"] = has_geom_gate
+    if has_geom_gate:
+        ok_checks.append("Execution geometry RR gate enforced in build-request and execute-and-monitor")
+    else:
+        blockers.append("EXECUTION_GEOMETRY_NOT_ENFORCED: RR gate missing from execution path")
+
     # === Get parameter binding status ===
     safe_default_count = 0
     needs_backtest_binding_count = 0

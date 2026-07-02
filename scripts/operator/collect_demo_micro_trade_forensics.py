@@ -471,6 +471,79 @@ def collect_forensics(days: int = 30, symbol: str = "XAUUSD",
                     }
 
                 # Receipt success=True but receipt trade NOT FOUND - strict no-fallback
+                # Sprint 9.9.3.45.8.15: If receipt returned a non-zero deal
+                # ticket (order_send_result_deal or deal_ticket) but the deal
+                # is NOT in history_deals_get, the deal may simply be pending
+                # in MT5 history. Return DEMO_MICRO_EVIDENCE_HISTORY_PENDING
+                # instead of DEMO_MICRO_EVIDENCE_INCOMPLETE so the operator
+                # can retry later instead of treating this as a hard fail.
+                receipt_deal_ticket_for_history = (
+                    receipt.get("order_send_result_deal")
+                    or receipt.get("deal_ticket")
+                    or 0
+                ) or 0
+                receipt_deal_in_history = False
+                if receipt_deal_ticket_for_history:
+                    receipt_deal_in_history = any(
+                        d.get("ticket") == receipt_deal_ticket_for_history
+                        for d in normalized_deals
+                    )
+
+                findings["receipt_deal_ticket_for_history"] = receipt_deal_ticket_for_history
+                findings["receipt_deal_in_history"] = receipt_deal_in_history
+
+                if receipt_deal_ticket_for_history and not receipt_deal_in_history:
+                    # Deal ticket was returned by broker but not yet visible
+                    # in history_deals_get. Likely a transient MT5 history
+                    # propagation delay rather than a true missing trade.
+                    findings["root_cause"] = "RECEIPT_DEAL_PENDING_HISTORY_PROPAGATION"
+                    findings["fallback_blocked_reason"] = (
+                        "RECEIPT_DEAL_PENDING_HISTORY_PROPAGATION"
+                    )
+                    findings["old_trades_used_as_proof"] = False
+                    findings["history_pending_reason"] = (
+                        "Receipt returned a non-zero deal ticket "
+                        f"({receipt_deal_ticket_for_history}) but the deal was "
+                        "not found in MT5 history_deals_get for the queried "
+                        "time window. Possible causes: (1) MT5 history cache "
+                        "not yet refreshed after order_send - retry after a "
+                        "short delay; (2) timestamp mismatch - the deal time "
+                        "falls outside the queried from_dt/to_dt window; "
+                        "(3) MT5 server-side history propagation delay common "
+                        "on MetaQuotes-Demo; (4) the deal ticket refers to a "
+                        "different account or login than the one currently "
+                        "initialized. The trade likely executed successfully "
+                        "but history has not yet caught up. Re-run forensics "
+                        "after waiting 30-60 seconds before escalating to "
+                        "DEMO_MICRO_EVIDENCE_INCOMPLETE."
+                    )
+                    # Still compute fallback candidates as diagnostics only
+                    fb_candidates = []
+                    magic_deals = [d for d in normalized_deals if d["magic"] == magic and d["symbol"] == symbol]
+                    if magic_deals:
+                        pos_ids = set(d["position_id"] for d in magic_deals if d["position_id"])
+                        for pid in sorted(pos_ids, reverse=True):
+                            fb_candidates.append({
+                                "position_id": pid,
+                                "match_type": "magic_comment",
+                                "deal_count": sum(1 for d in magic_deals if d["position_id"] == pid),
+                            })
+                    findings["fallback_candidates"] = fb_candidates
+                    findings["fallback_candidates_count"] = len(fb_candidates)
+                    warnings.append(
+                        "Receipt deal ticket non-zero but not found in history - "
+                        "returning HISTORY_PENDING (likely MT5 history propagation "
+                        "delay). Re-run forensics after a short delay before "
+                        "escalating to INCOMPLETE."
+                    )
+                    return {
+                        "timestamp_utc": ts,
+                        "verdict": "DEMO_MICRO_EVIDENCE_HISTORY_PENDING",
+                        "ok_checks": ok_checks, "blockers": blockers, "warnings": warnings,
+                        "findings": findings,
+                        "safety": {"order_send_called": False, "position_modified": False},
+                    }
+
                 findings["root_cause"] = "RECEIPT_TRADE_NOT_FOUND_IN_HISTORY_OR_OPEN_POSITIONS"
                 findings["fallback_blocked_reason"] = "RECEIPT_TRADE_NOT_FOUND_IN_HISTORY_OR_OPEN_POSITIONS"
                 findings["old_trades_used_as_proof"] = False

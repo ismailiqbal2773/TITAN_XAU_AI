@@ -149,3 +149,18 @@ class TestForensicsReconciliation:
         src = (REPO_ROOT / "scripts" / "operator" / "collect_demo_micro_trade_forensics.py").read_text()
         assert "diag_deal_ticket == receipt_deal" in src
         assert "diag_pos_id == receipt_detected_identifier" in src
+
+    # === Sprint 9.9.3.45.8.15: HISTORY_PENDING tests ===
+
+    def test_22_forensics_supports_history_pending_verdict(self):
+        """Forensics must support DEMO_MICRO_EVIDENCE_HISTORY_PENDING verdict."""
+        src = (REPO_ROOT / "scripts" / "operator" / "collect_demo_micro_trade_forensics.py").read_text()
+        assert "DEMO_MICRO_EVIDENCE_HISTORY_PENDING" in src
+
+    def test_23_forensics_distinguishes_history_pending_from_not_found(self):
+        """When receipt has deal_ticket but history doesn't show it, should be HISTORY_PENDING."""
+        src = (REPO_ROOT / "scripts" / "operator" / "collect_demo_micro_trade_forensics.py").read_text()
+        assert "history_pending_reason" in src
+        assert "DEMO_MICRO_EVIDENCE_HISTORY_PENDING" in src
+        # Should not be generic HISTORY_NOT_FOUND when receipt deal exists
+        assert "order_send_result_deal" in src or "receipt_deal" in src

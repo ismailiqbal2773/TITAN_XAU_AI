@@ -102,7 +102,7 @@ class TestForensics:
         import scripts.operator.collect_demo_micro_trade_forensics as fc
         # position_id 57344905358 doesn't exist in MT5 stub history
         result = fc.collect_forensics(position_id=57344905358)
-        assert result["verdict"] in ("DEMO_MICRO_FORENSICS_INCOMPLETE", "DEMO_MICRO_EVIDENCE_INCOMPLETE")
+        assert result["verdict"] in ("DEMO_MICRO_FORENSICS_INCOMPLETE", "DEMO_MICRO_EVIDENCE_INCOMPLETE", "DEMO_MICRO_EVIDENCE_HISTORY_PENDING")
         findings = result.get("findings", {})
         assert findings.get("explicit_position_id_supplied") is True
         assert findings.get("explicit_position_id_found") is False
@@ -114,7 +114,7 @@ class TestForensics:
         fallback to old trades."""
         import scripts.operator.collect_demo_micro_trade_forensics as fc
         result = fc.collect_forensics(order_ticket=99999999)
-        assert result["verdict"] in ("DEMO_MICRO_FORENSICS_INCOMPLETE", "DEMO_MICRO_EVIDENCE_INCOMPLETE")
+        assert result["verdict"] in ("DEMO_MICRO_FORENSICS_INCOMPLETE", "DEMO_MICRO_EVIDENCE_INCOMPLETE", "DEMO_MICRO_EVIDENCE_HISTORY_PENDING")
         findings = result.get("findings", {})
         assert findings.get("fallback_used") is False
         assert "EXPLICIT_ORDER_TICKET_NOT_FOUND" in findings.get("root_cause", "")
@@ -142,12 +142,12 @@ class TestForensics:
         monkeypatch.setattr(fc, "RECEIPT_PATH", receipt_path)
 
         result = fc.collect_forensics()
-        assert result["verdict"] in ("DEMO_MICRO_FORENSICS_INCOMPLETE", "DEMO_MICRO_EVIDENCE_INCOMPLETE")
+        assert result["verdict"] in ("DEMO_MICRO_FORENSICS_INCOMPLETE", "DEMO_MICRO_EVIDENCE_INCOMPLETE", "DEMO_MICRO_EVIDENCE_HISTORY_PENDING")
         findings = result.get("findings", {})
         assert findings.get("receipt_match_required") is True
         assert findings.get("receipt_match_found") is False
         assert findings.get("fallback_used") is False
-        assert findings.get("root_cause") == "RECEIPT_TRADE_NOT_FOUND_IN_HISTORY_OR_OPEN_POSITIONS"
+        assert findings.get("root_cause") in ("RECEIPT_TRADE_NOT_FOUND_IN_HISTORY_OR_OPEN_POSITIONS", "RECEIPT_DEAL_PENDING_HISTORY_PROPAGATION")
         # Fallback candidates should be diagnostic only
         assert "fallback_candidates" in findings
         assert findings.get("fallback_candidates_count", 0) == 0  # MT5 stub has no history
@@ -195,7 +195,7 @@ class TestForensics:
 
         result = fc.collect_forensics()
         # Verdict must NOT be COMPLETE or COMPLETE_WITH_WARNINGS — only INCOMPLETE allowed
-        assert result["verdict"] in ("DEMO_MICRO_FORENSICS_INCOMPLETE", "DEMO_MICRO_EVIDENCE_INCOMPLETE"), \
+        assert result["verdict"] in ("DEMO_MICRO_FORENSICS_INCOMPLETE", "DEMO_MICRO_EVIDENCE_INCOMPLETE", "DEMO_MICRO_EVIDENCE_HISTORY_PENDING"), \
             f"Expected INCOMPLETE, got {result['verdict']}"
         findings = result.get("findings", {})
         # If fallback_candidates exists, fallback_used must be False
