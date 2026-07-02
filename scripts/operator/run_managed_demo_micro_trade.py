@@ -453,6 +453,87 @@ def run_build_request(direction: str = "BUY", entry_price: float = 2000.0,
         except Exception as e:
             result["optimizer_error"] = str(e)
 
+    # === Sprint 9.9.3.45.8.16 v2.7.3: Display entry-gate + autonomous readiness status ===
+    # Build-request must surface the latest end-to-end entry gate verdict,
+    # autonomous readiness verdict, latest execution geometry verdict, and
+    # previous micro proof status. This is read-only - we never re-run the
+    # audits, only display their last-known verdicts.
+    try:
+        audit_dir = REPO_ROOT / "data" / "audit" / "demo_micro_execution"
+
+        # Latest execution geometry verdict
+        geom_audit_path = audit_dir / "execution_geometry_audit.json"
+        if geom_audit_path.exists():
+            with open(geom_audit_path, "r", encoding="utf-8") as f:
+                geom_audit = json.load(f)
+            result["latest_execution_geometry_verdict"] = geom_audit.get("verdict", "")
+            geom_geo = geom_audit.get("geometry", {}) or {}
+            result["latest_actual_RR"] = geom_geo.get("actual_RR", 0)
+            result["latest_minimum_RR"] = geom_geo.get("minimum_RR", 0)
+            result["latest_initial_tp_R"] = geom_geo.get("expected_initial_tp_R", 0)
+        else:
+            result["latest_execution_geometry_verdict"] = ""
+            result["latest_actual_RR"] = 0
+            result["latest_minimum_RR"] = 0
+            result["latest_initial_tp_R"] = 0
+
+        # Previous micro proof status (from evidence verifier if available)
+        ev_path = audit_dir / "demo_micro_evidence_verifier.json"
+        if ev_path.exists():
+            with open(ev_path, "r", encoding="utf-8") as f:
+                ev = json.load(f)
+            result["previous_micro_proof_status"] = ev.get("verdict", "")
+        else:
+            # Fall back to forensics verdict
+            forensics_path = audit_dir / "post_trade_forensics.json"
+            if forensics_path.exists():
+                with open(forensics_path, "r", encoding="utf-8") as f:
+                    forensics = json.load(f)
+                result["previous_micro_proof_status"] = forensics.get("verdict", "")
+            else:
+                result["previous_micro_proof_status"] = ""
+
+        # End-to-end entry gate status (if audit exists)
+        entry_gate_path = audit_dir / "end_to_end_entry_gate_audit.json"
+        if entry_gate_path.exists():
+            with open(entry_gate_path, "r", encoding="utf-8") as f:
+                eg = json.load(f)
+            result["end_to_end_entry_gate_status"] = eg.get("verdict", "")
+            result["end_to_end_entry_gate_blockers"] = eg.get("blockers", [])
+            eg_findings = eg.get("findings", {}) or {}
+            if eg_findings.get("execution_proof_mode_alpha_unknown"):
+                result["execution_proof_mode_alpha_unknown"] = True
+        else:
+            result["end_to_end_entry_gate_status"] = ""
+            result["end_to_end_entry_gate_blockers"] = []
+
+        # Autonomous readiness status (if audit exists)
+        autonomous_path = audit_dir / "autonomous_demo_readiness_audit.json"
+        if autonomous_path.exists():
+            with open(autonomous_path, "r", encoding="utf-8") as f:
+                ar = json.load(f)
+            result["autonomous_demo_readiness_status"] = ar.get("verdict", "")
+            result["autonomous_allowed"] = ar.get("autonomous_allowed", False)
+            result["autonomous_demo_blockers"] = ar.get("blockers", [])
+        else:
+            result["autonomous_demo_readiness_status"] = ""
+            result["autonomous_allowed"] = False
+            result["autonomous_demo_blockers"] = []
+
+        # Final demo readiness status
+        final_demo_path = REPO_ROOT / "data" / "audit" / "demo_readiness" / "final_demo_proof_readiness_report.json"
+        if final_demo_path.exists():
+            with open(final_demo_path, "r", encoding="utf-8") as f:
+                fd = json.load(f)
+            result["final_demo_readiness_status"] = (
+                fd.get("verdict", "") or fd.get("overall_verdict", "")
+            )
+        else:
+            result["final_demo_readiness_status"] = ""
+
+    except Exception as e:
+        result["entry_gate_status_error"] = str(e)
+
     return result
 
 
@@ -1980,6 +2061,37 @@ def main() -> int:
         print(f"  Dynamic TP extension enabled: {adaptive_cfg.get('dynamic_tp_enabled', False)}")
         if adaptive_cfg.get('profit_corridor_enabled'):
             print(f"  Profit corridor active: True (adaptive + dynamic_tp)")
+
+    # === Sprint 9.9.3.45.8.16 v2.7.3: print entry-gate + autonomous readiness status ===
+    if args.build_request:
+        print()
+        print("  " + "-" * 66)
+        print("  v2.7.3 Entry Gate & Autonomous Readiness Status")
+        print("  " + "-" * 66)
+        print(f"  Latest execution geometry verdict: {result.get('latest_execution_geometry_verdict', 'N/A')}")
+        print(f"  Latest actual RR: {result.get('latest_actual_RR', 'N/A')}")
+        print(f"  Minimum RR: {result.get('latest_minimum_RR', 'N/A')}")
+        print(f"  Initial TP R: {result.get('latest_initial_tp_R', 'N/A')}")
+        print(f"  Selected profile: {result.get('account_profile', 'N/A')}")
+        print(f"  Broker status: score={result.get('broker_score', 'N/A')}, verdict={result.get('broker_verdict', 'N/A')}")
+        print(f"  Final demo readiness: {result.get('final_demo_readiness_status', 'N/A')}")
+        print(f"  Previous micro proof: {result.get('previous_micro_proof_status', 'N/A')}")
+        print(f"  End-to-end entry gate: {result.get('end_to_end_entry_gate_status', 'N/A')}")
+        print(f"  Autonomous readiness: {result.get('autonomous_demo_readiness_status', 'N/A')}")
+        print(f"  Autonomous allowed: {result.get('autonomous_allowed', False)}")
+        if result.get("execution_proof_mode_alpha_unknown"):
+            print()
+            print("  Execution proof mode: alpha/regime not used for entry.")
+            print("  Do not treat this as autonomous strategy proof.")
+        if result.get("end_to_end_entry_gate_blockers"):
+            print(f"  Entry gate blockers: {len(result['end_to_end_entry_gate_blockers'])}")
+            for b in result["end_to_end_entry_gate_blockers"][:3]:
+                print(f"    - {b}")
+        if result.get("autonomous_demo_blockers"):
+            print(f"  Autonomous blockers: {len(result['autonomous_demo_blockers'])}")
+            for b in result["autonomous_demo_blockers"][:3]:
+                print(f"    - {b}")
+
     print(f"\n  JSON: {report['json_path']}")
     print(f"  MD:   {report['md_path']}")
     print("\n" + "=" * 70)

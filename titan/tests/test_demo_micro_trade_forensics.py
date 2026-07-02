@@ -147,7 +147,12 @@ class TestForensics:
         assert findings.get("receipt_match_required") is True
         assert findings.get("receipt_match_found") is False
         assert findings.get("fallback_used") is False
-        assert findings.get("root_cause") in ("RECEIPT_TRADE_NOT_FOUND_IN_HISTORY_OR_OPEN_POSITIONS", "RECEIPT_DEAL_PENDING_HISTORY_PROPAGATION")
+        assert findings.get("root_cause") in (
+            "RECEIPT_TRADE_NOT_FOUND_IN_HISTORY_OR_OPEN_POSITIONS",
+            "RECEIPT_DEAL_PENDING_HISTORY_PROPAGATION",
+            "HISTORY_PENDING_AFTER_ORDER_SEND",  # v2.7.3 renamed
+            "MT5_HISTORY_WINDOW_MISMATCH",  # v2.7.3 window mismatch
+        )
         # Fallback candidates should be diagnostic only
         assert "fallback_candidates" in findings
         assert findings.get("fallback_candidates_count", 0) == 0  # MT5 stub has no history

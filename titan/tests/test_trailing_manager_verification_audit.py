@@ -285,3 +285,119 @@ class TestTrailingManagerVerificationAudit:
         ]
         for field in required_fields:
             assert field in src, f"Missing field in source: {field}"
+
+    # === Sprint 9.9.3.45.8.16 v2.7.3: planned_RR + WARN_INSUFFICIENT_PATH_EVIDENCE ===
+
+    def test_19_v2_7_3_new_verdict_supported(self):
+        """Audit must support TRAILING_MANAGER_WARN_INSUFFICIENT_PATH_EVIDENCE verdict."""
+        import scripts.audit.trailing_manager_verification_audit as a
+        assert hasattr(a, "TRAILING_MANAGER_WARN_INSUFFICIENT_PATH_EVIDENCE")
+        assert a.TRAILING_MANAGER_WARN_INSUFFICIENT_PATH_EVIDENCE in a.ALL_VERDICTS
+
+    def test_20_v2_7_3_new_fields_present(self):
+        """Audit must compute v2.7.3 receipt-geometry fields."""
+        src = (REPO_ROOT / "scripts" / "audit" / "trailing_manager_verification_audit.py").read_text()
+        for field in [
+            "planned_RR",
+            "actual_RR_from_receipt",
+            "entry_price",  # already existed, now sourced from receipt
+            "sl_price",
+            "tp_price",
+            "receipt_geometry_valid",
+            "profit_R_source",
+            "mfe_available",
+            "close_price_available",
+        ]:
+            assert field in src, f"Missing v2.7.3 field: {field}"
+
+    def test_21_v2_7_3_planned_RR_computed_from_receipt(self, tmp_path):
+        """planned_RR must be computed from receipt's entry/SL/TP/side when
+        forensics cannot provide profit_R."""
+        import scripts.audit.trailing_manager_verification_audit as a
+
+        # Receipt with full geometry: entry=4075.27, SL=4072.27, TP=4084.27
+        # planned_RR = (4084.27 - 4075.27) / (4075.27 - 4072.27) = 9/3 = 3.0
+        receipt = {
+            "side": "BUY",
+            "order_send_result_price": 4075.27,
+            "requested_sl": 4072.27,
+            "requested_tp": 4084.27,
+        }
+        # Empty forensics (no entry/exit deal)
+        forensics = {"findings": {}}
+        managed = {"monitor_iterations": 0, "monitor_duration_seconds": 0}
+
+        r_path = tmp_path / "r.json"
+        f_path = tmp_path / "f.json"
+        m_path = tmp_path / "m.json"
+        r_path.write_text(json.dumps(receipt))
+        f_path.write_text(json.dumps(forensics))
+        m_path.write_text(json.dumps(managed))
+
+        result = a.run_audit(receipt_path=r_path, forensics_path=f_path, managed_report_path=m_path)
+        fnd = result.get("findings", {})
+        assert fnd.get("planned_RR") == 3.0, f"Expected planned_RR=3.0, got {fnd.get('planned_RR')}"
+        assert fnd.get("receipt_geometry_valid") is True
+        assert fnd.get("profit_R_source") == "receipt_planned"
+
+    def test_22_v2_7_3_warn_insufficient_path_evidence_when_no_profit_R(self, tmp_path):
+        """When profit_R not computable but receipt provides planned_RR,
+        audit must return WARN_INSUFFICIENT_PATH_EVIDENCE (NOT a hard block)."""
+        import scripts.audit.trailing_manager_verification_audit as a
+
+        receipt = {
+            "side": "BUY",
+            "order_send_result_price": 4075.27,
+            "requested_sl": 4072.27,
+            "requested_tp": 4084.27,
+        }
+        forensics = {"findings": {}}  # no entry/exit deal, no profit_R
+        managed = {"monitor_iterations": 0, "monitor_duration_seconds": 0}
+
+        r_path = tmp_path / "r.json"
+        f_path = tmp_path / "f.json"
+        m_path = tmp_path / "m.json"
+        r_path.write_text(json.dumps(receipt))
+        f_path.write_text(json.dumps(forensics))
+        m_path.write_text(json.dumps(managed))
+
+        result = a.run_audit(receipt_path=r_path, forensics_path=f_path, managed_report_path=m_path)
+        # v2.7.3: should return WARN_INSUFFICIENT_PATH_EVIDENCE, not BLOCKED
+        assert result["verdict"] == a.TRAILING_MANAGER_WARN_INSUFFICIENT_PATH_EVIDENCE, \
+            f"Expected WARN_INSUFFICIENT_PATH_EVIDENCE, got {result['verdict']}"
+        # Must NOT be a hard block (no blockers)
+        assert len(result.get("blockers", [])) == 0, \
+            f"WARN_INSUFFICIENT_PATH_EVIDENCE must not have blockers: {result.get('blockers')}"
+
+    def test_23_v2_7_3_no_block_when_profit_R_missing_and_no_path_evidence(self, tmp_path):
+        """When profit_R missing and no exit price/MFE, audit must NOT block."""
+        import scripts.audit.trailing_manager_verification_audit as a
+
+        receipt = {"side": "BUY", "order_send_result_price": 4075.27,
+                   "requested_sl": 4072.27, "requested_tp": 4084.27}
+        forensics = {"findings": {"sl_modification_events": 0}}
+        managed = {"monitor_iterations": 0, "monitor_duration_seconds": 0}
+
+        r_path = tmp_path / "r.json"
+        f_path = tmp_path / "f.json"
+        m_path = tmp_path / "m.json"
+        r_path.write_text(json.dumps(receipt))
+        f_path.write_text(json.dumps(forensics))
+        m_path.write_text(json.dumps(managed))
+
+        result = a.run_audit(receipt_path=r_path, forensics_path=f_path, managed_report_path=m_path)
+        assert "BLOCKED" not in result["verdict"], \
+            f"Must not be BLOCKED when profit_R missing: {result['verdict']}"
+        assert len(result.get("blockers", [])) == 0
+
+    def test_24_v2_7_3_profit_R_source_field(self):
+        """profit_R_source must be one of: forensics, receipt_planned, unknown."""
+        src = (REPO_ROOT / "scripts" / "audit" / "trailing_manager_verification_audit.py").read_text()
+        assert '"forensics"' in src
+        assert '"receipt_planned"' in src
+        assert '"unknown"' in src
+
+    def test_25_v2_7_3_no_order_send(self):
+        src = (REPO_ROOT / "scripts" / "audit" / "trailing_manager_verification_audit.py").read_text()
+        code = _strip(src)
+        assert not re.search(r"\bmt5\.order_send\s*\(", code)

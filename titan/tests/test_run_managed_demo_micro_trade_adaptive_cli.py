@@ -644,3 +644,70 @@ class TestRunManagedDemoMicroTradeAdaptiveCLI:
         assert "EXECUTION_GEOMETRY_RR_BELOW_MINIMUM" in body
         assert "actual_rr" in body
         assert "minimum_rr" in body
+
+    # === Sprint 9.9.3.45.8.16 v2.7.3: build-request entry-gate status display ===
+
+    def test_54_v2_7_3_build_request_includes_geometry_status(self):
+        """Build-request must include latest_execution_geometry_verdict, actual_RR,
+        minimum_RR, initial_tp_R in its result."""
+        src = (REPO_ROOT / "scripts" / "operator" / "run_managed_demo_micro_trade.py").read_text()
+        assert "latest_execution_geometry_verdict" in src
+        assert "latest_actual_RR" in src
+        assert "latest_minimum_RR" in src
+        assert "latest_initial_tp_R" in src
+
+    def test_55_v2_7_3_build_request_includes_entry_gate_status(self):
+        """Build-request must include end_to_end_entry_gate_status field."""
+        src = (REPO_ROOT / "scripts" / "operator" / "run_managed_demo_micro_trade.py").read_text()
+        assert "end_to_end_entry_gate_status" in src
+        assert "end_to_end_entry_gate_blockers" in src
+        assert "execution_proof_mode_alpha_unknown" in src
+
+    def test_56_v2_7_3_build_request_includes_autonomous_status(self):
+        """Build-request must include autonomous_demo_readiness_status field."""
+        src = (REPO_ROOT / "scripts" / "operator" / "run_managed_demo_micro_trade.py").read_text()
+        assert "autonomous_demo_readiness_status" in src
+        assert "autonomous_allowed" in src
+        assert "autonomous_demo_blockers" in src
+
+    def test_57_v2_7_3_build_request_includes_broker_and_final_demo_status(self):
+        """Build-request must include broker status and final demo readiness status."""
+        src = (REPO_ROOT / "scripts" / "operator" / "run_managed_demo_micro_trade.py").read_text()
+        assert "final_demo_readiness_status" in src
+        assert "previous_micro_proof_status" in src
+
+    def test_58_v2_7_3_build_request_prints_execution_proof_warning(self):
+        """When execution_proof_mode_alpha_unknown=True, build-request console
+        must print 'Execution proof mode: alpha/regime not used for entry.'"""
+        src = (REPO_ROOT / "scripts" / "operator" / "run_managed_demo_micro_trade.py").read_text()
+        assert "Execution proof mode: alpha/regime not used for entry." in src
+        assert "Do not treat this as autonomous strategy proof." in src
+
+    def test_59_v2_7_3_build_request_run_includes_status(self):
+        """Actually run build-request and verify status fields are present."""
+        import scripts.operator.run_managed_demo_micro_trade as m
+        import argparse
+        args = argparse.Namespace(
+            direction="BUY", entry_price=4075.27, sl=0, tp=0,
+            account_profile="prop_funded_safe",
+            prop_funded_profile="prop_funded_safe",
+            initial_tp_r=3.0,
+            use_dynamic_tp_extension=True,
+            use_adaptive_trailing=True,
+            tp_extension_trigger_r=2.0,
+            risk_mode="conservative",
+            broker_profile="metaquotes_demo",
+        )
+        result = m.run_build_request(
+            direction="BUY", entry_price=4075.27, sl=0, tp=0, args=args
+        )
+        # All v2.7.3 status fields must be present
+        assert "latest_execution_geometry_verdict" in result
+        assert "latest_actual_RR" in result
+        assert "latest_minimum_RR" in result
+        assert "latest_initial_tp_R" in result
+        assert "end_to_end_entry_gate_status" in result
+        assert "autonomous_demo_readiness_status" in result
+        assert "autonomous_allowed" in result
+        assert "final_demo_readiness_status" in result
+        assert "previous_micro_proof_status" in result

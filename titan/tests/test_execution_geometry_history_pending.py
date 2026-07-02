@@ -85,7 +85,13 @@ class TestHistoryPendingVerdict:
         result = fc.collect_forensics()
         assert result["verdict"] == "DEMO_MICRO_EVIDENCE_HISTORY_PENDING"
         findings = result["findings"]
-        assert findings["root_cause"] == "RECEIPT_DEAL_PENDING_HISTORY_PROPAGATION"
+        # v2.7.3: root_cause renamed to HISTORY_PENDING_AFTER_ORDER_SEND
+        # (MT5_HISTORY_WINDOW_MISMATCH may also appear if window mismatch detected)
+        assert findings["root_cause"] in (
+            "RECEIPT_DEAL_PENDING_HISTORY_PROPAGATION",
+            "HISTORY_PENDING_AFTER_ORDER_SEND",
+            "MT5_HISTORY_WINDOW_MISMATCH",
+        ), f"Unexpected root_cause: {findings['root_cause']}"
         assert "history_pending_reason" in findings
         reason = findings["history_pending_reason"]
         # Reason must mention at least one of the documented possible causes

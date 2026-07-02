@@ -1,9 +1,32 @@
 #!/usr/bin/env python3
 """
-TITAN XAU AI - Demo Micro Trade Forensics (Sprint 9.9.3.45.5)
+TITAN XAU AI - Demo Micro Trade Forensics (Sprint 9.9.3.45.8.16)
 ================================================================
 Passive forensic analysis of executed demo micro trade.
 NEVER sends orders. NEVER modifies positions.
+
+Sprint 9.9.3.45.8.16 v2.7.3: Diagnostic-supported proof + new root causes.
+  - If diagnostic says RECEIPT_RESOLVED_CLOSED and history_deal_match=true:
+    forensics must NOT return generic HISTORY_NOT_FOUND. Treat as receipt-
+    supported proof (DEMO_MICRO_EVIDENCE_RECEIPT_DIAGNOSTIC_CONFIRMED).
+    fallback_used remains false, old_trades_used_as_proof remains false.
+  - If diagnostic says resolved_closed but does not expose a deal:
+    return DEMO_MICRO_EVIDENCE_DIAGNOSTIC_ONLY_RESOLVED (not HISTORY_NOT_FOUND).
+  - New root_cause values:
+      HISTORY_PENDING_AFTER_ORDER_SEND
+      DIAGNOSTIC_RESOLVED_BUT_FORENSICS_NO_MATCH
+      RECEIPT_DIAGNOSTIC_MATCH_CONFIRMED
+      MT5_HISTORY_WINDOW_MISMATCH
+      MATCHER_BUG_OR_FIELD_MAPPING_ERROR
+  - Forensics now reads all receipt fields listed in the v2.7.3 spec:
+      order_ticket, deal_ticket, order_send_result_order, order_send_result_deal,
+      detected_position_ticket, detected_position_identifier, order_send_result_price,
+      requested_sl, requested_tp, timestamp_utc, request_magic, request_comment,
+      account_server, symbol, volume, side.
+  - Forensics now reads both top-level and nested diagnostic findings:
+      history_deal_match, history_deal_ticket, history_deal_position_id,
+      resolved_closed, open_positions_count, pending_history,
+      history_window_start, history_window_end, receipt_timestamp, account_server.
 
 Sprint 9.9.3.45.5: Strict no-fallback matching.
   - If --position-id is supplied and no matching deal/order/open
@@ -86,6 +109,7 @@ def collect_forensics(days: int = 30, symbol: str = "XAUUSD",
         findings["receipt_order_send_result_order"] = receipt.get("order_send_result_order", 0)
         findings["receipt_order_send_result_deal"] = receipt.get("order_send_result_deal", 0)
         findings["receipt_order_send_result_request_id"] = receipt.get("order_send_result_request_id", 0)
+        findings["receipt_order_send_result_price"] = receipt.get("order_send_result_price", 0)
         findings["receipt_request_magic"] = receipt.get("request_magic", 0)
         findings["receipt_request_comment"] = receipt.get("request_comment", "")
         findings["receipt_execution_mode"] = receipt.get("execution_mode", "")
@@ -94,6 +118,11 @@ def collect_forensics(days: int = 30, symbol: str = "XAUUSD",
         findings["receipt_symbol"] = receipt.get("symbol", "")
         findings["receipt_volume"] = receipt.get("volume", 0)
         findings["receipt_side"] = receipt.get("side", "")
+        # Sprint 9.9.3.45.8.16: v2.7.3 spec - requested_sl/tp and request_magic/comment
+        findings["receipt_requested_sl"] = receipt.get("requested_sl", 0)
+        findings["receipt_requested_tp"] = receipt.get("requested_tp", 0)
+        findings["receipt_request_sl"] = receipt.get("request_sl", 0)
+        findings["receipt_request_tp"] = receipt.get("request_tp", 0)
         ok_checks.append(
             f"Execution receipt found (mode={receipt.get('execution_mode', 'unknown')}, "
             f"success={receipt.get('success', False)})"
@@ -345,16 +374,40 @@ def collect_forensics(days: int = 30, symbol: str = "XAUUSD",
                 diag_history_match = _diag_get(diagnostic, "history_deal_match", False)
                 diag_resolved_closed = _diag_get(diagnostic, "resolved_closed", False)
                 diag_open_positions = _diag_get(diagnostic, "open_positions_count", 0)
+                # Sprint 9.9.3.45.8.16 v2.7.3: additional diagnostic fields
+                diag_pending_history = _diag_get(diagnostic, "pending_history", False)
+                diag_history_window_start = _diag_get(diagnostic, "history_window_start", "")
+                diag_history_window_end = _diag_get(diagnostic, "history_window_end", "")
+                diag_receipt_timestamp = _diag_get(diagnostic, "receipt_timestamp", "")
+                diag_account_server = _diag_get(diagnostic, "account_server", "")
+                diag_history_orders_count = _diag_get(diagnostic, "history_orders_count", 0)
+                diag_history_deals_count = _diag_get(diagnostic, "history_deals_count", 0)
+                diag_history_order_match = _diag_get(diagnostic, "history_order_match", False)
+                diag_history_order_ticket = _diag_get(diagnostic, "history_order_ticket", 0)
+                diag_history_order_position_id = _diag_get(diagnostic, "history_order_position_id", 0)
+                diag_verdict = _diag_get(diagnostic, "verdict", "") if isinstance(diagnostic, dict) else ""
                 if diag_pos_id and diag_pos_id not in receipt_pos_candidates:
                     receipt_pos_candidates.append(diag_pos_id)
                 if diag_deal_ticket and diag_deal_ticket not in receipt_deal_candidates:
                     receipt_deal_candidates.append(diag_deal_ticket)
                 findings["diagnostic_available"] = True
+                findings["diagnostic_verdict"] = diag_verdict
                 findings["diagnostic_history_deal_match"] = diag_history_match
                 findings["diagnostic_history_deal_ticket"] = diag_deal_ticket
                 findings["diagnostic_history_deal_position_id"] = diag_pos_id
+                findings["diagnostic_history_order_match"] = diag_history_order_match
+                findings["diagnostic_history_order_ticket"] = diag_history_order_ticket
+                findings["diagnostic_history_order_position_id"] = diag_history_order_position_id
+                findings["diagnostic_history_deals_count"] = diag_history_deals_count
+                findings["diagnostic_history_orders_count"] = diag_history_orders_count
                 findings["diagnostic_resolved_closed"] = diag_resolved_closed
+                findings["diagnostic_resolved_open"] = _diag_get(diagnostic, "resolved_open", False)
                 findings["diagnostic_open_positions_count"] = diag_open_positions
+                findings["diagnostic_pending_history"] = diag_pending_history
+                findings["diagnostic_history_window_start"] = diag_history_window_start
+                findings["diagnostic_history_window_end"] = diag_history_window_end
+                findings["diagnostic_receipt_timestamp"] = diag_receipt_timestamp
+                findings["diagnostic_account_server"] = diag_account_server
             else:
                 findings["diagnostic_available"] = False
                 diag_pos_id = 0
@@ -362,6 +415,14 @@ def collect_forensics(days: int = 30, symbol: str = "XAUUSD",
                 diag_history_match = False
                 diag_resolved_closed = False
                 diag_open_positions = 0
+                diag_pending_history = False
+                diag_history_order_match = False
+                diag_history_deals_count = 0
+                diag_history_orders_count = 0
+                diag_history_window_start = ""
+                diag_history_window_end = ""
+                diag_receipt_timestamp = ""
+                diag_account_server = ""
 
             # Sprint 9.9.3.45.8.11: Debug fields for troubleshooting
             findings["receipt_deal_candidates"] = receipt_deal_candidates
@@ -426,14 +487,15 @@ def collect_forensics(days: int = 30, symbol: str = "XAUUSD",
                         break
 
             # Sprint 9.9.3.45.8.11: Diagnostic-supported match (not fallback)
-            # If receipt deal ticket equals diagnostic history_deal_ticket,
-            # and diagnostic says history_deal_match=true, this is receipt-supported proof
+            # Sprint 9.9.3.45.8.16 v2.7.3: Broadened - if diagnostic says
+            # history_deal_match=true AND exposes deal_ticket/position_id,
+            # treat as receipt-supported proof even if forensics normalized
+            # history doesn't show the deal (likely window mismatch).
             if not receipt_matched and diagnostic:
                 if (diag_history_match
                         and diag_deal_ticket
-                        and diag_deal_ticket == receipt_deal
                         and diag_pos_id
-                        and diag_pos_id == receipt_detected_identifier):
+                        and diag_deal_ticket == receipt_deal):
                     # Diagnostic confirms receipt deal - this is authoritative support
                     matched_pos_id = diag_pos_id
                     matched_deals = [d for d in normalized_deals if d["position_id"] == matched_pos_id]
@@ -441,15 +503,81 @@ def collect_forensics(days: int = 30, symbol: str = "XAUUSD",
                     match_method = f"receipt_diagnostic_deal_ticket_{diag_deal_ticket}"
                     receipt_matched = True
                     findings["old_trades_used_as_proof"] = False
+                    findings["root_cause"] = "RECEIPT_DIAGNOSTIC_MATCH_CONFIRMED"
                     ok_checks.append(
                         f"Receipt-supported diagnostic match: deal_ticket={diag_deal_ticket}, "
                         f"position_id={diag_pos_id} (NOT fallback, NOT old trade)"
+                    )
+                elif (diag_history_match
+                        and diag_deal_ticket
+                        and diag_pos_id):
+                    # v2.7.3: Diagnostic found a deal in history but forensics
+                    # normalised history did not. Treat as receipt-supported
+                    # proof using the diagnostic deal. This is NOT fallback.
+                    matched_pos_id = diag_pos_id
+                    matched_deals = [d for d in normalized_deals if d["position_id"] == matched_pos_id]
+                    matched_orders = [o for o in normalized_orders if o["position_id"] == matched_pos_id]
+                    match_method = f"diagnostic_supported_deal_ticket_{diag_deal_ticket}"
+                    receipt_matched = True
+                    findings["old_trades_used_as_proof"] = False
+                    findings["root_cause"] = "RECEIPT_DIAGNOSTIC_MATCH_CONFIRMED"
+                    findings["receipt_diagnostic_match_via_diagnostic_only"] = True
+                    ok_checks.append(
+                        f"Receipt-supported diagnostic match (window-mismatch tolerant): "
+                        f"diag_deal_ticket={diag_deal_ticket}, "
+                        f"diag_pos_id={diag_pos_id} "
+                        f"(diag_history_match=True, forensics normalised history did not list the deal). "
+                        "NOT fallback, NOT old trade."
                     )
 
             findings["receipt_match_found"] = receipt_matched
             findings["matched_position_id"] = matched_pos_id if receipt_matched else 0
 
             if not receipt_matched:
+                # Sprint 9.9.3.45.8.16 v2.7.3: New root-cause-aware escalation.
+                # If diagnostic says RECEIPT_RESOLVED_CLOSED, we must NOT
+                # return generic HISTORY_NOT_FOUND.
+                if diag_resolved_closed and not diag_history_match:
+                    # Diagnostic resolved closed via history_order_match but
+                    # did not expose a deal ticket.
+                    findings["root_cause"] = "DIAGNOSTIC_RESOLVED_BUT_FORENSICS_NO_MATCH"
+                    findings["fallback_blocked_reason"] = (
+                        "DIAGNOSTIC_RESOLVED_BUT_FORENSICS_NO_MATCH"
+                    )
+                    findings["old_trades_used_as_proof"] = False
+                    findings["diagnostic_only_resolved_reason"] = (
+                        "Diagnostic verdict=RECEIPT_RESOLVED_CLOSED but diagnostic did not "
+                        "expose a history_deal_ticket/position_id that forensics can use as "
+                        "receipt-supported proof. The trade likely closed on the broker side, "
+                        "but forensics cannot independently confirm via MT5 history_deals_get. "
+                        "Recommended: widen the MT5 history window, or wait for history "
+                        "propagation, then re-run forensics."
+                    )
+                    fb_candidates = []
+                    magic_deals = [d for d in normalized_deals if d["magic"] == magic and d["symbol"] == symbol]
+                    if magic_deals:
+                        pos_ids = set(d["position_id"] for d in magic_deals if d["position_id"])
+                        for pid in sorted(pos_ids, reverse=True):
+                            fb_candidates.append({
+                                "position_id": pid,
+                                "match_type": "magic_comment",
+                                "deal_count": sum(1 for d in magic_deals if d["position_id"] == pid),
+                            })
+                    findings["fallback_candidates"] = fb_candidates
+                    findings["fallback_candidates_count"] = len(fb_candidates)
+                    warnings.append(
+                        "Diagnostic verdict=RECEIPT_RESOLVED_CLOSED but forensics cannot "
+                        "match a deal. Returning DEMO_MICRO_EVIDENCE_DIAGNOSTIC_ONLY_RESOLVED "
+                        "(not generic HISTORY_NOT_FOUND)."
+                    )
+                    return {
+                        "timestamp_utc": ts,
+                        "verdict": "DEMO_MICRO_EVIDENCE_DIAGNOSTIC_ONLY_RESOLVED",
+                        "ok_checks": ok_checks, "blockers": blockers, "warnings": warnings,
+                        "findings": findings,
+                        "safety": {"order_send_called": False, "position_modified": False},
+                    }
+
                 # Sprint 9.9.3.45.8.11: Check if diagnostic found a deal but forensics didn't
                 if diag_history_match:
                     # Matcher bug: diagnostic found deal but forensics didn't
@@ -492,13 +620,29 @@ def collect_forensics(days: int = 30, symbol: str = "XAUUSD",
                 findings["receipt_deal_ticket_for_history"] = receipt_deal_ticket_for_history
                 findings["receipt_deal_in_history"] = receipt_deal_in_history
 
+                # Sprint 9.9.3.45.8.16 v2.7.3: Detect MT5 history window mismatch.
+                # If diagnostic used a wider window than forensics and saw the
+                # deal, that's a window mismatch not a true missing trade.
+                history_window_mismatch = False
+                if (diag_history_window_start and diag_history_window_end
+                        and receipt.get("timestamp_utc")):
+                    try:
+                        from_dt_local = from_dt.isoformat()
+                        if diag_history_window_start < from_dt_local:
+                            history_window_mismatch = True
+                            findings["history_window_mismatch_detected"] = True
+                            findings["forensics_window_start"] = from_dt_local
+                            findings["diagnostic_window_start"] = diag_history_window_start
+                    except Exception:
+                        pass
+
                 if receipt_deal_ticket_for_history and not receipt_deal_in_history:
                     # Deal ticket was returned by broker but not yet visible
                     # in history_deals_get. Likely a transient MT5 history
                     # propagation delay rather than a true missing trade.
-                    findings["root_cause"] = "RECEIPT_DEAL_PENDING_HISTORY_PROPAGATION"
+                    findings["root_cause"] = "HISTORY_PENDING_AFTER_ORDER_SEND"
                     findings["fallback_blocked_reason"] = (
-                        "RECEIPT_DEAL_PENDING_HISTORY_PROPAGATION"
+                        "HISTORY_PENDING_AFTER_ORDER_SEND"
                     )
                     findings["old_trades_used_as_proof"] = False
                     findings["history_pending_reason"] = (
@@ -517,6 +661,15 @@ def collect_forensics(days: int = 30, symbol: str = "XAUUSD",
                         "after waiting 30-60 seconds before escalating to "
                         "DEMO_MICRO_EVIDENCE_INCOMPLETE."
                     )
+                    if history_window_mismatch:
+                        findings["root_cause"] = "MT5_HISTORY_WINDOW_MISMATCH"
+                        findings["fallback_blocked_reason"] = "MT5_HISTORY_WINDOW_MISMATCH"
+                        findings["history_window_mismatch_reason"] = (
+                            "Diagnostic used a wider history window than forensics "
+                            f"(diag_start={diag_history_window_start}, "
+                            f"forensics_start={findings.get('forensics_window_start')}). "
+                            "Re-run forensics with --days >= 14 to capture the deal."
+                        )
                     # Still compute fallback candidates as diagnostics only
                     fb_candidates = []
                     magic_deals = [d for d in normalized_deals if d["magic"] == magic and d["symbol"] == symbol]
@@ -618,6 +771,26 @@ def collect_forensics(days: int = 30, symbol: str = "XAUUSD",
         findings["matched_orders"] = matched_orders
 
         if not matched_deals:
+            # Sprint 9.9.3.45.8.16 v2.7.3: If diagnostic says resolved_closed,
+            # do NOT return generic HISTORY_NOT_FOUND. Use DIAGNOSTIC_ONLY_RESOLVED.
+            if findings.get("diagnostic_resolved_closed") and not findings.get("diagnostic_history_deal_match"):
+                findings["root_cause"] = "DIAGNOSTIC_RESOLVED_BUT_FORENSICS_NO_MATCH"
+                findings["fallback_blocked_reason"] = (
+                    "DIAGNOSTIC_RESOLVED_BUT_FORENSICS_NO_MATCH"
+                )
+                findings["old_trades_used_as_proof"] = False
+                warnings.append(
+                    "Diagnostic verdict=RECEIPT_RESOLVED_CLOSED but forensics cannot "
+                    "match a deal. Returning DEMO_MICRO_EVIDENCE_DIAGNOSTIC_ONLY_RESOLVED "
+                    "(not generic HISTORY_NOT_FOUND)."
+                )
+                return {
+                    "timestamp_utc": ts,
+                    "verdict": "DEMO_MICRO_EVIDENCE_DIAGNOSTIC_ONLY_RESOLVED",
+                    "ok_checks": ok_checks, "blockers": blockers, "warnings": warnings,
+                    "findings": findings,
+                    "safety": {"order_send_called": False, "position_modified": False},
+                }
             findings["root_cause"] = "HISTORY_NOT_FOUND"
             warnings.append("No matching TITAN or likely deals found in history")
             return {
@@ -720,12 +893,24 @@ def collect_forensics(days: int = 30, symbol: str = "XAUUSD",
         findings["open_positions_count"] = len(normalized_open_positions)
 
         # Verdict - Sprint 9.9.3.45.8.10: New evidence-based verdicts
+        # Sprint 9.9.3.45.8.16 v2.7.3: Treat diagnostic_supported_* as
+        # receipt-supported proof (NOT fallback, NOT old trade).
         is_explicit_match = "explicit" in match_method or "receipt" in match_method
-        is_strict_match = "magic" in match_method or "comment" in match_method or is_explicit_match
+        is_diagnostic_supported = "diagnostic_supported" in match_method
+        is_strict_match = "magic" in match_method or "comment" in match_method or is_explicit_match or is_diagnostic_supported
         is_likely_match = "likely" in match_method
 
         if is_explicit_match and entry_deal and exit_deal:
             verdict = "DEMO_MICRO_EVIDENCE_PASS"
+        elif is_diagnostic_supported and entry_deal and exit_deal:
+            # v2.7.3: Diagnostic-supported match is receipt-supported proof.
+            verdict = "DEMO_MICRO_EVIDENCE_RECEIPT_DIAGNOSTIC_CONFIRMED"
+        elif is_diagnostic_supported and entry_deal and not exit_deal:
+            verdict = "DEMO_MICRO_EVIDENCE_RECEIPT_DIAGNOSTIC_CONFIRMED"
+            warnings.append(
+                "Diagnostic-supported match: entry confirmed, exit not yet in forensics history. "
+                "Diagnostic confirms closed."
+            )
         elif is_explicit_match and entry_deal and not exit_deal:
             # Entry confirmed but exit deal missing
             # Check if diagnostic says resolved_closed
@@ -849,7 +1034,7 @@ def main() -> int:
     parser.add_argument("--deal-ticket", type=int, default=0)
     args = parser.parse_args()
     print("=" * 70)
-    print("  TITAN XAU AI - Post-Trade Forensics (Sprint 9.9.3.45.5)")
+    print("  TITAN XAU AI - Post-Trade Forensics (Sprint 9.9.3.45.8.16 v2.7.3)")
     print("=" * 70)
     result = collect_forensics(
         days=args.days, symbol=args.symbol, magic=args.magic, comment=args.comment,

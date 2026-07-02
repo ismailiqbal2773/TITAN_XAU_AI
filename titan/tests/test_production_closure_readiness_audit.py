@@ -232,3 +232,75 @@ class TestProductionClosureReadinessAudit:
         import scripts.audit.production_closure_readiness_audit as a
         result = a.run_audit()
         assert "runtime_calibration_engine_exists" in result.get("findings", {})
+
+    # === Sprint 9.9.3.45.8.16 v2.7.3: autonomous status integration ===
+
+    def test_34_v2_7_3_includes_autonomous_status_fields(self):
+        """Production closure audit must include v2.7.3 autonomous status fields."""
+        import scripts.audit.production_closure_readiness_audit as a
+        result = a.run_audit()
+        # Top-level fields
+        assert "latest_execution_geometry_verdict" in result
+        assert "latest_forensics_verdict" in result
+        assert "ticket_history_scanner_verdict" in result
+        assert "end_to_end_entry_gate_verdict" in result
+        assert "autonomous_demo_readiness_verdict" in result
+        assert "autonomous_allowed" in result
+        assert "autonomous_execution_status" in result
+
+    def test_35_v2_7_3_autonomous_execution_status_values(self):
+        """autonomous_execution_status must be one of:
+        BLOCKED / OBSERVATION_ONLY / SUPERVISED_READY."""
+        import scripts.audit.production_closure_readiness_audit as a
+        result = a.run_audit()
+        assert result["autonomous_execution_status"] in (
+            "BLOCKED", "OBSERVATION_ONLY", "SUPERVISED_READY"
+        ), f"Invalid status: {result['autonomous_execution_status']}"
+
+    def test_36_v2_7_3_autonomous_allowed_only_when_supervised_ready(self):
+        """autonomous_allowed must be True ONLY when status is SUPERVISED_READY."""
+        import scripts.audit.production_closure_readiness_audit as a
+        result = a.run_audit()
+        if result["autonomous_allowed"]:
+            assert result["autonomous_execution_status"] == "SUPERVISED_READY"
+        else:
+            assert result["autonomous_execution_status"] in ("BLOCKED", "OBSERVATION_ONLY")
+
+    def test_37_v2_7_3_default_status_is_blocked(self):
+        """In Z AI env (no receipt, no audits), autonomous_execution_status
+        must default to BLOCKED."""
+        import scripts.audit.production_closure_readiness_audit as a
+        result = a.run_audit()
+        # Without autonomous audit file, status should be BLOCKED (default).
+        assert result["autonomous_execution_status"] in ("BLOCKED", "OBSERVATION_ONLY"), \
+            f"Default must be BLOCKED, got {result['autonomous_execution_status']}"
+        assert result["autonomous_allowed"] is False
+
+    def test_38_v2_7_3_no_order_send_in_closure_audit(self):
+        """Production closure audit must never call mt5.order_send."""
+        src = (REPO_ROOT / "scripts" / "audit" / "production_closure_readiness_audit.py").read_text()
+        code = _strip(src)
+        assert not re.search(r"\bmt5\.order_send\s*\(", code)
+
+    def test_39_v2_7_3_no_execution_token_creation(self):
+        """Production closure audit must never create execution tokens."""
+        src = (REPO_ROOT / "scripts" / "audit" / "production_closure_readiness_audit.py").read_text()
+        code = _strip(src).lower()
+        assert "create_local_operator_execution_token" not in code
+
+    def test_40_v2_7_3_writes_autonomous_status_to_md(self):
+        """MD report must include Autonomous Execution Status section."""
+        import scripts.audit.production_closure_readiness_audit as a
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmpdir:
+            original = a.OUTPUT_DIR
+            a.OUTPUT_DIR = Path(tmpdir)
+            try:
+                result = a.run_audit()
+                report = a.write_report(result)
+                md_text = Path(report["md_path"]).read_text()
+                assert "Autonomous Execution Status" in md_text
+                assert "autonomous_execution_status" in md_text
+                assert "autonomous_allowed" in md_text
+            finally:
+                a.OUTPUT_DIR = original

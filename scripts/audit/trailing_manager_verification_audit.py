@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-TITAN XAU AI - Trailing Manager Verification Audit (Sprint 9.9.3.45.8.13)
+TITAN XAU AI - Trailing Manager Verification Audit (Sprint 9.9.3.45.8.16 v2.7.3)
 =========================================================================
 Investigates why forensics ``root_cause`` reports
 ``TRAILING_MANAGER_NOT_RUNNING`` and classifies whether that label is
@@ -12,6 +12,31 @@ flags. The managed report flags may be set incorrectly or refer to a
 different evaluation context. The audit must use the actual profit_R
 to determine whether a trigger SHOULD have fired.
 
+Sprint 9.9.3.45.8.16 v2.7.3: Planned-RR receipt fallback.
+  When forensics cannot provide profit_R (history incomplete), the audit
+  must compute basic planned_RR geometry from the receipt's
+  entry/SL/TP/side fields. The actual profit_R remains unknown, but the
+  planned_RR allows the audit to reason about whether trailing/dynamic TP
+  would have had a chance to trigger at the planned TP.
+
+  New fields added:
+    - planned_RR
+    - actual_RR_from_receipt
+    - entry_price  (already existed, now also sourced from receipt)
+    - sl_price     (sourced from receipt's requested_sl)
+    - tp_price     (sourced from receipt's requested_tp)
+    - receipt_geometry_valid
+    - profit_R_source ("forensics" | "receipt_planned" | "unknown")
+    - mfe_available
+    - close_price_available
+
+  New verdict:
+    TRAILING_MANAGER_WARN_INSUFFICIENT_PATH_EVIDENCE
+      - profit_R not computable (no exit price, no MFE), but the position
+        is closed. Trailing may or may not have triggered - we cannot tell
+        because there is no tick path / MFE evidence.
+      - NOT a hard BLOCK unless trigger reached and manager failed.
+
 Verdicts
 --------
   - TRAILING_MANAGER_OK_NO_TRIGGER: position closed before any trailing
@@ -19,8 +44,12 @@ Verdicts
     modification expected.
   - TRAILING_MANAGER_OK_TRIGGERED: trailing/breakeven was triggered and
     SL modification occurred.
-  - TRAILING_MANAGER_WARN_INSUFFICIENT_EVIDENCE: cannot determine whether
-    trailing should have triggered (profit_R not computable).
+  - TRAILING_MANAGER_WARN_INSUFFICIENT_EVIDENCE: legacy verdict - cannot
+    determine whether trailing should have triggered (kept for back-compat
+    with existing tests).
+  - TRAILING_MANAGER_WARN_INSUFFICIENT_PATH_EVIDENCE: v2.7.3 - profit_R
+    not computable but position is closed; tick path / MFE evidence is
+    missing. NOT a hard block.
   - TRAILING_MANAGER_BLOCKED_NOT_RUNNING: profit_R >= breakeven_trigger_R
     AND monitor_iterations >= min AND hold_seconds >= min AND
     sl_modification_events = 0.
@@ -52,12 +81,14 @@ MANAGED_TRADE_REPORT_PATH = OUTPUT_DIR / "managed_trade_report.json"
 TRAILING_MANAGER_OK_NO_TRIGGER = "TRAILING_MANAGER_OK_NO_TRIGGER"
 TRAILING_MANAGER_OK_TRIGGERED = "TRAILING_MANAGER_OK_TRIGGERED"
 TRAILING_MANAGER_WARN_INSUFFICIENT_EVIDENCE = "TRAILING_MANAGER_WARN_INSUFFICIENT_EVIDENCE"
+TRAILING_MANAGER_WARN_INSUFFICIENT_PATH_EVIDENCE = "TRAILING_MANAGER_WARN_INSUFFICIENT_PATH_EVIDENCE"
 TRAILING_MANAGER_BLOCKED_NOT_RUNNING = "TRAILING_MANAGER_BLOCKED_NOT_RUNNING"
 
 ALL_VERDICTS = (
     TRAILING_MANAGER_OK_NO_TRIGGER,
     TRAILING_MANAGER_OK_TRIGGERED,
     TRAILING_MANAGER_WARN_INSUFFICIENT_EVIDENCE,
+    TRAILING_MANAGER_WARN_INSUFFICIENT_PATH_EVIDENCE,
     TRAILING_MANAGER_BLOCKED_NOT_RUNNING,
 )
 
@@ -194,16 +225,66 @@ def run_audit(
     exit_deal = forensics_findings.get("exit_deal") or {}
     mfe_raw = forensics_findings.get("mfe")
 
-    # === Receipt-derived side ===
+    # === Receipt-derived side and geometry (v2.7.3) ===
     side = ""
+    receipt_entry_price = 0.0
+    receipt_sl_price = 0.0
+    receipt_tp_price = 0.0
     if receipt is not None:
         side = receipt.get("side", "") or ""
+        receipt_entry_price = _to_float(
+            receipt.get("order_send_result_price")
+            or receipt.get("detected_position_entry_price")
+        )
+        receipt_sl_price = _to_float(
+            receipt.get("requested_sl")
+            if receipt.get("requested_sl") is not None
+            else receipt.get("request_sl")
+        )
+        receipt_tp_price = _to_float(
+            receipt.get("requested_tp")
+            if receipt.get("requested_tp") is not None
+            else receipt.get("request_tp")
+        )
     findings["side"] = side
+    findings["receipt_entry_price"] = receipt_entry_price
+    findings["receipt_sl_price"] = receipt_sl_price
+    findings["receipt_tp_price"] = receipt_tp_price
 
     # === Compute profit_R from entry/exit prices ===
-    entry_price = _to_float(entry_deal.get("price")) if entry_deal else 0.0
+    # Prefer forensics entry_deal price; fall back to receipt entry price.
+    forensics_entry_price = _to_float(entry_deal.get("price")) if entry_deal else 0.0
+    entry_price = forensics_entry_price or receipt_entry_price
     exit_price = _to_float(exit_deal.get("price")) if exit_deal else 0.0
-    profit_R = _compute_profit_R(entry_price, exit_price, entry_sl, side)
+    # Prefer forensics entry_sl/tp; fall back to receipt sl/tp.
+    sl_price = entry_sl if entry_sl > 0 else receipt_sl_price
+    tp_price = entry_tp if entry_tp > 0 else receipt_tp_price
+    profit_R = _compute_profit_R(entry_price, exit_price, sl_price, side)
+
+    # === v2.7.3: Planned RR from receipt geometry ===
+    # If we have entry/SL/TP from the receipt, compute the planned RR.
+    # This does NOT tell us the actual profit_R (which requires the close
+    # price), but it tells us whether the trade was PLANNED with enough
+    # room for trailing/dynamic TP to ever trigger.
+    planned_RR: Optional[float] = None
+    receipt_geometry_valid = False
+    if entry_price > 0 and sl_price > 0 and tp_price > 0:
+        side_upper = (side or "").strip().upper()
+        if side_upper == "BUY":
+            risk_dist = entry_price - sl_price
+            reward_dist = tp_price - entry_price
+        elif side_upper == "SELL":
+            risk_dist = sl_price - entry_price
+            reward_dist = entry_price - tp_price
+        else:
+            risk_dist = 0.0
+            reward_dist = 0.0
+        if risk_dist > 0:
+            planned_RR = round(reward_dist / risk_dist, 6)
+            receipt_geometry_valid = reward_dist > 0
+    findings["planned_RR"] = planned_RR
+    findings["actual_RR_from_receipt"] = planned_RR  # alias for clarity
+    findings["receipt_geometry_valid"] = receipt_geometry_valid
 
     # === MFE-based profit_R when MFE is provided ===
     mfe_profit_R: Optional[float] = None
@@ -212,8 +293,8 @@ def run_audit(
             mfe_val = _to_float(mfe_raw)
             if mfe_val < 100:  # treat as R-multiple
                 mfe_profit_R = mfe_val
-            elif entry_sl > 0 and entry_price > 0:
-                risk = abs(entry_price - entry_sl)
+            elif sl_price > 0 and entry_price > 0:
+                risk = abs(entry_price - sl_price)
                 if risk > 0:
                     mfe_profit_R = mfe_val / risk
         except (ValueError, TypeError):
@@ -228,6 +309,15 @@ def run_audit(
     profit_evidence_values = [v for v in (profit_R, mfe_profit_R) if v is not None]
     if profit_evidence_values:
         best_profit_R = max(profit_evidence_values)
+        profit_R_source = "forensics"
+    elif planned_RR is not None:
+        # v2.7.3: No actual profit_R, but we have planned_RR.
+        # We CANNOT use planned_RR as a trigger proxy - it just tells us
+        # the trade was planned with room for trailing to trigger. The
+        # actual price path is unknown.
+        profit_R_source = "receipt_planned"
+    else:
+        profit_R_source = "unknown"
 
     # Compute trigger flags from actual profit_R
     if best_profit_R is not None:
@@ -276,8 +366,11 @@ def run_audit(
     findings["exit_price"] = exit_price
     findings["entry_sl"] = entry_sl
     findings["entry_tp"] = entry_tp
+    findings["sl_price"] = sl_price
+    findings["tp_price"] = tp_price
     findings["profit_R"] = profit_R
     findings["profit_R_computable"] = profit_R is not None
+    findings["profit_R_source"] = profit_R_source
     findings["mfe_profit_R"] = mfe_profit_R
     findings["best_profit_R"] = best_profit_R
     findings["monitor_iterations_sufficient"] = monitor_iterations_sufficient
@@ -286,6 +379,9 @@ def run_audit(
     findings["realized_pl"] = realized_pl
     findings["monitor_stop_reason"] = monitor_stop_reason
     findings["final_position_status"] = final_position_status
+    # v2.7.3: receipt geometry + path-evidence flags
+    findings["mfe_available"] = mfe_raw is not None
+    findings["close_price_available"] = exit_price > 0
 
     # === VERDICT LOGIC (Sprint 9.9.3.45.8.13: profit_R-first) ===
     verdict: str = TRAILING_MANAGER_WARN_INSUFFICIENT_EVIDENCE
@@ -380,19 +476,40 @@ def run_audit(
                 )
                 warnings.append(final_verdict_reason)
         elif final_position_status == "CLOSED" and not sl_hit_detected:
-            verdict = TRAILING_MANAGER_OK_NO_TRIGGER
+            # v2.7.3: Position closed without SL hit, profit_R not computable.
+            # If we have planned_RR from receipt, we can reason that trailing
+            # COULD have triggered at the planned TP - but without tick path /
+            # MFE evidence, we cannot say whether it SHOULD have. Use the new
+            # WARN_INSUFFICIENT_PATH_EVIDENCE verdict (NOT a hard block).
+            verdict = TRAILING_MANAGER_WARN_INSUFFICIENT_PATH_EVIDENCE
             final_verdict_reason = (
-                "OK_NO_TRIGGER: position closed without SL hit, no triggers, "
-                "profit_R not computable"
-            )
-            ok_checks.append(final_verdict_reason)
-        else:
-            verdict = TRAILING_MANAGER_WARN_INSUFFICIENT_EVIDENCE
-            final_verdict_reason = (
-                "WARN: cannot determine if trailing should have triggered "
-                "(profit_R not computable)"
+                "WARN_INSUFFICIENT_PATH_EVIDENCE: position closed without SL hit, "
+                "profit_R not computable, no MFE/tick path evidence. "
+                f"planned_RR={planned_RR}, receipt_geometry_valid={receipt_geometry_valid}. "
+                "Trailing may or may not have triggered - cannot determine from "
+                "available evidence. NOT a hard block."
             )
             warnings.append(final_verdict_reason)
+        else:
+            # v2.7.3: Use new path-evidence verdict when no managed report
+            # trigger fired and no exit price is available.
+            if planned_RR is not None and not exit_price:
+                verdict = TRAILING_MANAGER_WARN_INSUFFICIENT_PATH_EVIDENCE
+                final_verdict_reason = (
+                    "WARN_INSUFFICIENT_PATH_EVIDENCE: profit_R not computable (no exit price, "
+                    "no MFE). Receipt provides planned_RR="
+                    f"{planned_RR} (geometry_valid={receipt_geometry_valid}), but tick "
+                    "path / MFE evidence is missing. Trailing trigger cannot be determined. "
+                    "NOT a hard block."
+                )
+                warnings.append(final_verdict_reason)
+            else:
+                verdict = TRAILING_MANAGER_WARN_INSUFFICIENT_EVIDENCE
+                final_verdict_reason = (
+                    "WARN: cannot determine if trailing should have triggered "
+                    "(profit_R not computable)"
+                )
+                warnings.append(final_verdict_reason)
 
     findings["manager_expected_reason"] = manager_expected_reason
     findings["manager_not_expected_reason"] = manager_not_expected_reason
@@ -446,6 +563,11 @@ def write_report(result: dict) -> dict:
             "sl_modification_occurred", "monitor_iterations", "hold_seconds",
             "monitor_iterations_sufficient", "hold_seconds_sufficient",
             "manager_expected_reason", "manager_not_expected_reason", "final_verdict_reason",
+            # v2.7.3: planned RR + receipt geometry fields
+            "planned_RR", "actual_RR_from_receipt",
+            "entry_price", "sl_price", "tp_price",
+            "receipt_geometry_valid", "profit_R_source",
+            "mfe_available", "close_price_available",
         ):
             if k in fnd:
                 f.write(f"| {k} | {fnd[k]} |\n")
@@ -481,7 +603,7 @@ def main() -> int:
     args = parser.parse_args()
 
     print("=" * 70)
-    print("  TITAN XAU AI - Trailing Manager Verification Audit")
+    print("  TITAN XAU AI - Trailing Manager Verification Audit (v2.7.3)")
     print("=" * 70)
     result = run_audit(
         receipt_path=args.receipt_path,
@@ -496,6 +618,11 @@ def main() -> int:
     fnd = result.get("findings", {})
     print(f"\n  profit_R: {fnd.get('profit_R', 'N/A')}")
     print(f"  best_profit_R: {fnd.get('best_profit_R', 'N/A')}")
+    print(f"  planned_RR: {fnd.get('planned_RR', 'N/A')}")
+    print(f"  profit_R_source: {fnd.get('profit_R_source', 'unknown')}")
+    print(f"  receipt_geometry_valid: {fnd.get('receipt_geometry_valid', False)}")
+    print(f"  mfe_available: {fnd.get('mfe_available', False)}")
+    print(f"  close_price_available: {fnd.get('close_price_available', False)}")
     print(f"  breakeven_trigger_R: {fnd.get('breakeven_trigger_R', 'N/A')}")
     print(f"  sl_modification_events: {fnd.get('sl_modification_events', 0)}")
     print(f"  sl_modification_expected: {fnd.get('sl_modification_expected', False)}")

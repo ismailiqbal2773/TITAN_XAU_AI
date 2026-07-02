@@ -366,6 +366,93 @@ def run_audit() -> dict:
     else:
         blockers.append("EXECUTION_GEOMETRY_NOT_ENFORCED: RR gate missing from execution path")
 
+    # === Sprint 9.9.3.45.8.16 v2.7.3: Autonomous readiness integration ===
+    # Read latest verdicts from audit files (read-only - never re-run audits)
+    audit_dir = REPO_ROOT / "data" / "audit" / "demo_micro_execution"
+
+    # Latest execution geometry verdict
+    geom_audit_json_path = audit_dir / "execution_geometry_audit.json"
+    latest_geometry_verdict = ""
+    if geom_audit_json_path.exists():
+        try:
+            with open(geom_audit_json_path, "r", encoding="utf-8") as f:
+                geom_data = json.load(f)
+            latest_geometry_verdict = geom_data.get("verdict", "")
+        except Exception:
+            pass
+    findings["latest_execution_geometry_verdict"] = latest_geometry_verdict
+
+    # Latest forensics verdict
+    forensics_json_path = audit_dir / "post_trade_forensics.json"
+    latest_forensics_verdict = ""
+    if forensics_json_path.exists():
+        try:
+            with open(forensics_json_path, "r", encoding="utf-8") as f:
+                forensics_data = json.load(f)
+            latest_forensics_verdict = forensics_data.get("verdict", "")
+        except Exception:
+            pass
+    findings["latest_forensics_verdict"] = latest_forensics_verdict
+
+    # Ticket history scanner verdict
+    ticket_scanner_path = audit_dir / "ticket_history_scanner.json"
+    latest_ticket_scanner_verdict = ""
+    if ticket_scanner_path.exists():
+        try:
+            with open(ticket_scanner_path, "r", encoding="utf-8") as f:
+                ts_data = json.load(f)
+            latest_ticket_scanner_verdict = ts_data.get("verdict", "")
+        except Exception:
+            pass
+    findings["ticket_history_scanner_verdict"] = latest_ticket_scanner_verdict
+
+    # End-to-end entry gate verdict
+    entry_gate_path = audit_dir / "end_to_end_entry_gate_audit.json"
+    latest_entry_gate_verdict = ""
+    if entry_gate_path.exists():
+        try:
+            with open(entry_gate_path, "r", encoding="utf-8") as f:
+                eg_data = json.load(f)
+            latest_entry_gate_verdict = eg_data.get("verdict", "")
+        except Exception:
+            pass
+    findings["end_to_end_entry_gate_verdict"] = latest_entry_gate_verdict
+
+    # Autonomous demo readiness verdict
+    autonomous_path = audit_dir / "autonomous_demo_readiness_audit.json"
+    latest_autonomous_verdict = ""
+    autonomous_allowed = False
+    if autonomous_path.exists():
+        try:
+            with open(autonomous_path, "r", encoding="utf-8") as f:
+                ar_data = json.load(f)
+            latest_autonomous_verdict = ar_data.get("verdict", "")
+            autonomous_allowed = ar_data.get("autonomous_allowed", False)
+        except Exception:
+            pass
+    findings["autonomous_demo_readiness_verdict"] = latest_autonomous_verdict
+    findings["autonomous_allowed"] = autonomous_allowed
+
+    # Compute autonomous_execution_status: BLOCKED / OBSERVATION_ONLY / SUPERVISED_READY
+    if latest_autonomous_verdict == "AUTONOMOUS_DEMO_READY_SUPERVISED":
+        autonomous_execution_status = "SUPERVISED_READY"
+    elif latest_autonomous_verdict == "AUTONOMOUS_DEMO_OBSERVATION_ONLY":
+        autonomous_execution_status = "OBSERVATION_ONLY"
+    elif latest_autonomous_verdict.startswith("AUTONOMOUS_DEMO_BLOCKED"):
+        autonomous_execution_status = "BLOCKED"
+    else:
+        autonomous_execution_status = "BLOCKED"
+    findings["autonomous_execution_status"] = autonomous_execution_status
+
+    if autonomous_allowed:
+        ok_checks.append("Autonomous demo readiness: SUPERVISED_READY")
+    else:
+        warnings.append(
+            f"Autonomous demo not yet ready: verdict={latest_autonomous_verdict}, "
+            f"status={autonomous_execution_status}. Production closure remains "
+            "code-ready but is NOT autonomous-ready."
+        )
+
     # === Get parameter binding status ===
     safe_default_count = 0
     needs_backtest_binding_count = 0
@@ -484,6 +571,14 @@ def run_audit() -> dict:
         "blockers": blockers,
         "warnings": warnings,
         "findings": findings,
+        # Sprint 9.9.3.45.8.16 v2.7.3: top-level autonomous status fields
+        "latest_execution_geometry_verdict": latest_geometry_verdict,
+        "latest_forensics_verdict": latest_forensics_verdict,
+        "ticket_history_scanner_verdict": latest_ticket_scanner_verdict,
+        "end_to_end_entry_gate_verdict": latest_entry_gate_verdict,
+        "autonomous_demo_readiness_verdict": latest_autonomous_verdict,
+        "autonomous_allowed": autonomous_allowed,
+        "autonomous_execution_status": autonomous_execution_status,
         "safety": {
             "order_send_called": False,
             "position_modified": False,
@@ -498,13 +593,30 @@ def write_report(result: dict) -> dict:
     with open(json_path, "w", encoding="utf-8") as f:
         json.dump(result, f, indent=2, default=str, ensure_ascii=False)
     with open(md_path, "w", encoding="utf-8") as f:
-        f.write("# TITAN XAU AI - Production Closure Readiness Audit v2.1\n\n")
+        f.write("# TITAN XAU AI - Production Closure Readiness Audit v2.1 (v2.7.3)\n\n")
         f.write(f"**Verdict:** **{result['verdict']}**\n\n")
         f.write(f"**Production Score:** **{result['production_score']}/100**\n\n")
         f.write(f"**Safe Default Count:** {result.get('safe_default_count', 0)}\n\n")
         f.write(f"**Needs Backtest Binding:** {result.get('needs_backtest_binding_count', 0)}\n\n")
         f.write(f"**HIGH Warnings:** {result.get('high_warnings', [])}\n\n")
         f.write(f"**Timestamp:** {result['timestamp_utc']}\n\n")
+
+        # v2.7.3: Autonomous execution status section
+        f.write("## Autonomous Execution Status (v2.7.3)\n\n")
+        f.write("| Field | Value |\n|---|---|\n")
+        f.write(f"| latest_execution_geometry_verdict | {result.get('latest_execution_geometry_verdict', '')} |\n")
+        f.write(f"| latest_forensics_verdict | {result.get('latest_forensics_verdict', '')} |\n")
+        f.write(f"| ticket_history_scanner_verdict | {result.get('ticket_history_scanner_verdict', '')} |\n")
+        f.write(f"| end_to_end_entry_gate_verdict | {result.get('end_to_end_entry_gate_verdict', '')} |\n")
+        f.write(f"| autonomous_demo_readiness_verdict | {result.get('autonomous_demo_readiness_verdict', '')} |\n")
+        f.write(f"| autonomous_allowed | {result.get('autonomous_allowed', False)} |\n")
+        f.write(f"| autonomous_execution_status | **{result.get('autonomous_execution_status', 'BLOCKED')}** |\n\n")
+        if not result.get('autonomous_allowed', False):
+            f.write(
+                "> **Note:** Production closure is code-ready but is NOT autonomous-ready. "
+                "Autonomous execution remains blocked until all autonomous readiness checks pass.\n\n"
+            )
+
         f.write("## Score Breakdown\n\n")
         f.write("| Category | Score |\n|---|---|\n")
         for k, v in result.get("score_breakdown", {}).items():
@@ -530,7 +642,7 @@ def write_report(result: dict) -> dict:
 
 def main() -> int:
     print("=" * 70)
-    print("  TITAN XAU AI - Production Closure Readiness Audit v2.1")
+    print("  TITAN XAU AI - Production Closure Readiness Audit v2.1 (v2.7.3)")
     print("=" * 70)
     result = run_audit()
     report = write_report(result)
@@ -540,6 +652,12 @@ def main() -> int:
     print(f"  Needs backtest binding: {result.get('needs_backtest_binding_count', 0)}")
     print(f"  HIGH warnings: {result.get('high_warnings', [])}")
     print(f"  Blockers: {len(result.get('blockers', []))}")
+    # v2.7.3: autonomous status
+    print(f"\n  Autonomous execution status: {result.get('autonomous_execution_status', 'BLOCKED')}")
+    print(f"  Autonomous allowed: {result.get('autonomous_allowed', False)}")
+    print(f"  Latest geometry verdict: {result.get('latest_execution_geometry_verdict', '')}")
+    print(f"  Latest forensics verdict: {result.get('latest_forensics_verdict', '')}")
+    print(f"  Entry gate verdict: {result.get('end_to_end_entry_gate_verdict', '')}")
     if result.get("blockers"):
         print("\n  Blockers:")
         for b in result["blockers"]:
