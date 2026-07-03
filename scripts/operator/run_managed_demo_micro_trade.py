@@ -1658,6 +1658,107 @@ def run_build_request(direction: str = "BUY", entry_price: float = 2000.0,
                 result["ceo_blockers"] = ceo_decision.blockers
                 result["ceo_warnings"] = ceo_decision.warnings
                 result["ceo_reasoning_codes"] = ceo_decision.reasoning_codes
+
+            # === v2.8.6: Multi-Timeframe Mode ===
+            timeframe_mode = getattr(args, "timeframe_mode", "h1_only") if args else "h1_only"
+            result["timeframe_mode"] = timeframe_mode
+            if timeframe_mode == "mtf_m5_m15_h1" and is_fresh_signal:
+                # MTF mode: fetch M15/M5 rates and apply rule-based confirmation
+                try:
+                    from titan.production.multi_timeframe_signal_engine import (
+                        evaluate_m15_confirmation, evaluate_m5_trigger, evaluate_mtf_decision,
+                        fetch_mtf_rates_from_mt5, get_regime_policy,
+                    )
+                    import MetaTrader5 as mt5_mtf
+                    mtf_data = fetch_mtf_rates_from_mt5(mt5_mtf, "XAUUSD")
+
+                    h1_data_ok = is_fresh_signal and mtf_data.get("h1_count", 0) >= 220
+                    m15_data_ok = mtf_data.get("m15_count", 0) >= 20
+                    m5_data_ok = mtf_data.get("m5_count", 0) >= 20
+
+                    result["mtf_h1_rates_received"] = mtf_data.get("h1_count", 0)
+                    result["mtf_m15_rates_received"] = mtf_data.get("m15_count", 0)
+                    result["mtf_m5_rates_received"] = mtf_data.get("m5_count", 0)
+                    result["mtf_h1_data_ok"] = h1_data_ok
+                    result["mtf_m15_data_ok"] = m15_data_ok
+                    result["mtf_m5_data_ok"] = m5_data_ok
+
+                    # M15 confirmation
+                    m15_pass, m15_details = evaluate_m15_confirmation(
+                        mtf_data.get("m15_rates"), fresh_alpha_direction
+                    )
+                    result["m15_confirmation_pass"] = m15_pass
+                    result["m15_confirmation_details"] = m15_details
+
+                    # M5 trigger
+                    m5_pass, m5_details = evaluate_m5_trigger(
+                        mtf_data.get("m5_rates"), fresh_alpha_direction
+                    )
+                    result["m5_entry_trigger_pass"] = m5_pass
+                    result["m5_entry_trigger_details"] = m5_details
+
+                    # Regime policy
+                    regime_policy = get_regime_policy(fresh_regime_value)
+                    result["regime_policy_allowed"] = regime_policy.allowed
+                    result["regime_strategy_mode"] = regime_policy.strategy_mode
+                    result["regime_risk_posture"] = regime_policy.risk_posture
+
+                    # Evaluate MTF decision
+                    mtf_decision = evaluate_mtf_decision(
+                        regime_value=fresh_regime_value,
+                        alpha_confidence=fresh_alpha_confidence,
+                        alpha_pass=fresh_alpha_pass,
+                        meta_label_confidence=fresh_meta_label_confidence,
+                        meta_label_pass=fresh_meta_label_pass,
+                        alpha_direction=fresh_alpha_direction,
+                        ceo_final_decision=result.get("ceo_final_decision", "BLOCKED"),
+                        ceo_allowed=result.get("ceo_allowed_to_trade", False),
+                        h1_context_pass=is_fresh_signal,
+                        m15_confirmation_pass=m15_pass,
+                        m5_entry_trigger_pass=m5_pass,
+                        account_equity=live_account_equity,
+                        h1_data_ok=h1_data_ok,
+                        m15_data_ok=m15_data_ok,
+                        m5_data_ok=m5_data_ok,
+                        h1_rates_received=mtf_data.get("h1_count", 0),
+                        m15_rates_received=mtf_data.get("m15_count", 0),
+                        m5_rates_received=mtf_data.get("m5_count", 0),
+                        h1_feature_build_ok=feature_build_ok,
+                        h1_feature_count=feature_count,
+                        h1_model_load_ok=model_load_ok,
+                        h1_inference_ok=inference_ok,
+                        h1_meta_label_ok=meta_label_ok,
+                        fallback_reason=mtf_data.get("error", ""),
+                    )
+                    result["mtf_signal_source"] = mtf_decision.signal_source
+                    result["mtf_is_fresh_signal"] = mtf_decision.is_fresh_signal
+                    result["mtf_cache_used"] = mtf_decision.cache_used
+                    result["mtf_blockers"] = mtf_decision.blockers
+                    result["mtf_warnings"] = mtf_decision.warnings
+                    result["mtf_reasoning_codes"] = mtf_decision.reasoning_codes
+
+                    # If MTF blocks, override CEO to BLOCKED
+                    if mtf_decision.blockers:
+                        result["ceo_final_decision"] = "BLOCKED"
+                        result["ceo_allowed_to_trade"] = False
+                        result["ceo_blockers"] = list(result.get("ceo_blockers", [])) + mtf_decision.blockers
+                except Exception as e:
+                    result["mtf_error"] = str(e)
+                    result["mtf_signal_source"] = "cached_fallback"
+                    result["mtf_is_fresh_signal"] = False
+                    result["mtf_cache_used"] = True
+                    result["mtf_blockers"] = [f"MTF_ENGINE_ERROR: {e}"]
+                    result["ceo_final_decision"] = "BLOCKED"
+                    result["ceo_allowed_to_trade"] = False
+                    result["ceo_blockers"] = list(result.get("ceo_blockers", [])) + [f"MTF_ENGINE_ERROR: {e}"]
+            else:
+                result["timeframe_mode"] = "h1_only"
+                result["mtf_signal_source"] = signal_source
+                result["mtf_is_fresh_signal"] = is_fresh_signal
+                result["mtf_cache_used"] = cache_used
+                result["mtf_blockers"] = []
+                result["mtf_warnings"] = []
+
         except ImportError as e:
             result["ceo_governance_imported"] = False
             result["ceo_blockers"] = [f"CEO_AI_GOVERNANCE_IMPORT_FAILED: {e}"]
@@ -3389,6 +3490,9 @@ def main() -> int:
     parser.add_argument("--check-only", action="store_true", default=True)
     parser.add_argument("--dry-arm", action="store_true", default=False)
     parser.add_argument("--build-request", action="store_true", default=False)
+    parser.add_argument("--timeframe-mode", default="h1_only",
+                        choices=["h1_only", "mtf_m5_m15_h1"],
+                        help="Signal mode: h1_only (default) or mtf_m5_m15_h1")
     parser.add_argument("--execute-and-monitor", action="store_true", default=False)
     parser.add_argument("--direction", default="BUY")
     parser.add_argument("--entry-price", type=float, default=2000.0)
@@ -3677,6 +3781,34 @@ def main() -> int:
         print("  " + "-" * 66)
         print(f"  Runtime architecture pipeline: {result.get('latest_runtime_architecture_pipeline_verdict', 'N/A')}")
         print(f"  CEO AI governance audit: {result.get('latest_ceo_ai_governance_verdict', 'N/A')}")
+
+        # === Sprint v2.8.6: MTF Signal Decision display ===
+        print()
+        print("  " + "-" * 66)
+        print("  v2.8.6 Regime-First Multi-Timeframe Signal Decision")
+        print("  " + "-" * 66)
+        print(f"  timeframe_mode: {result.get('timeframe_mode', 'h1_only')}")
+        print(f"  mtf_signal_source: {result.get('mtf_signal_source', 'N/A')}")
+        print(f"  mtf_is_fresh_signal: {result.get('mtf_is_fresh_signal', False)}")
+        print(f"  mtf_cache_used: {result.get('mtf_cache_used', True)}")
+        if result.get('mtf_h1_rates_received') is not None:
+            print(f"  h1_rates_received: {result.get('mtf_h1_rates_received', 0)}")
+            print(f"  m15_rates_received: {result.get('mtf_m15_rates_received', 0)}")
+            print(f"  m5_rates_received: {result.get('mtf_m5_rates_received', 0)}")
+        print(f"  regime_policy_allowed: {result.get('regime_policy_allowed', 'N/A')}")
+        print(f"  regime_strategy_mode: {result.get('regime_strategy_mode', 'N/A')}")
+        print(f"  regime_risk_posture: {result.get('regime_risk_posture', 'N/A')}")
+        print(f"  h1_context_pass: {result.get('h1_context_pass', result.get('is_fresh_signal', False))}")
+        print(f"  m15_confirmation_pass: {result.get('m15_confirmation_pass', 'N/A')}")
+        print(f"  m5_entry_trigger_pass: {result.get('m5_entry_trigger_pass', 'N/A')}")
+        mtf_blockers = result.get('mtf_blockers', [])
+        if mtf_blockers:
+            print(f"  MTF blockers ({len(mtf_blockers)}):")
+            for b in mtf_blockers[:5]:
+                print(f"    - {b}")
+        mtf_warnings = result.get('mtf_warnings', [])
+        if mtf_warnings:
+            print(f"  MTF warnings: {mtf_warnings}")
 
         # === Sprint v2.8.5-D.1/E: Auto Lot Sizing display ===
         print()
