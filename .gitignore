@@ -50,3 +50,13 @@ data/audit/demo_micro_readiness/
 data/model_candidates/
 data/audit/demo_micro_execution/
 dist/
+
+# v2.8.5-E.4: Generated audit artifacts that should not block git clean.
+# These are regenerated on every audit run and should not require git restore.
+data/audit/model_health/
+data/audit/prop_challenge_growth/
+data/audit/final_demo_activation/
+data/audit/architecture/
+data/audit/risk/
+data/audit/production_closure/
+data/audit/demo_micro/pass_evidence/metaquotes-demo/2026*/

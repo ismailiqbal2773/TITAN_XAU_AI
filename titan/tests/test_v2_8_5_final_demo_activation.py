@@ -119,6 +119,7 @@ def _seed_all_passing():
         "verdict": "CEO_AI_GOVERNANCE_PASS",
     })
     # v2.8.5-D: build-request must have CEO imported + called
+    # v2.8.5-E.4: build-request must have signal_source=live_mt5_fresh
     _write_json(BR_PATH, {
         "mode": "build_request", "verdict": "PASS",
         "normalized_verdict": "PASS",
@@ -129,6 +130,9 @@ def _seed_all_passing():
         "ceo_governance_called": True,
         "ceo_final_decision": "PASS",
         "ceo_allowed_to_trade": True,
+        "signal_source": "live_mt5_fresh",
+        "is_fresh_signal": True,
+        "cache_used": False,
     })
 
 

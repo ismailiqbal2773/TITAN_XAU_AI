@@ -149,6 +149,9 @@ def _seed_all_passing():
         "ceo_governance_called": True,
         "ceo_final_decision": "PASS",
         "ceo_allowed_to_trade": True,
+        "signal_source": "live_mt5_fresh",
+        "is_fresh_signal": True,
+        "cache_used": False,
         **fr,
     })
     _write_json(AP_PATH, {"verdict": "RUNTIME_ARCHITECTURE_PIPELINE_PASS_WITH_WARNINGS", **fr})

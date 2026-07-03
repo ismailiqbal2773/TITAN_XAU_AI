@@ -546,6 +546,7 @@ def run_audit() -> dict:
 
     # 7. Build-request (read from latest managed_trade_report.json)
     # v2.8.5-D: build-request must have CEO imported + called
+    # v2.8.5-E.4: build-request must have signal_source=live_mt5_fresh
     br = _load_json(audit_dir / "managed_trade_report.json")
     br_mode = br.get("mode", "")
     br_verdict = br.get("verdict", "")
@@ -557,6 +558,9 @@ def run_audit() -> dict:
     br_ceo_called = br.get("ceo_governance_called", False)
     br_ceo_decision = br.get("ceo_final_decision", "")
     br_ceo_allowed = br.get("ceo_allowed_to_trade", False)
+    br_signal_source = br.get("signal_source", "unavailable")
+    br_is_fresh = br.get("is_fresh_signal", False)
+    br_cache_used = br.get("cache_used", True)
     br_pass = (
         br_mode == "build_request"
         and br_verdict == "PASS"
@@ -564,8 +568,11 @@ def run_audit() -> dict:
         and br_request_status == "READY_FOR_SUPERVISED_OPERATOR_ARM"
         and br_execution_now_allowed is False
         and br_execution_blocker == "OPERATOR_ARM_TOKEN_REQUIRED"
-        and br_ceo_imported is True  # v2.8.5-D: CEO must be imported
-        and br_ceo_called is True  # v2.8.5-D: CEO must be called
+        and br_ceo_imported is True
+        and br_ceo_called is True
+        and br_signal_source == "live_mt5_fresh"  # v2.8.5-E.4: must be fresh
+        and br_is_fresh is True  # v2.8.5-E.4: must be fresh
+        and br_cache_used is False  # v2.8.5-E.4: no cache
     )
     findings["build_request_mode"] = br_mode
     findings["build_request_verdict"] = br_verdict
