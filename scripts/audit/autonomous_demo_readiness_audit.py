@@ -579,6 +579,14 @@ def run_audit(receipt_path: Optional[Path] = None) -> dict:
     findings["hard_risk_blocker"] = hard_risk_blocker
     findings["broker_actual_fail"] = broker_actual_fail
 
+    # v2.8.5-E.1: Add freshness metadata
+    from titan.production.audit_hygiene import make_freshness_metadata, detect_environment_mode
+    freshness = make_freshness_metadata(
+        audit_name="autonomous_demo_readiness_audit",
+        source_mode="production",
+        environment_mode=detect_environment_mode(),
+    )
+
     return {
         "timestamp_utc": ts,
         "verdict": verdict,
@@ -587,6 +595,12 @@ def run_audit(receipt_path: Optional[Path] = None) -> dict:
         "blockers": blockers,
         "warnings": warnings,
         "findings": findings,
+        # v2.8.5-E.1: freshness metadata
+        "generated_at_utc": freshness["generated_at_utc"],
+        "git_commit": freshness["git_commit"],
+        "audit_name": freshness["audit_name"],
+        "source_mode": freshness["source_mode"],
+        "environment_mode": freshness["environment_mode"],
         "safety": {
             "order_send_called": False,
             "position_modified": False,

@@ -768,15 +768,25 @@ def run_build_request(direction: str = "BUY", entry_price: float = 2000.0,
     use_dynamic_tp = bool(getattr(args, "use_dynamic_tp_extension", False)) if args else False
     use_adaptive = bool(getattr(args, "use_adaptive_trailing", False)) if args else False
 
-    # Load account profile
+    # Load account profile (v2.8.5-E.1: also check prop_firm_profiles.yaml)
     import yaml as _yaml
     account_profiles_path = REPO_ROOT / "config" / "account_profiles.yaml"
+    prop_firm_profiles_path = REPO_ROOT / "config" / "prop_firm_profiles.yaml"
     account_profile = {}
+    # Try account_profiles.yaml first
     if account_profiles_path.exists():
         try:
             with open(account_profiles_path, "r", encoding="utf-8") as f:
                 ap_data = _yaml.safe_load(f) or {}
             account_profile = ap_data.get("profiles", {}).get(account_profile_name, {})
+        except Exception:
+            pass
+    # If not found, try prop_firm_profiles.yaml (e.g. prop_funded_safe)
+    if not account_profile and prop_firm_profiles_path.exists():
+        try:
+            with open(prop_firm_profiles_path, "r", encoding="utf-8") as f:
+                pf_data = _yaml.safe_load(f) or {}
+            account_profile = pf_data.get("profiles", {}).get(account_profile_name, {})
         except Exception:
             pass
 

@@ -84,6 +84,10 @@ def run_audit() -> dict:
     score_breakdown = {}
     high_warnings = []
 
+    # v2.8.5-E.1: Get current git commit early for freshness validation
+    from titan.production.audit_hygiene import get_git_commit
+    current_commit = get_git_commit()
+
     # === Define all required modules ===
     required_modules = {
         # Existing
@@ -419,19 +423,39 @@ def run_audit() -> dict:
     findings["end_to_end_entry_gate_verdict"] = latest_entry_gate_verdict
 
     # Autonomous demo readiness verdict
+    # v2.8.5-E.1: Validate freshness before using autonomous readiness verdict.
+    # Stale/cached autonomous_demo_readiness_audit.json must NOT produce
+    # SUPERVISED_READY.
     autonomous_path = audit_dir / "autonomous_demo_readiness_audit.json"
     latest_autonomous_verdict = ""
     autonomous_allowed = False
+    autonomous_artifact_fresh = False
     if autonomous_path.exists():
         try:
             with open(autonomous_path, "r", encoding="utf-8") as f:
                 ar_data = json.load(f)
-            latest_autonomous_verdict = ar_data.get("verdict", "")
-            autonomous_allowed = ar_data.get("autonomous_allowed", False)
+            # v2.8.5-E.1: Check freshness metadata
+            ar_gen = ar_data.get("generated_at_utc", "") or ar_data.get("timestamp_utc", "")
+            ar_commit = ar_data.get("git_commit", "")
+            ar_source = ar_data.get("source_mode", "production")
+            if ar_source == "test":
+                # Test-mode artifact: never use for readiness
+                latest_autonomous_verdict = "AUTONOMOUS_DEMO_BLOCKED_TEST_MODE_ARTIFACT"
+                autonomous_allowed = False
+            elif ar_gen and ar_commit and current_commit and ar_commit != current_commit:
+                # Commit mismatch: stale artifact from different commit
+                latest_autonomous_verdict = "AUTONOMOUS_DEMO_BLOCKED_STALE_COMMIT"
+                autonomous_allowed = False
+            else:
+                latest_autonomous_verdict = ar_data.get("verdict", "")
+                autonomous_allowed = ar_data.get("autonomous_allowed", False)
+                autonomous_artifact_fresh = True
         except Exception:
-            pass
+            latest_autonomous_verdict = ""
+            autonomous_allowed = False
     findings["autonomous_demo_readiness_verdict"] = latest_autonomous_verdict
     findings["autonomous_allowed"] = autonomous_allowed
+    findings["autonomous_artifact_fresh"] = autonomous_artifact_fresh
 
     # v2.7.4: Selected profile (from shared resolver) and prop_funded_safe_active
     try:
@@ -618,10 +642,10 @@ def run_audit() -> dict:
     # v2.8.5-C: Load growth profile values from CONFIG (source of truth),
     # not from audit JSON which may be polluted by tests.
     from titan.production.audit_hygiene import (
-        load_growth_profile_config, validate_artifact_freshness, get_git_commit,
+        load_growth_profile_config, validate_artifact_freshness,
         make_freshness_metadata, detect_environment_mode,
     )
-    current_commit = get_git_commit()
+    # current_commit already set at top of function (v2.8.5-E.1)
     freshness = make_freshness_metadata(
         audit_name="production_closure_readiness_audit",
         source_mode="production",

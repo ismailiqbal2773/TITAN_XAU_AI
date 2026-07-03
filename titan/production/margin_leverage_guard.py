@@ -25,6 +25,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 ACCOUNT_PROFILES_PATH = REPO_ROOT / "config" / "account_profiles.yaml"
 BROKER_PROFILES_PATH = REPO_ROOT / "config" / "broker_profiles.yaml"
+PROP_FIRM_PROFILES_PATH = REPO_ROOT / "config" / "prop_firm_profiles.yaml"
 
 
 @dataclass
@@ -78,14 +79,32 @@ class MarginLeverageGuard:
         self.broker_profile = self._load_broker_profile(broker_profile_name)
 
     def _load_account_profile(self, name: str) -> dict:
-        if not ACCOUNT_PROFILES_PATH.exists():
-            return {}
-        try:
-            with open(ACCOUNT_PROFILES_PATH, "r", encoding="utf-8") as f:
-                data = yaml.safe_load(f) or {}
-            return data.get("profiles", {}).get(name, {})
-        except Exception:
-            return {}
+        """Load account profile from account_profiles.yaml or prop_firm_profiles.yaml.
+
+        v2.8.5-E.1: prop_funded_safe is defined in prop_firm_profiles.yaml,
+        not account_profiles.yaml. Must check both sources.
+        """
+        # Try account_profiles.yaml first
+        if ACCOUNT_PROFILES_PATH.exists():
+            try:
+                with open(ACCOUNT_PROFILES_PATH, "r", encoding="utf-8") as f:
+                    data = yaml.safe_load(f) or {}
+                profile = data.get("profiles", {}).get(name, {})
+                if profile:
+                    return profile
+            except Exception:
+                pass
+        # Try prop_firm_profiles.yaml (e.g. prop_funded_safe)
+        if PROP_FIRM_PROFILES_PATH.exists():
+            try:
+                with open(PROP_FIRM_PROFILES_PATH, "r", encoding="utf-8") as f:
+                    data = yaml.safe_load(f) or {}
+                profile = data.get("profiles", {}).get(name, {})
+                if profile:
+                    return profile
+            except Exception:
+                pass
+        return {}
 
     def _load_broker_profile(self, name: str) -> dict:
         if not BROKER_PROFILES_PATH.exists():
