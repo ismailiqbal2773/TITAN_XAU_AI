@@ -1,0 +1,612 @@
+{
+  "timestamp_utc": "2026-07-03T04:56:48.461728+00:00",
+  "verdict": "MODEL_ARTIFACT_HEALTH_PASS_WITH_WARNINGS",
+  "ok_checks": [
+    "Discovered 9 models for audit",
+    "xgboost_v1 (active_primary): PASS",
+    "meta_label_v2_context (active_primary): PASS",
+    "lightgbm_v1 (ensemble_member): PASS",
+    "logreg_v1_price (ensemble_member): PASS",
+    "meta_label_v1 (ensemble_member): PASS",
+    "xgboost_v2_micro (ensemble_member): PASS"
+  ],
+  "blockers": [],
+  "warnings": [
+    "lstm_v1 (backup): PASS_WITH_WARNINGS - 1 compatibility warnings",
+    "lstm_v2_clean (backup): PASS_WITH_WARNINGS - 1 compatibility warnings",
+    "transformer_v1 (backup): PASS_WITH_WARNINGS - 1 compatibility warnings"
+  ],
+  "findings": {
+    "runtime_versions": {
+      "xgboost": "2.1.3",
+      "sklearn": "1.5.2",
+      "lightgbm": "4.5.0",
+      "catboost": "1.2.8",
+      "numpy": "2.1.3",
+      "scipy": "1.14.1",
+      "pandas": "2.2.3",
+      "torch": "not_installed"
+    },
+    "runtime_config_loaded": true,
+    "active_models_discovered": 9,
+    "discovered_models": [
+      {
+        "name": "xgboost_v1",
+        "path": "/home/z/my-project/workspace/TITAN_XAU_AI/titan/data/models/xgboost_v1.pkl",
+        "role": "active_primary"
+      },
+      {
+        "name": "meta_label_v2_context",
+        "path": "/home/z/my-project/workspace/TITAN_XAU_AI/titan/data/models/meta_label_v2_context.pkl",
+        "role": "active_primary"
+      },
+      {
+        "name": "lightgbm_v1",
+        "path": "/home/z/my-project/workspace/TITAN_XAU_AI/titan/data/models/lightgbm_v1.pkl",
+        "role": "ensemble_member"
+      },
+      {
+        "name": "logreg_v1_price",
+        "path": "/home/z/my-project/workspace/TITAN_XAU_AI/titan/data/models/logreg_v1_price.pkl",
+        "role": "ensemble_member"
+      },
+      {
+        "name": "meta_label_v1",
+        "path": "/home/z/my-project/workspace/TITAN_XAU_AI/titan/data/models/meta_label_v1.pkl",
+        "role": "ensemble_member"
+      },
+      {
+        "name": "xgboost_v2_micro",
+        "path": "/home/z/my-project/workspace/TITAN_XAU_AI/titan/data/models/xgboost_v2_micro.pkl",
+        "role": "ensemble_member"
+      },
+      {
+        "name": "lstm_v1",
+        "path": "/home/z/my-project/workspace/TITAN_XAU_AI/titan/data/models/lstm_v1.pt",
+        "role": "backup"
+      },
+      {
+        "name": "lstm_v2_clean",
+        "path": "/home/z/my-project/workspace/TITAN_XAU_AI/titan/data/models/lstm_v2_clean.pt",
+        "role": "backup"
+      },
+      {
+        "name": "transformer_v1",
+        "path": "/home/z/my-project/workspace/TITAN_XAU_AI/titan/data/models/transformer_v1.pt",
+        "role": "backup"
+      }
+    ],
+    "per_model_summary": [
+      {
+        "name": "xgboost_v1",
+        "role": "active_primary",
+        "health": "PASS",
+        "loads_successfully": true,
+        "schema_match": true,
+        "prediction_works": true,
+        "output_finite": true,
+        "no_silent_fallback": true,
+        "latency_ms": 1.07,
+        "load_warnings_count": 0
+      },
+      {
+        "name": "meta_label_v2_context",
+        "role": "active_primary",
+        "health": "PASS",
+        "loads_successfully": true,
+        "schema_match": true,
+        "prediction_works": true,
+        "output_finite": true,
+        "no_silent_fallback": true,
+        "latency_ms": 0.328,
+        "load_warnings_count": 0
+      },
+      {
+        "name": "lightgbm_v1",
+        "role": "ensemble_member",
+        "health": "PASS",
+        "loads_successfully": true,
+        "schema_match": true,
+        "prediction_works": true,
+        "output_finite": true,
+        "no_silent_fallback": true,
+        "latency_ms": 1.444,
+        "load_warnings_count": 0
+      },
+      {
+        "name": "logreg_v1_price",
+        "role": "ensemble_member",
+        "health": "PASS",
+        "loads_successfully": true,
+        "schema_match": true,
+        "prediction_works": true,
+        "output_finite": true,
+        "no_silent_fallback": true,
+        "latency_ms": 0.16,
+        "load_warnings_count": 0
+      },
+      {
+        "name": "meta_label_v1",
+        "role": "ensemble_member",
+        "health": "PASS",
+        "loads_successfully": true,
+        "schema_match": true,
+        "prediction_works": true,
+        "output_finite": true,
+        "no_silent_fallback": true,
+        "latency_ms": 0.092,
+        "load_warnings_count": 0
+      },
+      {
+        "name": "xgboost_v2_micro",
+        "role": "ensemble_member",
+        "health": "PASS",
+        "loads_successfully": true,
+        "schema_match": true,
+        "prediction_works": true,
+        "output_finite": true,
+        "no_silent_fallback": true,
+        "latency_ms": 0.646,
+        "load_warnings_count": 0
+      },
+      {
+        "name": "lstm_v1",
+        "role": "backup",
+        "health": "PASS_WITH_WARNINGS",
+        "loads_successfully": false,
+        "schema_match": false,
+        "prediction_works": false,
+        "output_finite": false,
+        "no_silent_fallback": false,
+        "latency_ms": 0.0,
+        "load_warnings_count": 1
+      },
+      {
+        "name": "lstm_v2_clean",
+        "role": "backup",
+        "health": "PASS_WITH_WARNINGS",
+        "loads_successfully": false,
+        "schema_match": false,
+        "prediction_works": false,
+        "output_finite": false,
+        "no_silent_fallback": false,
+        "latency_ms": 0.0,
+        "load_warnings_count": 1
+      },
+      {
+        "name": "transformer_v1",
+        "role": "backup",
+        "health": "PASS_WITH_WARNINGS",
+        "loads_successfully": false,
+        "schema_match": false,
+        "prediction_works": false,
+        "output_finite": false,
+        "no_silent_fallback": false,
+        "latency_ms": 0.0,
+        "load_warnings_count": 1
+      }
+    ],
+    "active_model_count": 9,
+    "passed_count": 6,
+    "passed_with_warnings_count": 3,
+    "failed_required_count": 0,
+    "failed_optional_count": 0,
+    "total_version_warnings": 3
+  },
+  "per_model_results": [
+    {
+      "name": "xgboost_v1",
+      "path": "/home/z/my-project/workspace/TITAN_XAU_AI/titan/data/models/xgboost_v1.pkl",
+      "role": "active_primary",
+      "config_key": "xgb_path",
+      "artifact_exists": true,
+      "artifact_size_bytes": 1976253,
+      "loads_successfully": true,
+      "load_warnings": [],
+      "load_errors": [],
+      "schema": {
+        "n_features_in": 55,
+        "expected_n_features": 55,
+        "schema_match": true,
+        "feature_names_attribute": [],
+        "errors": []
+      },
+      "prediction": {
+        "prediction_works": true,
+        "predict_proba_works": true,
+        "output_finite": true,
+        "probabilities_in_range": true,
+        "output_class_valid": true,
+        "prediction_value": [
+          1
+        ],
+        "probabilities": [
+          0.38236504793167114,
+          0.6176349520683289
+        ],
+        "classes": [
+          "0",
+          "1"
+        ],
+        "latency_ms": 1.07,
+        "errors": []
+      },
+      "no_silent_fallback": {
+        "is_real_model": true,
+        "errors": [],
+        "model_class": "xgboost.sklearn.XGBClassifier",
+        "file_size_bytes": 1976253
+      },
+      "health": "PASS",
+      "is_required_active": true
+    },
+    {
+      "name": "meta_label_v2_context",
+      "path": "/home/z/my-project/workspace/TITAN_XAU_AI/titan/data/models/meta_label_v2_context.pkl",
+      "role": "active_primary",
+      "config_key": "meta_path",
+      "artifact_exists": true,
+      "artifact_size_bytes": 897,
+      "loads_successfully": true,
+      "load_warnings": [],
+      "load_errors": [],
+      "schema": {
+        "n_features_in": 22,
+        "expected_n_features": 22,
+        "schema_match": true,
+        "feature_names_attribute": [],
+        "errors": []
+      },
+      "prediction": {
+        "prediction_works": true,
+        "predict_proba_works": true,
+        "output_finite": true,
+        "probabilities_in_range": true,
+        "output_class_valid": true,
+        "prediction_value": [
+          0
+        ],
+        "probabilities": [
+          0.8529749870722196,
+          0.1470250129277804
+        ],
+        "classes": [
+          "0",
+          "1"
+        ],
+        "latency_ms": 0.328,
+        "errors": []
+      },
+      "no_silent_fallback": {
+        "is_real_model": true,
+        "errors": [],
+        "model_class": "sklearn.linear_model._logistic.LogisticRegression",
+        "file_size_bytes": 897
+      },
+      "health": "PASS",
+      "is_required_active": true
+    },
+    {
+      "name": "lightgbm_v1",
+      "path": "/home/z/my-project/workspace/TITAN_XAU_AI/titan/data/models/lightgbm_v1.pkl",
+      "role": "ensemble_member",
+      "config_key": "",
+      "artifact_exists": true,
+      "artifact_size_bytes": 685525,
+      "loads_successfully": true,
+      "load_warnings": [],
+      "load_errors": [],
+      "schema": {
+        "n_features_in": 55,
+        "expected_n_features": 0,
+        "schema_match": true,
+        "feature_names_attribute": [
+          "Column_0",
+          "Column_1",
+          "Column_2",
+          "Column_3",
+          "Column_4",
+          "Column_5",
+          "Column_6",
+          "Column_7",
+          "Column_8",
+          "Column_9",
+          "Column_10",
+          "Column_11",
+          "Column_12",
+          "Column_13",
+          "Column_14",
+          "Column_15",
+          "Column_16",
+          "Column_17",
+          "Column_18",
+          "Column_19",
+          "Column_20",
+          "Column_21",
+          "Column_22",
+          "Column_23",
+          "Column_24",
+          "Column_25",
+          "Column_26",
+          "Column_27",
+          "Column_28",
+          "Column_29",
+          "Column_30",
+          "Column_31",
+          "Column_32",
+          "Column_33",
+          "Column_34",
+          "Column_35",
+          "Column_36",
+          "Column_37",
+          "Column_38",
+          "Column_39",
+          "Column_40",
+          "Column_41",
+          "Column_42",
+          "Column_43",
+          "Column_44",
+          "Column_45",
+          "Column_46",
+          "Column_47",
+          "Column_48",
+          "Column_49",
+          "Column_50",
+          "Column_51",
+          "Column_52",
+          "Column_53",
+          "Column_54"
+        ],
+        "errors": []
+      },
+      "prediction": {
+        "prediction_works": true,
+        "predict_proba_works": true,
+        "output_finite": true,
+        "probabilities_in_range": true,
+        "output_class_valid": true,
+        "prediction_value": [
+          1
+        ],
+        "probabilities": [
+          0.3141756740897945,
+          0.6858243259102055
+        ],
+        "classes": [
+          "0",
+          "1"
+        ],
+        "latency_ms": 1.444,
+        "errors": []
+      },
+      "no_silent_fallback": {
+        "is_real_model": true,
+        "errors": [],
+        "model_class": "lightgbm.sklearn.LGBMClassifier",
+        "file_size_bytes": 685525
+      },
+      "health": "PASS",
+      "is_required_active": false
+    },
+    {
+      "name": "logreg_v1_price",
+      "path": "/home/z/my-project/workspace/TITAN_XAU_AI/titan/data/models/logreg_v1_price.pkl",
+      "role": "ensemble_member",
+      "config_key": "",
+      "artifact_exists": true,
+      "artifact_size_bytes": 824,
+      "loads_successfully": true,
+      "load_warnings": [],
+      "load_errors": [],
+      "schema": {
+        "n_features_in": 13,
+        "expected_n_features": 0,
+        "schema_match": true,
+        "feature_names_attribute": [],
+        "errors": []
+      },
+      "prediction": {
+        "prediction_works": true,
+        "predict_proba_works": true,
+        "output_finite": true,
+        "probabilities_in_range": true,
+        "output_class_valid": true,
+        "prediction_value": [
+          1
+        ],
+        "probabilities": [
+          0.3578357402444201,
+          0.6421642597555799
+        ],
+        "classes": [
+          "0",
+          "1"
+        ],
+        "latency_ms": 0.16,
+        "errors": []
+      },
+      "no_silent_fallback": {
+        "is_real_model": true,
+        "errors": [],
+        "model_class": "sklearn.linear_model._logistic.LogisticRegression",
+        "file_size_bytes": 824
+      },
+      "health": "PASS",
+      "is_required_active": false
+    },
+    {
+      "name": "meta_label_v1",
+      "path": "/home/z/my-project/workspace/TITAN_XAU_AI/titan/data/models/meta_label_v1.pkl",
+      "role": "ensemble_member",
+      "config_key": "",
+      "artifact_exists": true,
+      "artifact_size_bytes": 833,
+      "loads_successfully": true,
+      "load_warnings": [],
+      "load_errors": [],
+      "schema": {
+        "n_features_in": 14,
+        "expected_n_features": 0,
+        "schema_match": true,
+        "feature_names_attribute": [],
+        "errors": []
+      },
+      "prediction": {
+        "prediction_works": true,
+        "predict_proba_works": true,
+        "output_finite": true,
+        "probabilities_in_range": true,
+        "output_class_valid": true,
+        "prediction_value": [
+          1
+        ],
+        "probabilities": [
+          0.004501285084860918,
+          0.9954987149151391
+        ],
+        "classes": [
+          "0",
+          "1"
+        ],
+        "latency_ms": 0.092,
+        "errors": []
+      },
+      "no_silent_fallback": {
+        "is_real_model": true,
+        "errors": [],
+        "model_class": "sklearn.linear_model._logistic.LogisticRegression",
+        "file_size_bytes": 833
+      },
+      "health": "PASS",
+      "is_required_active": false
+    },
+    {
+      "name": "xgboost_v2_micro",
+      "path": "/home/z/my-project/workspace/TITAN_XAU_AI/titan/data/models/xgboost_v2_micro.pkl",
+      "role": "ensemble_member",
+      "config_key": "",
+      "artifact_exists": true,
+      "artifact_size_bytes": 1151133,
+      "loads_successfully": true,
+      "load_warnings": [],
+      "load_errors": [],
+      "schema": {
+        "n_features_in": 9,
+        "expected_n_features": 0,
+        "schema_match": true,
+        "feature_names_attribute": [],
+        "errors": []
+      },
+      "prediction": {
+        "prediction_works": true,
+        "predict_proba_works": true,
+        "output_finite": true,
+        "probabilities_in_range": true,
+        "output_class_valid": true,
+        "prediction_value": [
+          0
+        ],
+        "probabilities": [
+          0.6797643303871155,
+          0.3202356696128845
+        ],
+        "classes": [
+          "0",
+          "1"
+        ],
+        "latency_ms": 0.646,
+        "errors": []
+      },
+      "no_silent_fallback": {
+        "is_real_model": true,
+        "errors": [],
+        "model_class": "xgboost.sklearn.XGBClassifier",
+        "file_size_bytes": 1151133
+      },
+      "health": "PASS",
+      "is_required_active": false
+    },
+    {
+      "name": "lstm_v1",
+      "path": "/home/z/my-project/workspace/TITAN_XAU_AI/titan/data/models/lstm_v1.pt",
+      "role": "backup",
+      "config_key": "",
+      "artifact_exists": true,
+      "artifact_size_bytes": 666092,
+      "loads_successfully": false,
+      "load_warnings": [
+        {
+          "category": "RuntimeWarning",
+          "message": "PyTorch not installed in audit env; backup .pt model not loadable here",
+          "severity": "warning",
+          "is_version_warning": false
+        }
+      ],
+      "load_errors": [
+        "TORCH_NOT_INSTALLED: backup .pt model not loadable in audit env"
+      ],
+      "schema": {},
+      "prediction": {},
+      "no_silent_fallback": {},
+      "health": "PASS_WITH_WARNINGS",
+      "is_required_active": false
+    },
+    {
+      "name": "lstm_v2_clean",
+      "path": "/home/z/my-project/workspace/TITAN_XAU_AI/titan/data/models/lstm_v2_clean.pt",
+      "role": "backup",
+      "config_key": "",
+      "artifact_exists": true,
+      "artifact_size_bytes": 621336,
+      "loads_successfully": false,
+      "load_warnings": [
+        {
+          "category": "RuntimeWarning",
+          "message": "PyTorch not installed in audit env; backup .pt model not loadable here",
+          "severity": "warning",
+          "is_version_warning": false
+        }
+      ],
+      "load_errors": [
+        "TORCH_NOT_INSTALLED: backup .pt model not loadable in audit env"
+      ],
+      "schema": {},
+      "prediction": {},
+      "no_silent_fallback": {},
+      "health": "PASS_WITH_WARNINGS",
+      "is_required_active": false
+    },
+    {
+      "name": "transformer_v1",
+      "path": "/home/z/my-project/workspace/TITAN_XAU_AI/titan/data/models/transformer_v1.pt",
+      "role": "backup",
+      "config_key": "",
+      "artifact_exists": true,
+      "artifact_size_bytes": 833922,
+      "loads_successfully": false,
+      "load_warnings": [
+        {
+          "category": "RuntimeWarning",
+          "message": "PyTorch not installed in audit env; backup .pt model not loadable here",
+          "severity": "warning",
+          "is_version_warning": false
+        }
+      ],
+      "load_errors": [
+        "TORCH_NOT_INSTALLED: backup .pt model not loadable in audit env"
+      ],
+      "schema": {},
+      "prediction": {},
+      "no_silent_fallback": {},
+      "health": "PASS_WITH_WARNINGS",
+      "is_required_active": false
+    }
+  ],
+  "active_model_count": 9,
+  "failed_model_count": 0,
+  "safety": {
+    "order_send_called": false,
+    "position_modified": false,
+    "token_created": false
+  }
+}

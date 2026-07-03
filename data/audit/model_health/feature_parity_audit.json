@@ -1,0 +1,157 @@
+{
+  "timestamp_utc": "2026-07-03T04:56:52.907436+00:00",
+  "verdict": "FEATURE_PARITY_PASS",
+  "ok_checks": [
+    "Canonical FEATURE_NAMES loaded: 55 features",
+    "Model expected features: XGB=55, META=22",
+    "Feature count matches XGB expected",
+    "No forbidden target/leakage/timestamp features",
+    "All required feature groups present: ['spread', 'session', 'regime_context', 'price_action']"
+  ],
+  "blockers": [],
+  "warnings": [],
+  "findings": {
+    "canonical_feature_count": 55,
+    "canonical_feature_names": [
+      "n_brokers",
+      "ret_1",
+      "ret_5",
+      "ret_15",
+      "price_zscore_60",
+      "hl_range",
+      "close_pos_in_range",
+      "rsi",
+      "macd_signal",
+      "macd_hist",
+      "bb_upper",
+      "bb_width",
+      "bb_pct_b",
+      "atr",
+      "adx",
+      "plus_di",
+      "minus_di",
+      "obv",
+      "obv_slope_20",
+      "sma_20_ratio",
+      "sma_200_ratio",
+      "realized_vol_10",
+      "vol_of_vol_10",
+      "realized_vol_20",
+      "vol_of_vol_20",
+      "realized_vol_60",
+      "vol_of_vol_60",
+      "realized_vol_120",
+      "vol_of_vol_120",
+      "vol_ratio_10_60",
+      "atr_ratio_5_20",
+      "spread_pct",
+      "spread_zscore_60",
+      "volume_zscore_60",
+      "volume_ratio_5_20",
+      "body_ratio",
+      "upper_wick_ratio",
+      "lower_wick_ratio",
+      "body_dir",
+      "hour_sin",
+      "hour_cos",
+      "dow_sin",
+      "dow_cos",
+      "asia_session",
+      "eu_session",
+      "us_session",
+      "month_sin",
+      "month_cos",
+      "ret_lag_1",
+      "ret_lag_2",
+      "ret_lag_3",
+      "ret_lag_5",
+      "ret_lag_10",
+      "ret_lag_20",
+      "ret_lag_60"
+    ],
+    "xgb_expected_features": 55,
+    "meta_expected_features": 22,
+    "meta_expected_feature_names": [
+      "n_brokers",
+      "spread_pct",
+      "spread_zscore_60",
+      "volume_zscore_60",
+      "volume_ratio_5_20",
+      "body_ratio",
+      "upper_wick_ratio",
+      "lower_wick_ratio",
+      "body_dir",
+      "ret_1",
+      "ret_5",
+      "ret_15",
+      "price_zscore_60",
+      "hl_range",
+      "close_pos_in_range",
+      "ret_lag_1",
+      "ret_lag_2",
+      "ret_lag_3",
+      "ret_lag_5",
+      "ret_lag_10",
+      "ret_lag_20",
+      "ret_lag_60"
+    ],
+    "forbidden_features_found": [],
+    "required_feature_groups": {
+      "spread": {
+        "present": true,
+        "matched": [
+          "spread_pct",
+          "spread_zscore_60"
+        ]
+      },
+      "session": {
+        "present": true,
+        "matched": [
+          "hour_sin",
+          "hour_cos",
+          "asia_session",
+          "eu_session",
+          "us_session"
+        ]
+      },
+      "regime_context": {
+        "present": true,
+        "matched": [
+          "rsi",
+          "adx",
+          "atr",
+          "realized_vol_20"
+        ]
+      },
+      "price_action": {
+        "present": true,
+        "matched": [
+          "ret_1",
+          "ret_5",
+          "hl_range",
+          "close_pos_in_range"
+        ]
+      }
+    },
+    "feature_order_stable": true,
+    "missing_meta_features": [],
+    "canonical_data": {
+      "canonical_path": "/home/z/my-project/workspace/TITAN_XAU_AI/titan/data/canonical/XAUUSD_H1_canonical.parquet",
+      "canonical_exists": true,
+      "can_generate": true,
+      "errors": []
+    },
+    "nan_inf_check": {
+      "checked": true,
+      "has_nan": false,
+      "has_inf": false,
+      "errors": []
+    }
+  },
+  "feature_count": 55,
+  "safety": {
+    "order_send_called": false,
+    "position_modified": false,
+    "token_created": false
+  }
+}

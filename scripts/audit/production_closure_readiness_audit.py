@@ -483,6 +483,118 @@ def run_audit() -> dict:
     elif model_compat_verdict == "MODEL_ARTIFACTS_NOT_FOUND":
         warnings.append("MODEL_ARTIFACT_VERSION_WARNING: no model artifacts found")
 
+    # === Sprint v2.8.3.3: CTO Consolidated Release Gate ===
+    # Read latest verdicts from 3 new audit scripts:
+    #   1. Model Artifact Health Audit (data/audit/model_health/model_artifact_health_audit.json)
+    #   2. Feature Parity Audit (data/audit/model_health/feature_parity_audit.json)
+    #   3. Runtime Safety Gate Audit (data/audit/demo_micro_execution/runtime_safety_gate_audit.json)
+    model_health_dir = REPO_ROOT / "data" / "audit" / "model_health"
+
+    # 1. Model artifact health
+    model_health_path = model_health_dir / "model_artifact_health_audit.json"
+    latest_model_health_verdict = ""
+    model_health_pass = False
+    active_model_count = 0
+    failed_model_count = 0
+    if model_health_path.exists():
+        try:
+            with open(model_health_path, "r", encoding="utf-8") as f:
+                mh_data = json.load(f)
+            latest_model_health_verdict = mh_data.get("verdict", "") or ""
+            active_model_count = int(mh_data.get("active_model_count", 0))
+            failed_model_count = int(mh_data.get("failed_model_count", 0))
+            model_health_pass = latest_model_health_verdict in (
+                "MODEL_ARTIFACT_HEALTH_PASS",
+                "MODEL_ARTIFACT_HEALTH_PASS_WITH_WARNINGS",
+            )
+        except Exception:
+            pass
+    findings["latest_model_health_verdict"] = latest_model_health_verdict
+    findings["model_health_pass"] = model_health_pass
+    findings["active_model_count"] = active_model_count
+    findings["failed_model_count"] = failed_model_count
+    if latest_model_health_verdict == "MODEL_ARTIFACT_HEALTH_BLOCKED":
+        blockers.append(
+            f"MODEL_HEALTH_BLOCKED: {failed_model_count} required active model(s) failed health audit"
+        )
+    elif latest_model_health_verdict == "MODEL_ARTIFACT_HEALTH_PASS_WITH_WARNINGS":
+        warnings.append("MODEL_HEALTH_PASS_WITH_WARNINGS: compatibility warnings present but models healthy")
+    elif latest_model_health_verdict == "":
+        warnings.append("MODEL_HEALTH_AUDIT_MISSING: model_artifact_health_audit.json not found - run scripts/audit/model_artifact_health_audit.py")
+    elif latest_model_health_verdict == "MODEL_ARTIFACT_HEALTH_PASS":
+        ok_checks.append("Model health: PASS")
+
+    # 2. Feature parity
+    feature_parity_path = model_health_dir / "feature_parity_audit.json"
+    latest_feature_parity_verdict = ""
+    feature_parity_pass = False
+    if feature_parity_path.exists():
+        try:
+            with open(feature_parity_path, "r", encoding="utf-8") as f:
+                fp_data = json.load(f)
+            latest_feature_parity_verdict = fp_data.get("verdict", "") or ""
+            feature_parity_pass = latest_feature_parity_verdict in (
+                "FEATURE_PARITY_PASS",
+                "FEATURE_PARITY_PASS_WITH_WARNINGS",
+            )
+        except Exception:
+            pass
+    findings["latest_feature_parity_verdict"] = latest_feature_parity_verdict
+    findings["feature_parity_pass"] = feature_parity_pass
+    if latest_feature_parity_verdict == "FEATURE_PARITY_BLOCKED":
+        blockers.append("FEATURE_PARITY_BLOCKED: train/live feature parity failed")
+    elif latest_feature_parity_verdict == "FEATURE_PARITY_PASS_WITH_WARNINGS":
+        warnings.append("FEATURE_PARITY_PASS_WITH_WARNINGS: feature parity has non-blocking warnings")
+    elif latest_feature_parity_verdict == "":
+        warnings.append("FEATURE_PARITY_AUDIT_MISSING: feature_parity_audit.json not found - run scripts/audit/feature_parity_audit.py")
+    elif latest_feature_parity_verdict == "FEATURE_PARITY_PASS":
+        ok_checks.append("Feature parity: PASS")
+
+    # 3. Runtime safety gate
+    runtime_safety_path = audit_dir / "runtime_safety_gate_audit.json"
+    latest_runtime_safety_verdict = ""
+    runtime_safety_pass = False
+    if runtime_safety_path.exists():
+        try:
+            with open(runtime_safety_path, "r", encoding="utf-8") as f:
+                rs_data = json.load(f)
+            latest_runtime_safety_verdict = rs_data.get("verdict", "") or ""
+            runtime_safety_pass = latest_runtime_safety_verdict == "RUNTIME_SAFETY_GATE_PASS"
+        except Exception:
+            pass
+    findings["latest_runtime_safety_verdict"] = latest_runtime_safety_verdict
+    findings["runtime_safety_pass"] = runtime_safety_pass
+    if latest_runtime_safety_verdict == "RUNTIME_SAFETY_GATE_BLOCKED":
+        blockers.append("RUNTIME_SAFETY_BLOCKED: runtime safety gate failed")
+    elif latest_runtime_safety_verdict == "":
+        warnings.append("RUNTIME_SAFETY_AUDIT_MISSING: runtime_safety_gate_audit.json not found - run scripts/audit/runtime_safety_gate_audit.py")
+    elif latest_runtime_safety_verdict == "RUNTIME_SAFETY_GATE_PASS":
+        ok_checks.append("Runtime safety gate: PASS")
+
+    # v2.8.4 release gate: all 3 gates must pass
+    v2833_release_gate_pass = (
+        model_health_pass and feature_parity_pass and runtime_safety_pass
+    )
+    findings["v2_8_3_3_release_gate_pass"] = v2833_release_gate_pass
+    findings["v2_8_4_allowed"] = v2833_release_gate_pass
+    if not v2833_release_gate_pass:
+        # Don't add as blocker if individual gates already added blockers - just warn
+        if not any(b.startswith("MODEL_HEALTH_BLOCKED") or b.startswith("FEATURE_PARITY_BLOCKED")
+                   or b.startswith("RUNTIME_SAFETY_BLOCKED") for b in blockers):
+            blockers.append("V2_8_4_RELEASE_GATE_BLOCKED: not all 3 CTO gates pass")
+    else:
+        ok_checks.append("v2.8.4 release gate: ALLOWED (all 3 CTO gates pass)")
+
+    # Sprint v2.8.3.3: SUPERVISED_READY requires all 3 CTO gates to pass.
+    # If any gate is blocked, downgrade SUPERVISED_READY -> BLOCKED so v2.8.4 cannot start.
+    if autonomous_execution_status == "SUPERVISED_READY" and not v2833_release_gate_pass:
+        autonomous_execution_status = "BLOCKED"
+        findings["autonomous_execution_status"] = autonomous_execution_status
+        blockers.append(
+            "AUTONOMOUS_STATUS_DOWNGRADED: SUPERVISED_READY downgraded to BLOCKED because "
+            "not all 3 CTO release gates pass (model_health/feature_parity/runtime_safety)"
+        )
+
     # Autonomous entry decision verdict
     ae_decision_path = audit_dir / "autonomous_entry_decision.json"
     ae_decision_verdict = ""
@@ -663,6 +775,16 @@ def run_audit() -> dict:
         "autonomous_demo_readiness_verdict": latest_autonomous_verdict,
         "autonomous_allowed": autonomous_allowed,
         "autonomous_execution_status": autonomous_execution_status,
+        # Sprint v2.8.3.3: CTO Consolidated Release Gate fields
+        "latest_model_health_verdict": latest_model_health_verdict,
+        "model_health_pass": model_health_pass,
+        "active_model_count": active_model_count,
+        "failed_model_count": failed_model_count,
+        "latest_feature_parity_verdict": latest_feature_parity_verdict,
+        "feature_parity_pass": feature_parity_pass,
+        "latest_runtime_safety_verdict": latest_runtime_safety_verdict,
+        "runtime_safety_pass": runtime_safety_pass,
+        "v2_8_4_allowed": v2833_release_gate_pass,
         "safety": {
             "order_send_called": False,
             "position_modified": False,
@@ -700,6 +822,19 @@ def write_report(result: dict) -> dict:
                 "> **Note:** Production closure is code-ready but is NOT autonomous-ready. "
                 "Autonomous execution remains blocked until all autonomous readiness checks pass.\n\n"
             )
+
+        # v2.8.3.3: CTO Consolidated Release Gate section
+        f.write("## CTO Consolidated Release Gate (v2.8.3.3)\n\n")
+        f.write("| Field | Value |\n|---|---|\n")
+        f.write(f"| latest_model_health_verdict | {result.get('latest_model_health_verdict', '')} |\n")
+        f.write(f"| model_health_pass | {result.get('model_health_pass', False)} |\n")
+        f.write(f"| active_model_count | {result.get('active_model_count', 0)} |\n")
+        f.write(f"| failed_model_count | {result.get('failed_model_count', 0)} |\n")
+        f.write(f"| latest_feature_parity_verdict | {result.get('latest_feature_parity_verdict', '')} |\n")
+        f.write(f"| feature_parity_pass | {result.get('feature_parity_pass', False)} |\n")
+        f.write(f"| latest_runtime_safety_verdict | {result.get('latest_runtime_safety_verdict', '')} |\n")
+        f.write(f"| runtime_safety_pass | {result.get('runtime_safety_pass', False)} |\n")
+        f.write(f"| **v2_8_4_allowed** | **{result.get('v2_8_4_allowed', False)}** |\n\n")
 
         f.write("## Score Breakdown\n\n")
         f.write("| Category | Score |\n|---|---|\n")
@@ -742,6 +877,13 @@ def main() -> int:
     print(f"  Latest geometry verdict: {result.get('latest_execution_geometry_verdict', '')}")
     print(f"  Latest forensics verdict: {result.get('latest_forensics_verdict', '')}")
     print(f"  Entry gate verdict: {result.get('end_to_end_entry_gate_verdict', '')}")
+    # v2.8.3.3: CTO Consolidated Release Gate
+    print(f"\n  --- v2.8.3.3 CTO Consolidated Release Gate ---")
+    print(f"  Latest model health verdict: {result.get('latest_model_health_verdict', '')}")
+    print(f"  Active models: {result.get('active_model_count', 0)}, Failed: {result.get('failed_model_count', 0)}")
+    print(f"  Latest feature parity verdict: {result.get('latest_feature_parity_verdict', '')}")
+    print(f"  Latest runtime safety verdict: {result.get('latest_runtime_safety_verdict', '')}")
+    print(f"  v2.8.4 allowed: {result.get('v2_8_4_allowed', False)}")
     if result.get("blockers"):
         print("\n  Blockers:")
         for b in result["blockers"]:

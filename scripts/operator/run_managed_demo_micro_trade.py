@@ -1154,6 +1154,64 @@ def run_build_request(direction: str = "BUY", entry_price: float = 2000.0,
         else:
             result["final_demo_readiness_status"] = ""
 
+        # === Sprint v2.8.3.3: CTO Consolidated Release Gate ===
+        # Read latest verdicts from 3 new audit scripts (read-only - never re-run audits)
+        model_health_dir = REPO_ROOT / "data" / "audit" / "model_health"
+
+        # 1. Model artifact health
+        mh_path = model_health_dir / "model_artifact_health_audit.json"
+        result["latest_model_health_verdict"] = ""
+        result["active_model_count"] = 0
+        result["failed_model_count"] = 0
+        result["model_health_pass"] = False
+        if mh_path.exists():
+            try:
+                with open(mh_path, "r", encoding="utf-8") as f:
+                    mh = json.load(f)
+                result["latest_model_health_verdict"] = mh.get("verdict", "") or ""
+                result["active_model_count"] = int(mh.get("active_model_count", 0))
+                result["failed_model_count"] = int(mh.get("failed_model_count", 0))
+                result["model_health_pass"] = result["latest_model_health_verdict"] in (
+                    "MODEL_ARTIFACT_HEALTH_PASS", "MODEL_ARTIFACT_HEALTH_PASS_WITH_WARNINGS"
+                )
+            except Exception:
+                pass
+
+        # 2. Feature parity
+        fp_path = model_health_dir / "feature_parity_audit.json"
+        result["latest_feature_parity_verdict"] = ""
+        result["feature_parity_pass"] = False
+        if fp_path.exists():
+            try:
+                with open(fp_path, "r", encoding="utf-8") as f:
+                    fp = json.load(f)
+                result["latest_feature_parity_verdict"] = fp.get("verdict", "") or ""
+                result["feature_parity_pass"] = result["latest_feature_parity_verdict"] in (
+                    "FEATURE_PARITY_PASS", "FEATURE_PARITY_PASS_WITH_WARNINGS"
+                )
+            except Exception:
+                pass
+
+        # 3. Runtime safety gate
+        rs_path = audit_dir / "runtime_safety_gate_audit.json"
+        result["latest_runtime_safety_verdict"] = ""
+        result["runtime_safety_pass"] = False
+        if rs_path.exists():
+            try:
+                with open(rs_path, "r", encoding="utf-8") as f:
+                    rs = json.load(f)
+                result["latest_runtime_safety_verdict"] = rs.get("verdict", "") or ""
+                result["runtime_safety_pass"] = result["latest_runtime_safety_verdict"] == "RUNTIME_SAFETY_GATE_PASS"
+            except Exception:
+                pass
+
+        # v2.8.4 release gate: all 3 gates must pass
+        result["v2_8_4_allowed"] = (
+            result["model_health_pass"]
+            and result["feature_parity_pass"]
+            and result["runtime_safety_pass"]
+        )
+
     except Exception as e:
         result["entry_gate_status_error"] = str(e)
 
@@ -2873,6 +2931,18 @@ def main() -> int:
         nb = result.get("normalized_blockers", []) or []
         for r in nb:
             print(f"    - {r}")
+
+        # === Sprint v2.8.3.3: CTO Consolidated Release Gate display ===
+        print()
+        print("  " + "-" * 66)
+        print("  v2.8.3.3 CTO Consolidated Release Gate")
+        print("  " + "-" * 66)
+        print(f"  Latest model health verdict: {result.get('latest_model_health_verdict', 'N/A')}")
+        print(f"  Active models checked: {result.get('active_model_count', 0)}")
+        print(f"  Failed models: {result.get('failed_model_count', 0)}")
+        print(f"  Latest feature parity verdict: {result.get('latest_feature_parity_verdict', 'N/A')}")
+        print(f"  Latest runtime safety verdict: {result.get('latest_runtime_safety_verdict', 'N/A')}")
+        print(f"  v2.8.4 allowed: {result.get('v2_8_4_allowed', False)}")
 
     # === Sprint v2.8: autonomous-entry-check console output ===
     if getattr(args, "autonomous_entry_check", False):
