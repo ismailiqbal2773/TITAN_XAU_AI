@@ -605,6 +605,14 @@ def run_audit() -> dict:
     else:
         verdict = RUNTIME_SAFETY_GATE_PASS
 
+    # v2.8.5-C: Add freshness metadata
+    from titan.production.audit_hygiene import make_freshness_metadata, detect_environment_mode
+    freshness = make_freshness_metadata(
+        audit_name="runtime_safety_gate_audit",
+        source_mode="production",
+        environment_mode=detect_environment_mode(),
+    )
+
     return {
         "timestamp_utc": ts,
         "verdict": verdict,
@@ -612,6 +620,12 @@ def run_audit() -> dict:
         "blockers": blockers,
         "warnings": warnings_list,
         "findings": findings,
+        # v2.8.5-C: freshness metadata
+        "generated_at_utc": freshness["generated_at_utc"],
+        "git_commit": freshness["git_commit"],
+        "audit_name": freshness["audit_name"],
+        "source_mode": freshness["source_mode"],
+        "environment_mode": freshness["environment_mode"],
         "safety": {
             "order_send_called": False,
             "position_modified": False,

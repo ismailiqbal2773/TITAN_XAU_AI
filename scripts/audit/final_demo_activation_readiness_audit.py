@@ -73,10 +73,15 @@ OUTPUT_DIR = REPO_ROOT / "data" / "audit" / "final_demo_activation"
 
 FINAL_DEMO_ACTIVATION_READY_SUPERVISED = "FINAL_DEMO_ACTIVATION_READY_SUPERVISED"
 FINAL_DEMO_ACTIVATION_BLOCKED = "FINAL_DEMO_ACTIVATION_BLOCKED"
+# v2.8.5-C: New intermediate verdicts for non-Windows/no-MT5 environments
+FINAL_DEMO_ACTIVATION_OPERATOR_WINDOWS_REQUIRED = "FINAL_DEMO_ACTIVATION_OPERATOR_WINDOWS_REQUIRED"
+FINAL_DEMO_ACTIVATION_SIMULATION_PASS_OPERATOR_REQUIRED = "FINAL_DEMO_ACTIVATION_SIMULATION_PASS_OPERATOR_REQUIRED"
 
 ALL_VERDICTS = (
     FINAL_DEMO_ACTIVATION_READY_SUPERVISED,
     FINAL_DEMO_ACTIVATION_BLOCKED,
+    FINAL_DEMO_ACTIVATION_OPERATOR_WINDOWS_REQUIRED,
+    FINAL_DEMO_ACTIVATION_SIMULATION_PASS_OPERATOR_REQUIRED,
 )
 
 ALLOWED_ACCOUNT_SERVER = "MetaQuotes-Demo"
@@ -638,13 +643,106 @@ def run_audit() -> dict:
         ok_checks.append("No active receipt")
 
     # === Final verdict ===
+    # v2.8.5-C: READY_SUPERVISED requires Windows + MT5 + MetaQuotes-Demo + all gates pass.
+    # Non-Windows/no-MT5 environments cannot emit READY_SUPERVISED even if all gates pass.
+    from titan.production.audit_hygiene import (
+        load_growth_profile_config, validate_artifact_freshness, get_git_commit,
+        detect_environment_mode,
+    )
+    current_commit = get_git_commit()
+    env_mode = detect_environment_mode()
+    is_windows = (env_mode == "windows")
+    mt5_available = bool(mt5_env.get("mt5_available", False))
+    mt5_initialized = bool(mt5_env.get("initialized", False))
+    metaquotes_demo_verified = bool(
+        mt5_env.get("account_server", "") == ALLOWED_ACCOUNT_SERVER
+        and mt5_env.get("account_type", "") == ALLOWED_ACCOUNT_TYPE
+        and mt5_env.get("symbol_available", False)
+    )
+
+    # v2.8.5-C: Validate growth profile values from config (not from audit JSON)
+    gp_cfg = load_growth_profile_config()
+    growth_profile_values_valid = (
+        gp_cfg["valid"]
+        and gp_cfg["monthly_target_pct"] == 0.30
+        and gp_cfg["daily_dd_soft_limit_pct"] == 0.01
+        and gp_cfg["daily_dd_hard_limit_pct"] == 0.02
+        and gp_cfg["max_total_dd_pct"] == 0.08
+    )
+    if not growth_profile_values_valid:
+        blockers.append(
+            f"GROWTH_PROFILE_VALUES_INVALID: expected monthly=0.30, daily_dd=0.01-0.02, "
+            f"total_dd=0.08; got monthly={gp_cfg['monthly_target_pct']}, "
+            f"daily_dd_soft={gp_cfg['daily_dd_soft_limit_pct']}, "
+            f"daily_dd_hard={gp_cfg['daily_dd_hard_limit_pct']}, "
+            f"total_dd={gp_cfg['max_total_dd_pct']}"
+        )
+
+    # v2.8.5-C: Validate audit artifacts freshness (detect stale/test-mode/commit-mismatch)
+    audit_artifacts_fresh = True
+    stale_artifacts_detected = []
+    for artifact_path, artifact_name in [
+        (model_health_dir / "model_artifact_health_audit.json", "model_artifact_health_audit"),
+        (model_health_dir / "feature_parity_audit.json", "feature_parity_audit"),
+        (audit_dir / "runtime_safety_gate_audit.json", "runtime_safety_gate_audit"),
+        (growth_dir / "prop_challenge_growth_profile_audit.json", "prop_challenge_growth_profile_audit"),
+        (audit_dir / "production_closure_readiness_audit.json", "production_closure_readiness_audit"),
+    ]:
+        fr = validate_artifact_freshness(artifact_path, artifact_name, current_commit)
+        if not fr["fresh"]:
+            audit_artifacts_fresh = False
+            stale_artifacts_detected.append({
+                "artifact": artifact_name,
+                "reason": fr["reason"],
+            })
+            # Stale artifacts are blockers (cannot infer readiness from stale data)
+            blockers.append(f"AUDIT_ARTIFACT_STALE: {artifact_name} - {fr['reason']}")
+
+    findings["growth_profile_values_valid"] = growth_profile_values_valid
+    findings["audit_artifacts_fresh"] = audit_artifacts_fresh
+    findings["stale_artifacts_detected"] = stale_artifacts_detected
+    findings["environment_mode"] = env_mode
+    findings["operator_windows_required"] = not is_windows
+    findings["mt5_required_for_full_ready"] = not (mt5_available and mt5_initialized)
+    findings["metaquotes_demo_verified"] = metaquotes_demo_verified
+    findings["full_ready_requires_windows_mt5"] = not (is_windows and mt5_available and mt5_initialized and metaquotes_demo_verified)
+
+    # Determine verdict with v2.8.5-C semantics
     if blockers:
         verdict = FINAL_DEMO_ACTIVATION_BLOCKED
+        activation_verdict_reason = "blockers_present"
+    elif not is_windows or not mt5_available or not mt5_initialized or not metaquotes_demo_verified:
+        # All gates pass BUT not on Windows MetaQuotes-Demo with MT5 verified.
+        # Cannot emit READY_SUPERVISED - emit intermediate verdict.
+        if is_windows and mt5_available and mt5_initialized and not metaquotes_demo_verified:
+            # Windows + MT5 available + initialized BUT account not MetaQuotes-Demo DEMO
+            verdict = FINAL_DEMO_ACTIVATION_BLOCKED
+            activation_verdict_reason = "windows_mt5_available_but_not_metaquotes_demo"
+        else:
+            # Non-Windows or MT5 not available/initialized
+            verdict = FINAL_DEMO_ACTIVATION_OPERATOR_WINDOWS_REQUIRED
+            activation_verdict_reason = (
+                f"requires_windows_mt5_metaquotes_demo: "
+                f"is_windows={is_windows}, mt5_available={mt5_available}, "
+                f"mt5_initialized={mt5_initialized}, metaquotes_demo_verified={metaquotes_demo_verified}"
+            )
     else:
+        # All gates pass AND Windows + MT5 + MetaQuotes-Demo verified
         verdict = FINAL_DEMO_ACTIVATION_READY_SUPERVISED
+        activation_verdict_reason = "all_gates_pass_windows_mt5_metaquotes_demo_verified"
 
-    # Compute final_demo_activation_allowed (True only if verdict is READY_SUPERVISED)
+    findings["activation_verdict_reason"] = activation_verdict_reason
+
+    # Compute final_demo_activation_allowed (True ONLY if verdict is READY_SUPERVISED)
     final_demo_activation_allowed = (verdict == FINAL_DEMO_ACTIVATION_READY_SUPERVISED)
+
+    # v2.8.5-C: Add freshness metadata to result
+    from titan.production.audit_hygiene import make_freshness_metadata
+    freshness = make_freshness_metadata(
+        audit_name="final_demo_activation_readiness_audit",
+        source_mode="production",
+        environment_mode=env_mode,
+    )
 
     return {
         "timestamp_utc": ts,
@@ -654,6 +752,12 @@ def run_audit() -> dict:
         "blockers": blockers,
         "warnings": warnings_list,
         "findings": findings,
+        # v2.8.5-C: freshness metadata for audit hygiene
+        "generated_at_utc": freshness["generated_at_utc"],
+        "git_commit": freshness["git_commit"],
+        "audit_name": freshness["audit_name"],
+        "source_mode": freshness["source_mode"],
+        "environment_mode": freshness["environment_mode"],
         "safety": {
             "order_send_called": False,
             "position_modified": False,

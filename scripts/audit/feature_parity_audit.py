@@ -302,6 +302,14 @@ def run_audit() -> dict:
     else:
         verdict = FEATURE_PARITY_PASS
 
+    # v2.8.5-C: Add freshness metadata
+    from titan.production.audit_hygiene import make_freshness_metadata, detect_environment_mode
+    freshness = make_freshness_metadata(
+        audit_name="feature_parity_audit",
+        source_mode="production",
+        environment_mode=detect_environment_mode(),
+    )
+
     return {
         "timestamp_utc": ts,
         "verdict": verdict,
@@ -310,6 +318,12 @@ def run_audit() -> dict:
         "warnings": warnings_list,
         "findings": findings,
         "feature_count": len(feature_names),
+        # v2.8.5-C: freshness metadata
+        "generated_at_utc": freshness["generated_at_utc"],
+        "git_commit": freshness["git_commit"],
+        "audit_name": freshness["audit_name"],
+        "source_mode": freshness["source_mode"],
+        "environment_mode": freshness["environment_mode"],
         "safety": {
             "order_send_called": False,
             "position_modified": False,

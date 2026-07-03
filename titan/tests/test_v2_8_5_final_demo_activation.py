@@ -75,6 +75,15 @@ def _restore(backups):
 
 def _write_json(path: Path, data: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
+    # v2.8.5-C: Add freshness metadata to all seeded audit JSONs
+    from datetime import datetime, timezone
+    from titan.production.audit_hygiene import get_git_commit
+    if "generated_at_utc" not in data and "verdict" in data:
+        data["generated_at_utc"] = datetime.now(timezone.utc).isoformat()
+        data["git_commit"] = get_git_commit() or "test_commit"
+        data["source_mode"] = "production"
+        data["audit_name"] = path.stem
+        data["environment_mode"] = "test"
     with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f)
 
@@ -139,12 +148,27 @@ class TestFinalDemoActivationVerdict:
         _restore(self._backups)
 
     def test_01_passes_when_all_gates_pass(self):
-        """Test 1: FINAL_DEMO_ACTIVATION_READY_SUPERVISED when all gates pass."""
+        """Test 1: FINAL_DEMO_ACTIVATION_READY_SUPERVISED when all gates pass.
+
+        v2.8.5-C: Requires Windows + MT5 + MetaQuotes-Demo + fresh artifacts.
+        """
         _seed_all_passing()
         import scripts.audit.final_demo_activation_readiness_audit as m
-        with patch.object(m, '_check_mt5_environment', return_value=_mock_mt5_env()):
+        mock_freshness = {
+            "exists": True, "fresh": True, "stale": False,
+            "test_mode": False, "commit_mismatch": False,
+            "missing_metadata": False, "reason": "fresh",
+            "artifact_generated_at": "", "artifact_git_commit": "",
+            "artifact_source_mode": "production",
+        }
+        with patch.object(m, '_check_mt5_environment', return_value=_mock_mt5_env()), \
+             patch.object(m, 'platform') as mock_platform, \
+             patch('titan.production.audit_hygiene.detect_environment_mode', return_value="windows"), \
+             patch('titan.production.audit_hygiene.validate_artifact_freshness', return_value=mock_freshness):
+            mock_platform.system.return_value = "Windows"
             result = m.run_audit()
-        assert result["verdict"] == m.FINAL_DEMO_ACTIVATION_READY_SUPERVISED
+        assert result["verdict"] == m.FINAL_DEMO_ACTIVATION_READY_SUPERVISED, \
+            f"Expected READY_SUPERVISED, got {result['verdict']} blockers={result['blockers']}"
         assert result["final_demo_activation_allowed"] is True
         assert len(result["blockers"]) == 0
 
@@ -156,7 +180,7 @@ class TestFinalDemoActivationVerdict:
             "verdict": "MODEL_ARTIFACT_HEALTH_BLOCKED",
             "active_model_count": 2, "failed_required_model_count": 1,
             "failed_optional_model_count": 0,
-            "blocked_required_models": [{"name": "broken", "role": "active_primary"}],
+            "blocked_required_models": [{"name": "broken", "role": "alpha_direction_specialist"}],
             "warned_optional_models": [], "v2_8_4_allowed": False,
         })
         import scripts.audit.final_demo_activation_readiness_audit as m

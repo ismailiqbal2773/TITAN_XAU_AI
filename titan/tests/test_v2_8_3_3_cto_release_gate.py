@@ -66,6 +66,15 @@ def _restore(backups):
 
 def _write_json(path: Path, data: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
+    # v2.8.5-C: Add freshness metadata to all seeded audit JSONs
+    from datetime import datetime, timezone
+    from titan.production.audit_hygiene import get_git_commit
+    if "generated_at_utc" not in data and "verdict" in data:
+        data["generated_at_utc"] = datetime.now(timezone.utc).isoformat()
+        data["git_commit"] = get_git_commit() or "test_commit"
+        data["source_mode"] = "production"
+        data["audit_name"] = path.stem
+        data["environment_mode"] = "test"
     with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f)
 
@@ -94,7 +103,7 @@ class TestModelArtifactHealthAudit:
         ), f"Expected PASS or PASS_WITH_WARNINGS, got {result['verdict']}"
         assert result["failed_model_count"] == 0
         # Both active_primary models must be in per_model_results
-        active_primary = [r for r in result["per_model_results"] if r["role"] == "active_primary"]
+        active_primary = [r for r in result["per_model_results"] if r["role"] in ("alpha_direction_specialist", "meta_label_quality_filter")]
         assert len(active_primary) >= 2  # xgb + meta
         for r in active_primary:
             assert r["health"] in ("PASS", "PASS_WITH_WARNINGS"), \
@@ -108,7 +117,7 @@ class TestModelArtifactHealthAudit:
             mock_disc.return_value = [{
                 "name": "missing_model",
                 "path": "/nonexistent/path/to/missing.pkl",
-                "role": "active_primary",
+                "role": "alpha_direction_specialist",
                 "config_key": "xgb_path",
             }]
             result = m.run_audit()
@@ -129,7 +138,7 @@ class TestModelArtifactHealthAudit:
                 mock_disc.return_value = [{
                     "name": "broken_model",
                     "path": tmp_path,
-                    "role": "active_primary",
+                    "role": "alpha_direction_specialist",
                     "config_key": "xgb_path",
                 }]
                 result = m.run_audit()
@@ -160,7 +169,7 @@ class TestModelArtifactHealthAudit:
                     mock_disc.return_value = [{
                         "name": "xgboost_v1",
                         "path": tmp_path,
-                        "role": "active_primary",
+                        "role": "alpha_direction_specialist",
                         "config_key": "xgb_path",
                     }]
                     result = m.run_audit()
@@ -194,7 +203,7 @@ class TestModelArtifactHealthAudit:
             mock_disc.return_value = [{
                 "name": "xgboost_v1",
                 "path": str(REPO_ROOT / "titan" / "data" / "models" / "xgboost_v1.pkl"),
-                "role": "active_primary",
+                "role": "alpha_direction_specialist",
                 "config_key": "xgb_path",
             }]
             mock_nsf.return_value = {"is_real_model": True, "errors": [], "model_class": "xgboost.sklearn.XGBClassifier"}
@@ -224,7 +233,7 @@ class TestModelArtifactHealthAudit:
             mock_disc.return_value = [{
                 "name": "xgboost_v1",
                 "path": real_path,
-                "role": "active_primary",
+                "role": "alpha_direction_specialist",
                 "config_key": "xgb_path",
             }]
             mock_load.return_value = (
@@ -285,7 +294,7 @@ class TestModelArtifactHealthAudit:
             mock_disc.return_value = [{
                 "name": "xgboost_v1",
                 "path": real_path,
-                "role": "active_primary",
+                "role": "alpha_direction_specialist",
                 "config_key": "xgb_path",
             }]
             result = m.run_audit()

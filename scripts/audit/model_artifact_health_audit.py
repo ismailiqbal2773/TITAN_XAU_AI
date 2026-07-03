@@ -82,57 +82,84 @@ def _runtime_versions() -> dict:
 def _classify_role(path_str: str, runtime_cfg: dict) -> tuple:
     """Classify model role from path and runtime config.
 
-    Sprint v2.8.3.3.1 reconciliation: challenger models that are NOT in the
-    active runtime inference chain must be classified as `optional`, not
-    `ensemble_member`. Only models actually wired into the runtime/router
-    are `ensemble_member` (required for runtime).
+    Sprint v2.8.5-C: Expert model role reconciliation.
+    Model roles now reflect TITAN architecture and current runtime truth:
 
-    Returns (role, non_blocking_reason) tuple where non_blocking_reason is
-    a human-readable explanation for why an optional/backup/disabled/deprecated
-    model does not block runtime.
+      alpha_direction_specialist      - XGBoost (required, active_primary)
+      meta_label_quality_filter       - LogisticRegression / meta_label_v2_context (required)
+      sequential_confidence_specialist - LSTM (advisory if torch unavailable)
+      regime_intelligence_specialist  - Transformer (advisory if torch unavailable)
+      optional_challenger             - LightGBM, logreg_v1_price, meta_label_v1,
+                                         xgboost_v2_micro (frozen challengers, not required)
+      backup_unavailable              - .pt models when torch not installed
+      advisory_unavailable            - .pt models when torch not installed (advisory)
+      required_blocked                - .pt models when required but unavailable
 
-    Roles:
-      active_primary   - listed in config/runtime.yaml as xgb_path or meta_path
-                         (REQUIRED for runtime)
-      ensemble_member  - .pkl model that is actively wired into runtime/router
-                         ensemble (REQUIRED for runtime)
-                         Note: TITAN XAU AI runtime currently uses ONLY
-                         xgboost_v1 + meta_label_v2_context (no ensemble
-                         router), so no .pkl is classified as ensemble_member
-                         unless explicitly registered.
-      backup           - lstm/transformer .pt artifacts (challenger, NOT required)
-      optional         - challenger .pkl models not in active inference chain
-                         (e.g. lightgbm_v1, logreg_v1_price, meta_label_v1,
-                         xgboost_v2_micro) - frozen challengers per
-                         scripts/titan_audit_report.py
-      disabled         - explicitly disabled in config
-      deprecated       - old/v1/legacy path naming
+    Returns (role, non_blocking_reason) tuple.
+
+    The `required_for_runtime` field is set separately based on role:
+      - alpha_direction_specialist, meta_label_quality_filter -> required
+      - sequential_confidence_specialist, regime_intelligence_specialist -> advisory
+      - optional_challenger, backup_unavailable, advisory_unavailable -> non-required
     """
     name = path_str.lower()
     cfg_models = (runtime_cfg.get("models") or {}) if runtime_cfg else {}
-    active_paths = {str(cfg_models.get("xgb_path", "")).lower(),
-                   str(cfg_models.get("meta_path", "")).lower()}
+    active_xgb = str(cfg_models.get("xgb_path", "")).lower()
+    active_meta = str(cfg_models.get("meta_path", "")).lower()
     # Normalize repo-relative
     norm = path_str
     if norm.startswith(str(REPO_ROOT)):
         norm = norm[len(str(REPO_ROOT)) + 1:].replace("\\", "/")
-    if norm.lower() in active_paths or path_str.lower() in active_paths:
-        return ("active_primary", "")
-    if name.endswith(".pt"):
-        return ("backup", "PyTorch challenger model - not in active inference chain")
-    if "deprecated" in name or "old_" in name or "_legacy" in name:
-        return ("deprecated", "Legacy/deprecated model artifact - retained for audit history only")
+    norm_lower = norm.lower()
+
+    # === XGBoost alpha direction specialist (REQUIRED) ===
+    if norm_lower == active_xgb or "xgboost_v1" in name:
+        return ("alpha_direction_specialist", "")
+
+    # === Meta-label / LogisticRegression quality filter (REQUIRED) ===
+    if norm_lower == active_meta or "meta_label_v2" in name:
+        return ("meta_label_quality_filter", "")
+
+    # === LSTM sequential confidence specialist (ADVISORY) ===
+    if "lstm" in name and name.endswith(".pt"):
+        try:
+            import torch  # noqa: F401
+            return ("sequential_confidence_specialist",
+                    "LSTM PyTorch model - advisory, not currently wired into runtime inference chain")
+        except Exception:
+            return ("advisory_unavailable",
+                    "LSTM PyTorch model - torch not installed, advisory only (non-blocking)")
+
+    # === Transformer regime intelligence specialist (ADVISORY) ===
+    if "transformer" in name and name.endswith(".pt"):
+        try:
+            import torch  # noqa: F401
+            return ("regime_intelligence_specialist",
+                    "Transformer PyTorch model - advisory, not currently wired into runtime inference chain")
+        except Exception:
+            return ("advisory_unavailable",
+                    "Transformer PyTorch model - torch not installed, advisory only (non-blocking)")
+
+    # === LightGBM optional challenger (NOT required) ===
+    if "lightgbm" in name or "lgbm" in name:
+        return ("optional_challenger",
+                "LightGBM challenger model - frozen, not wired into active runtime inference chain "
+                "(per scripts/titan_audit_report.py: 'Not in F8 inference chain'). Non-blocking.")
+
+    # === Other .pkl models (optional/legacy) ===
     if name.endswith(".pkl"):
-        # Sprint v2.8.3.3.1: All non-active .pkl models are OPTIONAL challengers.
-        # TITAN XAU AI runtime uses only xgboost_v1 + meta_label_v2_context.
-        # Other .pkl files (lightgbm_v1, logreg_v1_price, meta_label_v1,
-        # xgboost_v2_micro) are frozen challengers per scripts/titan_audit_report.py
-        # and are NOT wired into the runtime inference chain.
-        return ("optional",
-                "Challenger model - frozen, not wired into active runtime inference chain "
-                "(per scripts/titan_audit_report.py: 'Not in F8 inference chain'). "
-                "Failure is non-blocking for v2.8.4 release gate.")
-    return ("optional", "Unknown model - classified optional by default (non-blocking)")
+        if "deprecated" in name or "old_" in name or "_legacy" in name:
+            return ("optional_challenger",
+                    "Legacy/deprecated model artifact - retained for audit history only. Non-blocking.")
+        return ("optional_challenger",
+                "Challenger model - frozen, not wired into active runtime inference chain. Non-blocking.")
+
+    # === Other .pt models (backup) ===
+    if name.endswith(".pt"):
+        return ("backup_unavailable",
+                "PyTorch backup model - not in active inference chain. Non-blocking.")
+
+    return ("optional_challenger", "Unknown model - classified optional by default (non-blocking)")
 
 
 def _discover_active_models(runtime_cfg: dict) -> list:
@@ -148,19 +175,21 @@ def _discover_active_models(runtime_cfg: dict) -> list:
     discovered = []
     seen_paths = set()
 
-    # 1. From config/runtime.yaml (active_primary)
+    # 1. From config/runtime.yaml (active_primary -> v2.8.5-C: expert roles)
     cfg_models = (runtime_cfg.get("models") or {}) if runtime_cfg else {}
     for key in ("xgb_path", "meta_path"):
         rel = cfg_models.get(key)
         if rel:
             p = REPO_ROOT / rel
             if p.exists() and str(p) not in seen_paths:
+                # v2.8.5-C: Use _classify_role to get expert role name
+                role, nbr = _classify_role(str(p), runtime_cfg)
                 discovered.append({
                     "name": p.stem,
                     "path": str(p),
-                    "role": "active_primary",
+                    "role": role,
                     "config_key": key,
-                    "non_blocking_reason": "",
+                    "non_blocking_reason": nbr,
                 })
                 seen_paths.add(str(p))
 
@@ -461,7 +490,11 @@ def _audit_single_model(model_info: dict) -> dict:
     # Sprint v2.8.3.3.1: required_for_runtime = True only for active_primary
     # or ensemble_member roles. optional/backup/disabled/deprecated are NOT
     # required for runtime - their failure does not block v2.8.4.
-    required_for_runtime = role in ("active_primary", "ensemble_member")
+    # Sprint v2.8.5-C: required_for_runtime = True only for alpha_direction_specialist
+    # or meta_label_quality_filter roles. All other roles (optional_challenger,
+    # advisory_unavailable, backup_unavailable, sequential_confidence_specialist,
+    # regime_intelligence_specialist) are NOT required for runtime.
+    required_for_runtime = role in ("alpha_direction_specialist", "meta_label_quality_filter")
 
     out = {
         "model_name": name,
@@ -469,9 +502,15 @@ def _audit_single_model(model_info: dict) -> dict:
         "path": path,
         "model_role": role,
         "role": role,  # backwards compat
+        "expert_role": role,  # v2.8.5-C: alias for clarity
         "config_key": model_info.get("config_key", ""),
         "required_for_runtime": required_for_runtime,
+        "required_for_trade_decision": required_for_runtime,  # v2.8.5-C alias
         "is_required_active": required_for_runtime,  # backwards compat
+        "used_by_ceo_governance": required_for_runtime,  # v2.8.5-C: CEO uses required models
+        "used_by_current_runtime": required_for_runtime,  # v2.8.5-C: runtime uses required models
+        "availability_status": "unknown",  # v2.8.5-C: filled below
+        "blocks_demo_activation": False,  # v2.8.5-C: filled by _finalize_model_status
         "artifact_exists": False,
         "artifact_size_bytes": 0,
         "loads_successfully": False,
@@ -618,22 +657,32 @@ def _audit_single_model(model_info: dict) -> dict:
 
 
 def _finalize_model_status(out: dict, name: str, role: str, required_for_runtime: bool) -> dict:
-    """Sprint v2.8.3.3.1: Finalize final_status, required_failure, blocking_reason.
+    """Sprint v2.8.3.3.1 + v2.8.5-C: Finalize final_status, required_failure, blocking_reason.
 
     Called at every return point in _audit_single_model to ensure consistent
     classification reconciliation.
 
     Logic:
       - If health == BLOCKED:
-          * required_for_runtime=True  -> required_failure=True, blocking_reason set
-          * required_for_runtime=False -> final_status=OPTIONAL_BLOCKED, non_blocking_reason set
+          * required_for_runtime=True  -> required_failure=True, blocking_reason set,
+                                          blocks_demo_activation=True
+          * required_for_runtime=False -> final_status=OPTIONAL_BLOCKED, non_blocking_reason set,
+                                          blocks_demo_activation=False
       - If health == PASS or PASS_WITH_WARNINGS:
-          * required_failure=False, blocking_reason=""
+          * required_failure=False, blocking_reason="",
+          * blocks_demo_activation=False
+
+    v2.8.5-C: Also sets availability_status based on role and health:
+      - available: model loads and predicts
+      - advisory_unavailable: .pt model with torch not installed
+      - backup_unavailable: .pt backup model not loadable
+      - required_blocked: required model failed (blocks activation)
+      - optional_blocked: optional model failed (non-blocking)
     """
     out["final_status"] = out["health"]
     if out["health"] == "BLOCKED":
         if required_for_runtime:
-            # Required model failed -> BLOCKS v2.8.4
+            # Required model failed -> BLOCKS v2.8.4/v2.8.5 demo activation
             out["required_failure"] = True
             out["blocking_reason"] = (
                 f"REQUIRED_MODEL_BLOCKED: {name} (role={role}) failed health audit - "
@@ -643,21 +692,33 @@ def _finalize_model_status(out: dict, name: str, role: str, required_for_runtime
                            + out.get("no_silent_fallback", {}).get("errors", []))[:300]
             )
             out["non_blocking_reason"] = ""  # required failure IS blocking
+            out["availability_status"] = "required_blocked"
+            out["blocks_demo_activation"] = True
         else:
             # Optional/backup/disabled/deprecated model failed -> non-blocking
             out["required_failure"] = False
             out["blocking_reason"] = ""
             # final_status becomes OPTIONAL_BLOCKED to make it visible
             out["final_status"] = "OPTIONAL_BLOCKED"
+            out["availability_status"] = "optional_blocked"
+            out["blocks_demo_activation"] = False
             if not out["non_blocking_reason"]:
                 out["non_blocking_reason"] = (
-                    f"Optional/backup model failed (role={role}) - non-blocking for v2.8.4 "
-                    "release gate since model is not wired into active runtime inference chain."
+                    f"Optional/backup model failed (role={role}) - non-blocking for v2.8.5 "
+                    "demo activation since model is not wired into active runtime inference chain."
                 )
     else:
         # PASS or PASS_WITH_WARNINGS - never blocks
         out["required_failure"] = False
         out["blocking_reason"] = ""
+        out["blocks_demo_activation"] = False
+        # Set availability_status based on role
+        if role == "advisory_unavailable":
+            out["availability_status"] = "advisory_unavailable"
+        elif role == "backup_unavailable":
+            out["availability_status"] = "backup_unavailable"
+        else:
+            out["availability_status"] = "available"
 
     return out
 
@@ -802,6 +863,14 @@ def run_audit() -> dict:
     # v2.8.4 allowed: True only if no required model failed
     v2_8_4_allowed = (failed_required == 0)
 
+    # v2.8.5-C: Add freshness metadata
+    from titan.production.audit_hygiene import make_freshness_metadata, detect_environment_mode
+    freshness = make_freshness_metadata(
+        audit_name="model_artifact_health_audit",
+        source_mode="production",
+        environment_mode=detect_environment_mode(),
+    )
+
     return {
         "timestamp_utc": ts,
         "verdict": verdict,
@@ -812,6 +881,12 @@ def run_audit() -> dict:
         "per_model_results": per_model,
         "active_model_count": len(discovered),
         "failed_model_count": failed_required,
+        # v2.8.5-C: freshness metadata
+        "generated_at_utc": freshness["generated_at_utc"],
+        "git_commit": freshness["git_commit"],
+        "audit_name": freshness["audit_name"],
+        "source_mode": freshness["source_mode"],
+        "environment_mode": freshness["environment_mode"],
         "failed_required_model_count": failed_required,
         "failed_optional_model_count": failed_optional,
         "blocked_required_models": blocked_required_models,

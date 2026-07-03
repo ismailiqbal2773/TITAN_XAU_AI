@@ -68,6 +68,16 @@ def _restore(backups):
 
 def _write_json(path: Path, data: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
+    # v2.8.5-C: Add freshness metadata to all seeded audit JSONs so production
+    # closure freshness validation passes
+    from datetime import datetime, timezone
+    from titan.production.audit_hygiene import get_git_commit
+    if "generated_at_utc" not in data and "verdict" in data:
+        data["generated_at_utc"] = datetime.now(timezone.utc).isoformat()
+        data["git_commit"] = get_git_commit() or "test_commit"
+        data["source_mode"] = "production"
+        data["audit_name"] = path.stem
+        data["environment_mode"] = "test"
     with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f)
 

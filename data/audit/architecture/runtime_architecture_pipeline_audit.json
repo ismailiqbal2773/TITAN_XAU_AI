@@ -1,0 +1,216 @@
+{
+  "timestamp_utc": "2026-07-03T07:05:16.852933+00:00",
+  "verdict": "RUNTIME_ARCHITECTURE_PIPELINE_PASS_WITH_WARNINGS",
+  "ok_checks": [
+    "No raw XGB-to-execution bypass",
+    "Token gate present: OPERATOR_ARM_TOKEN_REQUIRED",
+    "No martingale/grid/averaging/loss multiplier",
+    "FeatureStream: PASS",
+    "Regime_Context_Intelligence: PASS",
+    "XGBoost_alpha_direction_specialist: PASS",
+    "Meta_label_quality_filter: PASS",
+    "CEO_AI_Governance: PASS",
+    "Risk_Gate: PASS",
+    "Prop_Firm_Gate: PASS",
+    "Broker_Gate: PASS",
+    "Geometry_Gate: PASS",
+    "Execution_Gate: PASS",
+    "Capital_Protection: PASS"
+  ],
+  "blockers": [],
+  "warnings": [
+    "LSTM_TORCH_UNAVAILABLE: PyTorch not installed - LSTM advisory only",
+    "TRANSFORMER_TORCH_UNAVAILABLE: PyTorch not installed - Transformer advisory only",
+    "CEO_AI_GOVERNANCE_NOT_IMPORTED_BY_RUNTIME: module exists but not imported by trade loop / operator script - integration pending",
+    "CEO_AI_GOVERNANCE_NOT_INTEGRATED: operator script does not import/call ceo_ai_governance - execution may proceed without CEO meta-decision"
+  ],
+  "findings": {
+    "components": {
+      "FeatureStream": {
+        "exists": true,
+        "imported_by_runtime": true,
+        "called_before_execution": true,
+        "required_for_trade_decision": true,
+        "fail_closed_if_missing": true,
+        "evidence_file": "titan/production/feature_stream.py",
+        "evidence_class_or_function": "H1FeatureStream, FEATURE_NAMES",
+        "imported_by": [
+          "autonomous_loops.py"
+        ],
+        "verdict": "PASS"
+      },
+      "Regime_Context_Intelligence": {
+        "exists": true,
+        "imported_by_runtime": true,
+        "called_before_execution": true,
+        "required_for_trade_decision": true,
+        "fail_closed_if_missing": true,
+        "evidence_file": "titan/production/alpha_regime_entry_decision.py",
+        "evidence_class_or_function": "evaluate_entry, AlphaRegimeEntryDecision",
+        "imported_by": [
+          "run_managed_demo_micro_trade.py",
+          "autonomous_loops.py"
+        ],
+        "verdict": "PASS"
+      },
+      "XGBoost_alpha_direction_specialist": {
+        "exists": true,
+        "imported_by_runtime": true,
+        "called_before_execution": true,
+        "required_for_trade_decision": true,
+        "fail_closed_if_missing": true,
+        "evidence_file": "titan/production/model_loader.py",
+        "evidence_class_or_function": "load_production_models, InferenceEngine, XGBClassifier",
+        "imported_by": [
+          "trade_loop.py",
+          "autonomous_loops.py"
+        ],
+        "verdict": "PASS"
+      },
+      "LSTM_sequential_confidence_specialist": {
+        "exists": true,
+        "imported_by_runtime": false,
+        "called_before_execution": false,
+        "required_for_trade_decision": false,
+        "fail_closed_if_missing": false,
+        "evidence_file": "titan/data/models/lstm_v1.pt",
+        "evidence_class_or_function": "lstm_v1.pt (PyTorch checkpoint)",
+        "availability_status": "advisory_unavailable",
+        "verdict": "PASS_WITH_WARNINGS"
+      },
+      "Transformer_regime_intelligence_specialist": {
+        "exists": true,
+        "imported_by_runtime": false,
+        "called_before_execution": false,
+        "required_for_trade_decision": false,
+        "fail_closed_if_missing": false,
+        "evidence_file": "titan/data/models/transformer_v1.pt",
+        "evidence_class_or_function": "transformer_v1.pt (PyTorch checkpoint)",
+        "availability_status": "advisory_unavailable",
+        "verdict": "PASS_WITH_WARNINGS"
+      },
+      "Meta_label_quality_filter": {
+        "exists": true,
+        "imported_by_runtime": true,
+        "called_before_execution": true,
+        "required_for_trade_decision": true,
+        "fail_closed_if_missing": true,
+        "evidence_file": "titan/data/models/meta_label_v2_context.pkl",
+        "evidence_class_or_function": "meta_label_v2_context.pkl, LogisticRegression, extract_meta_features",
+        "verdict": "PASS"
+      },
+      "CEO_AI_Governance": {
+        "exists": true,
+        "imported_by_runtime": false,
+        "called_before_execution": false,
+        "required_for_trade_decision": true,
+        "fail_closed_if_missing": true,
+        "evidence_file": "titan/production/ceo_ai_governance.py",
+        "evidence_class_or_function": "evaluate_ceo_decision, CEOAIDecision",
+        "imported_by": [],
+        "verdict": "PASS"
+      },
+      "Risk_Gate": {
+        "exists": true,
+        "imported_by_runtime": true,
+        "called_before_execution": true,
+        "required_for_trade_decision": true,
+        "fail_closed_if_missing": true,
+        "evidence_file": "titan/production/margin_leverage_guard.py",
+        "evidence_class_or_function": "MarginLeverageGuard",
+        "verdict": "PASS"
+      },
+      "Prop_Firm_Gate": {
+        "exists": true,
+        "imported_by_runtime": true,
+        "called_before_execution": true,
+        "required_for_trade_decision": true,
+        "fail_closed_if_missing": true,
+        "evidence_file": "titan/production/prop_firm_rule_engine.py",
+        "evidence_class_or_function": "PropFirmRuleEngine",
+        "verdict": "PASS"
+      },
+      "Broker_Gate": {
+        "exists": true,
+        "imported_by_runtime": true,
+        "called_before_execution": true,
+        "required_for_trade_decision": true,
+        "fail_closed_if_missing": true,
+        "evidence_file": "titan/production/broker_scoring_engine.py",
+        "evidence_class_or_function": "BrokerScoringEngine",
+        "verdict": "PASS"
+      },
+      "Geometry_Gate": {
+        "exists": true,
+        "imported_by_runtime": true,
+        "called_before_execution": true,
+        "required_for_trade_decision": true,
+        "fail_closed_if_missing": true,
+        "evidence_file": "titan/production/demo_micro_order_builder.py",
+        "evidence_class_or_function": "DemoMicroOrderBuilder",
+        "verdict": "PASS"
+      },
+      "Execution_Gate": {
+        "exists": true,
+        "imported_by_runtime": true,
+        "called_before_execution": true,
+        "required_for_trade_decision": true,
+        "fail_closed_if_missing": true,
+        "evidence_file": "scripts/operator/run_managed_demo_micro_trade.py",
+        "evidence_class_or_function": "run_execute_and_monitor, OPERATOR_ARM_TOKEN_REQUIRED",
+        "token_gate_present": true,
+        "verdict": "PASS"
+      },
+      "AI_Exit_Intelligence": {
+        "exists": true,
+        "imported_by_runtime": true,
+        "called_before_execution": false,
+        "required_for_trade_decision": false,
+        "fail_closed_if_missing": false,
+        "evidence_file": "titan/production/ai_exit_engine.py",
+        "evidence_class_or_function": "AIExitEngine",
+        "verdict": "PASS"
+      },
+      "Capital_Protection": {
+        "exists": true,
+        "imported_by_runtime": true,
+        "called_before_execution": true,
+        "required_for_trade_decision": true,
+        "fail_closed_if_missing": true,
+        "evidence_file": "titan/production/capital_protection.py",
+        "evidence_class_or_function": "CapitalProtection",
+        "verdict": "PASS"
+      }
+    },
+    "required_components": [
+      "FeatureStream",
+      "Regime_Context_Intelligence",
+      "XGBoost_alpha_direction_specialist",
+      "Meta_label_quality_filter",
+      "CEO_AI_Governance",
+      "Risk_Gate",
+      "Prop_Firm_Gate",
+      "Broker_Gate",
+      "Geometry_Gate",
+      "Execution_Gate",
+      "Capital_Protection"
+    ],
+    "advisory_components": [
+      "LSTM_sequential_confidence_specialist",
+      "Transformer_regime_intelligence_specialist",
+      "AI_Exit_Intelligence"
+    ],
+    "required_components_failed": 0,
+    "advisory_components_warned": 2
+  },
+  "generated_at_utc": "2026-07-03T07:05:16.953075+00:00",
+  "git_commit": "50fd71c61e66455bd47cb7e17551da7fda8f2ee1",
+  "audit_name": "runtime_architecture_pipeline_audit",
+  "source_mode": "production",
+  "environment_mode": "linux_zai",
+  "safety": {
+    "order_send_called": false,
+    "position_modified": false,
+    "token_created": false
+  }
+}

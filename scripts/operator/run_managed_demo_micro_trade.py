@@ -1230,14 +1230,21 @@ def run_build_request(direction: str = "BUY", entry_price: float = 2000.0,
         )
 
         # === Sprint v2.8.4: Prop Challenge Growth Profile ===
+        # v2.8.5-C: Load growth profile values from CONFIG (source of truth),
+        # not from audit JSON which may be polluted by tests.
+        from titan.production.audit_hygiene import load_growth_profile_config
         growth_profile_path = REPO_ROOT / "data" / "audit" / "prop_challenge_growth" / "prop_challenge_growth_profile_audit.json"
         result["latest_growth_profile_verdict"] = ""
         result["growth_profile_pass"] = False
         result["growth_profile_name"] = ""
-        result["growth_monthly_target_pct"] = 0.0
-        result["growth_daily_dd_soft_limit_pct"] = 0.0
-        result["growth_daily_dd_hard_limit_pct"] = 0.0
-        result["growth_total_dd_limit_pct"] = 0.0
+        # v2.8.5-C: Read values from CONFIG directly (never default to 0.0)
+        gp_config = load_growth_profile_config()
+        result["growth_monthly_target_pct"] = gp_config["monthly_target_pct"]
+        result["growth_daily_dd_soft_limit_pct"] = gp_config["daily_dd_soft_limit_pct"]
+        result["growth_daily_dd_hard_limit_pct"] = gp_config["daily_dd_hard_limit_pct"]
+        result["growth_total_dd_limit_pct"] = gp_config["max_total_dd_pct"]
+        result["growth_profile_config_valid"] = gp_config["valid"]
+        result["growth_profile_config_errors"] = gp_config["errors"]
         result["growth_profile_allowed"] = False
         if growth_profile_path.exists():
             try:
@@ -1246,14 +1253,12 @@ def run_build_request(direction: str = "BUY", entry_price: float = 2000.0,
                 result["latest_growth_profile_verdict"] = gp.get("verdict", "") or ""
                 result["growth_profile_pass"] = result["latest_growth_profile_verdict"] == "PROP_CHALLENGE_GROWTH_PROFILE_PASS"
                 result["growth_profile_name"] = gp.get("profile_name", "") or ""
-                gp_findings = gp.get("findings", {}) or {}
-                result["growth_monthly_target_pct"] = float(gp_findings.get("monthly_target_pct", 0) or 0)
-                result["growth_daily_dd_soft_limit_pct"] = float(gp_findings.get("daily_dd_soft_limit_pct", 0) or 0)
-                result["growth_daily_dd_hard_limit_pct"] = float(gp_findings.get("daily_dd_hard_limit_pct", 0) or 0)
-                result["growth_total_dd_limit_pct"] = float(gp_findings.get("max_total_dd_pct", 0) or 0)
                 # growth_profile_allowed: True only if profile passes AND v2.8.4 allowed
+                # AND config values are valid (not 0.0)
                 result["growth_profile_allowed"] = (
-                    result["growth_profile_pass"] and result["v2_8_4_allowed"]
+                    result["growth_profile_pass"]
+                    and result["v2_8_4_allowed"]
+                    and result["growth_profile_config_valid"]
                 )
             except Exception:
                 pass
@@ -1284,6 +1289,37 @@ def run_build_request(direction: str = "BUY", entry_price: float = 2000.0,
                 result["pending_orders_count"] = int(mt5_env.get("pending_xauusd_orders", 0))
                 token_info = fa_findings.get("operator_token", {}) or {}
                 result["stale_token_detected"] = bool(token_info.get("stale", False))
+            except Exception:
+                pass
+
+        # === Sprint v2.8.5-C: Runtime Architecture Pipeline + CEO Governance ===
+        arch_pipeline_path = REPO_ROOT / "data" / "audit" / "architecture" / "runtime_architecture_pipeline_audit.json"
+        result["latest_runtime_architecture_pipeline_verdict"] = ""
+        result["runtime_architecture_pipeline_pass"] = False
+        if arch_pipeline_path.exists():
+            try:
+                with open(arch_pipeline_path, "r", encoding="utf-8") as f:
+                    ap = json.load(f)
+                result["latest_runtime_architecture_pipeline_verdict"] = ap.get("verdict", "") or ""
+                result["runtime_architecture_pipeline_pass"] = result["latest_runtime_architecture_pipeline_verdict"] in (
+                    "RUNTIME_ARCHITECTURE_PIPELINE_PASS",
+                    "RUNTIME_ARCHITECTURE_PIPELINE_PASS_WITH_WARNINGS",
+                )
+            except Exception:
+                pass
+
+        ceo_gov_path = REPO_ROOT / "data" / "audit" / "architecture" / "ceo_ai_governance_audit.json"
+        result["latest_ceo_ai_governance_verdict"] = ""
+        result["ceo_ai_governance_pass"] = False
+        if ceo_gov_path.exists():
+            try:
+                with open(ceo_gov_path, "r", encoding="utf-8") as f:
+                    cg = json.load(f)
+                result["latest_ceo_ai_governance_verdict"] = cg.get("verdict", "") or ""
+                result["ceo_ai_governance_pass"] = result["latest_ceo_ai_governance_verdict"] in (
+                    "CEO_AI_GOVERNANCE_PASS",
+                    "CEO_AI_GOVERNANCE_PASS_WITH_WARNINGS",
+                )
             except Exception:
                 pass
 
@@ -3057,6 +3093,14 @@ def main() -> int:
         print(f"  final_demo_activation_allowed: {result.get('final_demo_activation_allowed', False)}")
         print(f"  execution_now_allowed: {result.get('execution_now_allowed', False)}")
         print(f"  execution_blocker: {result.get('execution_blocker', 'OPERATOR_ARM_TOKEN_REQUIRED')}")
+
+        # === Sprint v2.8.5-C: Runtime Architecture + CEO Governance display ===
+        print()
+        print("  " + "-" * 66)
+        print("  v2.8.5-C Runtime Architecture + CEO Governance")
+        print("  " + "-" * 66)
+        print(f"  Runtime architecture pipeline: {result.get('latest_runtime_architecture_pipeline_verdict', 'N/A')}")
+        print(f"  CEO AI governance: {result.get('latest_ceo_ai_governance_verdict', 'N/A')}")
 
     # === Sprint v2.8: autonomous-entry-check console output ===
     if getattr(args, "autonomous_entry_check", False):

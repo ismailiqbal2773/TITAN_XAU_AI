@@ -67,6 +67,15 @@ def _restore(backups):
 
 def _write_json(path: Path, data: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
+    # v2.8.5-C: Add freshness metadata to all seeded audit JSONs
+    from datetime import datetime, timezone
+    from titan.production.audit_hygiene import get_git_commit
+    if "generated_at_utc" not in data and "verdict" in data:
+        data["generated_at_utc"] = datetime.now(timezone.utc).isoformat()
+        data["git_commit"] = get_git_commit() or "test_commit"
+        data["source_mode"] = "production"
+        data["audit_name"] = path.stem
+        data["environment_mode"] = "test"
     with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f)
 
@@ -87,7 +96,7 @@ class TestModelHealthClassificationReconciliation:
             mock_disc.return_value = [{
                 "name": "broken_xgb",
                 "path": "/nonexistent/xgb.pkl",
-                "role": "active_primary",
+                "role": "alpha_direction_specialist",
                 "config_key": "xgb_path",
                 "non_blocking_reason": "",
             }]
@@ -99,16 +108,16 @@ class TestModelHealthClassificationReconciliation:
         assert result["blocked_required_models"][0]["name"] == "broken_xgb"
 
     def test_02_ensemble_member_blocked_causes_overall_blocked(self):
-        """If an ensemble_member model fails -> overall verdict MUST be BLOCKED.
+        """If a required model (meta_label_quality_filter) fails -> overall verdict MUST be BLOCKED.
 
-        v2.8.3.3.1: ensemble_member is REQUIRED for runtime.
+        v2.8.5-C: required roles are alpha_direction_specialist and meta_label_quality_filter.
         """
         import scripts.audit.model_artifact_health_audit as m
         with patch.object(m, '_discover_active_models') as mock_disc:
             mock_disc.return_value = [{
-                "name": "broken_ensemble",
-                "path": "/nonexistent/ensemble.pkl",
-                "role": "ensemble_member",  # required!
+                "name": "broken_meta",
+                "path": "/nonexistent/meta.pkl",
+                "role": "meta_label_quality_filter",  # required!
                 "config_key": "",
                 "non_blocking_reason": "",
             }]
@@ -159,9 +168,9 @@ class TestModelHealthClassificationReconciliation:
         with patch.object(m, '_discover_active_models') as mock_disc:
             mock_disc.return_value = [
                 {"name": "ok_xgb", "path": str(REPO_ROOT / "titan" / "data" / "models" / "xgboost_v1.pkl"),
-                 "role": "active_primary", "config_key": "xgb_path", "non_blocking_reason": ""},
+                 "role": "alpha_direction_specialist", "config_key": "xgb_path", "non_blocking_reason": ""},
                 {"name": "broken_meta", "path": "/nonexistent/meta.pkl",
-                 "role": "active_primary", "config_key": "meta_path", "non_blocking_reason": ""},
+                 "role": "alpha_direction_specialist", "config_key": "meta_path", "non_blocking_reason": ""},
             ]
             result = m.run_audit()
         per_model_required_failures = sum(
@@ -178,7 +187,7 @@ class TestModelHealthClassificationReconciliation:
         with patch.object(m, '_discover_active_models') as mock_disc:
             mock_disc.return_value = [
                 {"name": "broken_xgb", "path": "/nonexistent/xgb.pkl",
-                 "role": "active_primary", "config_key": "xgb_path", "non_blocking_reason": ""},
+                 "role": "alpha_direction_specialist", "config_key": "xgb_path", "non_blocking_reason": ""},
                 {"name": "optional_challenger", "path": "/nonexistent/optional.pkl",
                  "role": "optional", "config_key": "", "non_blocking_reason": "non-blocking"},
             ]
@@ -202,17 +211,18 @@ class TestModelHealthClassificationReconciliation:
             assert "non_blocking_reason" in r
 
     def test_08_lightgbm_v1_classified_as_optional_not_ensemble_member(self):
-        """lightgbm_v1 MUST be classified as 'optional' (challenger), not 'ensemble_member'.
+        """lightgbm_v1 MUST be classified as 'optional_challenger' (not required).
 
-        This is the root cause fix for the v2.8.3.3.1 reconciliation.
-        Per scripts/titan_audit_report.py: 'Not in F8 inference chain'.
+        v2.8.5-C: LightGBM is 'optional_challenger' (frozen challenger, not in
+        active runtime inference chain). Per scripts/titan_audit_report.py:
+        'Not in F8 inference chain'.
         """
         import scripts.audit.model_artifact_health_audit as m
         result = m.run_audit()
         lgbm = [r for r in result["per_model_results"] if r["name"] == "lightgbm_v1"]
         assert lgbm, "lightgbm_v1 must be discovered"
-        assert lgbm[0]["model_role"] == "optional", \
-            f"lightgbm_v1 must be 'optional', got '{lgbm[0]['model_role']}'"
+        assert lgbm[0]["model_role"] == "optional_challenger", \
+            f"lightgbm_v1 must be 'optional_challenger', got '{lgbm[0]['model_role']}'"
         assert lgbm[0]["required_for_runtime"] is False
         assert lgbm[0]["non_blocking_reason"], \
             "lightgbm_v1 must have non_blocking_reason explaining why it's optional"
@@ -253,7 +263,7 @@ class TestProductionClosureReconciliation:
             "verdict": "MODEL_ARTIFACT_HEALTH_BLOCKED",
             "active_model_count": 2, "failed_required_model_count": 1,
             "failed_optional_model_count": 0,
-            "blocked_required_models": [{"name": "broken", "role": "active_primary"}],
+            "blocked_required_models": [{"name": "broken", "role": "alpha_direction_specialist"}],
             "warned_optional_models": [], "v2_8_4_allowed": False,
         })
         _write_json(FP_PATH, {"verdict": "FEATURE_PARITY_PASS"})
@@ -312,7 +322,7 @@ class TestBuildRequestReconciliation:
             "verdict": "MODEL_ARTIFACT_HEALTH_BLOCKED",
             "active_model_count": 2, "failed_required_model_count": 1,
             "failed_optional_model_count": 0,
-            "blocked_required_models": [{"name": "broken_xgb", "role": "active_primary"}],
+            "blocked_required_models": [{"name": "broken_xgb", "role": "alpha_direction_specialist"}],
             "warned_optional_models": [], "v2_8_4_allowed": False,
         })
         _write_json(FP_PATH, {"verdict": "FEATURE_PARITY_PASS"})

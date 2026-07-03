@@ -615,28 +615,59 @@ def run_audit() -> dict:
         ok_checks.append("v2.8.4 release gate: ALLOWED (all 3 CTO gates pass)")
 
     # === Sprint v2.8.4: Prop Challenge Growth Profile Audit ===
+    # v2.8.5-C: Load growth profile values from CONFIG (source of truth),
+    # not from audit JSON which may be polluted by tests.
+    from titan.production.audit_hygiene import (
+        load_growth_profile_config, validate_artifact_freshness, get_git_commit,
+        make_freshness_metadata, detect_environment_mode,
+    )
+    current_commit = get_git_commit()
+    freshness = make_freshness_metadata(
+        audit_name="production_closure_readiness_audit",
+        source_mode="production",
+        environment_mode=detect_environment_mode(),
+    )
     growth_profile_path = REPO_ROOT / "data" / "audit" / "prop_challenge_growth" / "prop_challenge_growth_profile_audit.json"
     latest_growth_profile_verdict = ""
     growth_profile_pass = False
     growth_profile_name = ""
-    monthly_target_pct = 0.0
-    daily_dd_soft = 0.0
-    daily_dd_hard = 0.0
-    total_dd_limit = 0.0
-    if growth_profile_path.exists():
+    # v2.8.5-C: Read values from CONFIG directly (never default to 0.0 from missing audit)
+    gp_config = load_growth_profile_config()
+    monthly_target_pct = gp_config["monthly_target_pct"]
+    daily_dd_soft = gp_config["daily_dd_soft_limit_pct"]
+    daily_dd_hard = gp_config["daily_dd_hard_limit_pct"]
+    total_dd_limit = gp_config["max_total_dd_pct"]
+    growth_profile_config_valid = gp_config["valid"]
+    growth_profile_config_errors = gp_config["errors"]
+    # Read verdict from audit JSON (with freshness validation)
+    gp_freshness = validate_artifact_freshness(
+        growth_profile_path, "prop_challenge_growth_profile_audit", current_commit
+    )
+    if gp_freshness["exists"] and gp_freshness["fresh"]:
         try:
             with open(growth_profile_path, "r", encoding="utf-8") as f:
                 gp_data = json.load(f)
             latest_growth_profile_verdict = gp_data.get("verdict", "") or ""
             growth_profile_pass = latest_growth_profile_verdict == "PROP_CHALLENGE_GROWTH_PROFILE_PASS"
             growth_profile_name = gp_data.get("profile_name", "") or ""
-            gp_findings = gp_data.get("findings", {}) or {}
-            monthly_target_pct = float(gp_findings.get("monthly_target_pct", 0) or 0)
-            daily_dd_soft = float(gp_findings.get("daily_dd_soft_limit_pct", 0) or 0)
-            daily_dd_hard = float(gp_findings.get("daily_dd_hard_limit_pct", 0) or 0)
-            total_dd_limit = float(gp_findings.get("max_total_dd_pct", 0) or 0)
         except Exception:
             pass
+    elif gp_freshness["exists"] and not gp_freshness["fresh"]:
+        # Stale/test-mode/commit-mismatch artifact - do NOT use for readiness
+        warnings.append(
+            f"GROWTH_PROFILE_AUDIT_STALE: {gp_freshness['reason']} - "
+            "run scripts/audit/prop_challenge_growth_profile_audit.py to regenerate"
+        )
+    # else: artifact missing - warning below
+
+    # v2.8.5-C: Block if growth profile config is invalid (missing/zero values)
+    if not growth_profile_config_valid:
+        for err in growth_profile_config_errors:
+            blockers.append(err)
+    findings["growth_profile_config_valid"] = growth_profile_config_valid
+    findings["growth_profile_config_errors"] = growth_profile_config_errors
+    findings["growth_profile_artifact_fresh"] = gp_freshness["fresh"]
+    findings["growth_profile_artifact_stale_reason"] = gp_freshness["reason"]
     findings["latest_growth_profile_verdict"] = latest_growth_profile_verdict
     findings["growth_profile_pass"] = growth_profile_pass
     findings["growth_profile_name"] = growth_profile_name
@@ -645,7 +676,12 @@ def run_audit() -> dict:
     findings["growth_daily_dd_hard_limit_pct"] = daily_dd_hard
     findings["growth_total_dd_limit_pct"] = total_dd_limit
     # growth_profile_allowed: True only if profile passes AND v2.8.4 allowed
-    growth_profile_allowed = growth_profile_pass and v2833_release_gate_pass
+    # AND config values are valid (not 0.0)
+    growth_profile_allowed = (
+        growth_profile_pass
+        and v2833_release_gate_pass
+        and growth_profile_config_valid
+    )
     findings["growth_profile_allowed"] = growth_profile_allowed
     if latest_growth_profile_verdict == "PROP_CHALLENGE_GROWTH_PROFILE_BLOCKED":
         blockers.append("GROWTH_PROFILE_BLOCKED: PROP_CHALLENGE_GROWTH_30_8 profile audit failed")
@@ -653,6 +689,12 @@ def run_audit() -> dict:
         warnings.append("GROWTH_PROFILE_AUDIT_MISSING: prop_challenge_growth_profile_audit.json not found - run scripts/audit/prop_challenge_growth_profile_audit.py")
     elif latest_growth_profile_verdict == "PROP_CHALLENGE_GROWTH_PROFILE_PASS":
         ok_checks.append(f"Growth profile {growth_profile_name}: PASS")
+    # v2.8.5-C: Verify growth profile values are non-zero (never display 0.0)
+    if monthly_target_pct == 0.0 or daily_dd_soft == 0.0 or daily_dd_hard == 0.0 or total_dd_limit == 0.0:
+        blockers.append(
+            "GROWTH_PROFILE_CONFIG_INVALID: monthly_target/daily_dd/total_dd values are zero or missing "
+            "from config/prop_challenge_growth_profile.yaml"
+        )
 
     # === Sprint v2.8.5: Final Demo Activation Readiness Audit ===
     final_activation_path = REPO_ROOT / "data" / "audit" / "final_demo_activation" / "final_demo_activation_readiness_audit.json"
@@ -694,11 +736,86 @@ def run_audit() -> dict:
     findings["stale_token_detected"] = stale_token_detected
     findings["final_activation_execution_blocker"] = final_activation_execution_blocker
     if latest_final_demo_activation_verdict == "FINAL_DEMO_ACTIVATION_BLOCKED":
-        blockers.append("FINAL_DEMO_ACTIVATION_BLOCKED: final demo activation readiness audit failed")
+        # v2.8.5-C: Only block if final activation has REAL blockers (not circular dependency)
+        # Final activation reads production closure, so if production closure has its own
+        # blockers, don't add FINAL_DEMO_ACTIVATION_BLOCKED as an additional blocker.
+        # Only add if final activation has independent blockers (MT5, account, token, etc.)
+        fa_findings = fa_data.get("findings", {}) or {}
+        fa_blockers = fa_data.get("blockers", []) or []
+        # Filter out circular dependency blockers
+        non_circular_blockers = [
+            b for b in fa_blockers
+            if "PRODUCTION_CLOSURE_NOT_READY" not in b
+            and "BUILD_REQUEST_NOT_PASS" not in b
+            and "AUDIT_ARTIFACT_STALE" not in b
+        ]
+        if non_circular_blockers:
+            blockers.append(
+                f"FINAL_DEMO_ACTIVATION_BLOCKED: final demo activation has independent blockers: "
+                + "; ".join(non_circular_blockers[:3])
+            )
+        else:
+            warnings.append(
+                "FINAL_DEMO_ACTIVATION_BLOCKED: due to circular dependency with production closure "
+                "(non-blocking - resolve production closure blockers first)"
+            )
     elif latest_final_demo_activation_verdict == "":
         warnings.append("FINAL_DEMO_ACTIVATION_AUDIT_MISSING: final_demo_activation_readiness_audit.json not found - run scripts/audit/final_demo_activation_readiness_audit.py")
     elif latest_final_demo_activation_verdict == "FINAL_DEMO_ACTIVATION_READY_SUPERVISED":
         ok_checks.append("Final demo activation: READY_SUPERVISED")
+    elif latest_final_demo_activation_verdict == "FINAL_DEMO_ACTIVATION_OPERATOR_WINDOWS_REQUIRED":
+        warnings.append(
+            "FINAL_DEMO_ACTIVATION_OPERATOR_WINDOWS_REQUIRED: non-Windows/no-MT5 environment "
+            "- operator must run on Windows MetaQuotes-Demo for full READY_SUPERVISED"
+        )
+
+    # === Sprint v2.8.5-C: Runtime Architecture Pipeline Audit ===
+    arch_pipeline_path = REPO_ROOT / "data" / "audit" / "architecture" / "runtime_architecture_pipeline_audit.json"
+    latest_runtime_architecture_pipeline_verdict = ""
+    arch_pipeline_pass = False
+    if arch_pipeline_path.exists():
+        try:
+            with open(arch_pipeline_path, "r", encoding="utf-8") as f:
+                ap_data = json.load(f)
+            latest_runtime_architecture_pipeline_verdict = ap_data.get("verdict", "") or ""
+            arch_pipeline_pass = latest_runtime_architecture_pipeline_verdict in (
+                "RUNTIME_ARCHITECTURE_PIPELINE_PASS",
+                "RUNTIME_ARCHITECTURE_PIPELINE_PASS_WITH_WARNINGS",
+            )
+        except Exception:
+            pass
+    findings["latest_runtime_architecture_pipeline_verdict"] = latest_runtime_architecture_pipeline_verdict
+    findings["runtime_architecture_pipeline_pass"] = arch_pipeline_pass
+    if latest_runtime_architecture_pipeline_verdict == "RUNTIME_ARCHITECTURE_PIPELINE_BLOCKED":
+        blockers.append("RUNTIME_ARCHITECTURE_PIPELINE_BLOCKED: architecture pipeline audit failed")
+    elif latest_runtime_architecture_pipeline_verdict == "":
+        warnings.append("RUNTIME_ARCHITECTURE_PIPELINE_AUDIT_MISSING: run scripts/audit/runtime_architecture_pipeline_audit.py")
+    elif arch_pipeline_pass:
+        ok_checks.append(f"Runtime architecture pipeline: {latest_runtime_architecture_pipeline_verdict}")
+
+    # === Sprint v2.8.5-C: CEO AI Governance Audit ===
+    ceo_gov_path = REPO_ROOT / "data" / "audit" / "architecture" / "ceo_ai_governance_audit.json"
+    latest_ceo_ai_governance_verdict = ""
+    ceo_gov_pass = False
+    if ceo_gov_path.exists():
+        try:
+            with open(ceo_gov_path, "r", encoding="utf-8") as f:
+                cg_data = json.load(f)
+            latest_ceo_ai_governance_verdict = cg_data.get("verdict", "") or ""
+            ceo_gov_pass = latest_ceo_ai_governance_verdict in (
+                "CEO_AI_GOVERNANCE_PASS",
+                "CEO_AI_GOVERNANCE_PASS_WITH_WARNINGS",
+            )
+        except Exception:
+            pass
+    findings["latest_ceo_ai_governance_verdict"] = latest_ceo_ai_governance_verdict
+    findings["ceo_ai_governance_pass"] = ceo_gov_pass
+    if latest_ceo_ai_governance_verdict == "CEO_AI_GOVERNANCE_BLOCKED":
+        blockers.append("CEO_AI_GOVERNANCE_BLOCKED: CEO AI governance audit failed")
+    elif latest_ceo_ai_governance_verdict == "":
+        warnings.append("CEO_AI_GOVERNANCE_AUDIT_MISSING: run scripts/audit/ceo_ai_governance_audit.py")
+    elif ceo_gov_pass:
+        ok_checks.append(f"CEO AI governance: {latest_ceo_ai_governance_verdict}")
 
     # Sprint v2.8.3.3: SUPERVISED_READY requires all 3 CTO gates to pass.
     # If any gate is blocked, downgrade SUPERVISED_READY -> BLOCKED so v2.8.4 cannot start.
@@ -922,6 +1039,17 @@ def run_audit() -> dict:
         "pending_orders_count": pending_orders_count,
         "stale_token_detected": stale_token_detected,
         "final_activation_execution_blocker": final_activation_execution_blocker,
+        # v2.8.5-C: Runtime Architecture + CEO Governance fields
+        "latest_runtime_architecture_pipeline_verdict": latest_runtime_architecture_pipeline_verdict,
+        "runtime_architecture_pipeline_pass": arch_pipeline_pass,
+        "latest_ceo_ai_governance_verdict": latest_ceo_ai_governance_verdict,
+        "ceo_ai_governance_pass": ceo_gov_pass,
+        # v2.8.5-C: freshness metadata for audit hygiene
+        "generated_at_utc": freshness["generated_at_utc"],
+        "git_commit": current_commit,
+        "audit_name": freshness["audit_name"],
+        "source_mode": freshness["source_mode"],
+        "environment_mode": freshness["environment_mode"],
         "safety": {
             "order_send_called": False,
             "position_modified": False,
@@ -1000,6 +1128,14 @@ def write_report(result: dict) -> dict:
         f.write(f"| stale_token_detected | {result.get('stale_token_detected', False)} |\n")
         f.write(f"| final_activation_execution_blocker | {result.get('final_activation_execution_blocker', '')} |\n\n")
 
+        # v2.8.5-C: Runtime Architecture + CEO Governance section
+        f.write("## Runtime Architecture + CEO Governance (v2.8.5-C)\n\n")
+        f.write("| Field | Value |\n|---|---|\n")
+        f.write(f"| latest_runtime_architecture_pipeline_verdict | {result.get('latest_runtime_architecture_pipeline_verdict', '')} |\n")
+        f.write(f"| runtime_architecture_pipeline_pass | {result.get('runtime_architecture_pipeline_pass', False)} |\n")
+        f.write(f"| latest_ceo_ai_governance_verdict | {result.get('latest_ceo_ai_governance_verdict', '')} |\n")
+        f.write(f"| ceo_ai_governance_pass | {result.get('ceo_ai_governance_pass', False)} |\n\n")
+
         f.write("## Score Breakdown\n\n")
         f.write("| Category | Score |\n|---|---|\n")
         for k, v in result.get("score_breakdown", {}).items():
@@ -1064,6 +1200,10 @@ def main() -> int:
     print(f"  Pending orders count: {result.get('pending_orders_count', 0)}")
     print(f"  Stale token detected: {result.get('stale_token_detected', False)}")
     print(f"  Final demo activation allowed: {result.get('final_demo_activation_allowed', False)}")
+    # v2.8.5-C: Runtime Architecture + CEO Governance
+    print(f"\n  --- v2.8.5-C Runtime Architecture + CEO Governance ---")
+    print(f"  Runtime architecture pipeline: {result.get('latest_runtime_architecture_pipeline_verdict', '')}")
+    print(f"  CEO AI governance: {result.get('latest_ceo_ai_governance_verdict', '')}")
     if result.get("blockers"):
         print("\n  Blockers:")
         for b in result["blockers"]:
