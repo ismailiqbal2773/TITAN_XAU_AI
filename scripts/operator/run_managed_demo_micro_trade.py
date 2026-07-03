@@ -1162,7 +1162,11 @@ def run_build_request(direction: str = "BUY", entry_price: float = 2000.0,
         mh_path = model_health_dir / "model_artifact_health_audit.json"
         result["latest_model_health_verdict"] = ""
         result["active_model_count"] = 0
-        result["failed_model_count"] = 0
+        result["failed_required_model_count"] = 0
+        result["failed_optional_model_count"] = 0
+        result["failed_model_count"] = 0  # backwards-compat
+        result["blocked_required_models"] = []
+        result["warned_optional_models"] = []
         result["model_health_pass"] = False
         if mh_path.exists():
             try:
@@ -1170,9 +1174,22 @@ def run_build_request(direction: str = "BUY", entry_price: float = 2000.0,
                     mh = json.load(f)
                 result["latest_model_health_verdict"] = mh.get("verdict", "") or ""
                 result["active_model_count"] = int(mh.get("active_model_count", 0))
-                result["failed_model_count"] = int(mh.get("failed_model_count", 0))
-                result["model_health_pass"] = result["latest_model_health_verdict"] in (
-                    "MODEL_ARTIFACT_HEALTH_PASS", "MODEL_ARTIFACT_HEALTH_PASS_WITH_WARNINGS"
+                # v2.8.3.3.1: use failed_required_model_count (was failed_model_count)
+                result["failed_required_model_count"] = int(mh.get(
+                    "failed_required_model_count",
+                    mh.get("failed_model_count", 0)
+                ))
+                result["failed_optional_model_count"] = int(mh.get("failed_optional_model_count", 0))
+                result["failed_model_count"] = result["failed_required_model_count"]  # bc
+                result["blocked_required_models"] = mh.get("blocked_required_models", []) or []
+                result["warned_optional_models"] = mh.get("warned_optional_models", []) or []
+                # v2.8.3.3.1: model_health_pass = verdict is PASS/PASS_WITH_WARNINGS
+                # AND failed_required_model_count == 0
+                result["model_health_pass"] = (
+                    result["latest_model_health_verdict"] in (
+                        "MODEL_ARTIFACT_HEALTH_PASS", "MODEL_ARTIFACT_HEALTH_PASS_WITH_WARNINGS"
+                    )
+                    and result["failed_required_model_count"] == 0
                 )
             except Exception:
                 pass
@@ -1211,6 +1228,35 @@ def run_build_request(direction: str = "BUY", entry_price: float = 2000.0,
             and result["feature_parity_pass"]
             and result["runtime_safety_pass"]
         )
+
+        # === Sprint v2.8.4: Prop Challenge Growth Profile ===
+        growth_profile_path = REPO_ROOT / "data" / "audit" / "prop_challenge_growth" / "prop_challenge_growth_profile_audit.json"
+        result["latest_growth_profile_verdict"] = ""
+        result["growth_profile_pass"] = False
+        result["growth_profile_name"] = ""
+        result["growth_monthly_target_pct"] = 0.0
+        result["growth_daily_dd_soft_limit_pct"] = 0.0
+        result["growth_daily_dd_hard_limit_pct"] = 0.0
+        result["growth_total_dd_limit_pct"] = 0.0
+        result["growth_profile_allowed"] = False
+        if growth_profile_path.exists():
+            try:
+                with open(growth_profile_path, "r", encoding="utf-8") as f:
+                    gp = json.load(f)
+                result["latest_growth_profile_verdict"] = gp.get("verdict", "") or ""
+                result["growth_profile_pass"] = result["latest_growth_profile_verdict"] == "PROP_CHALLENGE_GROWTH_PROFILE_PASS"
+                result["growth_profile_name"] = gp.get("profile_name", "") or ""
+                gp_findings = gp.get("findings", {}) or {}
+                result["growth_monthly_target_pct"] = float(gp_findings.get("monthly_target_pct", 0) or 0)
+                result["growth_daily_dd_soft_limit_pct"] = float(gp_findings.get("daily_dd_soft_limit_pct", 0) or 0)
+                result["growth_daily_dd_hard_limit_pct"] = float(gp_findings.get("daily_dd_hard_limit_pct", 0) or 0)
+                result["growth_total_dd_limit_pct"] = float(gp_findings.get("max_total_dd_pct", 0) or 0)
+                # growth_profile_allowed: True only if profile passes AND v2.8.4 allowed
+                result["growth_profile_allowed"] = (
+                    result["growth_profile_pass"] and result["v2_8_4_allowed"]
+                )
+            except Exception:
+                pass
 
     except Exception as e:
         result["entry_gate_status_error"] = str(e)
@@ -2935,14 +2981,39 @@ def main() -> int:
         # === Sprint v2.8.3.3: CTO Consolidated Release Gate display ===
         print()
         print("  " + "-" * 66)
-        print("  v2.8.3.3 CTO Consolidated Release Gate")
+        print("  v2.8.3.3.1 CTO Consolidated Release Gate")
         print("  " + "-" * 66)
         print(f"  Latest model health verdict: {result.get('latest_model_health_verdict', 'N/A')}")
         print(f"  Active models checked: {result.get('active_model_count', 0)}")
-        print(f"  Failed models: {result.get('failed_model_count', 0)}")
+        print(f"  Failed required models: {result.get('failed_required_model_count', 0)}")
+        print(f"  Failed optional models: {result.get('failed_optional_model_count', 0)}")
+        if result.get('blocked_required_models'):
+            print(f"  Blocked required models:")
+            for m in result['blocked_required_models']:
+                print(f"    - {m.get('name', '?')} ({m.get('role', '?')}): {m.get('blocking_reason', '')[:100]}")
+        if result.get('warned_optional_models'):
+            print(f"  Warned optional models (non-blocking):")
+            for m in result['warned_optional_models']:
+                print(f"    - {m.get('name', '?')} ({m.get('role', '?')})")
         print(f"  Latest feature parity verdict: {result.get('latest_feature_parity_verdict', 'N/A')}")
         print(f"  Latest runtime safety verdict: {result.get('latest_runtime_safety_verdict', 'N/A')}")
         print(f"  v2.8.4 allowed: {result.get('v2_8_4_allowed', False)}")
+
+        # === Sprint v2.8.4: Prop Challenge Growth Profile display ===
+        print()
+        print("  " + "-" * 66)
+        print("  v2.8.4 Prop Challenge Growth Profile")
+        print("  " + "-" * 66)
+        print(f"  Growth profile: {result.get('growth_profile_name', 'N/A')}")
+        print(f"  Growth profile verdict: {result.get('latest_growth_profile_verdict', 'N/A')}")
+        print(f"  Monthly target: {result.get('growth_monthly_target_pct', 0)} (target, NOT guarantee)")
+        print(f"  Daily DD band: {result.get('growth_daily_dd_soft_limit_pct', 0)} to {result.get('growth_daily_dd_hard_limit_pct', 0)}")
+        print(f"  Total DD cap: {result.get('growth_total_dd_limit_pct', 0)}")
+        print(f"  No forced trading: True")
+        print(f"  No martingale/grid/averaging/loss multiplier: True")
+        print(f"  Growth profile allowed: {result.get('growth_profile_allowed', False)}")
+        print(f"  execution_now_allowed: {result.get('execution_now_allowed', False)}")
+        print(f"  execution_blocker: {result.get('execution_blocker', 'OPERATOR_ARM_TOKEN_REQUIRED')}")
 
     # === Sprint v2.8: autonomous-entry-check console output ===
     if getattr(args, "autonomous_entry_check", False):

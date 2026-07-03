@@ -242,21 +242,27 @@ class TestModelArtifactHealthAudit:
         assert result["failed_model_count"] == 0
 
     def test_07_optional_disabled_model_failure_passes_with_warnings(self):
-        """Test 7: Optional/disabled model failure -> PASS_WITH_WARNINGS (not BLOCKED)."""
+        """Test 7: Optional/disabled model failure -> PASS_WITH_WARNINGS (not BLOCKED).
+
+        v2.8.3.3.1 reconciliation: optional role (not ensemble_member) is non-required.
+        """
         import scripts.audit.model_artifact_health_audit as m
-        # Optional (ensemble_member) model fails to load -> not blocking
+        # Optional (non-required) model fails to load -> not blocking
         with patch.object(m, '_discover_active_models') as mock_disc:
-            # Only an ensemble_member (optional) model that fails
+            # Only an optional (non-required) model that fails
             mock_disc.return_value = [{
                 "name": "broken_optional",
                 "path": "/nonexistent/optional.pkl",
-                "role": "ensemble_member",  # not required active
+                "role": "optional",  # v2.8.3.3.1: optional is non-required
                 "config_key": "",
+                "non_blocking_reason": "Optional challenger - non-blocking",
             }]
             result = m.run_audit()
         # Optional model failing -> PASS_WITH_WARNINGS, not BLOCKED
         assert result["verdict"] == m.MODEL_ARTIFACT_HEALTH_PASS_WITH_WARNINGS
-        assert result["failed_model_count"] == 0  # failed_model_count counts only required
+        assert result["failed_required_model_count"] == 0  # required count
+        assert result["failed_optional_model_count"] >= 1  # optional count
+        assert result["v2_8_4_allowed"] is True  # v2.8.4 still allowed
 
     def test_08_silent_fallback_blocks(self):
         """Test 8: Silent fallback (dummy model class) -> BLOCKED."""

@@ -495,30 +495,59 @@ def run_audit() -> dict:
     latest_model_health_verdict = ""
     model_health_pass = False
     active_model_count = 0
-    failed_model_count = 0
+    failed_required_model_count = 0
+    failed_optional_model_count = 0
+    blocked_required_models = []
+    warned_optional_models = []
+    mh_v2_8_4_allowed = False
     if model_health_path.exists():
         try:
             with open(model_health_path, "r", encoding="utf-8") as f:
                 mh_data = json.load(f)
             latest_model_health_verdict = mh_data.get("verdict", "") or ""
             active_model_count = int(mh_data.get("active_model_count", 0))
-            failed_model_count = int(mh_data.get("failed_model_count", 0))
-            model_health_pass = latest_model_health_verdict in (
-                "MODEL_ARTIFACT_HEALTH_PASS",
-                "MODEL_ARTIFACT_HEALTH_PASS_WITH_WARNINGS",
+            # v2.8.3.3.1: use failed_required_model_count (was failed_model_count)
+            failed_required_model_count = int(mh_data.get(
+                "failed_required_model_count",
+                mh_data.get("failed_model_count", 0)
+            ))
+            failed_optional_model_count = int(mh_data.get("failed_optional_model_count", 0))
+            blocked_required_models = mh_data.get("blocked_required_models", []) or []
+            warned_optional_models = mh_data.get("warned_optional_models", []) or []
+            mh_v2_8_4_allowed = bool(mh_data.get("v2_8_4_allowed", False))
+            # v2.8.3.3.1: model_health_pass = verdict is PASS/PASS_WITH_WARNINGS
+            # AND failed_required_model_count == 0
+            model_health_pass = (
+                latest_model_health_verdict in (
+                    "MODEL_ARTIFACT_HEALTH_PASS",
+                    "MODEL_ARTIFACT_HEALTH_PASS_WITH_WARNINGS",
+                )
+                and failed_required_model_count == 0
             )
         except Exception:
             pass
     findings["latest_model_health_verdict"] = latest_model_health_verdict
     findings["model_health_pass"] = model_health_pass
     findings["active_model_count"] = active_model_count
-    findings["failed_model_count"] = failed_model_count
+    findings["failed_required_model_count"] = failed_required_model_count
+    findings["failed_optional_model_count"] = failed_optional_model_count
+    findings["blocked_required_models"] = blocked_required_models
+    findings["warned_optional_models"] = warned_optional_models
+    # Backwards-compat: failed_model_count = failed_required_model_count
+    findings["failed_model_count"] = failed_required_model_count
     if latest_model_health_verdict == "MODEL_ARTIFACT_HEALTH_BLOCKED":
         blockers.append(
-            f"MODEL_HEALTH_BLOCKED: {failed_model_count} required active model(s) failed health audit"
+            f"MODEL_HEALTH_BLOCKED: {failed_required_model_count} required active model(s) failed health audit"
         )
     elif latest_model_health_verdict == "MODEL_ARTIFACT_HEALTH_PASS_WITH_WARNINGS":
-        warnings.append("MODEL_HEALTH_PASS_WITH_WARNINGS: compatibility warnings present but models healthy")
+        if failed_required_model_count > 0:
+            # v2.8.3.3.1 reconciliation: should not happen, but fail-closed
+            blockers.append(
+                f"MODEL_HEALTH_RECONCILIATION_FAILURE: verdict=PASS_WITH_WARNINGS but "
+                f"{failed_required_model_count} required model(s) failed - check audit logic"
+            )
+        else:
+            warnings.append("MODEL_HEALTH_PASS_WITH_WARNINGS: compatibility warnings present but models healthy")
     elif latest_model_health_verdict == "":
         warnings.append("MODEL_HEALTH_AUDIT_MISSING: model_artifact_health_audit.json not found - run scripts/audit/model_artifact_health_audit.py")
     elif latest_model_health_verdict == "MODEL_ARTIFACT_HEALTH_PASS":
@@ -584,6 +613,46 @@ def run_audit() -> dict:
             blockers.append("V2_8_4_RELEASE_GATE_BLOCKED: not all 3 CTO gates pass")
     else:
         ok_checks.append("v2.8.4 release gate: ALLOWED (all 3 CTO gates pass)")
+
+    # === Sprint v2.8.4: Prop Challenge Growth Profile Audit ===
+    growth_profile_path = REPO_ROOT / "data" / "audit" / "prop_challenge_growth" / "prop_challenge_growth_profile_audit.json"
+    latest_growth_profile_verdict = ""
+    growth_profile_pass = False
+    growth_profile_name = ""
+    monthly_target_pct = 0.0
+    daily_dd_soft = 0.0
+    daily_dd_hard = 0.0
+    total_dd_limit = 0.0
+    if growth_profile_path.exists():
+        try:
+            with open(growth_profile_path, "r", encoding="utf-8") as f:
+                gp_data = json.load(f)
+            latest_growth_profile_verdict = gp_data.get("verdict", "") or ""
+            growth_profile_pass = latest_growth_profile_verdict == "PROP_CHALLENGE_GROWTH_PROFILE_PASS"
+            growth_profile_name = gp_data.get("profile_name", "") or ""
+            gp_findings = gp_data.get("findings", {}) or {}
+            monthly_target_pct = float(gp_findings.get("monthly_target_pct", 0) or 0)
+            daily_dd_soft = float(gp_findings.get("daily_dd_soft_limit_pct", 0) or 0)
+            daily_dd_hard = float(gp_findings.get("daily_dd_hard_limit_pct", 0) or 0)
+            total_dd_limit = float(gp_findings.get("max_total_dd_pct", 0) or 0)
+        except Exception:
+            pass
+    findings["latest_growth_profile_verdict"] = latest_growth_profile_verdict
+    findings["growth_profile_pass"] = growth_profile_pass
+    findings["growth_profile_name"] = growth_profile_name
+    findings["growth_monthly_target_pct"] = monthly_target_pct
+    findings["growth_daily_dd_soft_limit_pct"] = daily_dd_soft
+    findings["growth_daily_dd_hard_limit_pct"] = daily_dd_hard
+    findings["growth_total_dd_limit_pct"] = total_dd_limit
+    # growth_profile_allowed: True only if profile passes AND v2.8.4 allowed
+    growth_profile_allowed = growth_profile_pass and v2833_release_gate_pass
+    findings["growth_profile_allowed"] = growth_profile_allowed
+    if latest_growth_profile_verdict == "PROP_CHALLENGE_GROWTH_PROFILE_BLOCKED":
+        blockers.append("GROWTH_PROFILE_BLOCKED: PROP_CHALLENGE_GROWTH_30_8 profile audit failed")
+    elif latest_growth_profile_verdict == "":
+        warnings.append("GROWTH_PROFILE_AUDIT_MISSING: prop_challenge_growth_profile_audit.json not found - run scripts/audit/prop_challenge_growth_profile_audit.py")
+    elif latest_growth_profile_verdict == "PROP_CHALLENGE_GROWTH_PROFILE_PASS":
+        ok_checks.append(f"Growth profile {growth_profile_name}: PASS")
 
     # Sprint v2.8.3.3: SUPERVISED_READY requires all 3 CTO gates to pass.
     # If any gate is blocked, downgrade SUPERVISED_READY -> BLOCKED so v2.8.4 cannot start.
@@ -779,12 +848,25 @@ def run_audit() -> dict:
         "latest_model_health_verdict": latest_model_health_verdict,
         "model_health_pass": model_health_pass,
         "active_model_count": active_model_count,
-        "failed_model_count": failed_model_count,
+        "failed_required_model_count": failed_required_model_count,
+        "failed_optional_model_count": failed_optional_model_count,
+        "failed_model_count": failed_required_model_count,  # backwards-compat
+        "blocked_required_models": blocked_required_models,
+        "warned_optional_models": warned_optional_models,
         "latest_feature_parity_verdict": latest_feature_parity_verdict,
         "feature_parity_pass": feature_parity_pass,
         "latest_runtime_safety_verdict": latest_runtime_safety_verdict,
         "runtime_safety_pass": runtime_safety_pass,
         "v2_8_4_allowed": v2833_release_gate_pass,
+        # Sprint v2.8.4: Prop Challenge Growth Profile fields
+        "latest_growth_profile_verdict": latest_growth_profile_verdict,
+        "growth_profile_pass": growth_profile_pass,
+        "growth_profile_name": growth_profile_name,
+        "growth_monthly_target_pct": monthly_target_pct,
+        "growth_daily_dd_soft_limit_pct": daily_dd_soft,
+        "growth_daily_dd_hard_limit_pct": daily_dd_hard,
+        "growth_total_dd_limit_pct": total_dd_limit,
+        "growth_profile_allowed": growth_profile_allowed,
         "safety": {
             "order_send_called": False,
             "position_modified": False,
@@ -824,17 +906,32 @@ def write_report(result: dict) -> dict:
             )
 
         # v2.8.3.3: CTO Consolidated Release Gate section
-        f.write("## CTO Consolidated Release Gate (v2.8.3.3)\n\n")
+        f.write("## CTO Consolidated Release Gate (v2.8.3.3.1)\n\n")
         f.write("| Field | Value |\n|---|---|\n")
         f.write(f"| latest_model_health_verdict | {result.get('latest_model_health_verdict', '')} |\n")
         f.write(f"| model_health_pass | {result.get('model_health_pass', False)} |\n")
         f.write(f"| active_model_count | {result.get('active_model_count', 0)} |\n")
-        f.write(f"| failed_model_count | {result.get('failed_model_count', 0)} |\n")
+        f.write(f"| failed_required_model_count | {result.get('failed_required_model_count', 0)} |\n")
+        f.write(f"| failed_optional_model_count | {result.get('failed_optional_model_count', 0)} |\n")
+        f.write(f"| blocked_required_models | {result.get('blocked_required_models', [])} |\n")
+        f.write(f"| warned_optional_models | {result.get('warned_optional_models', [])} |\n")
         f.write(f"| latest_feature_parity_verdict | {result.get('latest_feature_parity_verdict', '')} |\n")
         f.write(f"| feature_parity_pass | {result.get('feature_parity_pass', False)} |\n")
         f.write(f"| latest_runtime_safety_verdict | {result.get('latest_runtime_safety_verdict', '')} |\n")
         f.write(f"| runtime_safety_pass | {result.get('runtime_safety_pass', False)} |\n")
         f.write(f"| **v2_8_4_allowed** | **{result.get('v2_8_4_allowed', False)}** |\n\n")
+
+        # v2.8.4: Prop Challenge Growth Profile section
+        f.write("## Prop Challenge Growth Profile (v2.8.4)\n\n")
+        f.write("| Field | Value |\n|---|---|\n")
+        f.write(f"| growth_profile_name | {result.get('growth_profile_name', '')} |\n")
+        f.write(f"| latest_growth_profile_verdict | {result.get('latest_growth_profile_verdict', '')} |\n")
+        f.write(f"| growth_profile_pass | {result.get('growth_profile_pass', False)} |\n")
+        f.write(f"| growth_monthly_target_pct | {result.get('growth_monthly_target_pct', 0)} (target, NOT guarantee) |\n")
+        f.write(f"| growth_daily_dd_soft_limit_pct | {result.get('growth_daily_dd_soft_limit_pct', 0)} |\n")
+        f.write(f"| growth_daily_dd_hard_limit_pct | {result.get('growth_daily_dd_hard_limit_pct', 0)} |\n")
+        f.write(f"| growth_total_dd_limit_pct | {result.get('growth_total_dd_limit_pct', 0)} |\n")
+        f.write(f"| **growth_profile_allowed** | **{result.get('growth_profile_allowed', False)}** |\n\n")
 
         f.write("## Score Breakdown\n\n")
         f.write("| Category | Score |\n|---|---|\n")
@@ -878,12 +975,20 @@ def main() -> int:
     print(f"  Latest forensics verdict: {result.get('latest_forensics_verdict', '')}")
     print(f"  Entry gate verdict: {result.get('end_to_end_entry_gate_verdict', '')}")
     # v2.8.3.3: CTO Consolidated Release Gate
-    print(f"\n  --- v2.8.3.3 CTO Consolidated Release Gate ---")
+    print(f"\n  --- v2.8.3.3.1 CTO Consolidated Release Gate ---")
     print(f"  Latest model health verdict: {result.get('latest_model_health_verdict', '')}")
-    print(f"  Active models: {result.get('active_model_count', 0)}, Failed: {result.get('failed_model_count', 0)}")
+    print(f"  Active models: {result.get('active_model_count', 0)}, Failed required: {result.get('failed_required_model_count', 0)}, Failed optional: {result.get('failed_optional_model_count', 0)}")
     print(f"  Latest feature parity verdict: {result.get('latest_feature_parity_verdict', '')}")
     print(f"  Latest runtime safety verdict: {result.get('latest_runtime_safety_verdict', '')}")
     print(f"  v2.8.4 allowed: {result.get('v2_8_4_allowed', False)}")
+    # v2.8.4: Growth profile
+    print(f"\n  --- v2.8.4 Prop Challenge Growth Profile ---")
+    print(f"  Growth profile: {result.get('growth_profile_name', '')}")
+    print(f"  Growth profile verdict: {result.get('latest_growth_profile_verdict', '')}")
+    print(f"  Monthly target: {result.get('growth_monthly_target_pct', 0)} (target, NOT guarantee)")
+    print(f"  Daily DD band: {result.get('growth_daily_dd_soft_limit_pct', 0)} to {result.get('growth_daily_dd_hard_limit_pct', 0)}")
+    print(f"  Total DD cap: {result.get('growth_total_dd_limit_pct', 0)}")
+    print(f"  Growth profile allowed: {result.get('growth_profile_allowed', False)}")
     if result.get("blockers"):
         print("\n  Blockers:")
         for b in result["blockers"]:

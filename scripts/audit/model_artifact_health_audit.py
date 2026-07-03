@@ -79,13 +79,32 @@ def _runtime_versions() -> dict:
     return out
 
 
-def _classify_role(path_str: str, runtime_cfg: dict) -> str:
+def _classify_role(path_str: str, runtime_cfg: dict) -> tuple:
     """Classify model role from path and runtime config.
 
-    Returns one of:
+    Sprint v2.8.3.3.1 reconciliation: challenger models that are NOT in the
+    active runtime inference chain must be classified as `optional`, not
+    `ensemble_member`. Only models actually wired into the runtime/router
+    are `ensemble_member` (required for runtime).
+
+    Returns (role, non_blocking_reason) tuple where non_blocking_reason is
+    a human-readable explanation for why an optional/backup/disabled/deprecated
+    model does not block runtime.
+
+    Roles:
       active_primary   - listed in config/runtime.yaml as xgb_path or meta_path
-      ensemble_member  - .pkl in titan/data/models/ but not active_primary
-      backup           - lstm/transformer .pt artifacts (challenger)
+                         (REQUIRED for runtime)
+      ensemble_member  - .pkl model that is actively wired into runtime/router
+                         ensemble (REQUIRED for runtime)
+                         Note: TITAN XAU AI runtime currently uses ONLY
+                         xgboost_v1 + meta_label_v2_context (no ensemble
+                         router), so no .pkl is classified as ensemble_member
+                         unless explicitly registered.
+      backup           - lstm/transformer .pt artifacts (challenger, NOT required)
+      optional         - challenger .pkl models not in active inference chain
+                         (e.g. lightgbm_v1, logreg_v1_price, meta_label_v1,
+                         xgboost_v2_micro) - frozen challengers per
+                         scripts/titan_audit_report.py
       disabled         - explicitly disabled in config
       deprecated       - old/v1/legacy path naming
     """
@@ -98,21 +117,33 @@ def _classify_role(path_str: str, runtime_cfg: dict) -> str:
     if norm.startswith(str(REPO_ROOT)):
         norm = norm[len(str(REPO_ROOT)) + 1:].replace("\\", "/")
     if norm.lower() in active_paths or path_str.lower() in active_paths:
-        return "active_primary"
+        return ("active_primary", "")
     if name.endswith(".pt"):
-        return "backup"
+        return ("backup", "PyTorch challenger model - not in active inference chain")
     if "deprecated" in name or "old_" in name or "_legacy" in name:
-        return "deprecated"
+        return ("deprecated", "Legacy/deprecated model artifact - retained for audit history only")
     if name.endswith(".pkl"):
-        return "ensemble_member"
-    return "ensemble_member"
+        # Sprint v2.8.3.3.1: All non-active .pkl models are OPTIONAL challengers.
+        # TITAN XAU AI runtime uses only xgboost_v1 + meta_label_v2_context.
+        # Other .pkl files (lightgbm_v1, logreg_v1_price, meta_label_v1,
+        # xgboost_v2_micro) are frozen challengers per scripts/titan_audit_report.py
+        # and are NOT wired into the runtime inference chain.
+        return ("optional",
+                "Challenger model - frozen, not wired into active runtime inference chain "
+                "(per scripts/titan_audit_report.py: 'Not in F8 inference chain'). "
+                "Failure is non-blocking for v2.8.4 release gate.")
+    return ("optional", "Unknown model - classified optional by default (non-blocking)")
 
 
 def _discover_active_models(runtime_cfg: dict) -> list:
     """Discover all active production model artifacts.
 
-    Active = active_primary (from config) + ensemble_member (.pkl in models/).
+    Active = active_primary (from config) + optional/ensemble_member (.pkl in models/).
     Backup .pt files (lstm, transformer) are also listed but role=backup.
+
+    Each discovered entry includes a `non_blocking_reason` for optional/backup/
+    disabled/deprecated roles explaining why a failure of that model does NOT
+    block runtime.
     """
     discovered = []
     seen_paths = set()
@@ -129,6 +160,7 @@ def _discover_active_models(runtime_cfg: dict) -> list:
                     "path": str(p),
                     "role": "active_primary",
                     "config_key": key,
+                    "non_blocking_reason": "",
                 })
                 seen_paths.add(str(p))
 
@@ -139,12 +171,13 @@ def _discover_active_models(runtime_cfg: dict) -> list:
             for p in sorted(models_dir.glob(ext)):
                 if str(p) in seen_paths:
                     continue
-                role = _classify_role(str(p), runtime_cfg)
+                role, nbr = _classify_role(str(p), runtime_cfg)
                 discovered.append({
                     "name": p.stem,
                     "path": str(p),
                     "role": role,
                     "config_key": "",
+                    "non_blocking_reason": nbr,
                 })
                 seen_paths.add(str(p))
 
@@ -153,11 +186,13 @@ def _discover_active_models(runtime_cfg: dict) -> list:
         for p in sorted(models_dir.glob("*.pt")):
             if str(p) in seen_paths:
                 continue
+            role, nbr = _classify_role(str(p), runtime_cfg)
             discovered.append({
                 "name": p.stem,
                 "path": str(p),
-                "role": "backup",
+                "role": role,
                 "config_key": "",
+                "non_blocking_reason": nbr,
             })
             seen_paths.add(str(p))
 
@@ -409,16 +444,34 @@ def _verify_no_silent_fallback(model_path: str, model_name: str, model: Any) -> 
 
 
 def _audit_single_model(model_info: dict) -> dict:
-    """Run all audits on a single model. Returns per-model dict."""
+    """Run all audits on a single model. Returns per-model dict.
+
+    Sprint v2.8.3.3.1 reconciliation fields added:
+      - required_for_runtime: True if role in (active_primary, ensemble_member)
+      - final_status: PASS / PASS_WITH_WARNINGS / BLOCKED / OPTIONAL_BLOCKED
+      - required_failure: True only if required_for_runtime AND health == BLOCKED
+      - blocking_reason: populated when required_failure=True
+      - non_blocking_reason: populated when optional/backup fails (does NOT block)
+    """
     name = model_info["name"]
     path = model_info["path"]
     role = model_info["role"]
+    non_blocking_reason = model_info.get("non_blocking_reason", "")
+
+    # Sprint v2.8.3.3.1: required_for_runtime = True only for active_primary
+    # or ensemble_member roles. optional/backup/disabled/deprecated are NOT
+    # required for runtime - their failure does not block v2.8.4.
+    required_for_runtime = role in ("active_primary", "ensemble_member")
 
     out = {
-        "name": name,
+        "model_name": name,
+        "name": name,  # backwards compat
         "path": path,
-        "role": role,
+        "model_role": role,
+        "role": role,  # backwards compat
         "config_key": model_info.get("config_key", ""),
+        "required_for_runtime": required_for_runtime,
+        "is_required_active": required_for_runtime,  # backwards compat
         "artifact_exists": False,
         "artifact_size_bytes": 0,
         "loads_successfully": False,
@@ -428,14 +481,17 @@ def _audit_single_model(model_info: dict) -> dict:
         "prediction": {},
         "no_silent_fallback": {},
         "health": "BLOCKED",
-        "is_required_active": role == "active_primary",
+        "final_status": "BLOCKED",
+        "required_failure": False,
+        "blocking_reason": "",
+        "non_blocking_reason": non_blocking_reason,
     }
 
     # 1. Artifact exists + size > 0
     if not os.path.exists(path):
         out["load_errors"].append(f"ARTIFACT_NOT_FOUND: {path}")
         out["health"] = "BLOCKED"
-        return out
+        return _finalize_model_status(out, name, role, required_for_runtime)
     out["artifact_exists"] = True
     try:
         size = os.path.getsize(path)
@@ -443,11 +499,11 @@ def _audit_single_model(model_info: dict) -> dict:
         if size == 0:
             out["load_errors"].append("ARTIFACT_EMPTY: file size = 0")
             out["health"] = "BLOCKED"
-            return out
+            return _finalize_model_status(out, name, role, required_for_runtime)
     except Exception as e:
         out["load_errors"].append(f"size_check_error: {e}")
         out["health"] = "BLOCKED"
-        return out
+        return _finalize_model_status(out, name, role, required_for_runtime)
 
     # 2. Load model with warning capture
     # Special case: .pt files are PyTorch checkpoints (torch.save format), not picklable
@@ -471,7 +527,7 @@ def _audit_single_model(model_info: dict) -> dict:
             out["loads_successfully"] = False
             # Backup role + torch not installed = PASS_WITH_WARNINGS (non-blocking)
             out["health"] = "PASS_WITH_WARNINGS" if role == "backup" else "BLOCKED"
-            return out
+            return _finalize_model_status(out, name, role, required_for_runtime)
         # torch available - try torch.load
         try:
             import torch
@@ -489,7 +545,7 @@ def _audit_single_model(model_info: dict) -> dict:
         except Exception as e:
             out["load_errors"].append(f"torch_load_error: {e}")
             out["health"] = "PASS_WITH_WARNINGS" if role == "backup" else "BLOCKED"
-            return out
+            return _finalize_model_status(out, name, role, required_for_runtime)
     else:
         model, captured_warnings, load_errors = _capture_load_warnings(path, name)
         out["load_warnings"] = captured_warnings
@@ -498,7 +554,7 @@ def _audit_single_model(model_info: dict) -> dict:
 
     if not out["loads_successfully"]:
         out["health"] = "BLOCKED"
-        return out
+        return _finalize_model_status(out, name, role, required_for_runtime)
 
     # 3. Schema verification (skip for torch .pt backup models - no sklearn API)
     if is_torch_pt:
@@ -528,7 +584,7 @@ def _audit_single_model(model_info: dict) -> dict:
             "file_size_bytes": out["artifact_size_bytes"],
         }
         out["health"] = "PASS_WITH_WARNINGS"  # backup .pt loaded OK = warnings-only
-        return out
+        return _finalize_model_status(out, name, role, required_for_runtime)
 
     out["schema"] = _verify_schema(model, name)
 
@@ -540,7 +596,7 @@ def _audit_single_model(model_info: dict) -> dict:
     out["no_silent_fallback"] = _verify_no_silent_fallback(path, name, model)
 
     # 6. Determine health
-    has_warnings = bool(captured_warnings)
+    has_warnings = bool(out.get("load_warnings", []))
     schema_ok = out["schema"].get("schema_match", False)
     pred_ok = (
         out["prediction"].get("prediction_works", False)
@@ -557,6 +613,51 @@ def _audit_single_model(model_info: dict) -> dict:
         out["health"] = "PASS_WITH_WARNINGS"
     else:
         out["health"] = "PASS"
+
+    return _finalize_model_status(out, name, role, required_for_runtime)
+
+
+def _finalize_model_status(out: dict, name: str, role: str, required_for_runtime: bool) -> dict:
+    """Sprint v2.8.3.3.1: Finalize final_status, required_failure, blocking_reason.
+
+    Called at every return point in _audit_single_model to ensure consistent
+    classification reconciliation.
+
+    Logic:
+      - If health == BLOCKED:
+          * required_for_runtime=True  -> required_failure=True, blocking_reason set
+          * required_for_runtime=False -> final_status=OPTIONAL_BLOCKED, non_blocking_reason set
+      - If health == PASS or PASS_WITH_WARNINGS:
+          * required_failure=False, blocking_reason=""
+    """
+    out["final_status"] = out["health"]
+    if out["health"] == "BLOCKED":
+        if required_for_runtime:
+            # Required model failed -> BLOCKS v2.8.4
+            out["required_failure"] = True
+            out["blocking_reason"] = (
+                f"REQUIRED_MODEL_BLOCKED: {name} (role={role}) failed health audit - "
+                + "; ".join(out.get("load_errors", [])
+                           + out.get("schema", {}).get("errors", [])
+                           + out.get("prediction", {}).get("errors", [])
+                           + out.get("no_silent_fallback", {}).get("errors", []))[:300]
+            )
+            out["non_blocking_reason"] = ""  # required failure IS blocking
+        else:
+            # Optional/backup/disabled/deprecated model failed -> non-blocking
+            out["required_failure"] = False
+            out["blocking_reason"] = ""
+            # final_status becomes OPTIONAL_BLOCKED to make it visible
+            out["final_status"] = "OPTIONAL_BLOCKED"
+            if not out["non_blocking_reason"]:
+                out["non_blocking_reason"] = (
+                    f"Optional/backup model failed (role={role}) - non-blocking for v2.8.4 "
+                    "release gate since model is not wired into active runtime inference chain."
+                )
+    else:
+        # PASS or PASS_WITH_WARNINGS - never blocks
+        out["required_failure"] = False
+        out["blocking_reason"] = ""
 
     return out
 
@@ -597,6 +698,11 @@ def run_audit() -> dict:
             "per_model_results": [],
             "active_model_count": 0,
             "failed_model_count": 0,
+            "failed_required_model_count": 0,
+            "failed_optional_model_count": 0,
+            "blocked_required_models": [],
+            "warned_optional_models": [],
+            "v2_8_4_allowed": False,
             "safety": {"order_send_called": False, "position_modified": False, "token_created": False},
         }
 
@@ -608,6 +714,8 @@ def run_audit() -> dict:
     passed = 0
     passed_with_warnings = 0
     total_version_warnings = 0
+    blocked_required_models = []
+    warned_optional_models = []
 
     for m in discovered:
         result = _audit_single_model(m)
@@ -623,23 +731,46 @@ def run_audit() -> dict:
                 f"{len(result.get('load_warnings', []))} compatibility warnings"
             )
         else:  # BLOCKED
-            if result.get("is_required_active"):
+            if result.get("required_for_runtime"):
                 failed_required += 1
-                blockers.append(
+                blocker_msg = (
                     f"REQUIRED_MODEL_FAILED: {m['name']} ({m['role']}) - "
-                    + "; ".join(result.get("load_errors", []) or result.get("prediction", {}).get("errors", []))
+                    + "; ".join(result.get("load_errors", [])
+                               + result.get("schema", {}).get("errors", [])
+                               + result.get("prediction", {}).get("errors", [])
+                               + result.get("no_silent_fallback", {}).get("errors", []))[:300]
                 )
+                blockers.append(blocker_msg)
+                blocked_required_models.append({
+                    "name": m["name"],
+                    "role": m["role"],
+                    "blocking_reason": result.get("blocking_reason", blocker_msg),
+                })
             else:
                 failed_optional += 1
+                warned_optional_models.append({
+                    "name": m["name"],
+                    "role": m["role"],
+                    "final_status": result.get("final_status", "OPTIONAL_BLOCKED"),
+                    "non_blocking_reason": result.get("non_blocking_reason", ""),
+                })
                 warnings_list.append(
-                    f"OPTIONAL_MODEL_FAILED: {m['name']} ({m['role']}) - non-blocking"
+                    f"OPTIONAL_MODEL_BLOCKED: {m['name']} ({m['role']}) - non-blocking "
+                    f"({result.get('non_blocking_reason', '')[:120]})"
                 )
 
     findings["per_model_summary"] = [
         {
+            "model_name": r["model_name"],
             "name": r["name"],
+            "model_role": r["model_role"],
             "role": r["role"],
+            "required_for_runtime": r["required_for_runtime"],
+            "final_status": r["final_status"],
             "health": r["health"],
+            "required_failure": r["required_failure"],
+            "blocking_reason": r["blocking_reason"],
+            "non_blocking_reason": r["non_blocking_reason"],
             "loads_successfully": r["loads_successfully"],
             "schema_match": r.get("schema", {}).get("schema_match", False),
             "prediction_works": r.get("prediction", {}).get("prediction_works", False)
@@ -657,14 +788,19 @@ def run_audit() -> dict:
     findings["failed_required_count"] = failed_required
     findings["failed_optional_count"] = failed_optional
     findings["total_version_warnings"] = total_version_warnings
+    findings["blocked_required_models"] = blocked_required_models
+    findings["warned_optional_models"] = warned_optional_models
 
-    # Determine verdict
+    # Determine verdict - v2.8.3.3.1 reconciliation
     if failed_required > 0:
         verdict = MODEL_ARTIFACT_HEALTH_BLOCKED
     elif total_version_warnings > 0 or failed_optional > 0 or passed_with_warnings > 0:
         verdict = MODEL_ARTIFACT_HEALTH_PASS_WITH_WARNINGS
     else:
         verdict = MODEL_ARTIFACT_HEALTH_PASS
+
+    # v2.8.4 allowed: True only if no required model failed
+    v2_8_4_allowed = (failed_required == 0)
 
     return {
         "timestamp_utc": ts,
@@ -676,6 +812,11 @@ def run_audit() -> dict:
         "per_model_results": per_model,
         "active_model_count": len(discovered),
         "failed_model_count": failed_required,
+        "failed_required_model_count": failed_required,
+        "failed_optional_model_count": failed_optional,
+        "blocked_required_models": blocked_required_models,
+        "warned_optional_models": warned_optional_models,
+        "v2_8_4_allowed": v2_8_4_allowed,
         "safety": {
             "order_send_called": False,
             "position_modified": False,
@@ -691,15 +832,35 @@ def write_report(result: dict) -> dict:
     with open(json_path, "w", encoding="utf-8") as f:
         json.dump(result, f, indent=2, default=str, ensure_ascii=False)
     with open(md_path, "w", encoding="utf-8") as f:
-        f.write("# TITAN XAU AI - Model Artifact Health Audit (v2.8.3.3)\n\n")
+        f.write("# TITAN XAU AI - Model Artifact Health Audit (v2.8.3.3.1)\n\n")
         f.write(f"**Verdict:** **{result['verdict']}**\n\n")
         f.write(f"**Timestamp:** {result['timestamp_utc']}\n\n")
         f.write(f"**Active models discovered:** {result.get('active_model_count', 0)}\n\n")
-        f.write(f"**Failed required models:** {result.get('failed_model_count', 0)}\n\n")
+        f.write(f"**Failed required models:** {result.get('failed_required_model_count', 0)}\n\n")
+        f.write(f"**Failed optional models:** {result.get('failed_optional_model_count', 0)}\n\n")
+        f.write(f"**v2.8.4 allowed:** **{result.get('v2_8_4_allowed', False)}**\n\n")
+
+        # Sprint v2.8.3.3.1: Classification reconciliation table
+        f.write("## Model Classification Reconciliation (v2.8.3.3.1)\n\n")
+        f.write("| Model | Role | Required | Status | Blocks v2.8.4 | Reason |\n")
+        f.write("|---|---|---|---|---|---|\n")
+        for r in result.get("per_model_results", []):
+            blocks = "YES" if r.get("required_failure", False) else "No"
+            reason = r.get("blocking_reason") or r.get("non_blocking_reason") or ""
+            # Truncate reason for table readability
+            reason_short = reason[:120].replace("|", "\\|").replace("\n", " ")
+            f.write(f"| {r['name']} | {r['role']} | {r['required_for_runtime']} | {r['final_status']} | {blocks} | {reason_short} |\n")
+        f.write("\n")
+
         f.write("## Per-Model Results\n\n")
         for r in result.get("per_model_results", []):
             f.write(f"### {r['name']} ({r['role']})\n\n")
             f.write("| Field | Value |\n|---|---|\n")
+            f.write(f"| model_name | {r['model_name']} |\n")
+            f.write(f"| model_role | {r['model_role']} |\n")
+            f.write(f"| required_for_runtime | {r['required_for_runtime']} |\n")
+            f.write(f"| final_status | {r['final_status']} |\n")
+            f.write(f"| required_failure | {r['required_failure']} |\n")
             f.write(f"| artifact_exists | {r['artifact_exists']} |\n")
             f.write(f"| artifact_size_bytes | {r['artifact_size_bytes']} |\n")
             f.write(f"| loads_successfully | {r['loads_successfully']} |\n")
@@ -712,7 +873,12 @@ def write_report(result: dict) -> dict:
             f.write(f"| probabilities_in_range | {r.get('prediction', {}).get('probabilities_in_range', False)} |\n")
             f.write(f"| no_silent_fallback | {r.get('no_silent_fallback', {}).get('is_real_model', False)} |\n")
             f.write(f"| latency_ms | {r.get('prediction', {}).get('latency_ms', 0.0)} |\n")
-            f.write(f"| health | **{r['health']}** |\n\n")
+            f.write(f"| health | **{r['health']}** |\n")
+            if r.get("blocking_reason"):
+                f.write(f"| blocking_reason | {r['blocking_reason'][:200]} |\n")
+            if r.get("non_blocking_reason"):
+                f.write(f"| non_blocking_reason | {r['non_blocking_reason'][:200]} |\n")
+            f.write("\n")
             if r.get("load_warnings"):
                 f.write("**Compatibility warnings:**\n\n")
                 for w in r["load_warnings"]:
@@ -744,18 +910,21 @@ def write_report(result: dict) -> dict:
 
 def main() -> int:
     print("=" * 70)
-    print("  TITAN XAU AI - Model Artifact Health Audit (v2.8.3.3)")
+    print("  TITAN XAU AI - Model Artifact Health Audit (v2.8.3.3.1)")
     print("=" * 70)
     result = run_audit()
     report = write_report(result)
     print(f"\n  Verdict: {result['verdict']}")
     print(f"  Active models discovered: {result.get('active_model_count', 0)}")
-    print(f"  Failed required models: {result.get('failed_model_count', 0)}")
+    print(f"  Failed required models: {result.get('failed_required_model_count', 0)}")
+    print(f"  Failed optional models: {result.get('failed_optional_model_count', 0)}")
+    print(f"  v2.8.4 allowed: {result.get('v2_8_4_allowed', False)}")
     print(f"  Blockers: {len(result.get('blockers', []))}")
     print(f"  Warnings: {len(result.get('warnings', []))}")
     print("\n  Per-model summary:")
     for r in result.get("per_model_results", []):
-        print(f"    - {r['name']} ({r['role']}): {r['health']}")
+        blocks = "BLOCKS" if r.get("required_failure", False) else "non-blocking"
+        print(f"    - {r['name']} ({r['role']}): {r['final_status']} [{blocks}]")
         if r.get("load_warnings"):
             for w in r["load_warnings"][:2]:
                 print(f"        warning: [{w.get('category', '?')}] {w.get('message', '')[:120]}")

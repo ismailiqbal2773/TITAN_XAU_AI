@@ -1,0 +1,160 @@
+# ============================================================
+# TITAN XAU AI - Prop Challenge Growth Profile (Sprint v2.8.4)
+# ============================================================
+# Profile: PROP_CHALLENGE_GROWTH_30_8
+#
+# This is a TARGET profile, NOT a profit guarantee.
+# No trade is ever forced to hit the target.
+# If alpha/regime/risk gates fail, NO_TRADE is the correct decision.
+#
+# Safety invariants (NEVER violated):
+#   - dry_run=true, live_trading=false
+#   - max_open_positions: 1
+#   - max_lot_cap_demo: 0.01 (unless operator explicitly changes later)
+#   - min_RR: 2.0
+#   - preferred_RR: 3.0
+#   - base_risk_per_trade_pct <= 0.005 (Tier 1)
+#   - no martingale / grid / averaging / loss multiplier
+#   - no forced recovery after loss
+#   - no lot increase after loss
+#   - MetaQuotes-Demo only for controlled demo
+#   - FundedNext demo execution blocked
+#   - OPERATOR_ARM_TOKEN_REQUIRED for execution
+#   - build-request only, no order_send
+# ============================================================
+
+profile:
+  name: PROP_CHALLENGE_GROWTH_30_8
+  description: >-
+    Controlled prop-challenge growth target profile. Approximately 30% monthly
+    growth target with 10% prop challenge target. Safety-first: no forced
+    trading, no martingale/grid/averaging, no loss-based lot multiplier.
+    Targets are aspirational, not guarantees.
+  version: "1.0"
+  sprint: "v2.8.4"
+
+  # ─── Targets (aspirational, NOT guarantees) ──────────────────────────────
+  targets:
+    monthly_growth_target_pct: 0.30          # ~30% monthly growth target
+    monthly_target_type: target              # target | guarantee
+    prop_challenge_target_pct: 0.10          # ~10% prop challenge target
+    prop_challenge_target_type: target       # target | guarantee
+
+  # ─── Risk Bands ──────────────────────────────────────────────────────────
+  risk_bands:
+    daily_dd_soft_limit_pct: 0.01            # 1% daily DD soft limit (caution)
+    daily_dd_hard_limit_pct: 0.02            # 2% daily DD hard limit (kill switch)
+    max_total_dd_pct: 0.08                   # <8% total drawdown cap
+    kill_switch_on_daily_hard_breach: true   # halt trading on hard limit breach
+    no_forced_recovery_after_loss: true      # NEVER increase lot to recover
+    no_lot_increase_after_loss: true         # NEVER martingale-style lot bump
+
+  # ─── Position Sizing ─────────────────────────────────────────────────────
+  position_sizing:
+    max_open_positions: 1
+    max_lot_cap_demo: 0.01                   # HARD CAP unless operator changes
+    base_risk_per_trade_pct: 0.005           # Tier 1: <= 0.5%
+    min_RR: 2.0                              # minimum reward:risk
+    preferred_RR: 3.0                        # preferred reward:risk
+
+  # ─── Risk Tiers (controlled, regime-aware, safety-first) ─────────────────
+  risk_tiers:
+    TIER_0_CAPITAL_PRESERVATION:
+      description: >-
+        Capital preservation mode. Risk reduced. Active after drawdown,
+        model warning, bad spread, weak regime, or loss streak.
+      risk_per_trade_pct: 0.0025             # 0.25% (half of Tier 1)
+      max_lot: 0.01
+      triggers:
+        - daily_dd_soft_breach
+        - model_health_blocked
+        - feature_parity_blocked
+        - runtime_safety_blocked
+        - production_closure_blocker
+        - weak_regime
+        - bad_spread
+        - loss_streak
+
+    TIER_1_STANDARD:
+      description: >-
+        Normal supervised demo risk. Default tier when all safety gates pass.
+      risk_per_trade_pct: 0.005              # 0.5% cap
+      max_lot: 0.01
+      requires:
+        - model_health_pass_or_pass_with_warnings
+        - feature_parity_pass_or_pass_with_warnings
+        - runtime_safety_pass
+        - production_closure_blockers_zero
+        - no_daily_dd_breach
+        - no_stale_token
+
+    TIER_2_GROWTH_CONTROLLED:
+      description: >-
+        Growth-controlled tier. Only allowed when ALL gates pass, drawdown is
+        low, regime confidence is acceptable, alpha confidence is above
+        threshold, broker/spread/slippage are acceptable, no daily DD breach,
+        no stale token, no open position, no recent forced close anomaly.
+        STILL no martingale/grid/averaging/loss multiplier.
+      risk_per_trade_pct: 0.005              # 0.5% cap (NO increase above Tier 1)
+      max_lot: 0.01                          # 0.01 cap (NO increase)
+      requires:
+        - model_health_pass_or_pass_with_warnings_with_zero_required_failures
+        - feature_parity_pass_or_pass_with_warnings
+        - runtime_safety_pass
+        - production_closure_blockers_zero
+        - regime_confidence_acceptable
+        - alpha_confidence_above_threshold
+        - broker_spread_slippage_acceptable
+        - no_daily_dd_breach
+        - no_stale_token
+        - no_open_position
+        - no_recent_forced_close_anomaly
+      notes: >-
+        Tier 2 does NOT increase lot or risk above Tier 1. It is a logical
+        "growth ready" flag that signals the system is in a healthy state
+        for the growth target profile. It is NOT a license to take more risk.
+
+  # ─── No-Forced-Trade Rules ──────────────────────────────────────────────
+  no_forced_trade:
+    NO_TRADE_VALID_DECISION: true            # No-trade is a valid decision
+    TARGET_NOT_FORCED: true                  # Never force trades to hit target
+    ALPHA_REQUIRED: true                     # Alpha signal required for entry
+    REGIME_REQUIRED: true                    # Regime detection required for entry
+    RISK_GATE_REQUIRED: true                 # Risk gate must pass for entry
+
+  # ─── Safety Gates Required Before Growth Tier ───────────────────────────
+  safety_gates_required:
+    v2_8_3_3_1_release_gate: true            # Phase 1 reconciliation must pass
+    model_health: pass_or_pass_with_warnings
+    feature_parity: pass_or_pass_with_warnings
+    runtime_safety: pass
+    production_closure: ready_with_safe_defaults
+    autonomous_readiness: ready_supervised
+    autonomous_entry: alpha_regime_entry_pass
+
+  # ─── Execution Venue ─────────────────────────────────────────────────────
+  execution_venue:
+    allowed: MetaQuotes-Demo
+    blocked:
+      - FundedNext-Demo
+      - FundedNext-Live
+      - MetaQuotes-Live
+      - any_live_account
+      - any_funded_account
+    execution_token_required: true
+    execution_blocker: OPERATOR_ARM_TOKEN_REQUIRED
+
+  # ─── Forbidden Strategies (NEVER allowed) ───────────────────────────────
+  forbidden_strategies:
+    martingale: false                        # false = NOT allowed
+    grid: false
+    averaging_down: false
+    loss_based_lot_multiplier: false
+    forced_recovery: false
+    lot_increase_after_loss: false
+
+  # ─── Build-Request Profile (audit-only) ─────────────────────────────────
+  build_request:
+    order_send_allowed: false                # build-request never sends orders
+    token_creation_allowed: false            # build-request never creates tokens
+    position_modification_allowed: false     # build-request never modifies positions
