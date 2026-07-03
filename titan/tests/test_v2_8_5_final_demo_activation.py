@@ -48,6 +48,8 @@ GP_PATH = GROWTH_DIR / "prop_challenge_growth_profile_audit.json"
 PC_PATH = AUDIT_DEMO_DIR / "production_closure_readiness_audit.json"
 FA_PATH = FINAL_ACTIVATION_DIR / "final_demo_activation_readiness_audit.json"
 BR_PATH = AUDIT_DEMO_DIR / "managed_trade_report.json"
+AP_ARCH_PATH = REPO_ROOT / "data" / "audit" / "architecture" / "runtime_architecture_pipeline_audit.json"
+CG_ARCH_PATH = REPO_ROOT / "data" / "audit" / "architecture" / "ceo_ai_governance_audit.json"
 TOKEN_PATH = REPO_ROOT / "data" / "runtime" / "operator_execution_token.json"
 RECEIPT_PATH = REPO_ROOT / "data" / "runtime" / "demo_micro_execution_receipt.json"
 RUNBOOK_PATH = REPO_ROOT / "docs" / "FINAL_METAQUOTES_DEMO_START_RUNBOOK.md"
@@ -108,12 +110,25 @@ def _seed_all_passing():
         "verdict": "PRODUCTION_CLOSURE_READY_WITH_SAFE_DEFAULTS",
         "blockers": [],
     })
+    # v2.8.5-D: seed architecture pipeline + CEO governance audits
+    arch_dir = REPO_ROOT / "data" / "audit" / "architecture"
+    _write_json(arch_dir / "runtime_architecture_pipeline_audit.json", {
+        "verdict": "RUNTIME_ARCHITECTURE_PIPELINE_PASS_WITH_WARNINGS",
+    })
+    _write_json(arch_dir / "ceo_ai_governance_audit.json", {
+        "verdict": "CEO_AI_GOVERNANCE_PASS",
+    })
+    # v2.8.5-D: build-request must have CEO imported + called
     _write_json(BR_PATH, {
         "mode": "build_request", "verdict": "PASS",
         "normalized_verdict": "PASS",
         "request_status": "READY_FOR_SUPERVISED_OPERATOR_ARM",
         "execution_now_allowed": False,
         "execution_blocker": "OPERATOR_ARM_TOKEN_REQUIRED",
+        "ceo_governance_imported": True,
+        "ceo_governance_called": True,
+        "ceo_final_decision": "PASS",
+        "ceo_allowed_to_trade": True,
     })
 
 
@@ -141,7 +156,7 @@ class TestFinalDemoActivationVerdict:
     """Tests 1-6: Final demo activation audit verdict logic."""
 
     def setup_method(self):
-        self._backups = _backup([MH_PATH, FP_PATH, RS_PATH, GP_PATH, PC_PATH, BR_PATH,
+        self._backups = _backup([MH_PATH, FP_PATH, RS_PATH, GP_PATH, PC_PATH, BR_PATH, AP_ARCH_PATH, CG_ARCH_PATH,
                                   FA_PATH, TOKEN_PATH, RECEIPT_PATH])
 
     def teardown_method(self):
@@ -223,8 +238,13 @@ class TestFinalDemoActivationVerdict:
         assert any("GROWTH_PROFILE_NOT_PASS" in b for b in result["blockers"])
 
     def test_06_blocks_when_production_closure_has_blockers(self):
-        """Test 6: BLOCKED when production closure has blockers."""
+        """Test 6: v2.8.5-D - final_demo_activation no longer depends on production_closure.
+        Production closure blockers do NOT block final activation (acyclic dependency).
+        Instead, final activation blocks on its own gates (build-request, model health, etc.)
+        """
         _seed_all_passing()
+        # v2.8.5-D: Production closure is NOT a required gate for final activation
+        # So setting PC to BLOCKED should NOT add a PRODUCTION_CLOSURE_NOT_READY blocker
         _write_json(PC_PATH, {
             "verdict": "PRODUCTION_CLOSURE_BLOCKED",
             "blockers": ["some_blocker"],
@@ -232,8 +252,9 @@ class TestFinalDemoActivationVerdict:
         import scripts.audit.final_demo_activation_readiness_audit as m
         with patch.object(m, '_check_mt5_environment', return_value=_mock_mt5_env()):
             result = m.run_audit()
-        assert result["verdict"] == m.FINAL_DEMO_ACTIVATION_BLOCKED
-        assert any("PRODUCTION_CLOSURE_NOT_READY" in b for b in result["blockers"])
+        # final_demo_activation should NOT have PRODUCTION_CLOSURE_NOT_READY blocker
+        assert not any("PRODUCTION_CLOSURE_NOT_READY" in b for b in result["blockers"]), \
+            "final_demo_activation must NOT depend on production_closure (acyclic)"
 
 
 # ============================================================
@@ -244,7 +265,7 @@ class TestFinalDemoActivationMT5Env:
     """Tests 7-12: MT5 environment and receipt checks."""
 
     def setup_method(self):
-        self._backups = _backup([MH_PATH, FP_PATH, RS_PATH, GP_PATH, PC_PATH, BR_PATH,
+        self._backups = _backup([MH_PATH, FP_PATH, RS_PATH, GP_PATH, PC_PATH, BR_PATH, AP_ARCH_PATH, CG_ARCH_PATH,
                                   FA_PATH, TOKEN_PATH, RECEIPT_PATH])
 
     def teardown_method(self):
@@ -335,7 +356,7 @@ class TestFinalDemoActivationSafety:
     """Tests 13-15: Final demo activation audit never violates safety."""
 
     def setup_method(self):
-        self._backups = _backup([MH_PATH, FP_PATH, RS_PATH, GP_PATH, PC_PATH, BR_PATH,
+        self._backups = _backup([MH_PATH, FP_PATH, RS_PATH, GP_PATH, PC_PATH, BR_PATH, AP_ARCH_PATH, CG_ARCH_PATH,
                                   FA_PATH, TOKEN_PATH, RECEIPT_PATH])
 
     def teardown_method(self):
@@ -379,7 +400,7 @@ class TestFinalActivationIntegration:
     """Tests 16-18: Production closure and build-request read final activation."""
 
     def setup_method(self):
-        self._backups = _backup([MH_PATH, FP_PATH, RS_PATH, GP_PATH, PC_PATH, BR_PATH,
+        self._backups = _backup([MH_PATH, FP_PATH, RS_PATH, GP_PATH, PC_PATH, BR_PATH, AP_ARCH_PATH, CG_ARCH_PATH,
                                   FA_PATH, TOKEN_PATH, RECEIPT_PATH,
                                   AUDIT_DEMO_DIR / "autonomous_entry_decision.json",
                                   AUDIT_DEMO_DIR / "end_to_end_entry_gate_audit.json",

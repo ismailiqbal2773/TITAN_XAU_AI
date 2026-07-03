@@ -545,7 +545,10 @@ class TestBuildRequestDisplay:
         assert result["v2_8_4_allowed"] is True
 
     def test_17_v2832_build_request_pass_sync_remains_valid(self):
-        """Test 17: Existing v2.8.3.2 build-request PASS sync still works (regression)."""
+        """Test 17: Existing v2.8.3.2 build-request PASS sync still works (regression).
+
+        v2.8.5-D: Now also requires CEO governance fields (imported, called, PASS).
+        """
         # Seed passing audit files
         _write_json(AE_PATH, {
             "final_decision": "ALPHA_REGIME_ENTRY_PASS", "alpha_pass": True,
@@ -560,6 +563,7 @@ class TestBuildRequestDisplay:
 
         import scripts.operator.run_managed_demo_micro_trade as m
         # Use a minimal result dict like v2.8.3.2 tests
+        # v2.8.5-D: Add CEO governance fields
         result = {
             "mode": "build_request", "verdict": "BLOCKED",
             "blockers": ["BROKER_BLOCKED: score=0 < 70"],
@@ -567,6 +571,12 @@ class TestBuildRequestDisplay:
             "end_to_end_entry_gate_blockers": [],
             "autonomous_demo_readiness_status": "AUTONOMOUS_DEMO_READY_SUPERVISED",
             "autonomous_demo_blockers": [],
+            # v2.8.5-D: CEO governance fields
+            "ceo_governance_imported": True,
+            "ceo_governance_called": True,
+            "ceo_final_decision": "PASS",
+            "ceo_allowed_to_trade": True,
+            "ceo_blockers": [],
         }
         m.apply_build_request_verdict_sync(result)
         # v2.8.3.2 contract: top-level must be PASS, blockers=0

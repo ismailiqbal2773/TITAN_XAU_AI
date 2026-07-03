@@ -128,6 +128,9 @@ def run_audit() -> dict:
     """Run the runtime architecture pipeline audit.
 
     NEVER calls mt5.order_send. NEVER creates token. NEVER modifies positions.
+
+    v2.8.5-D: References docs/TITAN_ARCHITECTURE_LOCK_v1.0.md as single
+    source of truth for architecture.
     """
     ts = datetime.now(timezone.utc).isoformat()
     ok_checks = []
@@ -135,6 +138,15 @@ def run_audit() -> dict:
     warnings_list = []
     findings = {}
     components = {}
+
+    # v2.8.5-D: Reference Architecture Lock
+    arch_lock_path = REPO_ROOT / "docs" / "TITAN_ARCHITECTURE_LOCK_v1.0.md"
+    findings["architecture_lock_path"] = str(arch_lock_path.relative_to(REPO_ROOT)) if arch_lock_path.exists() else ""
+    findings["architecture_lock_exists"] = arch_lock_path.exists()
+    if not arch_lock_path.exists():
+        blockers.append("ARCHITECTURE_LOCK_MISSING: docs/TITAN_ARCHITECTURE_LOCK_v1.0.md not found")
+    else:
+        ok_checks.append("Architecture Lock v1.0 exists")
 
     # Define runtime files (operator scripts + production trade loop if exists)
     runtime_files = [
@@ -286,9 +298,10 @@ def run_audit() -> dict:
         "verdict": "PASS" if ceo_exists else "BLOCKED",
     }
     if ceo_exists and not ceo_imported:
-        warnings_list.append(
+        # v2.8.5-D: CEO not imported by runtime = BLOCKER (not warning)
+        blockers.append(
             "CEO_AI_GOVERNANCE_NOT_IMPORTED_BY_RUNTIME: module exists but not imported by "
-            "trade loop / operator script - integration pending"
+            "trade loop / operator script - v2.8.5-D requires CEO wiring"
         )
 
     # === Component 8: Risk Gate ===
@@ -409,17 +422,26 @@ def run_audit() -> dict:
         ok_checks.append("No raw XGB-to-execution bypass")
 
     # 2. CEO AI bypass (execution proceeds without CEO governance)
-    # Check if operator script has CEO governance integration
-    op_src = exec_path.read_text(encoding="utf-8") if exec_exists else ""
-    op_stripped = _strip(op_src)
-    ceo_integrated = "ceo_ai_governance" in op_stripped or "evaluate_ceo_decision" in op_stripped
-    if not ceo_integrated:
-        warnings_list.append(
+    # v2.8.5-D: CEO not wired = BLOCKER (not warning)
+    # Check RAW source (not stripped) because CEO blocker strings are in string literals
+    op_raw = exec_path.read_text(encoding="utf-8") if exec_exists else ""
+    ceo_integrated = "from titan.production.ceo_ai_governance import" in op_raw
+    ceo_called = "evaluate_ceo_decision(" in op_raw
+    ceo_blocks_exec = "CEO_AI_GOVERNANCE_BLOCKED_EXECUTION" in op_raw
+    if not ceo_integrated or not ceo_called:
+        blockers.append(
             "CEO_AI_GOVERNANCE_NOT_INTEGRATED: operator script does not import/call "
-            "ceo_ai_governance - execution may proceed without CEO meta-decision"
+            "ceo_ai_governance - v2.8.5-D requires CEO wiring for execution"
         )
     else:
         ok_checks.append("CEO AI governance integrated in operator script")
+    if not ceo_blocks_exec:
+        blockers.append(
+            "CEO_AI_GOVERNANCE_NOT_BLOCKING_EXECUTION: execute-and-monitor path does not "
+            "check CEO before order_send - raw XGB could bypass CEO"
+        )
+    else:
+        ok_checks.append("CEO AI governance blocks execution if not approved")
 
     # 3. Token gate bypass (execution without OPERATOR_ARM_TOKEN_REQUIRED)
     if not token_gate_present:

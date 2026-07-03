@@ -810,12 +810,35 @@ def run_audit() -> dict:
             pass
     findings["latest_ceo_ai_governance_verdict"] = latest_ceo_ai_governance_verdict
     findings["ceo_ai_governance_pass"] = ceo_gov_pass
+    # v2.8.5-D: CEO operator wiring status from CEO governance audit
+    ceo_operator_build_request_wired = False
+    ceo_execute_path_wired = False
+    if ceo_gov_path.exists():
+        try:
+            with open(ceo_gov_path, "r", encoding="utf-8") as f:
+                cg_data2 = json.load(f)
+            cg_findings = cg_data2.get("findings", {}) or {}
+            ceo_operator_build_request_wired = bool(
+                cg_findings.get("build_request_imports_ceo", False)
+                and cg_findings.get("build_request_calls_ceo", False)
+            )
+            ceo_execute_path_wired = bool(
+                cg_findings.get("execute_path_calls_ceo_before_order_send", False)
+            )
+        except Exception:
+            pass
+    findings["ceo_operator_build_request_wired"] = ceo_operator_build_request_wired
+    findings["ceo_execute_path_wired"] = ceo_execute_path_wired
     if latest_ceo_ai_governance_verdict == "CEO_AI_GOVERNANCE_BLOCKED":
         blockers.append("CEO_AI_GOVERNANCE_BLOCKED: CEO AI governance audit failed")
     elif latest_ceo_ai_governance_verdict == "":
         warnings.append("CEO_AI_GOVERNANCE_AUDIT_MISSING: run scripts/audit/ceo_ai_governance_audit.py")
     elif ceo_gov_pass:
         ok_checks.append(f"CEO AI governance: {latest_ceo_ai_governance_verdict}")
+    if not ceo_operator_build_request_wired:
+        blockers.append("CEO_OPERATOR_BUILD_REQUEST_NOT_WIRED: CEO not imported/called by build-request")
+    if not ceo_execute_path_wired:
+        blockers.append("CEO_EXECUTE_PATH_NOT_WIRED: CEO not called before order_send in execute path")
 
     # Sprint v2.8.3.3: SUPERVISED_READY requires all 3 CTO gates to pass.
     # If any gate is blocked, downgrade SUPERVISED_READY -> BLOCKED so v2.8.4 cannot start.
@@ -1044,6 +1067,9 @@ def run_audit() -> dict:
         "runtime_architecture_pipeline_pass": arch_pipeline_pass,
         "latest_ceo_ai_governance_verdict": latest_ceo_ai_governance_verdict,
         "ceo_ai_governance_pass": ceo_gov_pass,
+        # v2.8.5-D: CEO operator wiring status
+        "ceo_operator_build_request_wired": ceo_operator_build_request_wired,
+        "ceo_execute_path_wired": ceo_execute_path_wired,
         # v2.8.5-C: freshness metadata for audit hygiene
         "generated_at_utc": freshness["generated_at_utc"],
         "git_commit": current_commit,

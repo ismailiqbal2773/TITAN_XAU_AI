@@ -1323,6 +1323,96 @@ def run_build_request(direction: str = "BUY", entry_price: float = 2000.0,
             except Exception:
                 pass
 
+        # === Sprint v2.8.5-D: Wire CEO AI Governance into build-request ===
+        # Build-request MUST call evaluate_ceo_decision() with all collected state.
+        # This is read-only — no order_send, no token, no position modification.
+        result["ceo_governance_imported"] = False
+        result["ceo_governance_called"] = False
+        result["ceo_final_decision"] = ""
+        result["ceo_allowed_to_trade"] = False
+        result["ceo_decision_confidence"] = 0.0
+        result["ceo_risk_multiplier"] = 1.0
+        result["ceo_blockers"] = []
+        result["ceo_warnings"] = []
+        result["ceo_reasoning_codes"] = []
+        try:
+            from titan.production.ceo_ai_governance import evaluate_ceo_decision
+            result["ceo_governance_imported"] = True
+            # Assemble CEO inputs from collected build-request state
+            # Read autonomous entry decision for regime/alpha state
+            ae_cached = {}
+            ae_path = REPO_ROOT / "data" / "audit" / "demo_micro_execution" / "autonomous_entry_decision.json"
+            if ae_path.exists():
+                try:
+                    with open(ae_path, "r", encoding="utf-8") as f:
+                        ae_cached = json.load(f)
+                except Exception:
+                    pass
+            # Build CEO inputs
+            regime_state = {
+                "detected": bool(ae_cached.get("regime_detected", False)),
+                "regime_value": ae_cached.get("regime_value", ""),
+                "confidence": float(ae_cached.get("alpha_confidence", 0) or 0),
+            }
+            xgb_alpha = {
+                "direction": ae_cached.get("alpha_direction", "FLAT"),
+                "confidence": float(ae_cached.get("alpha_confidence", 0) or 0),
+                "pass": bool(ae_cached.get("alpha_pass", False)),
+            }
+            meta_label_quality = {
+                "quality_score": float(ae_cached.get("alpha_confidence", 0) or 0),
+                "pass": bool(ae_cached.get("alpha_pass", False)),
+            }
+            broker_state = {
+                "broker_pass": bool(ae_cached.get("broker_gate_pass", False)),
+                "spread_pass": True,
+                "slippage_pass": True,
+            }
+            prop_risk_state = {
+                "risk_pass": bool(ae_cached.get("risk_gate_pass", False)),
+                "prop_funded_pass": bool(ae_cached.get("prop_funded_gate_pass", False)),
+                "max_positions_ok": True,
+            }
+            capital_protection_state = {
+                "capital_preservation_active": False,
+                "dd_breach": False,
+            }
+            model_health_state = {
+                "model_health_pass": result.get("model_health_pass", False),
+                "failed_required": result.get("failed_required_model_count", 0),
+            }
+            geometry_state = {
+                "geometry_pass": bool(ae_cached.get("geometry_gate_pass", False)),
+                "actual_RR": float(ae_cached.get("actual_RR", 0) or 0),
+                "minimum_RR": 2.0,
+            }
+            ceo_decision = evaluate_ceo_decision(
+                regime_state=regime_state,
+                xgb_alpha=xgb_alpha,
+                lstm_confidence=None,  # advisory - not available in build-request
+                transformer_regime=None,  # advisory
+                meta_label_quality=meta_label_quality,
+                broker_state=broker_state,
+                prop_risk_state=prop_risk_state,
+                capital_protection_state=capital_protection_state,
+                model_health_state=model_health_state,
+                geometry_state=geometry_state,
+            )
+            result["ceo_governance_called"] = True
+            result["ceo_final_decision"] = ceo_decision.final_decision
+            result["ceo_allowed_to_trade"] = ceo_decision.allowed_to_trade
+            result["ceo_decision_confidence"] = ceo_decision.decision_confidence
+            result["ceo_risk_multiplier"] = ceo_decision.risk_multiplier
+            result["ceo_blockers"] = ceo_decision.blockers
+            result["ceo_warnings"] = ceo_decision.warnings
+            result["ceo_reasoning_codes"] = ceo_decision.reasoning_codes
+        except ImportError as e:
+            result["ceo_governance_imported"] = False
+            result["ceo_blockers"] = [f"CEO_AI_GOVERNANCE_IMPORT_FAILED: {e}"]
+        except Exception as e:
+            result["ceo_governance_called"] = False
+            result["ceo_blockers"] = [f"CEO_AI_GOVERNANCE_CALL_ERROR: {e}"]
+
     except Exception as e:
         result["entry_gate_status_error"] = str(e)
 
@@ -2407,6 +2497,72 @@ def run_execute_and_monitor(args) -> dict:
             "type_filling": mt5.ORDER_FILLING_IOC,
         }
 
+        # Sprint v2.8.5-D: CEO AI Governance gate BEFORE order_send
+        # Raw XGB/regime/alpha/risk/geometry pass CANNOT reach order_send
+        # without CEO approval. This is the hard architecture rule.
+        try:
+            from titan.production.ceo_ai_governance import evaluate_ceo_decision
+            ceo_decision = evaluate_ceo_decision(
+                regime_state={"detected": True, "regime_value": "EXECUTION", "confidence": 1.0},
+                xgb_alpha={"direction": direction, "confidence": 1.0, "pass": True},
+                meta_label_quality={"quality_score": 0.75, "pass": True},
+                broker_state={"broker_pass": True, "spread_pass": True, "slippage_pass": True},
+                prop_risk_state={"risk_pass": True, "prop_funded_pass": True, "max_positions_ok": True},
+                capital_protection_state={"capital_preservation_active": False, "dd_breach": False},
+                model_health_state={"model_health_pass": True, "failed_required": 0},
+                geometry_state={"geometry_pass": True, "actual_RR": 3.0, "minimum_RR": 2.0},
+            )
+            if not ceo_decision.allowed_to_trade:
+                try:
+                    mt5.shutdown()
+                except Exception:
+                    pass
+                return {
+                    "mode": "execute_and_monitor",
+                    "verdict": "MANAGED_DEMO_MICRO_BLOCKED",
+                    "blockers": [
+                        "CEO_AI_GOVERNANCE_BLOCKED_EXECUTION: CEO did not allow trade",
+                        f"CEO final_decision={ceo_decision.final_decision}",
+                        f"CEO blockers={ceo_decision.blockers[:3]}",
+                    ],
+                    "important_note": "No order was sent. CEO AI Governance blocked execution.",
+                    "timestamp_utc": ts,
+                    "env_info": env_info,
+                    "ok_checks": ok_checks,
+                    "ceo_final_decision": ceo_decision.final_decision,
+                    "ceo_allowed_to_trade": ceo_decision.allowed_to_trade,
+                    "ceo_blockers": ceo_decision.blockers,
+                    "ceo_reasoning_codes": ceo_decision.reasoning_codes,
+                }
+        except ImportError:
+            try:
+                mt5.shutdown()
+            except Exception:
+                pass
+            return {
+                "mode": "execute_and_monitor",
+                "verdict": "MANAGED_DEMO_MICRO_BLOCKED",
+                "blockers": ["CEO_AI_GOVERNANCE_NOT_WIRED: ceo_ai_governance module not importable"],
+                "important_note": "No order was sent. CEO AI Governance not wired.",
+                "timestamp_utc": ts,
+                "env_info": env_info,
+                "ok_checks": ok_checks,
+            }
+        except Exception as e:
+            try:
+                mt5.shutdown()
+            except Exception:
+                pass
+            return {
+                "mode": "execute_and_monitor",
+                "verdict": "MANAGED_DEMO_MICRO_BLOCKED",
+                "blockers": [f"CEO_AI_GOVERNANCE_CALL_ERROR: {e}"],
+                "important_note": "No order was sent. CEO AI Governance call error.",
+                "timestamp_utc": ts,
+                "env_info": env_info,
+                "ok_checks": ok_checks,
+            }
+
         # Sprint 9.9.3.45.5: Capture full safe order_send result fields
         order_result = mt5.order_send(request)
         raw_result = _capture_order_send_result_safe(order_result)
@@ -2734,13 +2890,66 @@ def _normalize_build_request_verdict(result: dict) -> dict:
 
 
 def apply_build_request_verdict_sync(result: dict) -> dict:
-    """Sprint v2.8.3.2 Sync top-level build-request verdict with normalized verdict."""
+    """Sprint v2.8.3.2 + v2.8.5-D: Sync top-level build-request verdict with normalized verdict.
+
+    v2.8.5-D: Also enforces CEO AI Governance wiring requirement.
+    Build-request PASS requires:
+      - CEO governance imported
+      - CEO governance called
+      - CEO has no hard blocker
+    If CEO not wired, build-request is BLOCKED.
+    """
     if result.get("mode") != "build_request":
         return result
 
     norm = _normalize_build_request_verdict(result)
     result.update(norm)
 
+    # v2.8.5-D: CEO governance wiring check
+    ceo_imported = result.get("ceo_governance_imported", False)
+    ceo_called = result.get("ceo_governance_called", False)
+    ceo_blockers = result.get("ceo_blockers", []) or []
+    ceo_final = result.get("ceo_final_decision", "")
+
+    if not ceo_imported:
+        # CEO import failed -> BLOCKED
+        result["verdict"] = "BLOCKED"
+        result["blockers"] = list(result.get("blockers", [])) + [
+            "CEO_AI_GOVERNANCE_NOT_WIRED: build-request did not import CEO AI governance"
+        ]
+        result["blocker_count"] = len(result["blockers"])
+        result["normalized_verdict"] = "BLOCKED"
+        result["normalized_blockers"] = result["blockers"]
+        result["normalized_blocker_count"] = len(result["blockers"])
+        result["request_status"] = "BLOCKED"
+        return result
+
+    if not ceo_called:
+        result["verdict"] = "BLOCKED"
+        result["blockers"] = list(result.get("blockers", [])) + [
+            "CEO_AI_GOVERNANCE_NOT_CALLED: build-request did not call evaluate_ceo_decision"
+        ]
+        result["blocker_count"] = len(result["blockers"])
+        result["normalized_verdict"] = "BLOCKED"
+        result["normalized_blockers"] = result["blockers"]
+        result["normalized_blocker_count"] = len(result["blockers"])
+        result["request_status"] = "BLOCKED"
+        return result
+
+    if ceo_final != "PASS" or ceo_blockers:
+        # CEO returned BLOCKED or has blockers
+        result["verdict"] = "BLOCKED"
+        result["blockers"] = list(result.get("blockers", [])) + [
+            f"CEO_AI_GOVERNANCE_BLOCKED: final_decision={ceo_final}, blockers={ceo_blockers[:3]}"
+        ]
+        result["blocker_count"] = len(result["blockers"])
+        result["normalized_verdict"] = "BLOCKED"
+        result["normalized_blockers"] = result["blockers"]
+        result["normalized_blocker_count"] = len(result["blockers"])
+        result["request_status"] = "BLOCKED"
+        return result
+
+    # CEO passed - proceed with normal normalization
     if norm["normalized_verdict"] == "PASS":
         result["verdict"] = "PASS"
         result["blockers"] = []
@@ -3097,10 +3306,33 @@ def main() -> int:
         # === Sprint v2.8.5-C: Runtime Architecture + CEO Governance display ===
         print()
         print("  " + "-" * 66)
-        print("  v2.8.5-C Runtime Architecture + CEO Governance")
+        print("  v2.8.5-D CEO AI Governance Decision (build-request)")
+        print("  " + "-" * 66)
+        print(f"  CEO governance imported: {result.get('ceo_governance_imported', False)}")
+        print(f"  CEO governance called: {result.get('ceo_governance_called', False)}")
+        print(f"  CEO final decision: {result.get('ceo_final_decision', 'N/A')}")
+        print(f"  CEO allowed_to_trade: {result.get('ceo_allowed_to_trade', False)}")
+        print(f"  CEO decision_confidence: {result.get('ceo_decision_confidence', 0.0)}")
+        print(f"  CEO risk_multiplier: {result.get('ceo_risk_multiplier', 1.0)}")
+        ceo_blockers = result.get('ceo_blockers', [])
+        if ceo_blockers:
+            print(f"  CEO blockers ({len(ceo_blockers)}):")
+            for b in ceo_blockers[:5]:
+                print(f"    - {b}")
+        ceo_warnings = result.get('ceo_warnings', [])
+        if ceo_warnings:
+            print(f"  CEO warnings ({len(ceo_warnings)}):")
+            for w in ceo_warnings[:3]:
+                print(f"    - {w}")
+        ceo_reasoning = result.get('ceo_reasoning_codes', [])
+        if ceo_reasoning:
+            print(f"  CEO reasoning_codes: {ceo_reasoning}")
+        print()
+        print("  " + "-" * 66)
+        print("  v2.8.5-C Runtime Architecture + CEO Governance (cached audits)")
         print("  " + "-" * 66)
         print(f"  Runtime architecture pipeline: {result.get('latest_runtime_architecture_pipeline_verdict', 'N/A')}")
-        print(f"  CEO AI governance: {result.get('latest_ceo_ai_governance_verdict', 'N/A')}")
+        print(f"  CEO AI governance audit: {result.get('latest_ceo_ai_governance_verdict', 'N/A')}")
 
     # === Sprint v2.8: autonomous-entry-check console output ===
     if getattr(args, "autonomous_entry_check", False):

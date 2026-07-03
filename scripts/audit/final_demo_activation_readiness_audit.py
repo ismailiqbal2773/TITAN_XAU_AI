@@ -492,20 +492,44 @@ def run_audit() -> dict:
     else:
         ok_checks.append(f"Growth profile: {gp_verdict}")
 
-    # 5. Production closure
-    pc = _load_json(audit_dir / "production_closure_readiness_audit.json")
-    pc_verdict = pc.get("verdict", "")
-    pc_blockers = pc.get("blockers", []) or []
-    pc_pass = pc_verdict == "PRODUCTION_CLOSURE_READY_WITH_SAFE_DEFAULTS" and len(pc_blockers) == 0
-    findings["production_closure_verdict"] = pc_verdict
-    findings["production_closure_blockers_count"] = len(pc_blockers)
-    findings["production_closure_pass"] = pc_pass
-    if not pc_pass:
-        blockers.append(
-            f"PRODUCTION_CLOSURE_NOT_READY: verdict={pc_verdict}, blockers={len(pc_blockers)}"
-        )
+    # 5. Production closure — REMOVED v2.8.5-D
+    # final_demo_activation must NOT depend on production_closure artifact.
+    # Acyclic order: base audits -> build-request -> final_demo_activation
+    # -> production_closure (aggregator).
+    # production_closure may read final_demo_activation, but NOT vice versa.
+    findings["production_closure_verdict"] = ""
+    findings["production_closure_blockers_count"] = 0
+    findings["production_closure_pass"] = True  # not checked here
+    ok_checks.append("Production closure dependency removed (acyclic audit chain)")
+
+    # 5a. Runtime architecture pipeline (v2.8.5-D: required gate)
+    arch_dir = REPO_ROOT / "data" / "audit" / "architecture"
+    ap = _load_json(arch_dir / "runtime_architecture_pipeline_audit.json")
+    ap_verdict = ap.get("verdict", "")
+    ap_pass = ap_verdict in (
+        "RUNTIME_ARCHITECTURE_PIPELINE_PASS",
+        "RUNTIME_ARCHITECTURE_PIPELINE_PASS_WITH_WARNINGS",
+    )
+    findings["runtime_architecture_pipeline_verdict"] = ap_verdict
+    findings["runtime_architecture_pipeline_pass"] = ap_pass
+    if not ap_pass:
+        blockers.append(f"RUNTIME_ARCHITECTURE_PIPELINE_NOT_PASS: verdict={ap_verdict}")
     else:
-        ok_checks.append(f"Production closure: {pc_verdict}, blockers=0")
+        ok_checks.append(f"Runtime architecture pipeline: {ap_verdict}")
+
+    # 5b. CEO AI governance (v2.8.5-D: required gate)
+    cg = _load_json(arch_dir / "ceo_ai_governance_audit.json")
+    cg_verdict = cg.get("verdict", "")
+    cg_pass = cg_verdict in (
+        "CEO_AI_GOVERNANCE_PASS",
+        "CEO_AI_GOVERNANCE_PASS_WITH_WARNINGS",
+    )
+    findings["ceo_ai_governance_verdict"] = cg_verdict
+    findings["ceo_ai_governance_pass"] = cg_pass
+    if not cg_pass:
+        blockers.append(f"CEO_AI_GOVERNANCE_NOT_PASS: verdict={cg_verdict}")
+    else:
+        ok_checks.append(f"CEO AI governance: {cg_verdict}")
 
     # 6. Autonomous readiness (advisory - not blocking if missing in Z AI env)
     ar = _load_json(audit_dir / "autonomous_demo_readiness_audit.json")
@@ -521,6 +545,7 @@ def run_audit() -> dict:
         ok_checks.append(f"Autonomous readiness: {ar_verdict}")
 
     # 7. Build-request (read from latest managed_trade_report.json)
+    # v2.8.5-D: build-request must have CEO imported + called
     br = _load_json(audit_dir / "managed_trade_report.json")
     br_mode = br.get("mode", "")
     br_verdict = br.get("verdict", "")
@@ -528,6 +553,10 @@ def run_audit() -> dict:
     br_request_status = br.get("request_status", "")
     br_execution_now_allowed = br.get("execution_now_allowed", True)  # default True so missing file blocks
     br_execution_blocker = br.get("execution_blocker", "")
+    br_ceo_imported = br.get("ceo_governance_imported", False)
+    br_ceo_called = br.get("ceo_governance_called", False)
+    br_ceo_decision = br.get("ceo_final_decision", "")
+    br_ceo_allowed = br.get("ceo_allowed_to_trade", False)
     br_pass = (
         br_mode == "build_request"
         and br_verdict == "PASS"
@@ -535,6 +564,8 @@ def run_audit() -> dict:
         and br_request_status == "READY_FOR_SUPERVISED_OPERATOR_ARM"
         and br_execution_now_allowed is False
         and br_execution_blocker == "OPERATOR_ARM_TOKEN_REQUIRED"
+        and br_ceo_imported is True  # v2.8.5-D: CEO must be imported
+        and br_ceo_called is True  # v2.8.5-D: CEO must be called
     )
     findings["build_request_mode"] = br_mode
     findings["build_request_verdict"] = br_verdict
@@ -542,18 +573,28 @@ def run_audit() -> dict:
     findings["build_request_request_status"] = br_request_status
     findings["build_request_execution_now_allowed"] = br_execution_now_allowed
     findings["build_request_execution_blocker"] = br_execution_blocker
+    findings["build_request_ceo_imported"] = br_ceo_imported
+    findings["build_request_ceo_called"] = br_ceo_called
+    findings["build_request_ceo_decision"] = br_ceo_decision
+    findings["build_request_ceo_allowed"] = br_ceo_allowed
     findings["build_request_pass"] = br_pass
+    if not br_ceo_imported:
+        blockers.append("BUILD_REQUEST_CEO_NOT_IMPORTED: build-request did not import CEO AI governance")
+    if not br_ceo_called:
+        blockers.append("BUILD_REQUEST_CEO_NOT_CALLED: build-request did not call evaluate_ceo_decision")
     if not br_pass:
         blockers.append(
             f"BUILD_REQUEST_NOT_PASS: mode={br_mode}, verdict={br_verdict}, "
             f"normalized={br_normalized_verdict}, request_status={br_request_status}, "
             f"execution_now_allowed={br_execution_now_allowed}, "
-            f"execution_blocker={br_execution_blocker}"
+            f"execution_blocker={br_execution_blocker}, "
+            f"ceo_imported={br_ceo_imported}, ceo_called={br_ceo_called}"
         )
     else:
         ok_checks.append(
             f"Build-request: PASS, request_status={br_request_status}, "
-            "execution_now_allowed=False, execution_blocker=OPERATOR_ARM_TOKEN_REQUIRED"
+            "execution_now_allowed=False, execution_blocker=OPERATOR_ARM_TOKEN_REQUIRED, "
+            f"ceo_imported={br_ceo_imported}, ceo_called={br_ceo_called}"
         )
 
     # === Risk/execution constraints (read from runtime.yaml + growth profile) ===
@@ -686,7 +727,9 @@ def run_audit() -> dict:
         (model_health_dir / "feature_parity_audit.json", "feature_parity_audit"),
         (audit_dir / "runtime_safety_gate_audit.json", "runtime_safety_gate_audit"),
         (growth_dir / "prop_challenge_growth_profile_audit.json", "prop_challenge_growth_profile_audit"),
-        (audit_dir / "production_closure_readiness_audit.json", "production_closure_readiness_audit"),
+        # v2.8.5-D: production_closure REMOVED from freshness list (acyclic dependency)
+        (REPO_ROOT / "data" / "audit" / "architecture" / "runtime_architecture_pipeline_audit.json", "runtime_architecture_pipeline_audit"),
+        (REPO_ROOT / "data" / "audit" / "architecture" / "ceo_ai_governance_audit.json", "ceo_ai_governance_audit"),
     ]:
         fr = validate_artifact_freshness(artifact_path, artifact_name, current_commit)
         if not fr["fresh"]:

@@ -96,6 +96,11 @@ class TestBuildRequestVerdictSync:
             "end_to_end_entry_gate_blockers": [],
             "autonomous_demo_readiness_status": "AUTONOMOUS_DEMO_READY_SUPERVISED",
             "autonomous_demo_blockers": [],
+            "ceo_governance_imported": True,
+            "ceo_governance_called": True,
+            "ceo_final_decision": "PASS",
+            "ceo_allowed_to_trade": True,
+            "ceo_blockers": [],
         }
         m.apply_build_request_verdict_sync(result)
 
@@ -124,12 +129,18 @@ class TestBuildRequestVerdictSync:
             "end_to_end_entry_gate_blockers": ["risk_gate_blocked"],
             "autonomous_demo_readiness_status": "AUTONOMOUS_DEMO_BLOCKED",
             "autonomous_demo_blockers": ["autonomous_blocked"],
+            # v2.8.5-D: CEO governance fields (CEO passes, but gates blocked)
+            "ceo_governance_imported": True,
+            "ceo_governance_called": True,
+            "ceo_final_decision": "BLOCKED",
+            "ceo_allowed_to_trade": False,
+            "ceo_blockers": ["CEO_REGIME_NOT_DETECTED"],
         }
         m.apply_build_request_verdict_sync(result)
 
         assert result["verdict"] == "BLOCKED"
-        assert len(result["blockers"]) == 2
-        assert result["blocker_count"] == 2
+        # v2.8.5-D: CEO blockers add to the count
+        assert result["blocker_count"] >= 2
         assert result["normalized_verdict"] == "BLOCKED"
         assert result["normalized_blocker_count"] > 0
         assert result["request_status"] == "BLOCKED"
@@ -147,6 +158,11 @@ class TestBuildRequestVerdictSync:
             "end_to_end_entry_gate_blockers": [],
             "autonomous_demo_readiness_status": "AUTONOMOUS_DEMO_READY_SUPERVISED",
             "autonomous_demo_blockers": [],
+            "ceo_governance_imported": True,
+            "ceo_governance_called": True,
+            "ceo_final_decision": "PASS",
+            "ceo_allowed_to_trade": True,
+            "ceo_blockers": [],
         }
         m.apply_build_request_verdict_sync(result)
 
@@ -270,6 +286,11 @@ class TestBuildRequestVerdictSync:
             "end_to_end_entry_gate_blockers": [],
             "autonomous_demo_readiness_status": "",
             "autonomous_demo_blockers": [],
+            "ceo_governance_imported": True,
+            "ceo_governance_called": True,
+            "ceo_final_decision": "PASS",
+            "ceo_allowed_to_trade": True,
+            "ceo_blockers": [],
         }
         m.apply_build_request_verdict_sync(result)
 

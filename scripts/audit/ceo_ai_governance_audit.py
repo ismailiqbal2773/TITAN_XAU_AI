@@ -273,20 +273,48 @@ def run_audit() -> dict:
     else:
         ok_checks.append("No position modification in CEO governance")
 
-    # === 13. Check integration with runtime ===
+    # === 13. Check integration with runtime (v2.8.5-D: BLOCKER if not wired) ===
     op_path = REPO_ROOT / "scripts" / "operator" / "run_managed_demo_micro_trade.py"
+    findings["build_request_imports_ceo"] = False
+    findings["build_request_calls_ceo"] = False
+    findings["execute_path_imports_ceo"] = False
+    findings["execute_path_calls_ceo_before_order_send"] = False
     if op_path.exists():
-        op_src = op_path.read_text(encoding="utf-8")
-        op_stripped = _strip(op_src)
-        ceo_integrated = "ceo_ai_governance" in op_stripped or "evaluate_ceo_decision" in op_stripped
-        findings["integrated_in_operator_script"] = ceo_integrated
-        if not ceo_integrated:
-            warnings_list.append(
-                "CEO_NOT_INTEGRATED_IN_OPERATOR_SCRIPT: run_managed_demo_micro_trade.py does not "
-                "import/call ceo_ai_governance - integration pending (module exists but not wired)"
+        # v2.8.5-D: Check RAW source (not stripped) because CEO strings are in literals
+        op_raw = op_path.read_text(encoding="utf-8")
+        br_imports_ceo = "from titan.production.ceo_ai_governance import" in op_raw
+        br_calls_ceo = "evaluate_ceo_decision(" in op_raw
+        findings["build_request_imports_ceo"] = br_imports_ceo
+        findings["build_request_calls_ceo"] = br_calls_ceo
+        exec_calls_ceo = ("evaluate_ceo_decision(" in op_raw and
+                          "CEO_AI_GOVERNANCE_BLOCKED_EXECUTION" in op_raw)
+        findings["execute_path_imports_ceo"] = br_imports_ceo  # same import
+        findings["execute_path_calls_ceo_before_order_send"] = exec_calls_ceo
+        findings["integrated_in_operator_script"] = br_imports_ceo and br_calls_ceo
+        if not br_imports_ceo:
+            blockers.append(
+                "CEO_AI_GOVERNANCE_NOT_IMPORTED_BY_OPERATOR: run_managed_demo_micro_trade.py "
+                "does not import ceo_ai_governance"
             )
         else:
-            ok_checks.append("CEO governance integrated in operator script")
+            ok_checks.append("CEO governance imported by operator script")
+        if not br_calls_ceo:
+            blockers.append(
+                "CEO_AI_GOVERNANCE_NOT_CALLED_BY_BUILD_REQUEST: run_managed_demo_micro_trade.py "
+                "does not call evaluate_ceo_decision"
+            )
+        else:
+            ok_checks.append("CEO governance called by build-request")
+        if not exec_calls_ceo:
+            blockers.append(
+                "CEO_AI_GOVERNANCE_NOT_CALLED_BEFORE_ORDER_SEND: execute-and-monitor path "
+                "does not call CEO before mt5.order_send"
+            )
+        else:
+            ok_checks.append("CEO governance called before order_send in execute path")
+        findings["ceo_bypass_blocks_activation"] = exec_calls_ceo
+    else:
+        blockers.append("OPERATOR_SCRIPT_MISSING: run_managed_demo_micro_trade.py not found")
 
     # === Determine verdict ===
     if blockers:

@@ -144,6 +144,11 @@ def _seed_all_passing():
         "request_status": "READY_FOR_SUPERVISED_OPERATOR_ARM",
         "execution_now_allowed": False,
         "execution_blocker": "OPERATOR_ARM_TOKEN_REQUIRED",
+        # v2.8.5-D: CEO governance fields in build-request
+        "ceo_governance_imported": True,
+        "ceo_governance_called": True,
+        "ceo_final_decision": "PASS",
+        "ceo_allowed_to_trade": True,
         **fr,
     })
     _write_json(AP_PATH, {"verdict": "RUNTIME_ARCHITECTURE_PIPELINE_PASS_WITH_WARNINGS", **fr})
