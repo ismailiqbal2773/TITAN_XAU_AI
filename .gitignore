@@ -64,3 +64,4 @@ data/audit/demo_micro/pass_evidence/metaquotes-demo/2026*/
 # v2.8.6-A: Generated report files should not dirty git
 data/reports/mtf_reality_close/
 data/reports/
+data/reports/parameter_discovery/
