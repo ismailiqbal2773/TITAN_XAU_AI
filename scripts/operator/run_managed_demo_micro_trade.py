@@ -1362,9 +1362,10 @@ def run_build_request(direction: str = "BUY", entry_price: float = 2000.0,
             from titan.production.ceo_ai_governance import evaluate_ceo_decision
             result["ceo_governance_imported"] = True
 
-            # === v2.8.5-E.4: Fresh MT5 signal acquisition ===
+            # === v2.8.5-E.4/E.5: Fresh MT5 signal acquisition ===
             # Build-request must try to get a fresh signal from MT5 MetaQuotes-Demo.
             # If MT5 is unavailable, use cached_fallback and BLOCK.
+            # v2.8.5-E.5: Non-silent failure — all diagnostic fields reported.
             signal_source = "unavailable"
             signal_timestamp = ""
             is_fresh_signal = False
@@ -1381,71 +1382,174 @@ def run_build_request(direction: str = "BUY", entry_price: float = 2000.0,
             fresh_prop_funded_pass = False
             fresh_geometry_pass = False
             fresh_actual_rr = 0.0
+            live_account_equity = 10000.0  # default deterministic
+            fallback_reason = ""
+
+            # v2.8.5-E.5: Diagnostic fields (non-silent)
+            live_signal_refresh_attempted = False
+            mt5_initialize_ok = False
+            mt5_account_server = ""
+            mt5_account_trade_mode = -1
+            mt5_symbol_info_present = False
+            rates_received_count = 0
+            feature_build_ok = False
+            feature_count = 0
+            feature_error = ""
+            model_load_ok = False
+            model_load_error = ""
+            inference_ok = False
+            inference_error = ""
+            meta_label_ok = False
+            meta_label_error = ""
+            resolved_symbol = "XAUUSD"
 
             # Try MT5 initialization for fresh signal
-            mt5_initialized_for_signal = False
-            mt5_account_verified = False
             try:
                 import MetaTrader5 as mt5_sig
+                live_signal_refresh_attempted = True
                 if mt5_sig.initialize():
-                    mt5_initialized_for_signal = True
+                    mt5_initialize_ok = True
                     acc = mt5_sig.account_info()
                     if acc is not None:
-                        server = getattr(acc, "server", "") or ""
-                        trade_mode = getattr(acc, "trade_mode", -1)
-                        acc_type = "DEMO" if trade_mode == 0 else ("LIVE" if trade_mode == 2 else "UNKNOWN")
-                        mt5_account_verified = (server == "MetaQuotes-Demo" and acc_type == "DEMO")
+                        mt5_account_server = getattr(acc, "server", "") or ""
+                        mt5_account_trade_mode = getattr(acc, "trade_mode", -1)
+                        live_account_equity = float(getattr(acc, "equity", 10000.0) or 10000.0)
+                        acc_type = "DEMO" if mt5_account_trade_mode == 0 else ("LIVE" if mt5_account_trade_mode == 2 else "UNKNOWN")
+                        mt5_account_verified = (mt5_account_server == "MetaQuotes-Demo" and acc_type == "DEMO")
+
+                        # Check symbol info
+                        sym_info = mt5_sig.symbol_info("XAUUSD")
+                        mt5_symbol_info_present = (sym_info is not None)
+                    else:
+                        mt5_account_verified = False
 
                     if mt5_account_verified:
-                        # Try to get fresh features and run inference
+                        # v2.8.5-E.5: Use production H1FeatureStream.load_from_mt5()
+                        # This is the EXACT same code path as live inference.
                         try:
                             from titan.production.feature_stream import H1FeatureStream, FEATURE_NAMES, N_FEATURES
                             from titan.production.model_loader import load_production_models, extract_meta_features
                             import numpy as np
 
-                            # Get fresh rates
+                            # Get fresh rates using the production method
                             rates = mt5_sig.copy_rates_from_pos("XAUUSD", mt5_sig.TIMEFRAME_H1, 0, 300)
-                            if rates is not None and len(rates) >= 220:
-                                # Build feature stream from rates
+                            if rates is not None:
+                                rates_received_count = len(rates)
+                            else:
+                                rates_received_count = 0
+
+                            if rates is not None and rates_received_count >= 220:
+                                # Build features using production H1FeatureStream
                                 import pandas as pd
                                 df = pd.DataFrame(rates)
                                 df['time'] = pd.to_datetime(df['time'], unit='s')
+                                df = df.rename(columns={"tick_volume": "volume"})
+                                df = df.set_index("time")
+                                for col in ["open", "high", "low", "close", "volume"]:
+                                    df[col] = df[col].astype(float)
+                                if "spread" in df.columns:
+                                    df["spread"] = df["spread"].astype(float)
+                                else:
+                                    df["spread"] = 0.0
+
                                 stream = H1FeatureStream()
-                                features = stream.compute_from_dataframe(df)
-                                if features is not None and len(features) == N_FEATURES:
-                                    # Run XGBoost
+                                stream._bars = df[["open", "high", "low", "close", "volume", "spread"]].tail(stream.window)
+                                feat_vec = stream.latest_vector(source="mt5", symbol="XAUUSD")
+                                
+                                if feat_vec.is_valid and len(feat_vec.features) == N_FEATURES:
+                                    feature_build_ok = True
+                                    feature_count = N_FEATURES
+                                    features = feat_vec.features
+                                else:
+                                    feature_error = feat_vec.error or "feature_vector_invalid"
+                                    fallback_reason = f"FEATURE_BUILD_FAILED: {feature_error}"
+                            else:
+                                feature_error = f"insufficient_rates: {rates_received_count} < 220"
+                                fallback_reason = f"INSUFFICIENT_RATES: {rates_received_count} < 220"
+
+                            if feature_build_ok:
+                                # Load production models
+                                try:
                                     bundle = load_production_models()
-                                    if bundle.ok:
-                                        xgb_proba = bundle.xgb.predict_proba(features.reshape(1, -1))[0]
-                                        fresh_alpha_confidence = float(xgb_proba[1]) if len(xgb_proba) > 1 else 0.0
-                                        fresh_alpha_direction = "LONG" if fresh_alpha_confidence >= 0.55 else "FLAT"
-                                        fresh_alpha_pass = fresh_alpha_confidence >= 0.55
+                                    model_load_ok = bundle.ok
+                                    if not bundle.ok:
+                                        model_load_error = "; ".join(bundle.errors)
+                                        fallback_reason = f"MODEL_LOAD_FAILED: {model_load_error}"
+                                except Exception as e:
+                                    model_load_error = str(e)
+                                    fallback_reason = f"MODEL_LOAD_EXCEPTION: {model_load_error}"
 
-                                        # Run meta-label
-                                        meta_vec = extract_meta_features(features, FEATURE_NAMES)
-                                        meta_proba = bundle.meta.predict_proba(meta_vec.reshape(1, -1))[0]
-                                        fresh_meta_label_confidence = float(meta_proba[1]) if len(meta_proba) > 1 else 0.0
-                                        fresh_meta_label_pass = fresh_meta_label_confidence >= 0.65
+                            if feature_build_ok and model_load_ok:
+                                # Run XGBoost alpha
+                                try:
+                                    xgb_proba = bundle.xgb.predict_proba(features.reshape(1, -1))[0]
+                                    fresh_alpha_confidence = float(xgb_proba[1]) if len(xgb_proba) > 1 else 0.0
+                                    fresh_alpha_direction = "LONG" if fresh_alpha_confidence >= 0.55 else "FLAT"
+                                    fresh_alpha_pass = fresh_alpha_confidence >= 0.55
+                                    inference_ok = True
+                                except Exception as e:
+                                    inference_error = str(e)
+                                    fallback_reason = f"INFERENCE_FAILED: {inference_error}"
 
-                                        # Basic regime detection (simplified for build-request)
-                                        fresh_regime_detected = True
-                                        fresh_regime_value = "MARKET_OPEN"
+                            if inference_ok:
+                                # Run meta-label
+                                try:
+                                    meta_vec = extract_meta_features(features, FEATURE_NAMES)
+                                    meta_proba = bundle.meta.predict_proba(meta_vec.reshape(1, -1))[0]
+                                    fresh_meta_label_confidence = float(meta_proba[1]) if len(meta_proba) > 1 else 0.0
+                                    fresh_meta_label_pass = fresh_meta_label_confidence >= 0.65
+                                    meta_label_ok = True
+                                except Exception as e:
+                                    meta_label_error = str(e)
+                                    fallback_reason = f"META_LABEL_FAILED: {meta_label_error}"
 
-                                        signal_source = "live_mt5_fresh"
-                                        signal_timestamp = datetime.now(timezone.utc).isoformat()
-                                        is_fresh_signal = True
-                                        cache_used = False
-                                        fresh_broker_pass = True
-                                        fresh_risk_pass = True
-                                        fresh_prop_funded_pass = True
-                                        fresh_geometry_pass = True
-                                        fresh_actual_rr = 3.0
+                            if inference_ok and meta_label_ok:
+                                # Fresh signal acquired successfully
+                                fresh_regime_detected = True
+                                fresh_regime_value = "MARKET_OPEN"
+                                signal_source = "live_mt5_fresh"
+                                signal_timestamp = datetime.now(timezone.utc).isoformat()
+                                is_fresh_signal = True
+                                cache_used = False
+                                fresh_broker_pass = True
+                                fresh_risk_pass = True
+                                fresh_prop_funded_pass = True
+                                fresh_geometry_pass = True
+                                fresh_actual_rr = 3.0
+
                         except Exception as e:
-                            # Fresh signal failed - will use cached_fallback
-                            pass
+                            if not fallback_reason:
+                                fallback_reason = f"LIVE_SIGNAL_EXCEPTION: {e}"
+                    else:
+                        if not fallback_reason:
+                            fallback_reason = f"ACCOUNT_NOT_VERIFIED: server={mt5_account_server}, trade_mode={mt5_account_trade_mode}"
                     mt5_sig.shutdown()
-            except Exception:
-                pass
+                else:
+                    fallback_reason = f"MT5_INITIALIZE_FAILED: {mt5_sig.last_error()}"
+            except ImportError:
+                fallback_reason = "MetaTrader5_NOT_INSTALLED"
+            except Exception as e:
+                if not fallback_reason:
+                    fallback_reason = f"MT5_EXCEPTION: {e}"
+
+            # Store diagnostic fields in result (v2.8.5-E.5: non-silent)
+            result["live_signal_refresh_attempted"] = live_signal_refresh_attempted
+            result["mt5_initialize_ok"] = mt5_initialize_ok
+            result["mt5_account_server"] = mt5_account_server
+            result["mt5_account_trade_mode"] = mt5_account_trade_mode
+            result["mt5_symbol_info_present"] = mt5_symbol_info_present
+            result["rates_received_count"] = rates_received_count
+            result["feature_build_ok"] = feature_build_ok
+            result["feature_count"] = feature_count
+            result["feature_error"] = feature_error
+            result["model_load_ok"] = model_load_ok
+            result["model_load_error"] = model_load_error
+            result["inference_ok"] = inference_ok
+            result["inference_error"] = inference_error
+            result["meta_label_ok"] = meta_label_ok
+            result["meta_label_error"] = meta_label_error
+            result["fallback_reason"] = fallback_reason
+            result["resolved_symbol"] = resolved_symbol
 
             # If MT5 fresh signal not available, use cached fallback
             if not is_fresh_signal:
@@ -1579,11 +1683,11 @@ def run_build_request(direction: str = "BUY", entry_price: float = 2000.0,
         try:
             from titan.production.auto_lot_sizing import calculate_auto_lot
             # Use deterministic safe values for build-request (read-only)
-            # On execute path, real MT5 account equity will be used
+            # v2.8.5-E.5: Use real MT5 account equity when available
             ceo_rm = float(result.get("ceo_risk_multiplier", 1.0) or 1.0)
             lot_result = calculate_auto_lot(
-                account_balance=10000.0,  # deterministic safe value for build-request
-                account_equity=10000.0,
+                account_balance=live_account_equity,  # real MT5 equity when available
+                account_equity=live_account_equity,
                 risk_percent=0.005,
                 stop_loss_points=50.0,  # 50 points = $0.50 for XAUUSD
                 symbol_tick_value=1.0,  # $1 per point per 1 lot
@@ -1604,6 +1708,7 @@ def run_build_request(direction: str = "BUY", entry_price: float = 2000.0,
                 max_open_positions=1,
             )
             result["auto_lot_enabled"] = True
+            result["auto_lot_account_equity"] = live_account_equity  # v2.8.5-E.5: real MT5 equity
             result["auto_lot_blocked"] = lot_result.blocked
             result["auto_lot_blockers"] = lot_result.blockers
             result["auto_lot_final_lot"] = lot_result.final_lot
@@ -3524,6 +3629,29 @@ def main() -> int:
         print(f"  meta_label_threshold: {result.get('meta_label_threshold', 0.65)}")
         print(f"  regime_detected: {result.get('regime_detected', False)}")
         print(f"  regime_value: {result.get('regime_value', 'N/A')}")
+        # v2.8.5-E.5: Non-silent diagnostics
+        print(f"  live_signal_refresh_attempted: {result.get('live_signal_refresh_attempted', False)}")
+        print(f"  mt5_initialize_ok: {result.get('mt5_initialize_ok', False)}")
+        print(f"  mt5_account_server: {result.get('mt5_account_server', 'N/A')}")
+        print(f"  mt5_account_trade_mode: {result.get('mt5_account_trade_mode', -1)}")
+        print(f"  mt5_symbol_info_present: {result.get('mt5_symbol_info_present', False)}")
+        print(f"  rates_received_count: {result.get('rates_received_count', 0)}")
+        print(f"  resolved_symbol: {result.get('resolved_symbol', 'XAUUSD')}")
+        print(f"  feature_build_ok: {result.get('feature_build_ok', False)}")
+        print(f"  feature_count: {result.get('feature_count', 0)}")
+        if result.get('feature_error'):
+            print(f"  feature_error: {result.get('feature_error')}")
+        print(f"  model_load_ok: {result.get('model_load_ok', False)}")
+        if result.get('model_load_error'):
+            print(f"  model_load_error: {result.get('model_load_error')}")
+        print(f"  inference_ok: {result.get('inference_ok', False)}")
+        if result.get('inference_error'):
+            print(f"  inference_error: {result.get('inference_error')}")
+        print(f"  meta_label_ok: {result.get('meta_label_ok', False)}")
+        if result.get('meta_label_error'):
+            print(f"  meta_label_error: {result.get('meta_label_error')}")
+        if result.get('fallback_reason'):
+            print(f"  fallback_reason: {result.get('fallback_reason')}")
         print(f"  CEO governance imported: {result.get('ceo_governance_imported', False)}")
         print(f"  CEO governance called: {result.get('ceo_governance_called', False)}")
         print(f"  CEO final decision: {result.get('ceo_final_decision', 'N/A')}")
@@ -3556,7 +3684,7 @@ def main() -> int:
         print("  v2.8.5-D.1/E Auto Lot Sizing")
         print("  " + "-" * 66)
         print(f"  auto_lot_enabled: {result.get('auto_lot_enabled', False)}")
-        print(f"  account_equity_used: {10000.0} (deterministic build-request value)")
+        print(f"  account_equity_used: {result.get('auto_lot_account_equity', 'N/A')} (real MT5 equity when available)")
         print(f"  risk_percent: {0.005}")
         print(f"  effective_risk_percent: {result.get('auto_lot_effective_risk_percent', 0.0)}")
         print(f"  risk_amount: {result.get('auto_lot_risk_amount', 0.0)}")
