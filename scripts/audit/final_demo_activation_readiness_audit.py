@@ -701,6 +701,32 @@ def run_audit() -> dict:
         and mt5_env.get("symbol_available", False)
     )
 
+    # v2.8.5-E.2: MetaQuotes-Demo verified = False is an EXPLICIT blocker.
+    # Even if all other gates pass, if MetaQuotes-Demo is not verified,
+    # final activation MUST be BLOCKED.
+    if not metaquotes_demo_verified:
+        blockers.append(
+            f"METAQUOTES_DEMO_NOT_VERIFIED: account_server={mt5_env.get('account_server', '')}, "
+            f"account_type={mt5_env.get('account_type', '')}, "
+            f"symbol_available={mt5_env.get('symbol_available', False)}"
+        )
+
+    # v2.8.5-E.2: MT5 not initialized is an EXPLICIT blocker.
+    if not mt5_initialized:
+        blockers.append(
+            "MT5_NOT_INITIALIZED: MT5 terminal not initialized"
+        )
+
+    # v2.8.5-E.2: Build-request CEO blocked is an EXPLICIT blocker.
+    # If build-request report shows CEO BLOCKED, final activation MUST be BLOCKED.
+    br_ceo_final = br.get("ceo_final_decision", "")
+    br_ceo_allowed = br.get("ceo_allowed_to_trade", True)  # default True so missing doesn't block
+    if br_ceo_final == "BLOCKED" or br_ceo_allowed is False:
+        blockers.append(
+            f"BUILD_REQUEST_CEO_BLOCKED: ceo_final_decision={br_ceo_final}, "
+            f"ceo_allowed_to_trade={br_ceo_allowed}"
+        )
+
     # v2.8.5-C: Validate growth profile values from config (not from audit JSON)
     gp_cfg = load_growth_profile_config()
     growth_profile_values_valid = (

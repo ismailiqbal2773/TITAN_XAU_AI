@@ -1299,6 +1299,19 @@ def run_build_request(direction: str = "BUY", entry_price: float = 2000.0,
                 result["pending_orders_count"] = int(mt5_env.get("pending_xauusd_orders", 0))
                 token_info = fa_findings.get("operator_token", {}) or {}
                 result["stale_token_detected"] = bool(token_info.get("stale", False))
+
+                # v2.8.5-E.2: Override stale READY_SUPERVISED when current state contradicts it.
+                # If CEO blocks or MetaQuotes-Demo not verified, final activation
+                # cannot be READY_SUPERVISED regardless of cached artifact.
+                ceo_blocks = (
+                    result.get("ceo_final_decision") == "BLOCKED"
+                    or result.get("ceo_allowed_to_trade") is False
+                )
+                if ceo_blocks or not result["metaquotes_demo_verified"]:
+                    if result["latest_final_demo_activation_verdict"] == "FINAL_DEMO_ACTIVATION_READY_SUPERVISED":
+                        result["latest_final_demo_activation_verdict"] = "FINAL_DEMO_ACTIVATION_BLOCKED"
+                        result["final_demo_activation_pass"] = False
+                        result["final_demo_activation_allowed"] = False
             except Exception:
                 pass
 
