@@ -2477,6 +2477,113 @@ def run_execute_and_monitor(args) -> dict:
         }
 
 
+def _normalize_build_request_verdict(result: dict) -> dict:
+    """Sprint v2.8.3.2 Build-Request Verdict Sync.
+
+    Computes the normalized build-request verdict using the verdict_normalizer
+    helpers, then returns a dict of fields to merge into the result.
+
+    Important safety contract:
+      - PASS does NOT mean trade execution is allowed.
+      - PASS means build-request is READY_FOR_SUPERVISED_OPERATOR_ARM.
+      - execution_now_allowed is ALWAYS False.
+      - execution_blocker is ALWAYS OPERATOR_ARM_TOKEN_REQUIRED.
+      - OPERATOR_ARM_TOKEN_REQUIRED is NOT counted as a build-request blocker.
+    """
+    from titan.production.verdict_normalizer import (
+        is_alpha_entry_pass, is_entry_gate_pass, is_autonomous_readiness_pass,
+    )
+
+    ae_cached = ""
+    ae_path = REPO_ROOT / "data" / "audit" / "demo_micro_execution" / "autonomous_entry_decision.json"
+    if ae_path.exists():
+        try:
+            with open(ae_path, "r", encoding="utf-8") as f:
+                ae_data = json.load(f)
+            ae_cached = ae_data.get("final_decision", "") or ""
+        except Exception:
+            ae_cached = ""
+
+    entry_gate_status = result.get("end_to_end_entry_gate_status", "") or ""
+    autonomous_readiness_status = result.get("autonomous_demo_readiness_status", "") or ""
+    entry_gate_blockers = result.get("end_to_end_entry_gate_blockers", []) or []
+    autonomous_blockers = result.get("autonomous_demo_blockers", []) or []
+
+    entry_gate_pass = is_entry_gate_pass(entry_gate_status)
+    autonomous_readiness_pass = is_autonomous_readiness_pass(autonomous_readiness_status)
+    alpha_entry_pass = is_alpha_entry_pass(ae_cached)
+
+    have_all_inputs = bool(entry_gate_status) and bool(autonomous_readiness_status) and bool(ae_cached)
+
+    all_gates_pass = (
+        have_all_inputs
+        and entry_gate_pass
+        and autonomous_readiness_pass
+        and alpha_entry_pass
+        and not entry_gate_blockers
+        and not autonomous_blockers
+    )
+
+    if all_gates_pass:
+        normalized_verdict = "PASS"
+        normalized_blockers = []
+        request_status = "READY_FOR_SUPERVISED_OPERATOR_ARM"
+    else:
+        normalized_verdict = "BLOCKED"
+        reasons = []
+        if not have_all_inputs:
+            reasons.append(
+                f"NORMALIZED_INPUTS_INCOMPLETE: entry_gate={entry_gate_status or 'missing'}, "
+                f"autonomous_readiness={autonomous_readiness_status or 'missing'}, "
+                f"alpha_entry={ae_cached or 'missing'}"
+            )
+        if not entry_gate_pass:
+            reasons.append(f"entry_gate_not_pass={entry_gate_status}")
+        if not autonomous_readiness_pass:
+            reasons.append(f"autonomous_readiness_not_pass={autonomous_readiness_status}")
+        if not alpha_entry_pass:
+            reasons.append(f"alpha_entry_not_pass={ae_cached or 'missing'}")
+        if entry_gate_blockers:
+            reasons.append(f"entry_gate_blockers={len(entry_gate_blockers)}")
+        if autonomous_blockers:
+            reasons.append(f"autonomous_blockers={len(autonomous_blockers)}")
+        normalized_blockers = reasons
+        request_status = "BLOCKED"
+
+    return {
+        "normalized_verdict": normalized_verdict,
+        "normalized_blockers": normalized_blockers,
+        "normalized_blocker_count": len(normalized_blockers),
+        "request_status": request_status,
+        "autonomous_entry_decision_pass": alpha_entry_pass,
+        "entry_gate_pass": entry_gate_pass,
+        "autonomous_readiness_pass": autonomous_readiness_pass,
+        "supervised_only": True,
+        "execution_now_allowed": False,
+        "execution_blocker": "OPERATOR_ARM_TOKEN_REQUIRED",
+    }
+
+
+def apply_build_request_verdict_sync(result: dict) -> dict:
+    """Sprint v2.8.3.2 Sync top-level build-request verdict with normalized verdict."""
+    if result.get("mode") != "build_request":
+        return result
+
+    norm = _normalize_build_request_verdict(result)
+    result.update(norm)
+
+    if norm["normalized_verdict"] == "PASS":
+        result["verdict"] = "PASS"
+        result["blockers"] = []
+        result["blocker_count"] = 0
+    else:
+        blockers = result.get("blockers") or []
+        result["blockers"] = blockers
+        result["blocker_count"] = len(blockers)
+
+    return result
+
+
 def write_report(result: dict) -> dict:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     json_path = OUTPUT_DIR / "managed_trade_report.json"
@@ -2487,7 +2594,30 @@ def write_report(result: dict) -> dict:
         f.write("# TITAN XAU AI - Managed Demo Micro Trade Report\n\n")
         f.write(f"**Mode:** {result.get('mode', 'unknown')}\n\n")
         f.write(f"**Verdict:** **{result.get('verdict', 'UNKNOWN')}**\n\n")
+        # Sprint v2.8.3.2: blocker_count synced with len(blockers)
+        blockers_list = result.get("blockers", []) or []
+        f.write(f"**Blockers:** {len(blockers_list)}\n\n")
         f.write(f"**Timestamp:** {result.get('timestamp_utc', '')}\n\n")
+        # Sprint v2.8.3.2: Build-Request Verdict Normalization section
+        if result.get("mode") == "build_request" and "normalized_verdict" in result:
+            f.write("## Build-Request Verdict Normalization (v2.8.3.2)\n\n")
+            f.write("| Field | Value |\n|---|---|\n")
+            f.write(f"| normalized_verdict | {result.get('normalized_verdict', 'N/A')} |\n")
+            f.write(f"| normalized_blockers | {len(result.get('normalized_blockers', []))} |\n")
+            f.write(f"| blocker_count | {result.get('blocker_count', len(blockers_list))} |\n")
+            f.write(f"| request_status | {result.get('request_status', 'N/A')} |\n")
+            f.write(f"| autonomous_entry_decision_pass | {result.get('autonomous_entry_decision_pass', False)} |\n")
+            f.write(f"| entry_gate_pass | {result.get('entry_gate_pass', False)} |\n")
+            f.write(f"| autonomous_readiness_pass | {result.get('autonomous_readiness_pass', False)} |\n")
+            f.write(f"| supervised_only | {result.get('supervised_only', False)} |\n")
+            f.write(f"| execution_now_allowed | {result.get('execution_now_allowed', False)} |\n")
+            f.write(f"| execution_blocker | {result.get('execution_blocker', 'N/A')} |\n")
+            nb = result.get("normalized_blockers", [])
+            if nb:
+                f.write("\n### Normalized Blocker Reasons\n\n")
+                for b in nb:
+                    f.write(f"- {b}\n")
+            f.write("\n")
         env_info = result.get("env_info", {})
         if env_info:
             f.write("## Environment Info\n\n")
@@ -2675,6 +2805,10 @@ def main() -> int:
     else:
         result = run_check_only(args)
 
+    # === Sprint v2.8.3.2: Sync top-level build-request verdict with normalized verdict ===
+    if args.build_request:
+        apply_build_request_verdict_sync(result)
+
     report = write_report(result)
     print(f"\n  Mode: {result.get('mode', 'check_only')}")
     print(f"  Verdict: {result.get('verdict', 'UNKNOWN')}")
@@ -2722,62 +2856,23 @@ def main() -> int:
             for b in result["autonomous_demo_blockers"][:3]:
                 print(f"    - {b}")
 
-        # === Sprint v2.8.3.1: Normalize build-request verdict ===
-        from titan.production.verdict_normalizer import (
-            is_alpha_entry_pass, is_entry_gate_pass, is_autonomous_readiness_pass,
-        )
-        _ae_verdict = result.get('end_to_end_entry_gate_status', '') or ''
-        # Also check cached autonomous entry decision
-        _ae_cached = ''
-        _ae_path = REPO_ROOT / "data" / "audit" / "demo_micro_execution" / "autonomous_entry_decision.json"
-        if _ae_path.exists():
-            try:
-                import json as _ae_j
-                with open(_ae_path, "r") as _f:
-                    _ae_data = _ae_j.load(_f)
-                _ae_cached = _ae_data.get("final_decision", "") or ""
-            except Exception:
-                pass
-
-        _all_gates_pass = (
-            is_entry_gate_pass(result.get('end_to_end_entry_gate_status', '')) and
-            is_autonomous_readiness_pass(result.get('autonomous_demo_readiness_status', '')) and
-            is_alpha_entry_pass(_ae_cached) and
-            not result.get("end_to_end_entry_gate_blockers") and
-            not result.get("autonomous_demo_blockers")
-        )
-        if _all_gates_pass:
-            # Override the top-level verdict and blockers for display
-            print()
-            print("  " + "-" * 66)
-            print("  v2.8.3.1 Build-Request Verdict Normalization")
-            print("  " + "-" * 66)
-            print(f"  Normalized verdict: PASS")
-            print(f"  Normalized blockers: 0")
-            print(f"  Request status: READY_FOR_SUPERVISED_OPERATOR_ARM")
-            print(f"  autonomous_entry_decision_pass: {is_alpha_entry_pass(_ae_cached)}")
-            print(f"  entry_gate_pass: {is_entry_gate_pass(result.get('end_to_end_entry_gate_status', ''))}")
-            print(f"  autonomous_readiness_pass: {is_autonomous_readiness_pass(result.get('autonomous_demo_readiness_status', ''))}")
-            print(f"  supervised_only: True")
-            print(f"  execution_now_allowed: False")
-            print(f"  execution_blocker: OPERATOR_ARM_TOKEN_REQUIRED")
-        else:
-            _reasons = []
-            if not is_entry_gate_pass(result.get('end_to_end_entry_gate_status', '')):
-                _reasons.append(f"entry_gate_not_pass={result.get('end_to_end_entry_gate_status', '')}")
-            if not is_autonomous_readiness_pass(result.get('autonomous_demo_readiness_status', '')):
-                _reasons.append(f"autonomous_readiness_not_pass={result.get('autonomous_demo_readiness_status', '')}")
-            if not is_alpha_entry_pass(_ae_cached):
-                _reasons.append(f"alpha_entry_not_pass={_ae_cached or 'missing'}")
-            print()
-            print("  " + "-" * 66)
-            print("  v2.8.3.1 Build-Request Verdict Normalization")
-            print("  " + "-" * 66)
-            print(f"  Normalized verdict: BLOCKED")
-            print(f"  Normalized blockers: {len(_reasons)}")
-            for r in _reasons:
-                print(f"    - {r}")
-            print(f"  execution_now_allowed: False")
+        # === Sprint v2.8.3.2: Build-Request Verdict Normalization (uses stored fields) ===
+        print()
+        print("  " + "-" * 66)
+        print("  v2.8.3.2 Build-Request Verdict Normalization")
+        print("  " + "-" * 66)
+        print(f"  Normalized verdict: {result.get('normalized_verdict', 'N/A')}")
+        print(f"  Normalized blockers: {result.get('normalized_blocker_count', 0)}")
+        print(f"  Request status: {result.get('request_status', 'N/A')}")
+        print(f"  autonomous_entry_decision_pass: {result.get('autonomous_entry_decision_pass', False)}")
+        print(f"  entry_gate_pass: {result.get('entry_gate_pass', False)}")
+        print(f"  autonomous_readiness_pass: {result.get('autonomous_readiness_pass', False)}")
+        print(f"  supervised_only: {result.get('supervised_only', True)}")
+        print(f"  execution_now_allowed: {result.get('execution_now_allowed', False)}")
+        print(f"  execution_blocker: {result.get('execution_blocker', 'OPERATOR_ARM_TOKEN_REQUIRED')}")
+        nb = result.get("normalized_blockers", []) or []
+        for r in nb:
+            print(f"    - {r}")
 
     # === Sprint v2.8: autonomous-entry-check console output ===
     if getattr(args, "autonomous_entry_check", False):
