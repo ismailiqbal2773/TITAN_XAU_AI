@@ -654,6 +654,52 @@ def run_audit() -> dict:
     elif latest_growth_profile_verdict == "PROP_CHALLENGE_GROWTH_PROFILE_PASS":
         ok_checks.append(f"Growth profile {growth_profile_name}: PASS")
 
+    # === Sprint v2.8.5: Final Demo Activation Readiness Audit ===
+    final_activation_path = REPO_ROOT / "data" / "audit" / "final_demo_activation" / "final_demo_activation_readiness_audit.json"
+    latest_final_demo_activation_verdict = ""
+    final_demo_activation_pass = False
+    final_demo_activation_allowed = False
+    metaquotes_demo_verified = False
+    open_positions_count = 0
+    pending_orders_count = 0
+    stale_token_detected = False
+    final_activation_execution_blocker = ""
+    if final_activation_path.exists():
+        try:
+            with open(final_activation_path, "r", encoding="utf-8") as f:
+                fa_data = json.load(f)
+            latest_final_demo_activation_verdict = fa_data.get("verdict", "") or ""
+            final_demo_activation_pass = latest_final_demo_activation_verdict == "FINAL_DEMO_ACTIVATION_READY_SUPERVISED"
+            final_demo_activation_allowed = bool(fa_data.get("final_demo_activation_allowed", False))
+            fa_findings = fa_data.get("findings", {}) or {}
+            mt5_env = fa_findings.get("mt5_environment", {}) or {}
+            metaquotes_demo_verified = (
+                mt5_env.get("account_server", "") == "MetaQuotes-Demo"
+                and mt5_env.get("account_type", "") == "DEMO"
+            )
+            open_positions_count = int(mt5_env.get("open_xauusd_positions", 0))
+            pending_orders_count = int(mt5_env.get("pending_xauusd_orders", 0))
+            token_info = fa_findings.get("operator_token", {}) or {}
+            stale_token_detected = bool(token_info.get("stale", False))
+            br_info = fa_findings.get("build_request_execution_blocker", "") or ""
+            final_activation_execution_blocker = br_info
+        except Exception:
+            pass
+    findings["latest_final_demo_activation_verdict"] = latest_final_demo_activation_verdict
+    findings["final_demo_activation_pass"] = final_demo_activation_pass
+    findings["final_demo_activation_allowed"] = final_demo_activation_allowed
+    findings["metaquotes_demo_verified"] = metaquotes_demo_verified
+    findings["open_positions_count"] = open_positions_count
+    findings["pending_orders_count"] = pending_orders_count
+    findings["stale_token_detected"] = stale_token_detected
+    findings["final_activation_execution_blocker"] = final_activation_execution_blocker
+    if latest_final_demo_activation_verdict == "FINAL_DEMO_ACTIVATION_BLOCKED":
+        blockers.append("FINAL_DEMO_ACTIVATION_BLOCKED: final demo activation readiness audit failed")
+    elif latest_final_demo_activation_verdict == "":
+        warnings.append("FINAL_DEMO_ACTIVATION_AUDIT_MISSING: final_demo_activation_readiness_audit.json not found - run scripts/audit/final_demo_activation_readiness_audit.py")
+    elif latest_final_demo_activation_verdict == "FINAL_DEMO_ACTIVATION_READY_SUPERVISED":
+        ok_checks.append("Final demo activation: READY_SUPERVISED")
+
     # Sprint v2.8.3.3: SUPERVISED_READY requires all 3 CTO gates to pass.
     # If any gate is blocked, downgrade SUPERVISED_READY -> BLOCKED so v2.8.4 cannot start.
     if autonomous_execution_status == "SUPERVISED_READY" and not v2833_release_gate_pass:
@@ -867,6 +913,15 @@ def run_audit() -> dict:
         "growth_daily_dd_hard_limit_pct": daily_dd_hard,
         "growth_total_dd_limit_pct": total_dd_limit,
         "growth_profile_allowed": growth_profile_allowed,
+        # Sprint v2.8.5: Final Demo Activation fields
+        "latest_final_demo_activation_verdict": latest_final_demo_activation_verdict,
+        "final_demo_activation_pass": final_demo_activation_pass,
+        "final_demo_activation_allowed": final_demo_activation_allowed,
+        "metaquotes_demo_verified": metaquotes_demo_verified,
+        "open_positions_count": open_positions_count,
+        "pending_orders_count": pending_orders_count,
+        "stale_token_detected": stale_token_detected,
+        "final_activation_execution_blocker": final_activation_execution_blocker,
         "safety": {
             "order_send_called": False,
             "position_modified": False,
@@ -933,6 +988,18 @@ def write_report(result: dict) -> dict:
         f.write(f"| growth_total_dd_limit_pct | {result.get('growth_total_dd_limit_pct', 0)} |\n")
         f.write(f"| **growth_profile_allowed** | **{result.get('growth_profile_allowed', False)}** |\n\n")
 
+        # v2.8.5: Final Demo Activation section
+        f.write("## Final Demo Activation Readiness (v2.8.5)\n\n")
+        f.write("| Field | Value |\n|---|---|\n")
+        f.write(f"| latest_final_demo_activation_verdict | {result.get('latest_final_demo_activation_verdict', '')} |\n")
+        f.write(f"| final_demo_activation_pass | {result.get('final_demo_activation_pass', False)} |\n")
+        f.write(f"| final_demo_activation_allowed | {result.get('final_demo_activation_allowed', False)} |\n")
+        f.write(f"| metaquotes_demo_verified | {result.get('metaquotes_demo_verified', False)} |\n")
+        f.write(f"| open_positions_count | {result.get('open_positions_count', 0)} |\n")
+        f.write(f"| pending_orders_count | {result.get('pending_orders_count', 0)} |\n")
+        f.write(f"| stale_token_detected | {result.get('stale_token_detected', False)} |\n")
+        f.write(f"| final_activation_execution_blocker | {result.get('final_activation_execution_blocker', '')} |\n\n")
+
         f.write("## Score Breakdown\n\n")
         f.write("| Category | Score |\n|---|---|\n")
         for k, v in result.get("score_breakdown", {}).items():
@@ -989,6 +1056,14 @@ def main() -> int:
     print(f"  Daily DD band: {result.get('growth_daily_dd_soft_limit_pct', 0)} to {result.get('growth_daily_dd_hard_limit_pct', 0)}")
     print(f"  Total DD cap: {result.get('growth_total_dd_limit_pct', 0)}")
     print(f"  Growth profile allowed: {result.get('growth_profile_allowed', False)}")
+    # v2.8.5: Final demo activation
+    print(f"\n  --- v2.8.5 Final Demo Activation Readiness ---")
+    print(f"  Final demo activation verdict: {result.get('latest_final_demo_activation_verdict', '')}")
+    print(f"  MetaQuotes-Demo verified: {result.get('metaquotes_demo_verified', False)}")
+    print(f"  Open positions count: {result.get('open_positions_count', 0)}")
+    print(f"  Pending orders count: {result.get('pending_orders_count', 0)}")
+    print(f"  Stale token detected: {result.get('stale_token_detected', False)}")
+    print(f"  Final demo activation allowed: {result.get('final_demo_activation_allowed', False)}")
     if result.get("blockers"):
         print("\n  Blockers:")
         for b in result["blockers"]:

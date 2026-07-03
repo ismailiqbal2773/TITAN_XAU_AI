@@ -1258,6 +1258,35 @@ def run_build_request(direction: str = "BUY", entry_price: float = 2000.0,
             except Exception:
                 pass
 
+        # === Sprint v2.8.5: Final Demo Activation Readiness Audit ===
+        final_activation_path = REPO_ROOT / "data" / "audit" / "final_demo_activation" / "final_demo_activation_readiness_audit.json"
+        result["latest_final_demo_activation_verdict"] = ""
+        result["final_demo_activation_pass"] = False
+        result["final_demo_activation_allowed"] = False
+        result["metaquotes_demo_verified"] = False
+        result["open_positions_count"] = 0
+        result["pending_orders_count"] = 0
+        result["stale_token_detected"] = False
+        if final_activation_path.exists():
+            try:
+                with open(final_activation_path, "r", encoding="utf-8") as f:
+                    fa = json.load(f)
+                result["latest_final_demo_activation_verdict"] = fa.get("verdict", "") or ""
+                result["final_demo_activation_pass"] = result["latest_final_demo_activation_verdict"] == "FINAL_DEMO_ACTIVATION_READY_SUPERVISED"
+                result["final_demo_activation_allowed"] = bool(fa.get("final_demo_activation_allowed", False))
+                fa_findings = fa.get("findings", {}) or {}
+                mt5_env = fa_findings.get("mt5_environment", {}) or {}
+                result["metaquotes_demo_verified"] = (
+                    mt5_env.get("account_server", "") == "MetaQuotes-Demo"
+                    and mt5_env.get("account_type", "") == "DEMO"
+                )
+                result["open_positions_count"] = int(mt5_env.get("open_xauusd_positions", 0))
+                result["pending_orders_count"] = int(mt5_env.get("pending_xauusd_orders", 0))
+                token_info = fa_findings.get("operator_token", {}) or {}
+                result["stale_token_detected"] = bool(token_info.get("stale", False))
+            except Exception:
+                pass
+
     except Exception as e:
         result["entry_gate_status_error"] = str(e)
 
@@ -3012,6 +3041,20 @@ def main() -> int:
         print(f"  No forced trading: True")
         print(f"  No martingale/grid/averaging/loss multiplier: True")
         print(f"  Growth profile allowed: {result.get('growth_profile_allowed', False)}")
+        print(f"  execution_now_allowed: {result.get('execution_now_allowed', False)}")
+        print(f"  execution_blocker: {result.get('execution_blocker', 'OPERATOR_ARM_TOKEN_REQUIRED')}")
+
+        # === Sprint v2.8.5: Final Demo Activation Readiness display ===
+        print()
+        print("  " + "-" * 66)
+        print("  v2.8.5 Final Demo Activation Readiness")
+        print("  " + "-" * 66)
+        print(f"  Final demo activation verdict: {result.get('latest_final_demo_activation_verdict', 'N/A')}")
+        print(f"  MetaQuotes-Demo verified: {result.get('metaquotes_demo_verified', False)}")
+        print(f"  Open positions count: {result.get('open_positions_count', 0)}")
+        print(f"  Pending orders count: {result.get('pending_orders_count', 0)}")
+        print(f"  Stale token detected: {result.get('stale_token_detected', False)}")
+        print(f"  final_demo_activation_allowed: {result.get('final_demo_activation_allowed', False)}")
         print(f"  execution_now_allowed: {result.get('execution_now_allowed', False)}")
         print(f"  execution_blocker: {result.get('execution_blocker', 'OPERATOR_ARM_TOKEN_REQUIRED')}")
 
