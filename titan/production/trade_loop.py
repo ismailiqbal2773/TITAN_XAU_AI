@@ -24,6 +24,7 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 from titan.production.inference import Signal, Direction
+from titan.production.trade_journal import EventType
 
 logger = logging.getLogger(__name__)
 
@@ -204,7 +205,6 @@ class TradeLoop:
                     reason = "kill_switch_halt_new_trades"
                 # Journal the block
                 if self.journal is not None:
-                    from titan.production.trade_journal import EventType
                     self.journal.log_event(EventType.KILL_SWITCH_BLOCK, {
                         "kill_switch_state": ks_state.value,
                         "signal_direction": signal.direction.name,

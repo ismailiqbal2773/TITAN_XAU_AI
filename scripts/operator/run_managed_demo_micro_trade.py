@@ -1413,6 +1413,63 @@ def run_build_request(direction: str = "BUY", entry_price: float = 2000.0,
             result["ceo_governance_called"] = False
             result["ceo_blockers"] = [f"CEO_AI_GOVERNANCE_CALL_ERROR: {e}"]
 
+        # === Sprint v2.8.5-D.1/E: Auto Lot Sizing ===
+        # Calculate safe lot size from equity, risk, SL, broker constraints,
+        # profile caps, drawdown, and CEO risk_multiplier.
+        # This is read-only — no order_send, no token, no position modification.
+        result["auto_lot_enabled"] = False
+        result["auto_lot_blocked"] = False
+        result["auto_lot_blockers"] = []
+        result["auto_lot_final_lot"] = 0.0
+        result["auto_lot_raw_lot"] = 0.0
+        result["auto_lot_risk_amount"] = 0.0
+        result["auto_lot_sl_money_per_lot"] = 0.0
+        result["auto_lot_effective_risk_percent"] = 0.0
+        result["auto_lot_cap_reasons"] = []
+        result["auto_lot_warnings"] = []
+        result["auto_lot_reasoning_codes"] = []
+        try:
+            from titan.production.auto_lot_sizing import calculate_auto_lot
+            # Use deterministic safe values for build-request (read-only)
+            # On execute path, real MT5 account equity will be used
+            ceo_rm = float(result.get("ceo_risk_multiplier", 1.0) or 1.0)
+            lot_result = calculate_auto_lot(
+                account_balance=10000.0,  # deterministic safe value for build-request
+                account_equity=10000.0,
+                risk_percent=0.005,
+                stop_loss_points=50.0,  # 50 points = $0.50 for XAUUSD
+                symbol_tick_value=1.0,  # $1 per point per 1 lot
+                broker_min_lot=0.01,
+                broker_max_lot=0.01,
+                broker_lot_step=0.01,
+                profile_min_lot=0.01,
+                profile_max_lot=0.01,  # DEMO_SAFE cap
+                account_mode="DEMO_SAFE",
+                risk_tier="TIER_1_STANDARD",
+                ceo_risk_multiplier=ceo_rm,
+                drawdown_state="normal",
+                daily_drawdown_percent=0.0,
+                total_drawdown_percent=0.0,
+                capital_preservation_active=False,
+                loss_streak=0,
+                open_positions_count=0,
+                max_open_positions=1,
+            )
+            result["auto_lot_enabled"] = True
+            result["auto_lot_blocked"] = lot_result.blocked
+            result["auto_lot_blockers"] = lot_result.blockers
+            result["auto_lot_final_lot"] = lot_result.final_lot
+            result["auto_lot_raw_lot"] = lot_result.raw_lot
+            result["auto_lot_risk_amount"] = lot_result.risk_amount
+            result["auto_lot_sl_money_per_lot"] = lot_result.sl_money_per_lot
+            result["auto_lot_effective_risk_percent"] = lot_result.effective_risk_percent
+            result["auto_lot_cap_reasons"] = lot_result.cap_reasons
+            result["auto_lot_warnings"] = lot_result.warnings
+            result["auto_lot_reasoning_codes"] = lot_result.reasoning_codes
+        except Exception as e:
+            result["auto_lot_blocked"] = True
+            result["auto_lot_blockers"] = [f"AUTO_LOT_ERROR: {e}"]
+
     except Exception as e:
         result["entry_gate_status_error"] = str(e)
 
@@ -3333,6 +3390,32 @@ def main() -> int:
         print("  " + "-" * 66)
         print(f"  Runtime architecture pipeline: {result.get('latest_runtime_architecture_pipeline_verdict', 'N/A')}")
         print(f"  CEO AI governance audit: {result.get('latest_ceo_ai_governance_verdict', 'N/A')}")
+
+        # === Sprint v2.8.5-D.1/E: Auto Lot Sizing display ===
+        print()
+        print("  " + "-" * 66)
+        print("  v2.8.5-D.1/E Auto Lot Sizing")
+        print("  " + "-" * 66)
+        print(f"  auto_lot_enabled: {result.get('auto_lot_enabled', False)}")
+        print(f"  account_equity_used: {10000.0} (deterministic build-request value)")
+        print(f"  risk_percent: {0.005}")
+        print(f"  effective_risk_percent: {result.get('auto_lot_effective_risk_percent', 0.0)}")
+        print(f"  risk_amount: {result.get('auto_lot_risk_amount', 0.0)}")
+        print(f"  stop_loss_points: {50.0}")
+        print(f"  sl_money_per_lot: {result.get('auto_lot_sl_money_per_lot', 0.0)}")
+        print(f"  raw_lot: {result.get('auto_lot_raw_lot', 0.0)}")
+        print(f"  profile_max_lot: {0.01} (DEMO_SAFE)")
+        print(f"  final_lot: {result.get('auto_lot_final_lot', 0.0)}")
+        cap_reasons = result.get('auto_lot_cap_reasons', [])
+        if cap_reasons:
+            print(f"  cap_reasons: {cap_reasons}")
+        print(f"  blocked: {result.get('auto_lot_blocked', False)}")
+        auto_blockers = result.get('auto_lot_blockers', [])
+        if auto_blockers:
+            print(f"  blockers: {auto_blockers}")
+        auto_warnings = result.get('auto_lot_warnings', [])
+        if auto_warnings:
+            print(f"  warnings: {auto_warnings}")
 
     # === Sprint v2.8: autonomous-entry-check console output ===
     if getattr(args, "autonomous_entry_check", False):

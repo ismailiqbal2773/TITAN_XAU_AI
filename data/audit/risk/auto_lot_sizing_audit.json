@@ -1,0 +1,119 @@
+{
+  "timestamp_utc": "2026-07-03T09:24:01.683300+00:00",
+  "verdict": "AUTO_LOT_SIZING_PASS",
+  "ok_checks": [
+    "DEMO_SAFE basic: final_lot=0.01 (<= 0.01)",
+    "Equity growth increases raw_lot: 0.5 -> 2.0",
+    "Risk percent constant across calculations",
+    "Invalid SL blocks",
+    "Invalid tick value blocks",
+    "Invalid equity blocks",
+    "Drawdown reduces risk_amount",
+    "Daily DD hard limit blocks",
+    "Total DD cap blocks",
+    "CEO risk_multiplier=0.5 reduces risk_amount",
+    "CEO risk_multiplier capped at 1.0",
+    "Capital preservation reduces risk_amount",
+    "Loss streak does not increase lot",
+    "Broker lot step rounds down: raw=5.0 rounded=5.0",
+    "Max open positions blocks",
+    "No martingale: lot does not increase after loss (equity dropped)"
+  ],
+  "blockers": [],
+  "warnings": [
+    "BUILD_REQUEST_AUTO_LOT_MISSING: run build-request to populate"
+  ],
+  "findings": {
+    "demo_safe_basic": {
+      "auto_lot_enabled": true,
+      "account_equity_used": 10000.0,
+      "risk_percent": 0.005,
+      "effective_risk_percent": 0.005,
+      "risk_amount": 50.0,
+      "stop_loss_points": 50.0,
+      "sl_money_per_lot": 50.0,
+      "raw_lot": 1.0,
+      "rounded_lot": 1.0,
+      "capped_lot": 0.01,
+      "final_lot": 0.01,
+      "profile_max_lot": 0.01,
+      "cap_reasons": [
+        "broker_max_lot_0.01"
+      ],
+      "blocked": false,
+      "blockers": [],
+      "warnings": [],
+      "reasoning_codes": [
+        "NO_MARTINGALE",
+        "NO_LOSS_MULTIPLIER",
+        "RISK_PERCENT_CONSTANT",
+        "final_lot_0.01"
+      ]
+    },
+    "equity_growth_test": {
+      "low": {
+        "auto_lot_enabled": true,
+        "account_equity_used": 5000.0,
+        "risk_percent": 0.005,
+        "effective_risk_percent": 0.005,
+        "risk_amount": 25.0,
+        "stop_loss_points": 50.0,
+        "sl_money_per_lot": 50.0,
+        "raw_lot": 0.5,
+        "rounded_lot": 0.5,
+        "capped_lot": 0.01,
+        "final_lot": 0.01,
+        "profile_max_lot": 0.01,
+        "cap_reasons": [
+          "broker_max_lot_0.01"
+        ],
+        "blocked": false,
+        "blockers": [],
+        "warnings": [],
+        "reasoning_codes": [
+          "NO_MARTINGALE",
+          "NO_LOSS_MULTIPLIER",
+          "RISK_PERCENT_CONSTANT",
+          "final_lot_0.01"
+        ]
+      },
+      "high": {
+        "auto_lot_enabled": true,
+        "account_equity_used": 20000.0,
+        "risk_percent": 0.005,
+        "effective_risk_percent": 0.005,
+        "risk_amount": 100.0,
+        "stop_loss_points": 50.0,
+        "sl_money_per_lot": 50.0,
+        "raw_lot": 2.0,
+        "rounded_lot": 2.0,
+        "capped_lot": 0.01,
+        "final_lot": 0.01,
+        "profile_max_lot": 0.01,
+        "cap_reasons": [
+          "broker_max_lot_0.01"
+        ],
+        "blocked": false,
+        "blockers": [],
+        "warnings": [],
+        "reasoning_codes": [
+          "NO_MARTINGALE",
+          "NO_LOSS_MULTIPLIER",
+          "RISK_PERCENT_CONSTANT",
+          "final_lot_0.01"
+        ]
+      }
+    },
+    "build_request_has_auto_lot": false
+  },
+  "generated_at_utc": "2026-07-03T09:24:01.691521+00:00",
+  "git_commit": "7e26ace83a030afc194eb470e8f4c76b9a0ff367",
+  "audit_name": "auto_lot_sizing_audit",
+  "source_mode": "production",
+  "environment_mode": "linux_zai",
+  "safety": {
+    "order_send_called": false,
+    "position_modified": false,
+    "token_created": false
+  }
+}

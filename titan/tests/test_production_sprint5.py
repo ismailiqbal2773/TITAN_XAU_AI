@@ -93,19 +93,23 @@ class TestKillSwitchTradeLoopIntegration:
 
     @pytest.mark.asyncio
     async def test_caution_state_reduces_size(self, tmp_path):
-        """CAUTION state → trade allowed but volume halved."""
+        """CAUTION state → v2.8.5-D.1: blocks new entries for safety.
+
+        When max_lot is already 0.01 (hard cap), CAUTION cannot meaningfully
+        reduce risk. Instead of falsely claiming reduction, CAUTION blocks
+        new entries until broker min lot / fractional lot support is proven.
+        """
         journal = TradeJournal(path=str(tmp_path / "j.jsonl"))
         fsm = KillSwitchFSM(KillSwitchConfig(max_latency_ms=500))
-        fsm.update(KillSwitchInput(latency_p99_ms=550))  # → CAUTION
+        fsm.update(KillSwitchInput(latency_p99_ms=550))  # -> CAUTION
         assert fsm.state == KillState.CAUTION
         loop = TradeLoop(TradeLoopConfig(dry_run=True, max_lot=0.01),
                          journal=journal, kill_switch=fsm)
         signal = make_signal()
         decision = await loop.process_signal(signal, entry_price=2000.0, spread_usd=0.2)
-        assert decision.accepted
-        # Volume should be halved (0.01 / 2 = 0.005, but floored at 0.01)
-        # Since max_lot=0.01 is the floor, volume stays at 0.01
-        assert decision.order_request["volume"] <= 0.01
+        # v2.8.5-D.1: CAUTION blocks entries (not reduces size) in RC phase
+        assert not decision.accepted
+        assert "caution" in (decision.reject_reason or "") or "kill_switch" in (decision.reject_reason or "")
 
     @pytest.mark.asyncio
     async def test_halt_new_trades_blocks_trade(self, tmp_path):
