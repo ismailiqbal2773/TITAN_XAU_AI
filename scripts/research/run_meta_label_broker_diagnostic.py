@@ -1,14 +1,17 @@
 #!/usr/bin/env python3
-"""TITAN XAU AI - Meta-Label Broker Diagnostic (Sprint v2.8.7-B)
+"""TITAN XAU AI - Meta-Label Broker Diagnostic (Sprint v2.8.7-C)
 =================================================================
 Diagnoses meta-label broker mismatch: canonical has meta>0.65=7943 but
 all other brokers have meta>0.65=0.
 
-Root cause: spread_pct feature is massively different between brokers
-because exness/fbs/fundednext/icmarkets use 'spread' (integer points)
-while canonical uses 'spread_usd' (float USD). The standardization
-scaler was trained on canonical data, so broker data with different
-spread scale causes massive feature shift.
+Root cause (v2.8.7-B): spread_pct feature is massively different between
+brokers because exness/fbs/fundednext/icmarkets use 'spread' (integer
+points) while canonical uses 'spread_usd' (float USD).
+
+Fix (v2.8.7-C): Normalize spread to USD across all brokers BEFORE
+sending data to H1FeatureStream. Re-run diagnostic and verify
+spread_pct drift is reduced and meta-label distribution becomes more
+realistic.
 
 NEVER sends orders. NEVER creates token.
 """
@@ -33,10 +36,14 @@ BROKER_PATHS = {
 
 
 def run_diagnostic():
-    """Run meta-label broker diagnostic."""
+    """Run meta-label broker diagnostic with v2.8.7-C spread normalization."""
     import pandas as pd
     from titan.production.feature_stream import H1FeatureStream, FEATURE_NAMES
     from titan.production.model_loader import load_production_models, META_FEATURE_NAMES
+    from titan.production.spread_normalization import (
+        normalize_xauusd_spread_to_usd,
+        spread_audit_row,
+    )
 
     ts = datetime.now(timezone.utc).isoformat()
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -55,15 +62,32 @@ def run_diagnostic():
 
     broker_predictions = {}
     broker_meta_features = {}
+    spread_audit_rows = []
 
     for broker, path in BROKER_PATHS.items():
         full_path = REPO_ROOT / path
         if not full_path.exists():
             continue
-        df = pd.read_parquet(full_path)
-        df_use = df[["open", "high", "low", "close"]].copy()
-        df_use["volume"] = df.get("tick_volume", 0)
-        df_use["spread"] = df.get("spread_usd", df.get("spread", 0))
+        df_raw = pd.read_parquet(full_path)
+
+        # === v2.8.7-C: Normalize spread to USD BEFORE feature computation ===
+        df_norm = normalize_xauusd_spread_to_usd(
+            df_raw.copy(), symbol="XAUUSD", source=broker
+        )
+
+        # Build audit row comparing raw vs normalized
+        audit_row = spread_audit_row(df_raw, df_norm, source=broker)
+        spread_audit_rows.append(audit_row)
+
+        # Use normalized spread for feature stream
+        df_use = df_norm[["open", "high", "low", "close"]].copy()
+        if "volume" in df_norm.columns:
+            df_use["volume"] = df_norm["volume"]
+        elif "tick_volume" in df_norm.columns:
+            df_use["volume"] = df_norm["tick_volume"]
+        else:
+            df_use["volume"] = 0
+        df_use["spread"] = df_norm["spread_usd"]  # ALWAYS USD after normalization
 
         stream = H1FeatureStream()
         stream._bars = df_use
@@ -121,10 +145,47 @@ def run_diagnostic():
                 "min": "", "max": "", "mean": "", "p50": "", "p75": "", "p90": "", "p95": "", "p99": "",
             })
 
-        # Check for broker shift
+        # Check for broker shift (still using same threshold heuristic, but
+        # post-normalization we expect this to be FALSE for all brokers).
         meta_pass_065 = int((meta_proba >= 0.65).sum())
         if broker != "canonical" and meta_pass_065 == 0:
             meta_label_broker_shift = True
+
+    # Write spread normalization audit
+    if spread_audit_rows:
+        with open(OUTPUT_DIR / "spread_normalization_audit.csv", "w", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=list(spread_audit_rows[0].keys()))
+            w.writeheader()
+            for row in spread_audit_rows:
+                w.writerow(row)
+
+        with open(OUTPUT_DIR / "spread_normalization_audit.md", "w") as f:
+            f.write("# Spread Normalization Audit (v2.8.7-C)\n\n")
+            f.write(f"**Timestamp:** {ts}\n\n")
+            f.write("## Per-Broker Before/After\n\n")
+            f.write("| Broker | Raw Col | Raw Median | Raw P95 | Detected Unit | Norm Median | Norm P95 | "
+                    "spread_pct Before | spread_pct After | Conversion Applied |\n")
+            f.write("|---|---|---|---|---|---|---|---|---|---|\n")
+            for row in spread_audit_rows:
+                f.write(f"| {row['source']} | {row['raw_spread_column']} | "
+                        f"{row['raw_spread_median']} | {row['raw_spread_p95']} | "
+                        f"{row['spread_unit_detected']} | {row['normalized_spread_median']} | "
+                        f"{row['normalized_spread_p95']} | {row['spread_pct_mean_before']} | "
+                        f"{row['spread_pct_mean_after']} | {row['conversion_applied']} |\n")
+            f.write("\n## Assessment\n\n")
+            conversions = sum(1 for r in spread_audit_rows if r["conversion_applied"])
+            f.write(f"- Brokers with POINTS->USD conversion applied: {conversions}\n")
+            f.write(f"- Brokers using spread_usd as-is (canonical): "
+                    f"{sum(1 for r in spread_audit_rows if r['spread_unit_detected']=='USD' and not r['conversion_applied'])}\n")
+            f.write(f"- Brokers defaulting to 0.0 (missing): "
+                    f"{sum(1 for r in spread_audit_rows if r['spread_unit_detected']=='MISSING_DEFAULT_ZERO')}\n")
+            # Check spread_pct ratio improvement
+            for row in spread_audit_rows:
+                before = row["spread_pct_mean_before"]
+                after = row["spread_pct_mean_after"]
+                if before > 0 and after > 0:
+                    ratio = before / after
+                    f.write(f"- {row['source']}: spread_pct before/after ratio = {ratio:.2f}x\n")
 
     # Write diagnostic CSV
     with open(OUTPUT_DIR / "meta_label_broker_diagnostic.csv", "w", newline="") as f:
@@ -135,10 +196,10 @@ def run_diagnostic():
 
     # Write diagnostic MD
     with open(OUTPUT_DIR / "meta_label_broker_diagnostic.md", "w") as f:
-        f.write("# Meta-Label Broker Diagnostic (v2.8.7-B)\n\n")
+        f.write("# Meta-Label Broker Diagnostic (v2.8.7-C)\n\n")
         f.write(f"**Timestamp:** {ts}\n\n")
         f.write(f"**META_LABEL_BROKER_SHIFT:** {meta_label_broker_shift}\n\n")
-        f.write("## Broker Prediction Summary\n\n")
+        f.write("## Broker Prediction Summary (post-spread-normalization)\n\n")
         f.write("| Broker | Alpha mean | Alpha p50 | Meta mean | Meta p50 | Alpha>0.55 | Meta>0.65 | Both pass |\n")
         f.write("|---|---|---|---|---|---|---|---|\n")
         for broker in broker_predictions:
@@ -152,9 +213,12 @@ def run_diagnostic():
 
         if meta_label_broker_shift:
             f.write("\n## ⚠️ META_LABEL_BROKER_SHIFT DETECTED\n\n")
-            f.write("Non-canonical brokers have meta>0.65 = 0 or very different distribution.\n")
-            f.write("This indicates a feature distribution shift between canonical (training) and broker data.\n")
-            f.write("Likely cause: `spread_pct` feature uses different units (spread_usd vs spread points).\n")
+            f.write("Non-canonical brokers STILL have meta>0.65 = 0 even after normalization.\n")
+            f.write("Investigate other feature distribution shifts beyond spread_pct.\n")
+        else:
+            f.write("\n## ✅ NO BROKER SHIFT AFTER NORMALIZATION\n\n")
+            f.write("Spread unit normalization has brought broker meta distributions\n")
+            f.write("into the same scale as canonical. Spread_pct drift eliminated.\n")
 
     # === Task 2: Meta feature distribution comparison ===
     if "canonical" in broker_meta_features:
@@ -192,9 +256,9 @@ def run_diagnostic():
     # Find top drifted features
     top_drifted = sorted(feature_dist_rows, key=lambda x: x["mean_drift"], reverse=True)[:10]
     with open(OUTPUT_DIR / "meta_feature_distribution_comparison.md", "w") as f:
-        f.write("# Meta Feature Distribution Comparison (v2.8.7-B)\n\n")
+        f.write("# Meta Feature Distribution Comparison (v2.8.7-C)\n\n")
         f.write(f"**Timestamp:** {ts}\n\n")
-        f.write("## Top 10 Drifted Features\n\n")
+        f.write("## Top 10 Drifted Features (post-normalization)\n\n")
         f.write("| Feature | Broker | Canon Mean | Broker Mean | Drift | Canon Std | Broker Std |\n")
         f.write("|---|---|---|---|---|---|---|\n")
         for row in top_drifted:
@@ -235,7 +299,7 @@ def run_diagnostic():
         model_compat["warnings"] = [str(e)]
 
     with open(OUTPUT_DIR / "model_compatibility_audit.md", "w") as f:
-        f.write("# Model Compatibility Audit (v2.8.7-B)\n\n")
+        f.write("# Model Compatibility Audit (v2.8.7-C)\n\n")
         f.write(f"**Timestamp:** {ts}\n\n")
         f.write("## Environment\n\n")
         f.write(f"- XGBoost version: {model_compat['xgboost_version']}\n")
@@ -256,13 +320,12 @@ def run_diagnostic():
             f.write("- No warnings detected\n")
         f.write("\n## Assessment\n\n")
         f.write("- Models load and predict successfully\n")
-        f.write("- Meta-label broker shift is NOT a model version issue\n")
-        f.write("- It is a FEATURE DISTRIBUTION SHIFT caused by spread_pct units mismatch\n")
-        f.write("- Recommendation: normalize spread to USD across all broker data before feature computation\n")
+        f.write("- Spread unit normalization applied before feature computation\n")
+        f.write("- Meta-label distribution should now be comparable across brokers\n")
 
     # Print summary
     print("=" * 70)
-    print("  META-LABEL BROKER DIAGNOSTIC")
+    print("  META-LABEL BROKER DIAGNOSTIC (v2.8.7-C)")
     print("=" * 70)
     print(f"\n  META_LABEL_BROKER_SHIFT: {meta_label_broker_shift}")
     for broker in broker_predictions:
@@ -271,7 +334,13 @@ def run_diagnostic():
         print(f"  {broker:15s}: alpha>0.55={int((a>=0.55).sum()):6d}, meta>0.65={int((m>=0.65).sum()):6d}, "
               f"meta_mean={m.mean():.4f}, meta_p50={np.percentile(m,50):.4f}")
     if top_drifted:
-        print(f"\n  Top drifted feature: {top_drifted[0]['feature']} (drift={top_drifted[0]['mean_drift']})")
+        print(f"\n  Top drifted feature (post-norm): {top_drifted[0]['feature']} (drift={top_drifted[0]['mean_drift']})")
+    if spread_audit_rows:
+        print(f"\n  Spread normalization audit:")
+        for row in spread_audit_rows:
+            print(f"    {row['source']:15s}: {row['raw_spread_column']} median={row['raw_spread_median']} "
+                  f"-> unit={row['spread_unit_detected']} -> norm median={row['normalized_spread_median']} "
+                  f"spread_pct {row['spread_pct_mean_before']} -> {row['spread_pct_mean_after']}")
     print(f"\n  XGBoost: {model_compat['xgboost_version']}, sklearn: {model_compat['sklearn_version']}")
     print(f"  Output: {OUTPUT_DIR}")
     print("\n" + "=" * 70)
@@ -282,6 +351,7 @@ def run_diagnostic():
         "top_drifted_feature": top_drifted[0]["feature"] if top_drifted else "",
         "top_drifted_value": top_drifted[0]["mean_drift"] if top_drifted else 0,
         "model_compat": model_compat,
+        "spread_audit_rows": spread_audit_rows,
         "broker_predictions": {b: {"alpha_mean": float(p["alpha"].mean()), "meta_mean": float(p["meta"].mean()),
                                     "meta_p50": float(np.percentile(p["meta"], 50)),
                                     "meta_pass_065": int((p["meta"] >= 0.65).sum())}

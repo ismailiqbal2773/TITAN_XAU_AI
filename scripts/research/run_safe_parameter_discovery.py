@@ -96,20 +96,33 @@ def precompute_model_predictions(df):
 
     Uses production H1FeatureStream + XGBoost + meta_label_v2_context.
     Returns dict with arrays: alpha_proba, meta_proba, valid_mask, atr_values.
+
+    Sprint v2.8.7-C: Normalizes spread units to USD BEFORE feature
+    computation. Accepts either `spread_usd` (canonical) or `spread`
+    (broker points / USD - autodetected).
     """
     import pandas as pd
     import numpy as np
     from titan.production.feature_stream import H1FeatureStream, FEATURE_NAMES
     from titan.production.model_loader import extract_meta_features
+    from titan.production.spread_normalization import normalize_xauusd_spread_to_usd
 
     bundle = load_production_models()
     if not bundle.ok:
         return None
 
+    # === v2.8.7-C: Normalize spread to USD before feature computation ===
+    df = normalize_xauusd_spread_to_usd(df, symbol="XAUUSD", source="param_discovery")
+
     # Prepare dataframe for H1FeatureStream
     df_use = df[["open", "high", "low", "close"]].copy()
-    df_use["volume"] = df.get("tick_volume", 0) if "tick_volume" in df.columns else 0
-    df_use["spread"] = df.get("spread_usd", 0) if "spread_usd" in df.columns else 0
+    if "volume" in df.columns:
+        df_use["volume"] = df["volume"]
+    elif "tick_volume" in df.columns:
+        df_use["volume"] = df["tick_volume"]
+    else:
+        df_use["volume"] = 0
+    df_use["spread"] = df["spread_usd"]  # ALWAYS USD after normalization
 
     stream = H1FeatureStream()
     stream._bars = df_use
@@ -410,6 +423,7 @@ def _empty_result():
 
 def load_h1_data(broker_name):
     import pandas as pd
+    from titan.production.spread_normalization import normalize_xauusd_spread_to_usd
     if broker_name == "canonical":
         path = BROKER_PATHS["canonical"] / "XAUUSD_H1_canonical.parquet"
     else:
@@ -423,6 +437,9 @@ def load_h1_data(broker_name):
                 return None
         if not isinstance(df.index, pd.DatetimeIndex):
             df.index = pd.to_datetime(df.index)
+        # === v2.8.7-C: Normalize spread units to USD ===
+        # This adds spread_usd, original_spread, spread_normalized, spread_unit_detected
+        df = normalize_xauusd_spread_to_usd(df, symbol="XAUUSD", source=broker_name)
         return df
     except Exception:
         return None
@@ -594,6 +611,9 @@ def run_discovery(profile, risk_grid, max_lot, timeframes, brokers, include_duka
         _write_summary(result, [], [], [], [], [], [], None, None, "NEEDS_MORE_DATA")
         return result
 
+    # === v2.8.7-C: Write spread normalization audit ===
+    _write_spread_normalization_audit(brokers_data, ts)
+
     # Pre-compute model predictions for each broker
     print(f"  Brokers loaded: {list(brokers_data.keys())}")
     brokers_preds = {}
@@ -622,15 +642,15 @@ def run_discovery(profile, risk_grid, max_lot, timeframes, brokers, include_duka
     sensitivity_rows = []
 
     for idx, params in enumerate(grid):
+        eval_result = evaluate_param_set(params, brokers_data, brokers_preds)
+        row = {**params.to_dict(), "score": eval_result["score"], "recommendation": eval_result["recommendation"]}
+
         if progress_every > 0 and idx % progress_every == 0:
             print(f"  [{idx}/{len(grid)}] score={eval_result.get('score', 0):.2f} "
                   f"rec={eval_result.get('recommendation', '?')[:20]} "
                   f"accepted={len(top_results)} rejected={len(rejected_results)}")
         elif idx % 50 == 0:
             print(f"  Evaluating {idx}/{len(grid)}...")
-
-        eval_result = evaluate_param_set(params, brokers_data, brokers_preds)
-        row = {**params.to_dict(), "score": eval_result["score"], "recommendation": eval_result["recommendation"]}
 
         oos = eval_result.get("oos", {})
         if oos:
@@ -782,6 +802,60 @@ def run_discovery(profile, risk_grid, max_lot, timeframes, brokers, include_duka
     print("\n" + "=" * 70)
 
     return result
+
+
+def _write_spread_normalization_audit(brokers_data, ts):
+    """Write spread normalization audit files for v2.8.7-C.
+
+    Each broker's loaded DataFrame has already been normalized in
+    `load_h1_data`, so we can read `original_spread`, `spread_usd`,
+    and `spread_unit_detected` directly.
+    """
+    from titan.production.spread_normalization import spread_audit_row
+    import pandas as pd
+    import numpy as np
+
+    audit_rows = []
+    for broker, df in brokers_data.items():
+        # Reconstruct raw df for comparison (use original_spread if present)
+        df_raw = df.copy()
+        if "original_spread" in df.columns:
+            df_raw = df_raw.drop(columns=["spread_usd", "spread"], errors="ignore")
+            df_raw = df_raw.rename(columns={"original_spread": "spread"})
+        elif "spread_usd" in df.columns:
+            # Canonical - raw had spread_usd
+            pass
+        audit_rows.append(spread_audit_row(df_raw, df, source=broker))
+
+    if not audit_rows:
+        return
+
+    with open(OUTPUT_DIR / "spread_normalization_audit.csv", "w", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=list(audit_rows[0].keys()))
+        w.writeheader()
+        for row in audit_rows:
+            w.writerow(row)
+
+    with open(OUTPUT_DIR / "spread_normalization_audit.md", "w") as f:
+        f.write("# Spread Normalization Audit (v2.8.7-C)\n\n")
+        f.write(f"**Timestamp:** {ts}\n\n")
+        f.write("## Per-Broker Before/After\n\n")
+        f.write("| Broker | Raw Col | Raw Median | Raw P95 | Detected Unit | Norm Median | Norm P95 | "
+                "spread_pct Before | spread_pct After | Conversion Applied |\n")
+        f.write("|---|---|---|---|---|---|---|---|---|---|\n")
+        for row in audit_rows:
+            f.write(f"| {row['source']} | {row['raw_spread_column']} | "
+                    f"{row['raw_spread_median']} | {row['raw_spread_p95']} | "
+                    f"{row['spread_unit_detected']} | {row['normalized_spread_median']} | "
+                    f"{row['normalized_spread_p95']} | {row['spread_pct_mean_before']} | "
+                    f"{row['spread_pct_mean_after']} | {row['conversion_applied']} |\n")
+        f.write("\n## Assessment\n\n")
+        conversions = sum(1 for r in audit_rows if r["conversion_applied"])
+        f.write(f"- Brokers with POINTS->USD conversion applied: {conversions}\n")
+        f.write(f"- Brokers using spread_usd as-is (canonical): "
+                f"{sum(1 for r in audit_rows if r['spread_unit_detected']=='USD' and not r['conversion_applied'])}\n")
+        f.write(f"- Brokers defaulting to 0.0 (missing): "
+                f"{sum(1 for r in audit_rows if r['spread_unit_detected']=='MISSING_DEFAULT_ZERO')}\n")
 
 
 def _write_summary(result, top_20, rejected, broker_oos, yearly_wf, lobo, sensitivity,

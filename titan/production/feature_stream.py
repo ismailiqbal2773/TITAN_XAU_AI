@@ -178,15 +178,41 @@ class H1FeatureStream:
     # ─── Bar ingestion ──────────────────────────────────────────────────
 
     def push_bar(self, bar: dict) -> None:
-        """Push a single H1 bar dict {timestamp, open, high, low, close, volume, spread}."""
+        """Push a single H1 bar dict {timestamp, open, high, low, close, volume, spread}.
+
+        Sprint v2.8.7-C: if `spread_usd` is provided it is used as-is. If
+        only `spread` is provided, the spread normalization utility
+        decides whether it is in USD or POINTS (median > 2.0 -> POINTS).
+        The internal `_bars["spread"]` column is ALWAYS in USD after this
+        call.
+        """
+        from titan.production.spread_normalization import normalize_xauusd_spread_to_usd
+
         ts = pd.to_datetime(bar.get("timestamp") or bar.get("time"))
-        row = {
+        row_dict = {
             "open": float(bar["open"]),
             "high": float(bar["high"]),
             "low": float(bar["low"]),
             "close": float(bar["close"]),
             "volume": float(bar.get("volume", 0.0)),
-            "spread": float(bar.get("spread", 0.0)),
+        }
+        # Prefer explicit spread_usd; otherwise pass spread through normalizer
+        if "spread_usd" in bar:
+            row_dict["spread_usd"] = float(bar["spread_usd"])
+        else:
+            row_dict["spread"] = float(bar.get("spread", 0.0))
+
+        row_df = pd.DataFrame([row_dict], index=[ts])
+        row_df = normalize_xauusd_spread_to_usd(
+            row_df, symbol="XAUUSD", source="push_bar"
+        )
+        row = {
+            "open": float(row_df["open"].iloc[0]),
+            "high": float(row_df["high"].iloc[0]),
+            "low": float(row_df["low"].iloc[0]),
+            "close": float(row_df["close"].iloc[0]),
+            "volume": float(row_df["volume"].iloc[0]),
+            "spread": float(row_df["spread"].iloc[0]),  # USD
         }
         # Append + trim
         self._bars.loc[ts] = row
@@ -194,17 +220,35 @@ class H1FeatureStream:
             self._bars = self._bars.iloc[-self.window:]
 
     def push_bars(self, bars: pd.DataFrame) -> None:
-        """Push a DataFrame of bars (columns: open/high/low/close/volume/spread)."""
+        """Push a DataFrame of bars (columns: open/high/low/close/volume/spread).
+
+        Sprint v2.8.7-C: spread units are normalized to USD via
+        `normalize_xauusd_spread_to_usd`. Caller may pass either
+        `spread_usd` (canonical, already USD) or `spread` (broker / MT5
+        raw points or USD - autodetected).
+        """
+        from titan.production.spread_normalization import normalize_xauusd_spread_to_usd
+
         if bars.empty:
             return
         df = bars.copy()
-        if "spread" not in df.columns:
-            df["spread"] = 0.0
         if not isinstance(df.index, pd.DatetimeIndex):
             if "timestamp" in df.columns or "time" in df.columns:
                 df = df.set_index("timestamp" if "timestamp" in df.columns else "time")
             else:
                 df.index = pd.to_datetime(df.index)
+
+        # Ensure volume column
+        if "volume" not in df.columns and "tick_volume" in df.columns:
+            df = df.rename(columns={"tick_volume": "volume"})
+        if "volume" not in df.columns:
+            df["volume"] = 0.0
+
+        # Normalize spread -> USD. Function handles spread_usd vs spread.
+        df = normalize_xauusd_spread_to_usd(
+            df, symbol="XAUUSD", source="push_bars"
+        )
+
         df = df[["open", "high", "low", "close", "volume", "spread"]]
         self._bars = pd.concat([self._bars, df]).sort_index()
         self._bars = self._bars[~self._bars.index.duplicated(keep="last")]
@@ -214,29 +258,48 @@ class H1FeatureStream:
     # ─── Sources ────────────────────────────────────────────────────────
 
     def load_canonical(self, path: Optional[str] = None) -> int:
-        """Load canonical H1 parquet into the buffer. Returns bar count."""
+        """Load canonical H1 parquet into the buffer. Returns bar count.
+
+        Sprint v2.8.7-C: canonical spread_usd is NEVER double-converted.
+        The normalizer sees `spread_usd` and uses it as-is.
+        """
+        from titan.production.spread_normalization import normalize_xauusd_spread_to_usd
+
         path = path or self._canonical_path
         if not os.path.exists(path):
             raise FileNotFoundError(f"Canonical H1 parquet not found: {path}")
         df = pd.read_parquet(path)
-        # Canonical schema: timestamp, open, high, low, close, tick_volume, spread_usd, n_brokers, regime
-        col_map = {"tick_volume": "volume", "spread_usd": "spread"}
-        df = df.rename(columns={k: v for k, v in col_map.items() if k in df.columns})
+        # Canonical schema: timestamp, open, high, low, close, tick_volume,
+        # spread_usd, n_brokers, regime
+        if "tick_volume" in df.columns:
+            df = df.rename(columns={"tick_volume": "volume"})
         if "volume" not in df.columns:
             df["volume"] = 0
-        if "spread" not in df.columns:
-            df["spread"] = 0
         if not isinstance(df.index, pd.DatetimeIndex):
             ts_col = "timestamp" if "timestamp" in df.columns else "time"
             if ts_col in df.columns:
                 df = df.set_index(ts_col)
+
+        # Normalize spread (canonical path: spread_usd present -> USD, no
+        # double conversion).
+        df = normalize_xauusd_spread_to_usd(
+            df, symbol="XAUUSD", source="canonical"
+        )
+
         self._bars = df[["open", "high", "low", "close", "volume", "spread"]].tail(self.window)
         self._canonical_loaded = True
         logger.info(f"Loaded {len(self._bars)} bars from {path}")
         return len(self._bars)
 
     def load_from_mt5(self, symbol: str = "XAUUSD", n_bars: int = 300) -> int:
-        """Load H1 bars from MT5 terminal. Requires Windows + MetaTrader5."""
+        """Load H1 bars from MT5 terminal. Requires Windows + MetaTrader5.
+
+        Sprint v2.8.7-C: MT5 returns `spread` as integer POINTS. The
+        normalizer detects this (median > 2.0) and converts to USD via
+        spread_usd = spread * 0.01 for XAUUSD.
+        """
+        from titan.production.spread_normalization import normalize_xauusd_spread_to_usd
+
         try:
             import MetaTrader5 as mt5
         except ImportError:
@@ -257,11 +320,20 @@ class H1FeatureStream:
             for col in ["open", "high", "low", "close", "volume"]:
                 df[col] = df[col].astype(float)
             if "spread" in df.columns:
-                df["spread"] = df["spread"].astype(float)
+                df["spread"] = pd.to_numeric(df["spread"], errors="coerce").fillna(0.0).astype(float)
             else:
                 df["spread"] = 0.0
+
+            # Normalize spread -> USD (MT5 returns POINTS, will be converted)
+            df = normalize_xauusd_spread_to_usd(
+                df, symbol=symbol, source="mt5_live"
+            )
+
             self._bars = df[["open", "high", "low", "close", "volume", "spread"]].tail(self.window)
-            logger.info(f"Loaded {len(self._bars)} H1 bars from MT5 for {symbol}")
+            logger.info(
+                f"Loaded {len(self._bars)} H1 bars from MT5 for {symbol} "
+                f"(spread_unit_detected={df['spread_unit_detected'].iloc[0]})"
+            )
             return len(self._bars)
         finally:
             mt5.shutdown()

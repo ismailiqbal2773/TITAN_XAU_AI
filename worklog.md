@@ -3038,3 +3038,91 @@ Stage Summary:
 - Controller check-only: READY_TO_START (0 blockers, 5 approved warnings)
 - All safety invariants enforced
 - Ready to commit: feat(observation): add controlled 7-day observation workflow
+
+---
+Task ID: 6
+Agent: general-purpose (subagent for parameter discovery)
+Task: Run production parameter discovery script with v2.8.7-C spread normalization fix
+
+Work Log:
+- Read prior worklog context (3040 lines). Last entry was Task ID 27 (Sprint 9.9.3.42 controlled 7-day observation workflow). Parent agent had already implemented spread normalization fix and run meta-label diagnostic successfully (artifacts visible in data/reports/parameter_discovery/ with timestamps 05:55 and 06:01 — meta_label_broker_diagnostic.{csv,md}, meta_feature_distribution_comparison.{csv,md}, model_compatibility_audit.md, spread_normalization_audit.{csv,md}).
+- Verified script exists: scripts/research/run_safe_parameter_discovery.py
+- cd to /home/z/my-project/workspace/TITAN_XAU_AI and ran exact command:
+    python3 scripts/research/run_safe_parameter_discovery.py \
+      --mode fast --max-candidates 50 --early-stop --progress-every 1 \
+      --profile prop_funded_safe --risk-percent-grid 0.0025,0.005 \
+      --max-lot 0.01 --timeframes H1,M15,M5 --brokers canonical,exness,fbs,fundednext,icmarkets \
+      --include-dukascopy --conservative
+- Initial bash invocation hit the tool's 500s deadline while the underlying Python process (PID 2782) continued running independently; tee'd log captured to /tmp/titan_pd_run.log. Polled pgrep until process exited naturally at 06:04:35 UTC (total runtime ~3.5 min, well under the 8-minute budget). No source code modified.
+- Production model predictions pre-computed for 5 brokers (canonical: 38234 preds / 17852 alpha>0.55 / 7943 meta>0.65; exness: 38215 / 15959 / 38088; fbs: 36782 / 15337 / 28868; fundednext: 14460 / 5782 / 6699; icmarkets: 38244 / 15835 / 20044).
+- Parameter grid: 50 combinations (fast mode). All 50 evaluated sequentially with --early-stop enabled.
+- Progress log shows every one of the 50 candidates had score=0.00 and was rejected: indices 0-5 REJECT_OVERFIT, 6-11 REJECT_DD, 12-20 REJECT_OVERFIT, 21-23 REJECT_DD, 24-49 REJECT_OVERFIT.
+- Final summary block printed to stdout:
+    Verdict: NO_SAFE_PARAMETER_FOUND
+    Total evaluated: 50
+    Accepted: 0
+    Rejected: 50
+    Brokers tested: ['canonical', 'exness', 'fbs', 'fundednext', 'icmarkets']
+    Production component audit: alpha=PRODUCTION_XGBOOST, meta=PRODUCTION_META_LABEL, regime=PRODUCTION_REGIME, ceo=PRODUCTION_CEO, feature=PRODUCTION_FEATURE_PIPELINE, exit_geometry=ATR_ENGINE (all VERIFIED in production_component_audit.csv)
+    Demo go decision: NO_SAFE_PARAMETER_FOUND
+    Output: data/reports/parameter_discovery
+- Confirmed parameter_search_summary.json: final_candidate = null, demo_go_decision = "NO_SAFE_PARAMETER_FOUND".
+- rejected_parameter_sets.csv (50 rows + header): rejection reasons split = 41 REJECT_OVERFIT + 9 REJECT_DD; all scores 0.0. OOS avg PF range 0.5350-0.7681 (all < 1.0, unprofitable). OOS avg Sharpe range -317.81 to +0.047 (effectively non-positive across all candidates).
+- top_20_parameter_sets.csv: only 20 rows present but all are REJECT_OVERFIT/REJECT_DD (no accepted set exists; the "top 20" is just the 50 candidates sorted by score, all score=0.0).
+- yearly_walkforward_results.csv (155 rows): early years 2020-2022 show PF 1.76-2.97 on canonical (in-sample pass), but OOS / later years fail — consistent with REJECT_OVERFIT verdict (good in-sample, poor OOS).
+- broker_oos_results.csv (250 rows) and leave_one_broker_out_results.csv (250 rows) written with full per-broker OOS breakdown for all 50 parameter sets across 5 brokers.
+- parameter_sensitivity.csv: alpha_threshold sweep (0.50-0.65) and meta_threshold sweep (0.50-0.75) — all 0.0 score / REJECT_OVERFIT, confirming no parameter slice rescues the strategy.
+- Did NOT run git commit or git push. Did NOT modify any source files.
+
+Stage Summary:
+- VERDICT: NO_SAFE_PARAMETER_FOUND
+- Demo go decision: NO_SAFE_PARAMETER_FOUND (no candidate, no demo shadow test warranted)
+- Total candidates evaluated: 50 / 50 (script ran to completion; --early-stop did not trigger because no candidate ever passed initial scoring to enable early termination logic)
+- Accepted: 0
+- Rejected: 50 (41 REJECT_OVERFIT + 9 REJECT_DD)
+- Final candidate: null (no candidate found, so no score / OOS PF / OOS Sharpe / OOS DD / OOS monthly / production_ready values to report)
+- Production component audit: all 6 components VERIFIED (alpha=PRODUCTION_XGBOOST, meta=PRODUCTION_META_LABEL, regime=PRODUCTION_REGIME, ceo=PRODUCTION_CEO, feature=PRODUCTION_FEATURE_PIPELINE, exit_geometry=ATR_ENGINE)
+- Files written by this discovery run to data/reports/parameter_discovery/ (10 files, all timestamped 2026-07-06 06:04:30 UTC):
+  1. broker_oos_results.csv (250 rows + header)
+  2. demo_go_decision.md
+  3. leave_one_broker_out_results.csv (250 rows + header)
+  4. parameter_search_summary.json
+  5. parameter_search_summary.md
+  6. parameter_sensitivity.csv (13 rows + header)
+  7. production_component_audit.csv (6 rows + header)
+  8. rejected_parameter_sets.csv (50 rows + header)
+  9. top_20_parameter_sets.csv (20 rows + header)
+  10. yearly_walkforward_results.csv (155 rows + header)
+- Files in same directory NOT written by this run (pre-existing from parent's spread-normalization fix and meta-label diagnostic, timestamps 05:55 and 06:01): meta_feature_distribution_comparison.{csv,md}, meta_label_broker_diagnostic.{csv,md}, model_compatibility_audit.md, spread_normalization_audit.{csv,md}
+- Recommendation for parent: strategy requires further research before any demo shadow test. All 50 conservative parameter combinations fail OOS on the v2.8.7-C spread-normalized broker feeds (canonical, exness, fbs, fundednext, icmarkets + dukascopy). Predominant failure mode is OVERFIT (good in-sample PF 1.76-2.97 in 2020-2022, collapsing to <1.0 OOS), with a minority failing on drawdown. No lot-size/risk-percent rescue possible within the conservative 0.0025-0.005 risk / 0.01 max-lot envelope.
+
+---
+Task ID: 7-8
+Agent: general-purpose (subagent for tests + git commit)
+Task: Write v2.8.7-C spread normalization tests, run pytest, git commit and push
+
+Work Log:
+- Read prior worklog context (Task ID 6, parameter discovery subagent result, lines 3042-3097). Confirmed parent agent had completed: spread_normalization.py utility, feature_stream.py patches (load_canonical/load_from_mt5/push_bars/push_bar), run_meta_label_broker_diagnostic.py patches (writes spread_normalization_audit.{csv,md}, META_LABEL_BROKER_SHIFT=False post-fix), run_safe_parameter_discovery.py patches (load_h1_data + precompute_model_predictions normalize spread, _write_spread_normalization_audit added, progress_every bug fixed, no order_send).
+- Verified file presence: titan/production/spread_normalization.py (exists), titan/production/feature_stream.py (exists), scripts/research/run_meta_label_broker_diagnostic.py (exists), scripts/research/run_safe_parameter_discovery.py (exists), data/reports/parameter_discovery/ contains all expected artifacts (meta_label_broker_diagnostic.{csv,md}, meta_feature_distribution_comparison.{csv,md}, model_compatibility_audit.md, spread_normalization_audit.{csv,md}, demo_go_decision.md, parameter_search_summary.{json,md}, top_20_parameter_sets.csv, production_component_audit.csv, rejected_parameter_sets.csv, broker_oos_results.csv, yearly_walkforward_results.csv, leave_one_broker_out_results.csv, parameter_sensitivity.csv).
+- Step 1: Created titan/tests/test_v2_8_7_c_spread_normalization.py with EXACT content from the spec (no modifications). File contains 6 test classes (TestSpreadNormalizationUtility, TestH1FeatureStreamSpreadIntegration, TestRealBrokerSpreadNormalization, TestSafety, TestMetaLabelDiagnosticPostFix, TestParameterDiscoverySafety) covering 29 test methods.
+- Step 2: Ran the -k filter command first: `python -m pytest titan/tests -q -k "spread or normalization or feature_stream or meta_label or parameter or safety"`. The filter matched tests (3644 deselected) but collection failed with 4 errors in UNRELATED pre-existing test files that have missing dependencies: test_database.py, test_infrastructure.py, test_production_sprint4.py, test_recovery.py (missing modules: aiosqlite, structlog). These errors are NOT related to v2.8.7-C work.
+- Per task spec ("If the `-k` filter doesn't match enough tests, run the full suite for the new test file"), ran the fallback command: `python -m pytest titan/tests/test_v2_8_7_c_spread_normalization.py -v`.
+- Pytest result: 29 passed, 0 failed, 0 skipped, 2 warnings (FutureWarning about pd.concat with empty entries in feature_stream.py — not a test failure, just a pandas deprecation notice).
+- All 29 tests PASSED:
+    TestSpreadNormalizationUtility (8 tests): canonical_spread_usd_not_double_converted, broker_spread_points_converted_to_usd, broker_spread_small_treated_as_usd, mt5_spread_points_converted, missing_spread_defaults_to_zero, spread_normalized_flag_exists, original_spread_preserved, non_xauusd_symbol_raises — all PASSED.
+    TestH1FeatureStreamSpreadIntegration (3 tests): load_canonical_does_not_double_convert, push_bars_converts_broker_points_to_usd, push_bar_single_dict_normalizes_spread — all PASSED.
+    TestRealBrokerSpreadNormalization (2 tests): broker_spread_pct_not_100x_inflated (uses real exness+canonical parquet files), audit_files_generated — all PASSED.
+    TestSafety (9 tests): no order_send / no token in spread_normalization, feature_stream, diagnostic, parameter_discovery, production_ready remains False, no martingale, no trade calls — all PASSED.
+    TestMetaLabelDiagnosticPostFix (2 tests): diagnostic_md_exists_with_v2_8_7_c_header, broker_shift_false_post_normalization — all PASSED.
+    TestParameterDiscoverySafety (5 tests): demo_go_decision_md_exists, progress_every_flag_in_source, production_component_audit_csv_exists, top_20_parameter_sets_csv_exists, parameter_search_summary_md_exists — all PASSED.
+- Step 3: git add . (staged 8 files: data/audit/production_closure/backtest_parameter_binding_report.{json,md}, scripts/research/run_meta_label_broker_diagnostic.py, scripts/research/run_safe_parameter_discovery.py, titan/production/feature_stream.py, titan/production/spread_normalization.py (new), titan/tests/test_v2_8_7_c_spread_normalization.py (new), worklog.md). git commit -m "fix(features): normalize XAUUSD spread units across brokers and MT5" succeeded; commit hash = ab2f365fa698bf7e380f90622566618d6b6ec05d.
+- git push origin main FAILED with: "fatal: could not read Username for 'https://github.com': No such device or address" — no GitHub credentials configured in sandbox. Per task constraint, local commit retained. Push to be retried by parent agent with credentials.
+- Note: data/reports/parameter_discovery/ artifacts are NOT committed (gitignored via line 66 of .gitignore: "data/reports/"). This is intentional — those reports exist locally for test inspection but are not version-controlled.
+- Did NOT modify any source code files. Did NOT retrain any models. Did NOT call order_send. Did NOT create tokens. Did NOT trade. Did NOT bypass meta-label or CEO governance.
+
+Stage Summary:
+- Tests passed: 29
+- Tests failed: 0
+- Commit hash: ab2f365fa698bf7e380f90622566618d6b6ec05d
+- Files committed: 8 (2 new, 6 modified)
+- Pushed to origin/main: no (auth failure — local commit only)
