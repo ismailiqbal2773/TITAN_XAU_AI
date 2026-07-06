@@ -122,15 +122,45 @@ def normalize_xauusd_spread_to_usd(
         )
         return df
 
-    # Case 2/3: only `spread` column — detect unit by median.
+    # Case 2/3: only `spread` column — detect unit.
+    # Sprint v2.8.7-F: improved detection — MT5 returns spread as INTEGER points.
+    # If the column dtype is integer OR >95% of values are integer-like, treat
+    # as POINTS regardless of median. This fixes ICMarkets (median=2.0, int64).
     if "spread" in df.columns:
-        raw_spread = pd.to_numeric(df["spread"], errors="coerce").fillna(0.0)
+        raw_spread_orig = df["spread"]
+        raw_spread = pd.to_numeric(raw_spread_orig, errors="coerce").fillna(0.0)
         # Preserve original before any mutation
         df["original_spread"] = raw_spread.values
         median_spread = float(raw_spread.median()) if len(raw_spread) else 0.0
 
-        if median_spread > SPREAD_POINTS_DETECTION_THRESHOLD:
-            # POINTS -> USD via XAUUSD factor
+        # === v2.8.7-F: Integer-detection rule (MT5 signature) ===
+        # MT5 copy_rates_* returns spread as int64 (points). Canonical
+        # spread_usd is always float (true USD). If the original dtype is
+        # integer or >95% of non-null values are integer-like, treat as POINTS.
+        is_integer_dtype = pd.api.types.is_integer_dtype(raw_spread_orig)
+        non_null = raw_spread_orig.dropna()
+        if len(non_null) > 0:
+            integer_like_frac = float(
+                (non_null == non_null.astype(int)).mean()
+            )
+        else:
+            integer_like_frac = 0.0
+        is_integer_like = integer_like_frac > 0.95
+
+        if is_integer_dtype or is_integer_like:
+            # POINTS -> USD via XAUUSD factor (regardless of median)
+            df["spread_usd"] = (raw_spread * p2u).astype(float)
+            df["spread"] = df["spread_usd"].astype(float)
+            df["spread_normalized"] = True
+            df["spread_unit_detected"] = "POINTS_CONVERTED"
+            logger.info(
+                f"[spread_norm] {source}: spread detected as POINTS "
+                f"(integer_dtype={is_integer_dtype}, integer_like_frac={integer_like_frac:.3f}, "
+                f"median={median_spread:.2f}) — converting with factor {p2u}. "
+                f"After: median_usd={float(df['spread_usd'].median()):.4f}"
+            )
+        elif median_spread > SPREAD_POINTS_DETECTION_THRESHOLD:
+            # POINTS -> USD via XAUUSD factor (fallback: median-based for non-integer)
             df["spread_usd"] = (raw_spread * p2u).astype(float)
             df["spread"] = df["spread_usd"].astype(float)
             df["spread_normalized"] = True
@@ -142,15 +172,15 @@ def normalize_xauusd_spread_to_usd(
                 f"After: median_usd={float(df['spread_usd'].median()):.4f}"
             )
         else:
-            # Already USD (small values)
+            # Already USD (small float values)
             df["spread_usd"] = raw_spread.astype(float)
             df["spread"] = raw_spread.astype(float)
             df["spread_normalized"] = True
             df["spread_unit_detected"] = "USD"
             logger.info(
                 f"[spread_norm] {source}: spread detected as USD "
-                f"(median={median_spread:.4f} <= {SPREAD_POINTS_DETECTION_THRESHOLD}) — "
-                f"used as-is."
+                f"(median={median_spread:.4f} <= {SPREAD_POINTS_DETECTION_THRESHOLD}, "
+                f"integer_like_frac={integer_like_frac:.3f}) — used as-is."
             )
         return df
 

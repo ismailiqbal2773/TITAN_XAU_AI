@@ -1,0 +1,57 @@
+# TITAN XAU AI — Commercial Profile (Skeleton)
+# Sprint v2.8.7-F
+# This is a SKELETON. No paid license activation. No live trading.
+
+commercial_profile:
+  product_name: "TITAN XAU AI"
+  version: "v2.8.7-F"
+  license_tier: "skeleton"  # placeholder, not activated
+  license_key: "PLACEHOLDER_NOT_ACTIVATED"
+  expiry_date: "PLACEHOLDER_NOT_SET"
+  machine_id: "PLACEHOLDER_NOT_BOUND"
+
+  # === Safety defaults ===
+  dry_run: true                # ALWAYS true until explicit future approval
+  live_trading: false          # ALWAYS false until explicit future approval
+  funded_trading: false        # ALWAYS false until explicit future approval
+  production_ready: false      # ALWAYS false — research only
+
+  # === Model profile ===
+  # Default to v1_legacy (conservative). Research can override.
+  # v2 profiles available but NOT production-default.
+  model_profile: "v1_legacy"
+  allowed_model_profiles:
+    - "v1_legacy"
+    - "v2_feature_normalized"
+    - "v2_multibroker"
+
+  # === Broker whitelist ===
+  # Only MetaQuotes-Demo for demo shadow testing.
+  # FundedNext and live brokers are BLOCKED.
+  broker_whitelist:
+    demo:
+      - "MetaQuotes-Demo"
+    live: []  # empty — no live brokers allowed
+
+  # === Execution gates ===
+  execution:
+    requires_operator_token: true
+    requires_cto_review: true
+    requires_demo_shadow_pass: true
+    max_lot_size: 0.01
+    max_daily_trades: 2
+    max_total_dd: 0.08
+    max_daily_dd: 0.025
+
+  # === Journal and logs ===
+  paths:
+    journal: "data/journal/"
+    logs: "data/logs/"
+    reports: "data/reports/"
+    audit: "data/audit/"
+
+  # === Crash recovery ===
+  crash_recovery:
+    auto_restart: false
+    max_restarts: 0
+    cooldown_seconds: 300

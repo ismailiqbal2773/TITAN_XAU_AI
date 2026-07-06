@@ -1,0 +1,44 @@
+# TITAN XAU AI — License Policy (Skeleton)
+# Sprint v2.8.7-F
+# This is a SKELETON. No paid license activation required now.
+
+license_policy:
+  # === License tiers (placeholders) ===
+  tiers:
+    trial:
+      duration_days: 0
+      max_brokers: 0
+      live_trading: false
+    standard:
+      duration_days: 0
+      max_brokers: 0
+      live_trading: false
+    professional:
+      duration_days: 0
+      max_brokers: 0
+      live_trading: false
+
+  # === Machine binding ===
+  machine_binding:
+    enabled: false  # skeleton — not activated
+    binding_key: "PLACEHOLDER"
+    max_machines: 0
+
+  # === Expiry ===
+  expiry:
+    enabled: false
+    expiry_date: "PLACEHOLDER_NOT_SET"
+    grace_period_days: 0
+
+  # === Enforcement ===
+  enforcement:
+    block_live_without_license: true
+    block_funded_without_license: true
+    block_demo_without_license: false  # demo allowed without license
+    allow_research_without_license: true
+
+  # === Audit ===
+  audit:
+    log_license_checks: true
+    log_expiry_warnings: true
+    log_machine_binding: true

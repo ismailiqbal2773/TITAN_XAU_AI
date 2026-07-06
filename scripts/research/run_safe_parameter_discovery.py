@@ -632,14 +632,25 @@ def generate_param_grid(mode="fast"):
 
 def run_discovery(profile, risk_grid, max_lot, timeframes, brokers, include_dukascopy, conservative,
                   mode="fast", max_candidates=None, early_stop=False, progress_every=0,
-                  model_profile: str = DEFAULT_MODEL_PROFILE):
+                  model_profile: str = DEFAULT_MODEL_PROFILE,
+                  output_dir_suffix: str = ""):
     ts = datetime.now(timezone.utc).isoformat()
 
-    # === v2.8.7-E: Use v2 output dir if v2 profile selected ===
+    # === v2.8.7-E/F: Use output dir based on model profile + optional suffix ===
+    global OUTPUT_DIR, CONFIG_OUTPUT
     if model_profile == "v2_feature_normalized":
-        global OUTPUT_DIR, CONFIG_OUTPUT
-        OUTPUT_DIR = REPO_ROOT / "data" / "reports" / "parameter_discovery_v2"
-        CONFIG_OUTPUT = REPO_ROOT / "config" / "research_candidate_params_v2_8_7_e.json"
+        base_dir = "parameter_discovery_v2"
+        config_name = "research_candidate_params_v2_8_7_e.json"
+    elif model_profile == "v2_multibroker":
+        base_dir = "parameter_discovery_v2_multibroker"
+        config_name = "research_candidate_params_v2_8_7_f.json"
+    else:
+        base_dir = "parameter_discovery"
+        config_name = "research_candidate_params_v2_8_7.json"
+    if output_dir_suffix:
+        base_dir = f"{base_dir}_{output_dir_suffix}"
+    OUTPUT_DIR = REPO_ROOT / "data" / "reports" / base_dir
+    CONFIG_OUTPUT = REPO_ROOT / "config" / config_name
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     # Verify production models load
@@ -1067,8 +1078,10 @@ def main():
     parser.add_argument("--early-stop", action="store_true")
     parser.add_argument("--progress-every", type=int, default=0, help="Print progress every N candidates")
     parser.add_argument("--model-profile", default=DEFAULT_MODEL_PROFILE,
-                        choices=["v1_legacy", "v2_feature_normalized"],
-                        help="Model profile: v1_legacy (default) or v2_feature_normalized")
+                        choices=["v1_legacy", "v2_feature_normalized", "v2_multibroker"],
+                        help="Model profile: v1_legacy (default), v2_feature_normalized, or v2_multibroker")
+    parser.add_argument("--output-dir-suffix", default="",
+                        help="Optional suffix appended to output directory name")
     args = parser.parse_args()
 
     risk_grid = [float(x) for x in args.risk_percent_grid.split(",")]
@@ -1078,7 +1091,8 @@ def main():
     run_discovery(args.profile, risk_grid, args.max_lot, timeframes, brokers,
                   args.include_dukascopy, args.conservative,
                   mode=args.mode, max_candidates=args.max_candidates, early_stop=args.early_stop,
-                  progress_every=args.progress_every, model_profile=args.model_profile)
+                  progress_every=args.progress_every, model_profile=args.model_profile,
+                  output_dir_suffix=args.output_dir_suffix)
 
 
 if __name__ == "__main__":

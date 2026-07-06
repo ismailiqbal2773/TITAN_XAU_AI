@@ -69,6 +69,21 @@ _PROFILES: dict[str, ModelProfile] = {
         production_default=False,  # NOT default until fully validated
         research_allowed=True,
     ),
+    "v2_multibroker": ModelProfile(
+        name="v2_multibroker",
+        description="v2 models trained on 5 brokers (canonical+exness+fbs+fundednext+icmarkets) for broker generalization",
+        xgb_path=os.path.join(REPO_ROOT, "titan", "data", "models",
+                               "xgboost_v2_multibroker.pkl"),
+        meta_path=os.path.join(REPO_ROOT, "titan", "data", "models",
+                                "meta_label_v2_multibroker.pkl"),
+        scaler_path=os.path.join(REPO_ROOT, "titan", "data", "features_v2_multibroker",
+                                  "scaler_stats_v2_multibroker.json"),
+        schema_path=os.path.join(REPO_ROOT, "titan", "data", "features_v2_multibroker",
+                                  "feature_schema_v2_multibroker.json"),
+        feature_schema_version="v2",
+        production_default=False,  # NOT default until fully validated
+        research_allowed=True,
+    ),
 }
 
 
