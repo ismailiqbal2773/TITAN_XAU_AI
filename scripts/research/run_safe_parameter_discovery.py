@@ -526,6 +526,7 @@ def _score_params(params, results):
 
 def generate_param_grid(mode="fast"):
     grid = []
+    mtf_modes = ["h1_only", "h1_m15", "h1_m15_m5"]  # v2.8.7-B: MTF modes in grid
     if mode == "fast":
         for alpha in [0.50, 0.55, 0.60]:
             for meta in [0.50, 0.55, 0.65]:
@@ -536,13 +537,15 @@ def generate_param_grid(mode="fast"):
                                 for session in ["all", "london", "overlap"]:
                                     for risk in [0.0025, 0.005]:
                                         for cooldown in [2, 5]:
-                                            grid.append(ParamSet(
-                                                alpha_threshold=alpha, meta_threshold=meta,
-                                                sl_atr_multiplier=sl_atr, rr_target=rr,
-                                                max_holding_bars=holding, regime_policy=regime,
-                                                session_filter=session, risk_percent=risk,
-                                                cooldown_after_loss=cooldown,
-                                            ))
+                                            for mtf_mode in mtf_modes:
+                                                grid.append(ParamSet(
+                                                    alpha_threshold=alpha, meta_threshold=meta,
+                                                    sl_atr_multiplier=sl_atr, rr_target=rr,
+                                                    max_holding_bars=holding, regime_policy=regime,
+                                                    session_filter=session, risk_percent=risk,
+                                                    cooldown_after_loss=cooldown,
+                                                    mtf_mode=mtf_mode,
+                                                ))
     else:
         for alpha in [0.50, 0.52, 0.55, 0.58, 0.60, 0.62, 0.65]:
             for meta in [0.50, 0.55, 0.60, 0.65, 0.70]:
@@ -553,18 +556,20 @@ def generate_param_grid(mode="fast"):
                                 for session in ["all", "london", "ny", "overlap"]:
                                     for risk in [0.0025, 0.0035, 0.005]:
                                         for cooldown in [1, 2, 3, 5, 8]:
-                                            grid.append(ParamSet(
-                                                alpha_threshold=alpha, meta_threshold=meta,
-                                                sl_atr_multiplier=sl_atr, rr_target=rr,
-                                                max_holding_bars=holding, regime_policy=regime,
-                                                session_filter=session, risk_percent=risk,
-                                                cooldown_after_loss=cooldown,
-                                            ))
+                                            for mtf_mode in mtf_modes:
+                                                grid.append(ParamSet(
+                                                    alpha_threshold=alpha, meta_threshold=meta,
+                                                    sl_atr_multiplier=sl_atr, rr_target=rr,
+                                                    max_holding_bars=holding, regime_policy=regime,
+                                                    session_filter=session, risk_percent=risk,
+                                                    cooldown_after_loss=cooldown,
+                                                    mtf_mode=mtf_mode,
+                                                ))
     return grid
 
 
 def run_discovery(profile, risk_grid, max_lot, timeframes, brokers, include_dukascopy, conservative,
-                  mode="fast", max_candidates=None, early_stop=False):
+                  mode="fast", max_candidates=None, early_stop=False, progress_every=0):
     ts = datetime.now(timezone.utc).isoformat()
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -617,7 +622,11 @@ def run_discovery(profile, risk_grid, max_lot, timeframes, brokers, include_duka
     sensitivity_rows = []
 
     for idx, params in enumerate(grid):
-        if idx % 50 == 0:
+        if progress_every > 0 and idx % progress_every == 0:
+            print(f"  [{idx}/{len(grid)}] score={eval_result.get('score', 0):.2f} "
+                  f"rec={eval_result.get('recommendation', '?')[:20]} "
+                  f"accepted={len(top_results)} rejected={len(rejected_results)}")
+        elif idx % 50 == 0:
             print(f"  Evaluating {idx}/{len(grid)}...")
 
         eval_result = evaluate_param_set(params, brokers_data, brokers_preds)
@@ -913,6 +922,7 @@ def main():
     parser.add_argument("--mode", default="fast", choices=["fast", "full"])
     parser.add_argument("--max-candidates", type=int, default=None)
     parser.add_argument("--early-stop", action="store_true")
+    parser.add_argument("--progress-every", type=int, default=0, help="Print progress every N candidates")
     args = parser.parse_args()
 
     risk_grid = [float(x) for x in args.risk_percent_grid.split(",")]
@@ -921,7 +931,8 @@ def main():
 
     run_discovery(args.profile, risk_grid, args.max_lot, timeframes, brokers,
                   args.include_dukascopy, args.conservative,
-                  mode=args.mode, max_candidates=args.max_candidates, early_stop=args.early_stop)
+                  mode=args.mode, max_candidates=args.max_candidates, early_stop=args.early_stop,
+                  progress_every=args.progress_every)
 
 
 if __name__ == "__main__":
