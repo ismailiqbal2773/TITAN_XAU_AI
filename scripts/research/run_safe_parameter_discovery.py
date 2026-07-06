@@ -83,15 +83,21 @@ class ParamSet:
 _MODEL_CACHE = {}
 
 
-def load_production_models():
-    """Load production models once and cache."""
-    if "bundle" not in _MODEL_CACHE:
-        from titan.production.model_loader import load_production_models
-        _MODEL_CACHE["bundle"] = load_production_models()
-    return _MODEL_CACHE["bundle"]
+# Default model profile (production default). Research scripts can override
+# via --model-profile flag.
+DEFAULT_MODEL_PROFILE = "v1_legacy"
 
 
-def precompute_model_predictions(df):
+def load_production_models(profile: str = DEFAULT_MODEL_PROFILE):
+    """Load production models once and cache. Routes to v1 or v2 by profile."""
+    cache_key = f"bundle_{profile}"
+    if cache_key not in _MODEL_CACHE:
+        from titan.production.model_loader import load_models_by_profile
+        _MODEL_CACHE[cache_key] = load_models_by_profile(profile)
+    return _MODEL_CACHE[cache_key]
+
+
+def precompute_model_predictions(df, profile: str = DEFAULT_MODEL_PROFILE):
     """Pre-compute XGBoost alpha and meta-label probabilities for all bars.
 
     Uses production H1FeatureStream + XGBoost + meta_label_v2_context.
@@ -100,21 +106,22 @@ def precompute_model_predictions(df):
     Sprint v2.8.7-C: Normalizes spread units to USD BEFORE feature
     computation. Accepts either `spread_usd` (canonical) or `spread`
     (broker points / USD - autodetected).
+
+    Sprint v2.8.7-E: If profile='v2_feature_normalized', uses
+    H1FeatureStreamV2 + v2 models + v2 feature schema.
     """
     import pandas as pd
     import numpy as np
-    from titan.production.feature_stream import H1FeatureStream, FEATURE_NAMES
-    from titan.production.model_loader import extract_meta_features
     from titan.production.spread_normalization import normalize_xauusd_spread_to_usd
 
-    bundle = load_production_models()
+    bundle = load_production_models(profile)
     if not bundle.ok:
         return None
 
     # === v2.8.7-C: Normalize spread to USD before feature computation ===
     df = normalize_xauusd_spread_to_usd(df, symbol="XAUUSD", source="param_discovery")
 
-    # Prepare dataframe for H1FeatureStream
+    # Prepare dataframe for feature stream
     df_use = df[["open", "high", "low", "close"]].copy()
     if "volume" in df.columns:
         df_use["volume"] = df["volume"]
@@ -124,7 +131,20 @@ def precompute_model_predictions(df):
         df_use["volume"] = 0
     df_use["spread"] = df["spread_usd"]  # ALWAYS USD after normalization
 
-    stream = H1FeatureStream()
+    # === v2.8.7-E: Select feature stream by profile ===
+    if profile == "v2_feature_normalized":
+        from titan.production.feature_stream_v2 import H1FeatureStreamV2, FEATURE_NAMES_V2
+        from titan.training.feature_schema_v2 import META_FEATURE_NAMES_V2
+        stream = H1FeatureStreamV2()
+        feature_names = FEATURE_NAMES_V2
+        meta_feature_names = META_FEATURE_NAMES_V2
+    else:
+        from titan.production.feature_stream import H1FeatureStream, FEATURE_NAMES
+        from titan.production.model_loader import META_FEATURE_NAMES
+        stream = H1FeatureStream()
+        feature_names = FEATURE_NAMES
+        meta_feature_names = META_FEATURE_NAMES
+
     stream._bars = df_use
 
     # Compute all features
@@ -141,9 +161,8 @@ def precompute_model_predictions(df):
     xgb_probas = bundle.xgb.predict_proba(features_matrix)[:, 1]
 
     # Meta-label (batch using indices)
-    name_to_idx = {n: i for i, n in enumerate(FEATURE_NAMES)}
-    from titan.production.model_loader import META_FEATURE_NAMES
-    meta_indices = [name_to_idx[n] for n in META_FEATURE_NAMES]
+    name_to_idx = {n: i for i, n in enumerate(feature_names)}
+    meta_indices = [name_to_idx[n] for n in meta_feature_names]
     meta_vecs = features_matrix[:, meta_indices]
     meta_probas = bundle.meta.predict_proba(meta_vecs)[:, 1]
 
@@ -172,13 +191,17 @@ def precompute_model_predictions(df):
     }
 
 
-def run_backtest(df, model_preds, params: ParamSet, starting_equity=10000.0):
+def run_backtest(df, model_preds, params: ParamSet, starting_equity=10000.0,
+                 m15_bars=None, m5_bars=None):
     """Run a real backtest using production model predictions.
 
     Uses real XGBoost alpha + meta-label probabilities (pre-computed).
     Uses real OHLC bars for execution simulation.
     Uses ATR-based SL/TP geometry.
     Uses CEO governance for final decision.
+
+    Sprint v2.8.7-E: Real MTF confirmation via mtf_confirmation.evaluate_mtf.
+    For h1_m15 / h1_m15_m5 modes, M15/M5 bars are checked per trade.
     """
     import numpy as np
 
@@ -300,6 +323,23 @@ def run_backtest(df, model_preds, params: ParamSet, starting_equity=10000.0):
         )
         if not ceo_decision.allowed_to_trade:
             continue
+
+        # === v2.8.7-E: REAL MTF CONFIRMATION ===
+        # For h1_m15 / h1_m15_m5 modes, check M15/M5 confirmation.
+        # If MTF mode requires confirmation but bars not provided, reject.
+        if params.mtf_mode != "h1_only":
+            from titan.production.mtf_confirmation import evaluate_mtf
+            mtf_result = evaluate_mtf(
+                mtf_mode=params.mtf_mode,
+                h1_timestamp=index[i],
+                h1_direction=direction,
+                m15_bars=m15_bars,
+                m5_bars=m5_bars,
+            )
+            if not mtf_result.m15_confirmation_pass:
+                continue
+            if params.mtf_mode == "h1_m15_m5" and not mtf_result.m5_entry_trigger_pass:
+                continue
 
         # === ATR-BASED SL/TP GEOMETRY ===
         atr = atr_values[i]
@@ -450,7 +490,8 @@ def split_by_year(df, start_year, end_year):
     return df[mask]
 
 
-def evaluate_param_set(params, brokers_data, brokers_preds, is_years=(2020,2023), val_year=2024, oos_years=(2025,2026)):
+def evaluate_param_set(params, brokers_data, brokers_preds, is_years=(2020,2023), val_year=2024, oos_years=(2025,2026),
+                       m15_bars=None, m5_bars=None):
     results = {"is": {}, "val": {}, "oos": {}, "lobo": {}}
     for broker, df_full in brokers_data.items():
         if df_full is None:
@@ -475,9 +516,12 @@ def evaluate_param_set(params, brokers_data, brokers_preds, is_years=(2020,2023)
                 "atr_values": preds["atr_values"][mask],
             }
 
-        results["is"][broker] = run_backtest(df_is, slice_preds(preds, is_mask), params)
-        results["val"][broker] = run_backtest(df_val, slice_preds(preds, val_mask), params)
-        results["oos"][broker] = run_backtest(df_oos, slice_preds(preds, oos_mask), params)
+        results["is"][broker] = run_backtest(df_is, slice_preds(preds, is_mask), params,
+                                              m15_bars=m15_bars, m5_bars=m5_bars)
+        results["val"][broker] = run_backtest(df_val, slice_preds(preds, val_mask), params,
+                                               m15_bars=m15_bars, m5_bars=m5_bars)
+        results["oos"][broker] = run_backtest(df_oos, slice_preds(preds, oos_mask), params,
+                                               m15_bars=m15_bars, m5_bars=m5_bars)
 
     for held_out in brokers_data.keys():
         if brokers_data[held_out] is None:
@@ -487,7 +531,8 @@ def evaluate_param_set(params, brokers_data, brokers_preds, is_years=(2020,2023)
             continue
         df_oos = split_by_year(brokers_data[held_out], oos_years[0], oos_years[1])
         oos_mask = (brokers_data[held_out].index.year >= oos_years[0]) & (brokers_data[held_out].index.year <= oos_years[1])
-        results["lobo"][held_out] = run_backtest(df_oos, slice_preds(preds, oos_mask), params)
+        results["lobo"][held_out] = run_backtest(df_oos, slice_preds(preds, oos_mask), params,
+                                                  m15_bars=m15_bars, m5_bars=m5_bars)
 
     score, recommendation = _score_params(params, results)
     results["score"] = score
@@ -586,15 +631,22 @@ def generate_param_grid(mode="fast"):
 
 
 def run_discovery(profile, risk_grid, max_lot, timeframes, brokers, include_dukascopy, conservative,
-                  mode="fast", max_candidates=None, early_stop=False, progress_every=0):
+                  mode="fast", max_candidates=None, early_stop=False, progress_every=0,
+                  model_profile: str = DEFAULT_MODEL_PROFILE):
     ts = datetime.now(timezone.utc).isoformat()
+
+    # === v2.8.7-E: Use v2 output dir if v2 profile selected ===
+    if model_profile == "v2_feature_normalized":
+        global OUTPUT_DIR, CONFIG_OUTPUT
+        OUTPUT_DIR = REPO_ROOT / "data" / "reports" / "parameter_discovery_v2"
+        CONFIG_OUTPUT = REPO_ROOT / "config" / "research_candidate_params_v2_8_7_e.json"
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     # Verify production models load
-    bundle = load_production_models()
+    bundle = load_production_models(model_profile)
     if not bundle.ok:
         result = {"timestamp_utc": ts, "verdict": "INVALID_IMPLEMENTATION",
-                  "message": "Production models failed to load"}
+                  "message": f"Models failed to load for profile={model_profile}"}
         _write_summary(result, [], [], [], [], [], [], None, None, "INVALID_IMPLEMENTATION")
         return result
 
@@ -614,12 +666,25 @@ def run_discovery(profile, risk_grid, max_lot, timeframes, brokers, include_duka
     # === v2.8.7-C: Write spread normalization audit ===
     _write_spread_normalization_audit(brokers_data, ts)
 
+    # === v2.8.7-E: Load M15/M5 bars for real MTF confirmation ===
+    m15_bars = None
+    m5_bars = None
+    try:
+        from titan.production.mtf_confirmation import load_m15_bars, load_m5_bars
+        m15_bars = load_m15_bars()
+        m5_bars = load_m5_bars()
+        print(f"  M15 bars loaded: {len(m15_bars) if not m15_bars.empty else 0}")
+        print(f"  M5 bars loaded:  {len(m5_bars) if not m5_bars.empty else 0}")
+    except Exception as e:
+        print(f"  WARNING: Could not load M15/M5 bars: {e}")
+
     # Pre-compute model predictions for each broker
     print(f"  Brokers loaded: {list(brokers_data.keys())}")
+    print(f"  Model profile: {model_profile}")
     brokers_preds = {}
     for broker, df in brokers_data.items():
         print(f"  Computing production model predictions for {broker}...")
-        preds = precompute_model_predictions(df)
+        preds = precompute_model_predictions(df, profile=model_profile)
         if preds is not None:
             brokers_preds[broker] = preds
             print(f"    {broker}: {preds['alpha_proba'].shape[0]} predictions, "
@@ -642,7 +707,8 @@ def run_discovery(profile, risk_grid, max_lot, timeframes, brokers, include_duka
     sensitivity_rows = []
 
     for idx, params in enumerate(grid):
-        eval_result = evaluate_param_set(params, brokers_data, brokers_preds)
+        eval_result = evaluate_param_set(params, brokers_data, brokers_preds,
+                                          m15_bars=m15_bars, m5_bars=m5_bars)
         row = {**params.to_dict(), "score": eval_result["score"], "recommendation": eval_result["recommendation"]}
 
         if progress_every > 0 and idx % progress_every == 0:
@@ -705,7 +771,8 @@ def run_discovery(profile, risk_grid, max_lot, timeframes, brokers, include_duka
                               "meta_proba": preds["meta_proba"][year_mask],
                               "valid_mask": preds["valid_mask"][year_mask],
                               "atr_values": preds["atr_values"][year_mask]}
-                r = run_backtest(df_year, year_preds, params)
+                r = run_backtest(df_year, year_preds, params,
+                                  m15_bars=m15_bars, m5_bars=m5_bars)
                 yearly_wf_rows.append({**params.to_dict(), "broker": broker, "year": year,
                                       "pf": r["profit_factor"], "sharpe": r["sharpe"],
                                       "dd": r["max_total_dd"], "monthly": r["monthly_estimate"],
@@ -718,13 +785,15 @@ def run_discovery(profile, risk_grid, max_lot, timeframes, brokers, include_duka
         for alpha in [0.50, 0.52, 0.55, 0.58, 0.60, 0.62, 0.65]:
             p = ParamSet(**base.to_dict())
             p.alpha_threshold = alpha
-            eval_r = evaluate_param_set(p, brokers_data, brokers_preds)
+            eval_r = evaluate_param_set(p, brokers_data, brokers_preds,
+                                          m15_bars=m15_bars, m5_bars=m5_bars)
             sensitivity_rows.append({"param": "alpha_threshold", "value": alpha,
                                     "score": eval_r["score"], "recommendation": eval_r["recommendation"]})
         for meta in [0.50, 0.55, 0.60, 0.65, 0.70, 0.75]:
             p = ParamSet(**base.to_dict())
             p.meta_threshold = meta
-            eval_r = evaluate_param_set(p, brokers_data, brokers_preds)
+            eval_r = evaluate_param_set(p, brokers_data, brokers_preds,
+                                          m15_bars=m15_bars, m5_bars=m5_bars)
             sensitivity_rows.append({"param": "meta_threshold", "value": meta,
                                     "score": eval_r["score"], "recommendation": eval_r["recommendation"]})
 
@@ -997,6 +1066,9 @@ def main():
     parser.add_argument("--max-candidates", type=int, default=None)
     parser.add_argument("--early-stop", action="store_true")
     parser.add_argument("--progress-every", type=int, default=0, help="Print progress every N candidates")
+    parser.add_argument("--model-profile", default=DEFAULT_MODEL_PROFILE,
+                        choices=["v1_legacy", "v2_feature_normalized"],
+                        help="Model profile: v1_legacy (default) or v2_feature_normalized")
     args = parser.parse_args()
 
     risk_grid = [float(x) for x in args.risk_percent_grid.split(",")]
@@ -1006,7 +1078,7 @@ def main():
     run_discovery(args.profile, risk_grid, args.max_lot, timeframes, brokers,
                   args.include_dukascopy, args.conservative,
                   mode=args.mode, max_candidates=args.max_candidates, early_stop=args.early_stop,
-                  progress_every=args.progress_every)
+                  progress_every=args.progress_every, model_profile=args.model_profile)
 
 
 if __name__ == "__main__":

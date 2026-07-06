@@ -168,6 +168,82 @@ def load_production_models(
     return bundle
 
 
+# ─── v2 Model Loader (Sprint v2.8.7-E) ─────────────────────────────────────
+
+def load_production_models_v2(
+    xgb_path: Optional[str] = None,
+    meta_path: Optional[str] = None,
+) -> ModelBundle:
+    """
+    Load v2 feature-normalized models.
+
+    Uses the model registry to resolve default paths. Returns a ModelBundle
+    with .ok=True only if BOTH v2 models load AND verify.
+
+    v2 models use the v2 feature schema (5 absolute-price features replaced
+    by relative/stationary equivalents). The caller must use
+    H1FeatureStreamV2 (not H1FeatureStream) to compute features for v2
+    models.
+    """
+    from titan.production.model_registry import get_profile
+    profile = get_profile("v2_feature_normalized")
+    xgb_path = xgb_path or profile.xgb_path
+    meta_path = meta_path or profile.meta_path
+
+    bundle = ModelBundle(xgb_path=xgb_path, meta_path=meta_path)
+
+    try:
+        bundle.xgb = _load_pickle(xgb_path, "xgboost_v2_feature_normalized")
+        verified, n_in, classes = _verify_model(bundle.xgb, XGB_N_FEATURES,
+                                                 "xgboost_v2_feature_normalized")
+        bundle.xgb_verified = verified
+        bundle.xgb_n_features = n_in
+        bundle.xgb_classes = classes
+        if not verified:
+            bundle.errors.append("xgboost_v2 verification failed")
+    except Exception as e:
+        bundle.errors.append(f"xgboost_v2 load error: {e}")
+        logger.error(f"xgboost_v2 load error: {e}")
+
+    try:
+        bundle.meta = _load_pickle(meta_path, "meta_label_v2_feature_normalized")
+        verified, n_in, classes = _verify_model(bundle.meta, META_N_FEATURES,
+                                                 "meta_label_v2_feature_normalized")
+        bundle.meta_verified = verified
+        bundle.meta_n_features = n_in
+        bundle.meta_classes = classes
+        if not verified:
+            bundle.errors.append("meta_label_v2 verification failed")
+    except Exception as e:
+        bundle.errors.append(f"meta_label_v2 load error: {e}")
+        logger.error(f"meta_label_v2 load error: {e}")
+
+    bundle.ok = bundle.xgb_verified and bundle.meta_verified
+    if bundle.ok:
+        logger.info(f"✓ v2 models loaded: {bundle}")
+    else:
+        logger.error(f"✗ v2 model load incomplete: {bundle.errors}")
+    return bundle
+
+
+def load_models_by_profile(profile_name: str = "v1_legacy") -> ModelBundle:
+    """
+    Load models by profile name. Routes to v1 or v2 loader.
+
+    Args:
+        profile_name: "v1_legacy" (default) or "v2_feature_normalized"
+    """
+    if profile_name == "v1_legacy":
+        return load_production_models()
+    elif profile_name == "v2_feature_normalized":
+        return load_production_models_v2()
+    else:
+        from titan.production.model_registry import list_profiles
+        raise ValueError(
+            f"Unknown profile: {profile_name!r}. Available: {list_profiles()}"
+        )
+
+
 def extract_meta_features(xgb_features: np.ndarray,
                           xgb_feature_names: list[str]) -> np.ndarray:
     """
