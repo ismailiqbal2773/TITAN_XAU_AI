@@ -1,0 +1,69 @@
+# TITAN XAU AI — Prop Firm Yearly Audit Config (Sprint v2.8.7-I)
+# Defines prop firm account assumptions and risk profiles for the
+# yearly consistency audit.
+
+prop_firm_audit:
+  # === Account assumptions ===
+  account_balance: 100000
+  leverage: 100
+  symbol: "XAUUSD"
+
+  # === Monthly profit targets ===
+  external_monthly_profit_target: 0.10    # 10% base target
+  external_stretch_profit_target: 0.12    # 12% stretch target
+  external_aggressive_target: 0.15        # 15% aggressive target
+  # 20% is rejected as too aggressive (no testing)
+
+  # === Prop firm DD limits (external, hard rules) ===
+  external_daily_dd_limit: 0.03           # 3% daily DD limit
+  external_total_dd_limit: 0.08           # 8% total DD limit
+
+  # === Internal DD stops (conservative, before prop limit) ===
+  internal_daily_dd_stop: 0.025           # 2.5% daily internal stop
+  internal_total_dd_stop: 0.065           # 6.5% total internal stop
+
+  # === Risk profiles (risk_percent per trade) ===
+  risk_profiles:
+    base: 0.0025                          # 0.25% per trade (locked candidate default)
+    cautious: 0.0015                      # 0.15% per trade (more conservative)
+    stretch: 0.0035                       # 0.35% per trade (slightly higher)
+    # 0.005 is the MAX allowed without explicit warning
+    # 0.005+ is FORBIDDEN without explicit CTO approval
+
+  # === Trade limits ===
+  max_lot: 0.01
+  max_open_positions: 1
+  max_trades_per_day: 2
+  cooldown_after_loss: 5
+
+  # === Years to test ===
+  years_to_test:
+    - 2023
+    - 2024
+    - 2025
+    - 2026
+
+  # === OOS-only period ===
+  oos_years:
+    - 2025
+    - 2026
+
+  # === Consistency score weights (out of 100) ===
+  consistency_score_weights:
+    no_daily_dd_breach: 25
+    no_total_dd_breach: 25
+    profitable_months_8_of_12: 20
+    months_hit_10pct_target_6_of_12: 15
+    pf_above_1_2: 10
+    stable_trade_count: 5
+
+  # === Safety ===
+  safety:
+    live_trading: false                   # ALWAYS false
+    funded_trading: false                 # ALWAYS false
+    production_ready: false               # ALWAYS false
+    dry_run: true                         # ALWAYS true
+    no_order_send: true                   # ALWAYS true
+    no_token_auto_create: true            # ALWAYS true
+    broker: "MetaQuotes-Demo"             # Demo only
+    requires_cto_review: true             # CTO must approve
