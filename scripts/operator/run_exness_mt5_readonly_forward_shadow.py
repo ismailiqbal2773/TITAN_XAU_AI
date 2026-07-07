@@ -262,18 +262,18 @@ def main():
             time.sleep(args.sleep_seconds)
 
     # Write outputs
-    with open(OUTPUT_DIR / "forward_shadow_signals_exness.csv", "w", newline="") as f:
+    with open(OUTPUT_DIR / "forward_shadow_signals_exness.csv", "w", newline="", encoding="utf-8") as f:
         if signals:
             w = csv.DictWriter(f, fieldnames=list(signals[0].keys()))
             w.writeheader()
             for s in signals:
                 w.writerow(s)
 
-    with open(OUTPUT_DIR / "forward_shadow_journal_exness.jsonl", "w") as f:
+    with open(OUTPUT_DIR / "forward_shadow_journal_exness.jsonl", "w", encoding="utf-8") as f:
         for s in signals:
             f.write(json.dumps(s, default=str) + "\n")
 
-    with open(OUTPUT_DIR / "forward_shadow_risk_lot_state_exness.csv", "w", newline="") as f:
+    with open(OUTPUT_DIR / "forward_shadow_risk_lot_state_exness.csv", "w", newline="", encoding="utf-8") as f:
         if risk_lot_rows:
             w = csv.DictWriter(f, fieldnames=list(risk_lot_rows[0].keys()))
             w.writeheader()
@@ -290,7 +290,7 @@ def main():
     }
     with open(OUTPUT_DIR / "forward_shadow_summary_exness.json", "w") as f:
         json.dump(summary, f, indent=2)
-    with open(OUTPUT_DIR / "forward_shadow_summary_exness.md", "w") as f:
+    with open(OUTPUT_DIR / "forward_shadow_summary_exness.md", "w", encoding="utf-8") as f:
         f.write(f"# Forward Shadow Summary - {args.broker} (Module 2)\n\n")
         f.write(f"**Timestamp:** {ts}\n\n")
         f.write(f"- Total cycles: {len(signals)}\n- Shadow signals: {len(shadow_signals)}\n")

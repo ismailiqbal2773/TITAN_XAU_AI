@@ -408,7 +408,7 @@ if __name__ == "__main__":
         }
         with open(output_dir / "mt5_data_schema_audit.json", "w") as f:
             json.dump(schema_audit, f, indent=2, default=str)
-        with open(output_dir / "mt5_data_schema_audit.md", "w") as f:
+        with open(output_dir / "mt5_data_schema_audit.md", "w", encoding="utf-8") as f:
             f.write("# MT5 Data Schema Audit (Module 1)\n\n")
             f.write(f"**Timestamp:** {ts}\n\n")
             f.write(f"## Verdict: {result.verdict}\n\n")
@@ -435,7 +435,7 @@ if __name__ == "__main__":
     }
     with open(output_dir / "mt5_account_safety_audit.json", "w") as f:
         json.dump(audit, f, indent=2, default=str)
-    with open(output_dir / "mt5_account_safety_audit.md", "w") as f:
+    with open(output_dir / "mt5_account_safety_audit.md", "w", encoding="utf-8") as f:
         f.write("# MT5 Account Safety Audit (Module 1)\n\n")
         f.write(f"**Timestamp:** {ts}\n\n")
         f.write(f"## Verdict: {result.verdict}\n\n")

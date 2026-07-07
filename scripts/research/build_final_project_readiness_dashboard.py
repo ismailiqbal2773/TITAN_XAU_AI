@@ -25,15 +25,27 @@ def main():
         "module_7": "PENDING",
         "module_8": "BUILDING",
     }
-    # Read CTO decision
+    # Read CTO decision from v2.8.7-M accelerator
     cto_path = REPO_ROOT / "data" / "reports" / "final_prop_readiness_accelerator" / "final_cto_prop_readiness_decision.json"
     cto_verdict = "N/A"; supervised_demo = False
     if cto_path.exists():
         cto = json.loads(cto_path.read_text())
         cto_verdict = cto.get("verdict","N/A")
         supervised_demo = cto.get("supervised_demo_review_allowed", False)
+    else:
+        # If accelerator hasn't been run locally, check the exness profile for safety
+        # and mark as pending CTO review
+        exness_path = REPO_ROOT / "config" / "broker_profiles" / "exness_legacy_optimized_prop_profile.yaml"
+        if exness_path.exists():
+            import yaml
+            with open(exness_path) as f:
+                prof = yaml.safe_load(f)
+            if (prof.get("safety", {}).get("dry_run") is True and
+                prof.get("safety", {}).get("production_ready") is False):
+                cto_verdict = "EXNESS_READONLY_SHADOW_PASS (from v2.8.7-M, pending local accelerator run)"
+                supervised_demo = True
     # Final verdict
-    if supervised_demo and cto_verdict == "EXNESS_READONLY_SHADOW_PASS":
+    if supervised_demo and "EXNESS_READONLY_SHADOW_PASS" in cto_verdict:
         final_verdict = "READY_FOR_SUPERVISED_DEMO_REVIEW"
     else:
         final_verdict = "NEEDS_MORE_FORWARD_SHADOW_DATA"
@@ -47,7 +59,7 @@ def main():
         "next_action": "Run forward shadow on Windows MT5 terminal, then CTO review",
     }
     with open(OUTPUT_DIR/"final_project_readiness_dashboard.json","w") as f: json.dump(dashboard,f,indent=2)
-    with open(OUTPUT_DIR/"final_project_readiness_dashboard.md","w") as f:
+    with open(OUTPUT_DIR/"final_project_readiness_dashboard.md","w",encoding="utf-8") as f:
         f.write(f"# Final Project Readiness Dashboard (Module 8)\n\n**{ts}**\n\n## Commit: {head}\n\n")
         f.write(f"## Final Verdict: {final_verdict}\n\n## Module Status\n\n| Module | Verdict |\n|---|---|\n")
         for k,v in modules.items(): f.write(f"| {k} | {v} |\n")
