@@ -1,0 +1,6 @@
+{
+  "timestamp_utc": "2026-07-07T06:53:57.573904+00:00",
+  "overfit_verdict": "HIGH",
+  "train_oos_gap": "checked",
+  "month_concentration": "checked"
+}
