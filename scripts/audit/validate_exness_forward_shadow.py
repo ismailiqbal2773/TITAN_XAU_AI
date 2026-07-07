@@ -74,12 +74,14 @@ def validate_forward_shadow():
     if not journal_entries:
         verdict = "NEEDS_MORE_FORWARD_SHADOW_DATA"
     elif all_pass:
-        verdict = "FORWARD_SHADOW_VALIDATION_PASS"
+        # Check if there are 0 shadow signals (all rejected)
+        shadow_count = sum(1 for e in journal_entries if e.get("final_decision") == "SHADOW_SIGNAL")
+        if shadow_count == 0:
+            verdict = "FORWARD_SHADOW_VALIDATION_WARN"
+        else:
+            verdict = "FORWARD_SHADOW_VALIDATION_PASS"
     else:
         verdict = "FORWARD_SHADOW_VALIDATION_FAIL"
-
-    if not journal_entries:
-        verdict = "NEEDS_MORE_FORWARD_SHADOW_DATA"
 
     result = {"timestamp_utc": ts, "verdict": verdict, "checks": checks}
     with open(OUTPUT_DIR / "forward_shadow_validation.json", "w") as f:
@@ -154,7 +156,7 @@ def evaluate_performance():
     metrics["verdict"] = verdict
     with open(OUTPUT_DIR / "forward_shadow_performance.json", "w") as f:
         json.dump(metrics, f, indent=2, default=str)
-    with open(OUTPUT_DIR / "forward_shadow_performance.md", "w") as f:
+    with open(OUTPUT_DIR / "forward_shadow_performance.md", "w", encoding="utf-8") as f:
         f.write("# Forward Shadow Performance (Module 3)\n\n")
         f.write(f"**Timestamp:** {ts}\n\n## Verdict: {verdict}\n\n")
         for k, v in metrics.items():

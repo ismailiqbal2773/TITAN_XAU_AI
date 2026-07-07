@@ -34,7 +34,6 @@ def main():
         supervised_demo = cto.get("supervised_demo_review_allowed", False)
     else:
         # If accelerator hasn't been run locally, check the exness profile for safety
-        # and mark as pending CTO review
         exness_path = REPO_ROOT / "config" / "broker_profiles" / "exness_legacy_optimized_prop_profile.yaml"
         if exness_path.exists():
             import yaml
@@ -44,8 +43,80 @@ def main():
                 prof.get("safety", {}).get("production_ready") is False):
                 cto_verdict = "EXNESS_READONLY_SHADOW_PASS (from v2.8.7-M, pending local accelerator run)"
                 supervised_demo = True
-    # Final verdict
-    if supervised_demo and "EXNESS_READONLY_SHADOW_PASS" in cto_verdict:
+
+    # Read forward shadow validation to check if it needs more data
+    fwd_val_path = REPO_ROOT / "data" / "reports" / "exness_forward_shadow" / "forward_shadow_validation.json"
+    fwd_verdict = "NOT_RUN"
+    fwd_cycles = 0
+    if fwd_val_path.exists():
+        fwd = json.loads(fwd_val_path.read_text())
+        fwd_verdict = fwd.get("verdict", "NOT_RUN")
+
+    # Read forward shadow summary to check cycles/signals
+    fwd_sum_path = REPO_ROOT / "data" / "reports" / "exness_forward_shadow" / "forward_shadow_summary_exness.json"
+    if fwd_sum_path.exists():
+        fwd_sum = json.loads(fwd_sum_path.read_text())
+        fwd_cycles = fwd_sum.get("total_cycles", 0)
+        fwd_signals = fwd_sum.get("shadow_signals", 0)
+    else:
+        fwd_signals = 0
+
+    # Read module 1 (MT5) audit
+    mt5_audit_path = REPO_ROOT / "data" / "reports" / "exness_forward_shadow" / "mt5_account_safety_audit.json"
+    mt5_verdict = "NOT_RUN"
+    if mt5_audit_path.exists():
+        mt5 = json.loads(mt5_audit_path.read_text())
+        mt5_verdict = mt5.get("verdict", "NOT_RUN")
+
+    # Update module statuses based on real local data
+    if mt5_verdict == "CONNECT_SUCCESS":
+        modules["module_1"] = "MODULE_1_PASS"
+    elif mt5_verdict == "NOT_RUN":
+        modules["module_1"] = "MODULE_1_NOT_RUN"
+    else:
+        modules["module_1"] = f"MODULE_1_{mt5_verdict}"
+
+    if fwd_verdict in ["FORWARD_SHADOW_VALIDATION_PASS", "FORWARD_SHADOW_VALIDATION_WARN"]:
+        modules["module_3"] = "MODULE_3_PASS"
+    elif fwd_verdict == "NEEDS_MORE_FORWARD_SHADOW_DATA":
+        modules["module_3"] = "MODULE_3_NEEDS_MORE_DATA"
+    else:
+        modules["module_3"] = f"MODULE_3_{fwd_verdict}"
+
+    # Read supervised demo gate result
+    gate_path = REPO_ROOT / "data" / "reports" / "supervised_demo_review_gate" / "supervised_demo_review_gate.json"
+    if gate_path.exists():
+        gate = json.loads(gate_path.read_text())
+        modules["module_6"] = gate.get("verdict", "PENDING")
+        if gate.get("verdict") == "SUPERVISED_DEMO_REVIEW_ALLOWED":
+            supervised_demo = True
+        else:
+            supervised_demo = False
+    else:
+        modules["module_6"] = "PENDING (not run locally)"
+
+    # Read demo execution preflight
+    preflight_path = REPO_ROOT / "data" / "reports" / "demo_execution_preflight" / "demo_execution_preflight_readonly.json"
+    if preflight_path.exists():
+        preflight = json.loads(preflight_path.read_text())
+        modules["module_7"] = preflight.get("verdict", "PENDING")
+    else:
+        modules["module_7"] = "PENDING (not run locally)"
+
+    # HONEST FINAL VERDICT
+    # Rules:
+    # - If Module 1 blocked → NEEDS_MORE_FORWARD_SHADOW_DATA
+    # - If Module 3 needs more data → NEEDS_MORE_FORWARD_SHADOW_DATA
+    # - If forward cycles = 0 → NEEDS_MORE_FORWARD_SHADOW_DATA
+    # - If supervised_demo_review_gate crashed or missing → supervised_demo = False
+    if mt5_verdict != "CONNECT_SUCCESS":
+        final_verdict = "NEEDS_MORE_FORWARD_SHADOW_DATA"
+        supervised_demo = False
+    elif fwd_cycles == 0 or fwd_signals == 0:
+        final_verdict = "NEEDS_MORE_FORWARD_SHADOW_DATA"
+    elif fwd_verdict == "FORWARD_SHADOW_VALIDATION_FAIL":
+        final_verdict = "NEEDS_MORE_FORWARD_SHADOW_DATA"
+    elif supervised_demo and "EXNESS_READONLY_SHADOW_PASS" in cto_verdict:
         final_verdict = "READY_FOR_SUPERVISED_DEMO_REVIEW"
     else:
         final_verdict = "NEEDS_MORE_FORWARD_SHADOW_DATA"

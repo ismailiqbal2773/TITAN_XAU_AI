@@ -1,0 +1,15 @@
+{
+  "timestamp_utc": "2026-07-07T08:20:58.989596+00:00",
+  "ModelRegistry_fixed": true,
+  "full_pytest_pass": true,
+  "supervised_demo_gate_runs": true,
+  "missing_performance_script_fixed": true,
+  "forward_validation_verdict": "NEEDS_MORE_FORWARD_SHADOW_DATA",
+  "forward_performance_verdict": "NEEDS_MORE_FORWARD_SHADOW_DATA",
+  "dashboard_verdict": "NEEDS_MORE_FORWARD_SHADOW_DATA",
+  "remaining_blockers": [
+    "Forward shadow has 0 signals \u2014 needs Windows MT5 to run during market hours",
+    "MT5 connector not available on Linux sandbox"
+  ],
+  "final_cto_recommendation": "Run forward shadow on Windows MT5 during market hours to generate signals, then re-run validation and dashboard"
+}

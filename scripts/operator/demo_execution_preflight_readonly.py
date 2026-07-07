@@ -28,7 +28,7 @@ def main():
                           "order_send": False, "production_ready": False, "dry_run": True,
                           "cto_approval_required": True, "operator_token_required": True}}
     with open(OUTPUT_DIR/"demo_execution_preflight_readonly.json","w") as f: json.dump(result,f,indent=2)
-    with open(OUTPUT_DIR/"demo_execution_preflight_readonly.md","w") as f:
+    with open(OUTPUT_DIR/"demo_execution_preflight_readonly.md","w",encoding="utf-8") as f:
         f.write(f"# Demo Execution Preflight Read-Only (Module 7)\n\n**{ts}**\n\n## Verdict: {verdict}\n\n")
         f.write("Demo execution is BLOCKED. CTO approval and operator token are required.\n\n## Checks\n\n")
         f.write("| Check | Value |\n|---|---|\n")
