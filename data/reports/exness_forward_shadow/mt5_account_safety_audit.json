@@ -1,0 +1,17 @@
+{
+  "timestamp_utc": "2026-07-07T06:47:46.568116+00:00",
+  "verdict": "MT5_PACKAGE_MISSING",
+  "success": false,
+  "error": "MetaTrader5 Python package not installed (Linux sandbox \u2014 Windows required for MT5)",
+  "account_info": null,
+  "safety": {
+    "no_order_send": true,
+    "no_token": true,
+    "no_live_trading": true,
+    "no_funded_trading": true,
+    "production_ready": false,
+    "dry_run": true
+  },
+  "module_verdict": "MODULE_1_BLOCKED_BY_LOCAL_MT5",
+  "note": "MT5 connector is structurally complete and tested. Requires Windows + MT5 terminal to run live audit. All safety blocks verified in code."
+}

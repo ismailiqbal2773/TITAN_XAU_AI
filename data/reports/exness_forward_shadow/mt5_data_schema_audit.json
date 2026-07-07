@@ -1,0 +1,6 @@
+{
+  "timestamp_utc": "2026-07-07T06:47:46.568116+00:00",
+  "verdict": "MT5_PACKAGE_MISSING",
+  "schema_valid": null,
+  "note": "Requires Windows MT5 to validate live data schema"
+}
