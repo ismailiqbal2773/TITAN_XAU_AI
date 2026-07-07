@@ -1,0 +1,25 @@
+{
+  "timestamp_utc": "2026-07-07T06:44:43.288067+00:00",
+  "head_commit": "f86b4f0",
+  "verdict": "MODULE_0_PASS",
+  "checks": {
+    "head_is_f86b4f0_or_newer": true,
+    "exness_profile_exists": true,
+    "accelerator_exists": true,
+    "shadow_runner_exists": true,
+    "safety_flags_locked": true,
+    "no_live_funded_token_ordersend": true
+  },
+  "exness_safety": {
+    "dry_run": true,
+    "live_trading": false,
+    "funded_trading": false,
+    "production_ready": false,
+    "no_order_send": true,
+    "leverage": 100
+  },
+  "tests": {
+    "v287_tests_passed": 148,
+    "v287_tests_failed": 0
+  }
+}
