@@ -1,0 +1,22 @@
+{
+  "timestamp_utc": "2026-07-07T06:51:54.782358+00:00",
+  "total_cycles": 0,
+  "valid_signals": 0,
+  "rejected_signals": 0,
+  "signal_rate": 0,
+  "avg_alpha": 0,
+  "avg_meta": 0,
+  "avg_lot": 0,
+  "max_lot": 0,
+  "avg_margin_usage": 0,
+  "max_margin_usage": 0,
+  "risk_violations": 0,
+  "margin_violations": 0,
+  "spread_violations": 0,
+  "ceo_blocks": 0,
+  "meta_blocks": 0,
+  "prop_risk_blocks": 0,
+  "data_gaps": 0,
+  "stale_data_count": 0,
+  "verdict": "NEEDS_MORE_FORWARD_SHADOW_DATA"
+}

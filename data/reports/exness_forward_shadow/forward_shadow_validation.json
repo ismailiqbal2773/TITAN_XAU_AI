@@ -1,0 +1,19 @@
+{
+  "timestamp_utc": "2026-07-07T06:51:54.781998+00:00",
+  "verdict": "NEEDS_MORE_FORWARD_SHADOW_DATA",
+  "checks": {
+    "journal_exists": false,
+    "signals_csv_exists": false,
+    "risk_lot_csv_exists": false,
+    "journal_valid_jsonl": true,
+    "journal_entries_count": 0,
+    "all_entries_no_order_sent": true,
+    "no_order_id_in_journal": true,
+    "no_token_in_journal": true,
+    "ceo_logged": true,
+    "meta_logged": true,
+    "prop_risk_logged": true,
+    "lot_logged": true,
+    "margin_logged": true
+  }
+}
