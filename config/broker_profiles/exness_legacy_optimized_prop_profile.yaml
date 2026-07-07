@@ -1,0 +1,41 @@
+broker: exness
+source_profile: legacy_optimized
+model_profile: v2_feature_normalized
+optimized_parameters:
+  alpha_threshold: 0.5
+  meta_threshold: 0.5
+  risk_percent: 0.0125
+  sl_atr_multiplier: 2.0
+  rr_target: 3.0
+  max_holding_bars: 3
+  max_trades_per_day: 2
+  cooldown_after_loss: 5
+  session_filter: all
+  spread_filter: 0.5
+  mtf_mode: H1_only
+account_balance: 100000
+leverage: 100
+risk_based_lot_sizing: true
+lot_formula: lot = (equity * risk_pct) / (sl_distance * 100)
+tp_policy: adaptive_3R
+be_policy: BE_1_25R
+partial_policy: no_partial
+trail_policy: medium
+pyramid_policy: none
+dd_stops:
+  internal_daily_dd: 0.025
+  internal_total_dd: 0.065
+  external_daily_dd: 0.03
+  external_total_dd: 0.08
+margin_safety:
+  preferred_max: 0.1
+  high_risk: 0.15
+  reject: 0.2
+safety:
+  dry_run: true
+  live_trading: false
+  funded_trading: false
+  production_ready: false
+  no_order_send: true
+  requires_cto_review: true
+verdict: LEGACY_PROFILE_PROP_READY

@@ -1,0 +1,106 @@
+# TITAN XAU AI — Legacy Funded Profiles (Sprint v2.8.7-L)
+# Recovered/reconstructed from historical funded challenge profiles.
+# These profiles use higher risk than C04 but include proper exit management.
+
+legacy_funded_profiles:
+  SAFE_FUNDED:
+    risk_percent: 0.0075
+    tp_policy: "adaptive_2_5R"
+    be_policy: "BE_0_8R"
+    partial_policy: "partial_50_at_1R"
+    trail_policy: "tight"
+    pyramid_policy: "none"
+    mtf_mode: "H1_only"
+    session_filter: "all"
+    expected_return: "safest but lower return"
+    historical_max_dd: 0.06
+    status: "testable"
+
+  BALANCED_FUNDED_CHALLENGE:
+    risk_percent: 0.0125
+    tp_policy: "adaptive_3R"
+    be_policy: "BE_1_25R"
+    partial_policy: "partial_25_at_1_5R"
+    trail_policy: "medium"
+    pyramid_policy: "max_1_locked_profit_addon"
+    mtf_mode: "H1_M15"
+    session_filter: "all"
+    historical_avg_monthly: 0.1373
+    historical_10pct_hit: 0.5085
+    historical_max_dd: 0.0903
+    historical_dd_breaches: 0
+    status: "testable"
+
+  FROZEN_BALANCED_FUNDED:
+    risk_percent: 0.0125
+    tp_policy: "adaptive_3R"
+    be_policy: "BE_1_25R"
+    partial_policy: "partial_25_at_1_5R"
+    trail_policy: "medium"
+    pyramid_policy: "max_1_locked_profit_addon"
+    mtf_mode: "H1_M15"
+    session_filter: "all"
+    historical_max_dd: 0.0725
+    historical_dd_breaches: 0
+    strict_8pct_dd: "PASS"
+    forward_2025_avg_monthly: 0.1824
+    status: "testable"
+
+  AGGRESSIVE_FUNDED_CHALLENGE:
+    risk_percent: 0.011
+    tp_policy: "no_fixed_ATR_trail_Aplus"
+    be_policy: "no_BE_until_structure"
+    partial_policy: "no_partial_Aplus_trend"
+    trail_policy: "ATR_after_2R"
+    pyramid_policy: "max_2_protected_only"
+    mtf_mode: "H1_M5"
+    session_filter: "all"
+    historical_avg_monthly: 0.1702
+    historical_max_dd: 0.0943
+    status: "testable_under_strict_8pct"
+
+  COMPETITION_DEMO_ONLY:
+    risk_percent: 0.015
+    tp_policy: "adaptive_4R_strong_trend"
+    be_policy: "BE_1_5R"
+    partial_policy: "no_partial_Aplus"
+    trail_policy: "wide_trend"
+    pyramid_policy: "max_2"
+    mtf_mode: "H1_M5"
+    session_filter: "all"
+    historical_avg_monthly: 0.2019
+    historical_max_dd: 0.1228
+    historical_dd_breaches: 48
+    status: "DEMO_ONLY"
+    rule: "MUST BE REJECTED_FOR_PROP — cannot be approved for funded"
+
+# Account and leverage settings
+account:
+  balance: 100000
+  leverage: 100
+  symbol: "XAUUSD"
+  contract_size_per_lot: 100  # 100 oz per lot for XAUUSD
+
+# Prop limits
+prop_limits:
+  external_daily_dd: 0.03
+  external_total_dd: 0.08
+  internal_daily_dd: 0.025
+  internal_total_dd: 0.065
+  monthly_target: 0.10
+  stretch_target: 0.12
+  aggressive_target: 0.15
+
+# Margin safety
+margin_safety:
+  preferred_max_usage: 0.10
+  high_risk_threshold: 0.15
+  reject_threshold: 0.20
+  max_open_positions: 1
+
+# Risk-based lot sizing
+risk_based_lot_sizing:
+  formula: "lot_size = risk_amount / (sl_distance * contract_size_per_lot)"
+  risk_amount: "account_equity * risk_percent"
+  leverage: 100
+  contract_size_per_lot: 100
