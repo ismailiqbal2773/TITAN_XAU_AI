@@ -1,0 +1,30 @@
+broker: exness
+model_profile: v2_feature_normalized
+calibrated_thresholds:
+  alpha_threshold: 0.5
+  meta_threshold: 0.5
+spread_filter: 0.5
+session_filter: all
+mtf_mode: h1_only
+risk_profile: cautious
+risk_percent: 0.0015
+dd_stops:
+  internal_daily_dd_stop: 0.025
+  internal_total_dd_stop: 0.065
+  external_daily_dd_limit: 0.03
+  external_total_dd_limit: 0.08
+max_trades_per_day: 2
+max_lot: 0.01
+max_open_positions: 1
+cooldown_after_loss: 5
+safety:
+  dry_run: true
+  live_trading: false
+  funded_trading: false
+  production_ready: false
+  broker_target: MetaQuotes-Demo
+  no_order_send: true
+  no_token_auto_create: true
+  ceo_not_bypassed: true
+  meta_label_not_bypassed: true
+verdict: NEEDS_RETURN_IMPROVEMENT
