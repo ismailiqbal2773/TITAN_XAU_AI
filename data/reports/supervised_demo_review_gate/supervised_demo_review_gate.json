@@ -1,0 +1,29 @@
+{
+  "timestamp_utc": "2026-07-07T06:56:20.776119+00:00",
+  "verdict": "SUPERVISED_DEMO_REVIEW_ALLOWED",
+  "checks": {
+    "exness_profile_exists": true,
+    "accelerator_exists": true,
+    "mt5_connector_exists": true,
+    "forward_shadow_runner_exists": true,
+    "parameter_discovery_exists": true,
+    "no_order_send_confirmed": true,
+    "no_token_confirmed": true,
+    "production_ready_false": true,
+    "dry_run_true": true,
+    "cto_decision_exists": true,
+    "cto_shadow_pass": true,
+    "supervised_demo_allowed_by_cto": true,
+    "forward_shadow_validated": true,
+    "forward_shadow_pass": true
+  },
+  "safety": {
+    "live_trading": false,
+    "funded_trading": false,
+    "token": false,
+    "order_send": false,
+    "production_ready": false,
+    "dry_run": true,
+    "supervised_demo_is_not_automatic": true
+  }
+}

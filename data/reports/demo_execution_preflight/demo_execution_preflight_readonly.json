@@ -1,0 +1,33 @@
+{
+  "timestamp_utc": "2026-07-07T06:56:20.805293+00:00",
+  "verdict": "DEMO_EXECUTION_BLOCKED_PENDING_CTO_APPROVAL",
+  "checks": {
+    "cto_approval_file_missing": true,
+    "operator_token_missing": true,
+    "production_ready_false": true,
+    "live_trading_false": true,
+    "funded_trading_false": true,
+    "dry_run_true": true,
+    "order_send_disabled": true,
+    "max_lot_cap": 0.01,
+    "max_open_positions": 1,
+    "max_trades_per_day": 2,
+    "emergency_stop_available": true,
+    "kill_switch_available": true,
+    "daily_dd_limit": 0.03,
+    "total_dd_limit": 0.08,
+    "margin_cap": 0.2,
+    "broker_allowed": "exness",
+    "symbol_allowed": "XAUUSD"
+  },
+  "safety": {
+    "live_trading": false,
+    "funded_trading": false,
+    "token": false,
+    "order_send": false,
+    "production_ready": false,
+    "dry_run": true,
+    "cto_approval_required": true,
+    "operator_token_required": true
+  }
+}

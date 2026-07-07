@@ -1,0 +1,6 @@
+live_trading,False
+funded_trading,False
+token,False
+order_send,False
+production_ready,False
+dry_run,True

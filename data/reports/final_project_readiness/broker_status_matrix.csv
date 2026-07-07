@@ -1,0 +1,4 @@
+primary,exness
+backup,fbs
+rejected,"['fundednext', 'icmarkets']"
+canonical,benchmark_only
