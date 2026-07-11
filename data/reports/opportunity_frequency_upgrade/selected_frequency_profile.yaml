@@ -1,0 +1,11 @@
+alpha_threshold: 0.5
+cooldown_after_loss: 5
+max_holding_bars: 3
+max_trades_per_day: 2
+meta_threshold: 0.5
+mode: mtf_opportunity_scanner
+risk_percent: 0.0125
+rr_target: 3.0
+signals_per_day: 0.5816
+sl_atr_multiplier: 2.0
+verdict: FREQUENCY_UPGRADE_FAIL

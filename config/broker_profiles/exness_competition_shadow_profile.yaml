@@ -1,0 +1,20 @@
+broker: exness
+mode: shadow_only
+timeframe: M5_scan_with_H1_M15_context
+max_trades_per_day: 3
+max_open_positions: 1
+risk_percent_A_PLUS: 0.0125
+risk_percent_A: 0.01
+risk_percent_B: 0.005
+risk_percent_C: 0
+daily_DD_limit: 0.03
+total_DD_limit: 0.08
+margin_limit: 0.2
+no_order_send: true
+live_trading: false
+funded_trading: false
+production_ready: false
+requires_cto_review: true
+backtest_verdict: FREQUENCY_UPGRADE_FAIL
+note: MTF scanner produced fewer signals than H1-only. M15/M5 data limited to canonical
+  (2022+). Needs real broker M15/M5 data.

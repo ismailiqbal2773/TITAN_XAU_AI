@@ -1,0 +1,15 @@
+{
+  "timestamp_utc": "2026-07-11T06:38:53.325639+00:00",
+  "verdict": "SHADOW_PASS",
+  "checks": {
+    "no_order_sent": true,
+    "no_token": true,
+    "no_order_send_in_code": true,
+    "lot_calculated": true,
+    "margin_calculated": true,
+    "ceo_used": true,
+    "meta_label_used": true,
+    "margin_usage_safe": true,
+    "no_dd_breach": true
+  }
+}

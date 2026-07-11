@@ -1,0 +1,21 @@
+{
+  "timestamp_utc": "2026-07-11T06:39:39.424594+00:00",
+  "total_cycles": 0,
+  "unique_candles": 0,
+  "repeated_candle_count": 0,
+  "alpha_reject_count": 0,
+  "meta_reject_count": 0,
+  "ceo_reject_count": 0,
+  "spread_reject_count": 0,
+  "margin_reject_count": 0,
+  "market_data_reject_count": 0,
+  "average_alpha": 0,
+  "average_meta": 0,
+  "max_alpha": 0,
+  "max_meta": 0,
+  "nearest_missed_alpha": 0,
+  "nearest_missed_meta": 0,
+  "root_cause": "NO_TRADE_CAUSE_MARKET_DATA",
+  "h1_only_issue": false,
+  "rejection_breakdown": {}
+}

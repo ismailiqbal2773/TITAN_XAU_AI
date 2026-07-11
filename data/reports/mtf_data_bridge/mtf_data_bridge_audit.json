@@ -1,0 +1,15 @@
+{
+  "timestamp_utc": "2026-07-11T06:39:39.484820+00:00",
+  "h1_available": false,
+  "m15_available": false,
+  "m5_available": false,
+  "schema_valid": false,
+  "timestamps_valid": false,
+  "no_stale_data": false,
+  "spread_available": false,
+  "no_order_send": true,
+  "no_token": true,
+  "demo_account_only": true,
+  "verdict": "MTF_DATA_BLOCKED",
+  "error": "MetaTrader5 package not installed (Linux sandbox)"
+}

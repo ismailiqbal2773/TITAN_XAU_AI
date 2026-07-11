@@ -1,0 +1,5 @@
+entry_price,atr,sl_mult,sl_distance,risk_amount,estimated_loss_per_lot,lot_size,notional_value,margin_required,margin_usage,actual_loss_at_sl,loss_matches_risk,lot_not_fixed_001,leverage_correct,margin_safe
+2000,5,2,10,1250.0,1000,1.25,250000.0,2500.0,0.025,1250.0,True,True,True,True
+3000,8,2,16,1250.0,1600,0.7812,234375.0,2343.75,0.023438,1250.0,True,True,True,True
+4000,12,2,24,1250.0,2400,0.5208,208333.33,2083.33,0.020833,1250.0,True,True,True,True
+5000,15,2,30,1250.0,3000,0.4167,208333.33,2083.33,0.020833,1250.0,True,True,True,True

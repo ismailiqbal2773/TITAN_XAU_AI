@@ -1,0 +1,8 @@
+scenario,trades,return,pf,sharpe,max_dd,daily_dd_breaches,total_dd_breaches,max_margin_usage,verdict
+baseline,425,0.906705,1.1848,1.5148,0.0,0,0,0.098449,PASS
+spread_x1_5,0,0.0,0,0,0.0,0,0,0,PASS
+spread_x2,0,0.0,0,0,0.0,0,0,0,PASS
+slippage_conservative,423,0.181989,1.0476,0.5,0.004001,0,0,0.098458,PASS
+signal_20pct_degraded,372,0.680835,1.1844,1.3963,0.0125,0,0,0.098449,PASS
+3_initial_losses,425,0.792079,1.1705,1.3817,0.047247,0,0,0.098449,PASS
+rr_10pct_reduced,425,0.654935,1.1464,1.2502,0.0,0,0,0.098449,PASS

@@ -1,0 +1,25 @@
+{
+  "timestamp_utc": "2026-07-11T06:38:53.193329+00:00",
+  "verdict": "PROFILE_INTEGRITY_PASS",
+  "checks": {
+    "broker_is_exness": true,
+    "model_profile_v2": true,
+    "risk_percent_0125": true,
+    "leverage_100": true,
+    "risk_based_lot_sizing": true,
+    "rr_target_3": true,
+    "max_trades_2": true,
+    "cooldown_5": true,
+    "dry_run_true": true,
+    "live_trading_false": true,
+    "funded_trading_false": true,
+    "production_ready_false": true,
+    "no_order_send": true,
+    "requires_cto_review": true,
+    "external_daily_dd_003": true,
+    "external_total_dd_008": true,
+    "internal_daily_dd_0025": true,
+    "internal_total_dd_0065": true
+  },
+  "failed_checks": []
+}

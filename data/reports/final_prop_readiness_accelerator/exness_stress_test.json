@@ -1,0 +1,93 @@
+{
+  "timestamp_utc": "2026-07-11T06:38:54.100454+00:00",
+  "verdict": "STRESS_PASS",
+  "worst_scenario": "3_initial_losses",
+  "worst_dd": 0.047247,
+  "worst_margin": 0.098458,
+  "scenarios": [
+    {
+      "scenario": "baseline",
+      "trades": 425,
+      "return": 0.906705,
+      "pf": 1.1848,
+      "sharpe": 1.5148,
+      "max_dd": 0.0,
+      "daily_dd_breaches": 0,
+      "total_dd_breaches": 0,
+      "max_margin_usage": 0.098449,
+      "verdict": "PASS"
+    },
+    {
+      "scenario": "spread_x1_5",
+      "trades": 0,
+      "return": 0.0,
+      "pf": 0,
+      "sharpe": 0,
+      "max_dd": 0.0,
+      "daily_dd_breaches": 0,
+      "total_dd_breaches": 0,
+      "max_margin_usage": 0,
+      "verdict": "PASS"
+    },
+    {
+      "scenario": "spread_x2",
+      "trades": 0,
+      "return": 0.0,
+      "pf": 0,
+      "sharpe": 0,
+      "max_dd": 0.0,
+      "daily_dd_breaches": 0,
+      "total_dd_breaches": 0,
+      "max_margin_usage": 0,
+      "verdict": "PASS"
+    },
+    {
+      "scenario": "slippage_conservative",
+      "trades": 423,
+      "return": 0.181989,
+      "pf": 1.0476,
+      "sharpe": 0.5,
+      "max_dd": 0.004001,
+      "daily_dd_breaches": 0,
+      "total_dd_breaches": 0,
+      "max_margin_usage": 0.098458,
+      "verdict": "PASS"
+    },
+    {
+      "scenario": "signal_20pct_degraded",
+      "trades": 372,
+      "return": 0.680835,
+      "pf": 1.1844,
+      "sharpe": 1.3963,
+      "max_dd": 0.0125,
+      "daily_dd_breaches": 0,
+      "total_dd_breaches": 0,
+      "max_margin_usage": 0.098449,
+      "verdict": "PASS"
+    },
+    {
+      "scenario": "3_initial_losses",
+      "trades": 425,
+      "return": 0.792079,
+      "pf": 1.1705,
+      "sharpe": 1.3817,
+      "max_dd": 0.047247,
+      "daily_dd_breaches": 0,
+      "total_dd_breaches": 0,
+      "max_margin_usage": 0.098449,
+      "verdict": "PASS"
+    },
+    {
+      "scenario": "rr_10pct_reduced",
+      "trades": 425,
+      "return": 0.654935,
+      "pf": 1.1464,
+      "sharpe": 1.2502,
+      "max_dd": 0.0,
+      "daily_dd_breaches": 0,
+      "total_dd_breaches": 0,
+      "max_margin_usage": 0.098449,
+      "verdict": "PASS"
+    }
+  ]
+}

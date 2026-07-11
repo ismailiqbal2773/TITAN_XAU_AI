@@ -1,0 +1,11 @@
+{
+  "timestamp_utc": "2026-07-11T06:38:54.245648+00:00",
+  "verdict": "FBS_BACKUP_NEAR_PASS",
+  "return": 0.359901,
+  "max_dd": 0.0,
+  "dd_breaches": 0,
+  "profitable_months": 13,
+  "hit_10pct": 2,
+  "margin_safe": true,
+  "reason": "backup broker \u2014 near-pass status"
+}

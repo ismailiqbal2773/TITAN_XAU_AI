@@ -1,0 +1,34 @@
+{
+  "timestamp_utc": "2026-07-11T06:38:54.245941+00:00",
+  "verdict": "EXNESS_READONLY_SHADOW_PASS",
+  "supervised_demo_review_allowed": true,
+  "live_funded_allowed": false,
+  "token_allowed": false,
+  "order_send_allowed": false,
+  "checks": {
+    "profile_integrity_pass": true,
+    "lot_sizing_pass": true,
+    "shadow_pass": true,
+    "stress_test_pass": true,
+    "prop_rule_audit_pass": true
+  },
+  "exness_summary": {
+    "return": 0.906705,
+    "max_dd": 0.0,
+    "dd_breaches": 0,
+    "hit_10pct": 6,
+    "hit_12pct": 5,
+    "margin_safe": true
+  },
+  "fbs_backup_verdict": "FBS_BACKUP_NEAR_PASS",
+  "safety": {
+    "dry_run": true,
+    "live_trading": false,
+    "funded_trading": false,
+    "production_ready": false,
+    "no_order_send": true,
+    "no_token": true,
+    "canonical_cannot_approve": true,
+    "competition_demo_only_rejected": true
+  }
+}

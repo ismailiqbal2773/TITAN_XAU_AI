@@ -1,0 +1,34 @@
+{
+  "timestamp_utc": "2026-07-11T06:37:09.344686+00:00",
+  "verdict": "FREQUENCY_UPGRADE_FAIL",
+  "h1_result": {
+    "signals": 578,
+    "trades": 578,
+    "wr": 0.3685,
+    "pf": 1.0096,
+    "return": 0.069736,
+    "max_dd": 0,
+    "dd_breaches": 0,
+    "max_consecutive_losses": 17,
+    "final_equity": 106973.63
+  },
+  "mtf_result": {
+    "signals": 310,
+    "trades": 310,
+    "wr": 0.3645,
+    "pf": 0.9841,
+    "return": -0.036625,
+    "max_dd": 0.073802,
+    "dd_breaches": 0,
+    "max_consecutive_losses": 13,
+    "final_equity": 96337.48
+  },
+  "h1_signals_per_day": 1.0844,
+  "mtf_signals_per_day": 0.5816,
+  "rejection_breakdown": {
+    "insufficient_mtf_data": 228,
+    "ceo_block": 1157,
+    "no_opportunity": 3963,
+    "c_shadow_only": 1343
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "timestamp_utc": "2026-07-11T06:38:54.100774+00:00",
+  "verdict": "PROP_RULE_PASS",
+  "checks": {
+    "daily_dd_below_3pct": true,
+    "total_dd_below_8pct": true,
+    "max_trades_2": true,
+    "max_open_positions_1": true,
+    "no_martingale": true,
+    "no_grid": true,
+    "no_averaging": true,
+    "no_forced_trades": true,
+    "margin_usage_safe": true,
+    "ceo_used": true,
+    "meta_label_used": true,
+    "10pct_target_feasible": true,
+    "12pct_target_feasible": true,
+    "stress_test_pass": true,
+    "internal_stop_before_breach": true
+  },
+  "daily_dd": 0.0,
+  "total_dd": 0.0,
+  "hit_10pct": 6,
+  "hit_12pct": 5
+}
