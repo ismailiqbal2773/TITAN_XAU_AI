@@ -51,8 +51,8 @@ class RiskGovernorInput:
     loss_streak: int = 0
     regime_risk_modifier: float = 1.0
     broker_risk_modifier: float = 1.0
-    prop_risk_pass: bool = True
-    capital_protection_active: bool = False
+    prop_risk_pass: Optional[bool] = True
+    capital_protection_active: Optional[bool] = False
 
 
 @dataclass
@@ -122,12 +122,18 @@ def govern_risk(inp: RiskGovernorInput) -> RiskGovernorOutput:
         block_reasons.append(f"daily_{daily_stage}")
     if total_stage in ("block", "emergency", "limit"):
         block_reasons.append(f"total_{total_stage}")
-    if inp.capital_protection_active:
-        block_reasons.append("capital_protection_active")
-    if not inp.prop_risk_pass:
-        block_reasons.append("prop_risk_fail")
     if inp.loss_streak >= 4:
         block_reasons.append("loss_streak_4_plus")
+
+    # Fail-closed: None/unavailable safety inputs must block
+    if inp.prop_risk_pass is None:
+        block_reasons.append("prop_risk_unavailable")
+    elif not inp.prop_risk_pass:
+        block_reasons.append("prop_risk_fail")
+    if inp.capital_protection_active is None:
+        block_reasons.append("capital_protection_unavailable")
+    elif inp.capital_protection_active:
+        block_reasons.append("capital_protection_active")
 
     if block_reasons:
         return RiskGovernorOutput(
@@ -168,9 +174,9 @@ def govern_risk(inp: RiskGovernorInput) -> RiskGovernorOutput:
     risk_mult = loss_mult * stage_mult * inp.regime_risk_modifier * inp.broker_risk_modifier
     proposed = min(inp.proposed_risk, cap) * risk_mult
 
-    # Clamp to remaining budgets
-    remaining_daily = max(0, DAILY_LIMIT - daily_dd)
-    remaining_total = max(0, TOTAL_LIMIT - total_dd)
+    # Clamp to remaining ENTRY budgets (not external limits)
+    remaining_daily = max(0, DAILY_BLOCK - daily_dd - inp.existing_risk)
+    remaining_total = max(0, TOTAL_BLOCK - total_dd - inp.existing_risk)
     proposed = min(proposed, remaining_daily, remaining_total)
 
     # Clamp to max combined

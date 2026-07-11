@@ -178,6 +178,19 @@ def scan_setups_v2(df: pd.DataFrame, regime_direction: str, atr_value: float = 0
     if cont:
         results.append(cont)
 
+    # Detect breakout retest (must be called explicitly)
+    prior_high = float(df.iloc[:-1].tail(20)["high"].max()) if len(df) > 20 else float(df["high"].max())
+    br = detect_breakout_retest(df, prior_high=prior_high)
+    if br:
+        results.append(br)
+
+    # Detect range edge rejection (must be called explicitly)
+    range_high = float(df.iloc[:-1].tail(20)["high"].max()) if len(df) > 20 else float(df["high"].max())
+    range_low = float(df.iloc[:-1].tail(20)["low"].min()) if len(df) > 20 else float(df["low"].min())
+    rer = detect_range_edge_rejection(df, range_high=range_high, range_low=range_low)
+    if rer:
+        results.append(rer)
+
     return results if results else [SetupResultV2(
         setup_type=CorrectedSetupTypeV2.NONE, direction="NEUTRAL",
         confidence=0.0, reason_codes=["no_setup_detected"], evidence=[],

@@ -59,9 +59,18 @@ class CorrectedThresholdStateV2:
     journal_entries: list
 
 
-def compute_adaptive_threshold_v2(safety: SafetyStateV2) -> CorrectedThresholdStateV2:
-    """Compute adaptive thresholds with all DG9 hardening."""
+def compute_adaptive_threshold_v2(safety: SafetyStateV2, journal_callback=None) -> CorrectedThresholdStateV2:
+    """Compute adaptive thresholds with all DG9 hardening.
+    
+    Args:
+        safety: SafetyStateV2 with all required safety states.
+        journal_callback: Optional callable that receives each journal entry.
+    """
     journal = []
+    def _emit(entry):
+        journal.append(entry)
+        if journal_callback:
+            journal_callback(entry)
 
     # DG9: Validate all SafetyState members
     required = {
@@ -73,7 +82,7 @@ def compute_adaptive_threshold_v2(safety: SafetyStateV2) -> CorrectedThresholdSt
     }
     for name, state in required.items():
         if state is None or (isinstance(state, dict) and len(state) == 0):
-            journal.append({"change": "HARD_BLOCK", "reason": f"{name} unavailable or malformed"})
+            _emit({"change": "HARD_BLOCK", "reason": f"{name} unavailable or malformed"})
             return CorrectedThresholdStateV2(
                 alpha_threshold_effective=ALPHA_MAX, meta_threshold_effective=META_MAX,
                 risk_multiplier=0.0, allow_B_class_shadow=False, allow_A_class_shadow=False,
@@ -85,22 +94,39 @@ def compute_adaptive_threshold_v2(safety: SafetyStateV2) -> CorrectedThresholdSt
     risk_mult = 1.0; allow_B = True; allow_A = True
     block_reason = ""; mode = "default"
 
-    # Extract safety
+    # Extract safety — fail closed on None values
+    broker_pass_val = safety.broker_intelligence.get("broker_pass")
+    exec_healthy_val = safety.execution_health.get("healthy")
+    model_healthy_val = safety.model_health.get("model_health_pass")
+    margin_safe_val = safety.margin_state.get("margin_safe")
+    prop_pass_val = safety.prop_risk_state.get("prop_pass")
+
+    # None = unavailable → hard block
+    if broker_pass_val is None or exec_healthy_val is None or model_healthy_val is None \
+       or margin_safe_val is None or prop_pass_val is None:
+        _emit({"change": "HARD_BLOCK", "reason": "safety_state_value_None"})
+        return CorrectedThresholdStateV2(
+            alpha_threshold_effective=ALPHA_MAX, meta_threshold_effective=META_MAX,
+            risk_multiplier=0.0, allow_B_class_shadow=False, allow_A_class_shadow=False,
+            block_reason="safety_value_none", policy_mode="hard_block",
+            journal_entries=journal,
+        )
+
     dd_safe = safety.dd_state.get("current_dd", 1.0) < 0.04
     daily_safe = safety.dd_state.get("daily_dd", 1.0) < 0.015
-    margin_safe = safety.margin_state.get("margin_safe", False)
-    prop_pass = safety.prop_risk_state.get("prop_pass", False)
+    margin_safe = margin_safe_val
+    prop_pass = prop_pass_val
     cap_active = safety.capital_protection.get("active", True)
     cap_breach = safety.capital_protection.get("dd_breach", True)
-    broker_pass = safety.broker_intelligence.get("broker_pass", False)
-    exec_healthy = safety.execution_health.get("healthy", False)
-    model_healthy = safety.model_health.get("model_health_pass", False)
+    broker_pass = broker_pass_val
+    exec_healthy = exec_healthy_val
+    model_healthy = model_healthy_val
 
     # DG9: Loss-streak risk reduction
     loss_streak_mult = compute_loss_streak_risk(safety.loss_streak)
     risk_mult = min(risk_mult, loss_streak_mult)
     if safety.loss_streak >= 4:
-        journal.append({"change": "HARD_BLOCK", "reason": "loss_streak_4_plus"})
+        _emit({"change": "HARD_BLOCK", "reason": "loss_streak_4_plus"})
         return CorrectedThresholdStateV2(
             alpha_threshold_effective=ALPHA_MAX, meta_threshold_effective=META_MAX,
             risk_multiplier=0.0, allow_B_class_shadow=False, allow_A_class_shadow=False,
@@ -119,7 +145,7 @@ def compute_adaptive_threshold_v2(safety: SafetyStateV2) -> CorrectedThresholdSt
         if not model_healthy: reasons.append("model_unhealthy")
         if cap_active: reasons.append("cap_protection_active")
         if cap_breach: reasons.append("dd_breach")
-        journal.append({"change": "HARD_BLOCK", "reason": "; ".join(reasons)})
+        _emit({"change": "HARD_BLOCK", "reason": "; ".join(reasons)})
         return CorrectedThresholdStateV2(
             alpha_threshold_effective=ALPHA_MAX, meta_threshold_effective=META_MAX,
             risk_multiplier=0.0, allow_B_class_shadow=False, allow_A_class_shadow=False,
@@ -154,10 +180,14 @@ def compute_adaptive_threshold_v2(safety: SafetyStateV2) -> CorrectedThresholdSt
         alpha_eff = max(ALPHA_MIN, alpha_eff - 0.02)
         meta_eff = max(META_MIN, meta_eff - 0.02)
         mode = "relaxed"
-        journal.append({"change": "RELAX", "reason": "drought+evidence+all_safe"})
+        _emit({"change": "RELAX", "reason": "drought+evidence+all_safe"})
 
     alpha_eff = max(ALPHA_MIN, min(ALPHA_MAX, alpha_eff))
     meta_eff = max(META_MIN, min(META_MAX, meta_eff))
+
+    # Always journal the final decision
+    _emit({"change": "DECISION", "mode": mode, "alpha": alpha_eff, "meta": meta_eff,
+           "risk_mult": risk_mult, "block_reason": block_reason})
 
     return CorrectedThresholdStateV2(
         alpha_threshold_effective=round(alpha_eff, 4),

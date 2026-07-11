@@ -307,12 +307,14 @@ def run_backtest_v3(
         exit_reason = "TIMEOUT"
         r_gross = 0.0
         holding = 0
+        actual_exit_bar = entry_bar  # Default to entry bar
 
         for j in range(0, max_holding + 1):
             bar_idx = entry_bar + j
             if bar_idx >= len(df):
                 break
             holding = j + 1 if j > 0 else 1
+            actual_exit_bar = bar_idx
 
             # Gap check on HOLDING bars (j > 0): open gaps beyond SL
             if j > 0:
@@ -363,11 +365,7 @@ def run_backtest_v3(
         else:
             exit_price_net = exit_price + spread + slippage_pts
 
-        # Net R
-        r_net = (exit_price_net - entry_price) / sl_distance if direction == "LONG" \
-                else (entry_price - exit_price_net) / sl_distance
-
-        # Costs
+        # Costs (calculated BEFORE r_net so commission/swap can be included)
         risk_amount = equity * approved_risk
         lot = risk_amount / (sl_distance * instrument.contract_size)
         commission = commission_per_lot * lot
@@ -378,8 +376,16 @@ def run_backtest_v3(
         swap = swap_per_bar * lot * holding
         total_cost = commission + entry_spread_cost + exit_spread_cost + entry_slip + exit_slip + swap
 
+        # Net R: includes spread, slippage, commission, swap
+        r_net = (exit_price_net - entry_price) / sl_distance if direction == "LONG" \
+                else (entry_price - exit_price_net) / sl_distance
+        # Subtract commission and swap in R terms
+        commission_in_r = commission / max(risk_amount, 0.001)
+        swap_in_r = swap / max(risk_amount, 0.001)
+        r_net = r_net - commission_in_r - swap_in_r
+
         pnl_gross = risk_amount * r_gross
-        pnl_net = risk_amount * r_net - commission - swap
+        pnl_net = risk_amount * r_net
 
         equity += pnl_net
         daily_trades += 1
@@ -429,7 +435,7 @@ def run_backtest_v3(
             swap=round(swap, 2), total_cost=round(total_cost, 2),
             holding_bars=holding,
             timestamp_entry=str(index[entry_bar]),
-            timestamp_exit=str(index[min(entry_bar + holding, len(df) - 1)]),
+            timestamp_exit=str(index[actual_exit_bar]),
         ))
 
     if current_day is not None:
@@ -461,8 +467,16 @@ def run_backtest_v3(
     else:
         sharpe = sortino = 0.0
 
-    calmar = total_return / max(max_total_dd, 0.001) if max_total_dd > 0 else 0
-    recovery = abs(net_profit) / max(max_monetary_dd, 1) if max_monetary_dd > 0 else 0
+    # CAGR from actual timestamps
+    if len(trades) > 0 and starting_equity > 0 and equity != starting_equity:
+        first_ts = pd.Timestamp(trades[0].timestamp_entry)
+        last_ts = pd.Timestamp(trades[-1].timestamp_exit)
+        years = max((last_ts - first_ts).total_seconds() / (365.25 * 24 * 3600), 0.001)
+        cagr = (equity / starting_equity) ** (1 / years) - 1 if years > 0 else 0
+    else:
+        cagr = 0
+    calmar = cagr / max(max_total_dd, 0.001) if max_total_dd > 0 else 0
+    recovery = net_profit / max(max_monetary_dd, 1) if max_monetary_dd > 0 else 0
     expectancy = float(np.mean(r_net_list)) if r_net_list else 0
     avg_hold = float(np.mean([t.holding_bars for t in trades])) if trades else 0
 

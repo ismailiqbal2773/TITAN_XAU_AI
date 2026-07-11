@@ -29,8 +29,8 @@ class TestRiskGovernor:
         out = govern_risk(inp)
         assert out.approved is True
         assert out.approved_risk > 0
-        # After 0.3% loss, daily DD ≈ 0.3%, remaining budget ≈ 1.7%
-        assert out.remaining_daily_budget > 0.015
+        # After 0.3% loss, daily DD ≈ 0.3%, remaining entry budget = 1.6% - 0.3% = 1.3%
+        assert out.remaining_daily_budget > 0.01
 
     def test_two_losses_multiply_075(self):
         from titan.production.risk_governor import govern_risk, RiskGovernorInput
