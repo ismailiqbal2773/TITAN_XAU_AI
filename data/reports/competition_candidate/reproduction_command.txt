@@ -1,4 +1,2 @@
 # Reproduction command
-python scripts/run_v2_2_evaluation.py
-# Frozen config: data/reports/competition_candidate/frozen_config.yaml
-# Model profile: v2_feature_normalized
+python scripts/run_v2_3_evaluation.py

@@ -1,0 +1,5 @@
+{
+  "feature_integrity_pass": false,
+  "reason": "feature_integrity_fail: 1913 NaN, 0 inf after warm-up. Cannot use nan_to_num to hide invalid features.",
+  "nan_to_num_used": false
+}

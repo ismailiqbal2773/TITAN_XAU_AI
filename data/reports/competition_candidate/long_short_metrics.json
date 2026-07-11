@@ -1,14 +1,3 @@
 {
-  "long": {
-    "trades": 480,
-    "win_rate": 0.8688,
-    "net_profit": 26938.49,
-    "pf_net": 14.2285
-  },
-  "short": {
-    "trades": 34,
-    "win_rate": 0.0882,
-    "net_profit": -948.39,
-    "pf_net": 0.0592
-  }
+  "note": "Not computed"
 }

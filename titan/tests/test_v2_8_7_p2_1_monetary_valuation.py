@@ -198,6 +198,31 @@ class TestBacktestMonetaryReconciliation:
         from titan.production import canonical_decision_engine as cde
         cde.scan_setups_governed = orig
 
+
+
+    def _make_test_safety_provider(self, alpha_probas=None, meta_probas=None, n=100):
+        """Build a HistoricalSafetyProvider for tests with valid calibration (slope=1.0)."""
+        from titan.production.historical_safety_provider import HistoricalSafetyProvider
+        from titan.production.model_provenance import CalibrationEvidence
+        import numpy as np
+        ce = CalibrationEvidence(
+            artifact_path="test", artifact_sha256="test",
+            model_sha256="test", scaler_sha256="test", feature_schema_sha256="test",
+            generated_at_utc="2026-01-01T00:00:00Z",
+            sample_period_start="2024-01-01", sample_period_end="2026-01-01",
+            brier_score=0.20, calibration_slope=1.0, calibration_intercept=0.0,
+            drift_status="none", n_samples=200,
+        )
+        if alpha_probas is None:
+            alpha_probas = np.full(n, 0.55)
+        if meta_probas is None:
+            meta_probas = np.full(n, 0.55)
+        return HistoricalSafetyProvider(
+            calibration_evidence=ce,
+            alpha_probas_full=alpha_probas,
+            meta_probas_full=meta_probas,
+        )
+
     def test_normal_sl_loss_within_tolerance_of_approved_risk(self):
         """For every normal SL trade: actual monetary loss ≤ approved risk +
         broker rounding + execution-cost tolerance."""
@@ -228,7 +253,8 @@ class TestBacktestMonetaryReconciliation:
         orig_setup = self._patch_setup()
         try:
             trades, metrics = run_backtest_v3(df, alpha, meta, atr, params,
-                                              instrument=_valid_xauusd_spec())
+                                              instrument=_valid_xauusd_spec(),
+                                              safety_provider=self._make_test_safety_provider(alpha, meta, len(df)))
         finally:
             self._restore(orig_ceo)
             self._restore_setup(orig_setup)
@@ -274,7 +300,8 @@ class TestBacktestMonetaryReconciliation:
         orig_setup = self._patch_setup()
         try:
             trades, metrics = run_backtest_v3(df, alpha, meta, atr, params,
-                                              instrument=_valid_xauusd_spec())
+                                              instrument=_valid_xauusd_spec(),
+                                              safety_provider=self._make_test_safety_provider(alpha, meta, len(df)))
         finally:
             self._restore(orig_ceo)
             self._restore_setup(orig_setup)

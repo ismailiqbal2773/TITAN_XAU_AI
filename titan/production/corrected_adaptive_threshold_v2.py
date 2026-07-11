@@ -141,13 +141,11 @@ def _validate_calibration(cal: Optional[dict]) -> tuple[bool, str]:
         return False, "calibration_non_numeric"
     if not math.isfinite(brier) or not math.isfinite(slope):
         return False, "calibration_non_finite"
-    # Configured limits (wide range; values outside [0.5, 2.0] are flagged
-    # as poorly calibrated but not blocked. Values outside [0.1, 10.0] indicate
-    # a broken model.)
+    # v2.8.7-P2.3: Hard acceptance — slope must be in [0.50, 2.00]
     if brier > 0.33:
-        return False, f"calibration_brier_{brier:.3f}_exceeds_0.33"
-    if slope < 0.1 or slope > 10.0:
-        return False, f"calibration_slope_{slope:.3f}_out_of_[0.1,10.0]"
+        return False, f"REJECT_CALIBRATION:brier_{brier:.3f}_exceeds_0.33"
+    if slope < 0.50 or slope > 2.00:
+        return False, f"REJECT_CALIBRATION:slope_{slope:.3f}_out_of_[0.50,2.00]"
     return True, ""
 
 

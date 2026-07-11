@@ -1,5 +1,5 @@
-# v2.8.7-P2.2 frozen config
-version: v2.8.7-P2.2
+# v2.8.7-P2.3 frozen config
+version: v2.8.7-P2.3
 alpha_threshold: 0.55
 meta_threshold: 0.5
 risk_percent: 0.003

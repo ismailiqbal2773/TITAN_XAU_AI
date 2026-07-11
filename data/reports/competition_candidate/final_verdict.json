@@ -1,57 +1,17 @@
 {
-  "verdict": "TRUE_PARITY_AND_OOS_PERFORMANCE_PASS",
-  "integrity_pass": true,
-  "performance_pass": true,
-  "perf_checks": {
-    "pf_net_ge_1_40": true,
-    "sharpe_ge_1_30": true,
-    "sortino_ge_1_50": true,
-    "max_total_dd_le_6_50pct": true,
-    "mc_p95_dd_le_8pct": true,
-    "positive_expectancy": true,
-    "positive_return": true,
-    "majority_folds_profitable": true,
-    "both_directions_meaningful": true,
-    "no_single_month_gt_35pct": true,
-    "monetary_invariants_pass": true
+  "verdict": "OOS_LEAKAGE_DETECTED",
+  "leakage_detected": true,
+  "leakage_reason": "Model mtime (2026-07-11T08:10:40.323297+00:00) is after Fold 1 OOS start (2021-08-18 23:00:00+00:00) and no immutable training manifest exists. The model was trained on the full dataset which includes OOS periods. This is OOS leakage.",
+  "calibration_pass": false,
+  "calibration_reason": "REJECT_CALIBRATION:calibration_slope_0.1670_out_of_[0.50,2.00]",
+  "calibration_slope": 0.16696,
+  "feature_integrity_pass": false,
+  "hard_gates": {
+    "oos_leakage": "FAIL",
+    "calibration_slope_0_50_to_2_00": "FAIL",
+    "feature_integrity_no_nan_to_num": "FAIL"
   },
-  "n_perf_checks_passed": 11,
-  "n_perf_checks_total": 11,
-  "baseline_summary": {
-    "trades": 514,
-    "win_rate": 0.8171,
-    "pf_net": 9.5369,
-    "pf_gross": 0.0,
-    "sharpe": 4.0563,
-    "sortino": 5.3813,
-    "max_total_dd": 0.002278,
-    "max_daily_dd": 0.002761,
-    "expectancy": 0.1918,
-    "total_return": 0.259901,
-    "net_profit": 25990.1,
-    "final_equity": 125990.1,
-    "max_consecutive_losses": 0,
-    "long_trades": 480,
-    "short_trades": 34,
-    "monthly_max_share": 0.04230264600751825
-  },
-  "walk_forward_summary": {
-    "n_folds": 6,
-    "n_profitable": 6,
-    "total_fold_trades": 514
-  },
-  "monte_carlo_summary": {
-    "prob_profit": 1.0,
-    "max_dd_p95": 0.003539020931826289
-  },
-  "evaluated_at_utc": "2026-07-11T12:42:12.030196+00:00",
-  "version": "v2.8.7-P2.2",
-  "baseline_vs_walkforward_reconciliation": {
-    "baseline_trades": 514,
-    "walkforward_total_trades": 514,
-    "explanation": "Baseline runs the full period (38K bars) with continuous cooldown accumulation. Each walk-forward fold runs ~5K bars starting from fresh equity. The cooldown_after_loss=3 suppresses trades after losses, accumulating more in the baseline. Both use the same frozen config, model, and inferences.",
-    "baseline_long_plus_short": 514,
-    "baseline_total": 514,
-    "long_plus_short_equals_total": true
-  }
+  "note": "The frozen model (xgboost_v2_feature_normalized.pkl) was trained on the full H1 dataset (2020-2026) which includes all walk-forward OOS periods. This is OOS leakage. Additionally, the calibration slope is 0.167 which is outside the hard acceptance range [0.50, 2.00]. The model must be retrained with proper walk-forward boundaries and recalibrated before this evaluation can produce LEAKAGE_FREE_OOS_AND_RUNTIME_PARITY_PASS.",
+  "evaluated_at_utc": "2026-07-11T13:14:12.669323+00:00",
+  "version": "v2.8.7-P2.3"
 }

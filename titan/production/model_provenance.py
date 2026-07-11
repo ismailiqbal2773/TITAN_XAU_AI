@@ -84,22 +84,25 @@ class CalibrationEvidence:
         return asdict(self)
 
     def validate(self) -> tuple[bool, str]:
-        """Validate calibration metrics are within acceptable limits.
+        """Validate calibration metrics are within HARD acceptance limits.
 
-        Brier score: [0, 0.33] (0.33 = random binary classifier)
-        Calibration slope: [0.1, 10.0] — wide range; values outside [0.5, 2.0]
-        are flagged as "poorly calibrated" but not blocked. Values outside
-        [0.1, 10.0] indicate a broken model.
-        Drift status: "severe" blocks.
+        v2.8.7-P2.3: Hard acceptance enforced.
+        - Brier score: [0, 0.33]
+        - Calibration slope: [0.50, 2.00] (hard block outside this range)
+        - Preferred slope: [0.80, 1.20]
+        - Drift status: "severe" blocks
+        - n_samples: >= 100
+
+        Slope 0.167 MUST fail with REJECT_CALIBRATION.
         """
         if not (0.0 <= self.brier_score <= 0.33):
-            return False, f"brier_score_{self.brier_score:.4f}_out_of_[0,0.33]"
-        if not (0.1 <= self.calibration_slope <= 10.0):
-            return False, f"calibration_slope_{self.calibration_slope:.4f}_out_of_[0.1,10.0]"
+            return False, f"REJECT_CALIBRATION:brier_score_{self.brier_score:.4f}_out_of_[0,0.33]"
+        if not (0.50 <= self.calibration_slope <= 2.00):
+            return False, f"REJECT_CALIBRATION:calibration_slope_{self.calibration_slope:.4f}_out_of_[0.50,2.00]"
         if self.drift_status == "severe":
-            return False, "drift_status_severe"
+            return False, "REJECT_CALIBRATION:drift_status_severe"
         if self.n_samples < 100:
-            return False, f"n_samples_{self.n_samples}_below_100"
+            return False, f"REJECT_CALIBRATION:n_samples_{self.n_samples}_below_100"
         return True, ""
 
 

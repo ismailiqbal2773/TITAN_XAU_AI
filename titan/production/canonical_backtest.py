@@ -158,12 +158,15 @@ def run_backtest_v3(
     starting_equity: float = 100000.0,
     fold: int = 0,
     regime_labels: Optional[np.ndarray] = None,
-    safety_state: Optional[SafetyStateV2] = None,
+    safety_provider=None,
 ) -> tuple[List[TradeV3], BacktestResultV3]:
     """Canonical backtest using CanonicalDecisionEngine for ALL entry decisions.
 
+    v2.8.7-P2.3: Requires explicit safety_provider (HistoricalSafetyProvider).
+    No _build_default_safety_state() — no fake PASS flags.
+
     If `instrument` is None or invalid, fails closed.
-    If `safety_state` is None, builds a minimal valid state from params.
+    If `safety_provider` is None, fails closed (no default safety state).
     """
     val = validate_inputs_v3(df, alpha_proba, meta_proba, atr_values, instrument)
     if not val["valid"]:
@@ -171,15 +174,15 @@ def run_backtest_v3(
 
     assert instrument is not None
 
-    # Build safety state if not provided
-    if safety_state is None:
-        safety_state = _build_default_safety_state(params)
+    # v2.8.7-P2.3: Require explicit safety provider — no defaults
+    if safety_provider is None:
+        return [], BacktestResultV3(starting_equity=starting_equity, final_equity=starting_equity)
 
-    # Build HistoricalAdapter
+    # Build HistoricalAdapter — safety_state will be set per-bar from provider
     adapter = HistoricalAdapter(
         instrument=instrument,
         config=params,
-        safety_state=safety_state,
+        safety_state=None,  # set per-bar from safety_provider
         equity=starting_equity,
         equity_peak=starting_equity,
         daily_peak=starting_equity,
@@ -309,20 +312,17 @@ def run_backtest_v3(
             continue
         entry_price_ref = float(opens[entry_bar])
 
-        # Build recent distributions for adaptive policy (real model predictions)
-        # Use all bars from start to current to ensure >= 30 samples
-        alpha_dist = alpha_proba[0:i + 1]
-        meta_dist = meta_proba[0:i + 1]
-
-        # Update adapter safety state with current DD values
-        adapter.safety_state.dd_state = {
-            "current_dd": float(total_dd), "daily_dd": float(daily_dd),
-        }
-        adapter.safety_state.external_daily_dd = float(daily_dd)
-        adapter.safety_state.external_total_dd = float(total_dd)
-        adapter.safety_state.loss_streak = consecutive_losses
-        adapter.safety_state.alpha_distribution = [float(x) for x in alpha_dist if np.isfinite(x)]
-        adapter.safety_state.meta_distribution = [float(x) for x in meta_dist if np.isfinite(x)]
+        # v2.8.7-P2.3: Build safety state from provider — no fake PASS flags
+        adapter.safety_state = safety_provider.build_state_at_bar(
+            bar_index=i,
+            equity=equity, equity_peak=equity_peak,
+            daily_peak=daily_peak, daily_start_equity=daily_start,
+            loss_streak=consecutive_losses,
+            total_dd=total_dd, daily_dd=daily_dd,
+            spread=spread, atr=atr,
+            regime_label="",  # engine will classify regime from df
+            regime_confidence=0.7,
+        )
 
         decision = adapter.evaluate_bar(
             df=df, i=i,
@@ -332,8 +332,6 @@ def run_backtest_v3(
             entry_price=entry_price_ref,
             spread=spread,
             timestamp=str(index[i]),
-            alpha_dist=alpha_dist,
-            meta_dist=meta_dist,
         )
 
         # Only proceed if engine approved a signal
@@ -569,40 +567,6 @@ def run_backtest_v3(
         avg_holding_bars=round(avg_hold, 2),
     )
     return trades, metrics
-
-
-def _build_default_safety_state(params: dict) -> SafetyStateV2:
-    """Build a minimal valid SafetyStateV2 for backtest mode.
-
-    In backtest mode, we don't have a live account store or broker intelligence.
-    We build a state with explicit values that are appropriate for historical replay:
-      - All safety flags = True (historical mode assumes safe conditions)
-      - DD values = 0 (no open positions at start)
-      - Calibration = from params
-
-    NOTE: This is NOT a safe literal — it's an explicit declaration that
-    historical replay assumes safe conditions. In shadow mode, the real
-    ShadowAccountStateStore and component monitors provide actual values.
-    """
-    return SafetyStateV2(
-        dd_state={"current_dd": 0.0, "daily_dd": 0.0},
-        margin_state={"margin_usage": 0.0, "margin_safe": True},
-        prop_risk_state={"prop_pass": True, "prop_violations": 0},
-        capital_protection={"active": False, "dd_breach": False},
-        broker_intelligence={"broker_pass": True, "spread_pass": True},
-        execution_health={"healthy": True},
-        model_health={"model_health_pass": True},
-        spread_state={"current_spread": 0.15, "average_spread": 0.15},
-        volatility_state={"current_atr": 5.0, "average_atr": 5.0, "regime": "STABLE_RANGE"},
-        loss_streak=0, signal_drought_hours=0,
-        regime_confidence=0.7,
-        alpha_distribution=[0.55] * 50,
-        meta_distribution=[0.55] * 50,
-        recent_shadow_evidence={"false_negative_rate": 0, "sample_size": 50},
-        external_daily_dd=0.0, external_total_dd=0.0,
-        calibration_metrics={"brier_score": 0.20, "calibration_slope": 1.0, "calibration_intercept": 0.0},
-        regime="STABLE_RANGE", market_data_stale=False,
-    )
 
 
 __all__ = [
