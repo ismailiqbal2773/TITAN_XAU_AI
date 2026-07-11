@@ -1,0 +1,15 @@
+{
+  "trades": 514,
+  "win_rate": 0.8171,
+  "pf_net": 9.5369,
+  "pf_gross": 0.0,
+  "sharpe": 4.0563,
+  "sortino": 5.3813,
+  "max_total_dd": 0.002278,
+  "max_daily_dd": 0.002761,
+  "expectancy": 0.1918,
+  "total_return": 0.259901,
+  "net_profit": 25990.1,
+  "final_equity": 125990.1,
+  "max_consecutive_losses": 0
+}

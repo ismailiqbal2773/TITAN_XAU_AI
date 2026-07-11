@@ -1,0 +1,8 @@
+{
+  "n_simulations": 1000,
+  "n_trades_per_sim": 514,
+  "prob_profit": 1.0,
+  "max_dd_p95": 0.003539020931826289,
+  "max_dd_p99": 0.004616135466532348,
+  "max_dd_median": 0.002590792837763721
+}

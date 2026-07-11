@@ -161,32 +161,61 @@ class TestBacktestMonetaryReconciliation:
     """End-to-end backtest trade fixtures with EXACT monetary assertions."""
 
     def _patch_ceo(self):
-        from titan.production import ceo_ai_governance
-        orig = ceo_ai_governance.evaluate_ceo_decision
-        ceo_ai_governance.evaluate_ceo_decision = lambda **kw: type('C', (), {'allowed_to_trade': True})()
-        return orig
+        from titan.production import ceo_ai_governance, canonical_decision_engine as cde
+        orig_ceo = ceo_ai_governance.evaluate_ceo_decision
+        orig_cde = cde.evaluate_ceo_decision
+        mock = lambda **kw: type('C', (), {'allowed_to_trade': True})()
+        ceo_ai_governance.evaluate_ceo_decision = mock
+        cde.evaluate_ceo_decision = mock
+        return (orig_ceo, orig_cde)
 
     def _restore(self, orig):
-        from titan.production import ceo_ai_governance
-        ceo_ai_governance.evaluate_ceo_decision = orig
+        from titan.production import ceo_ai_governance, canonical_decision_engine as cde
+        orig_ceo, orig_cde = orig
+        ceo_ai_governance.evaluate_ceo_decision = orig_ceo
+        cde.evaluate_ceo_decision = orig_cde
+
+    def _patch_setup(self, direction="LONG"):
+        from titan.production import canonical_decision_engine as cde
+        from titan.production.corrected_setup_detector_v2 import (
+            SetupResultV2, CorrectedSetupTypeV2, ScanResultV2,
+        )
+        orig = cde.scan_setups_governed
+        setup = SetupResultV2(
+            setup_type=CorrectedSetupTypeV2.PULLBACK,
+            direction=direction, confidence=0.75,
+            reason_codes=["mock"], evidence=["mock"],
+        )
+        mock_scan = ScanResultV2(
+            selected_setup=setup, alternatives=[],
+            rejection_reasons=[], ranking_evidence=["mock"],
+            all_candidates=[setup], decision="SELECTED",
+        )
+        cde.scan_setups_governed = lambda *a, **kw: mock_scan
+        return orig
+
+    def _restore_setup(self, orig):
+        from titan.production import canonical_decision_engine as cde
+        cde.scan_setups_governed = orig
 
     def test_normal_sl_loss_within_tolerance_of_approved_risk(self):
         """For every normal SL trade: actual monetary loss ≤ approved risk +
         broker rounding + execution-cost tolerance."""
         from titan.production.canonical_backtest import run_backtest_v3
-        n = 50
+        n = 100
         dates = pd.date_range("2024-01-01", periods=n, freq="h", tz="UTC")
-        prices = np.full(n, 2000.0)
+        np.random.seed(42)
+        prices = 2000.0 + np.cumsum(np.random.randn(n) * 0.3) + np.linspace(0, 5, n)
         df = pd.DataFrame({
             "open": prices, "high": prices.copy(), "low": prices.copy(),
             "close": prices, "volume": 100, "spread_usd": 0.15,
         }, index=dates)
-        alpha = np.full(n, 0.50); alpha[29] = 0.90
+        alpha = np.full(n, 0.50); alpha[60] = 0.90
         meta = np.full(n, 0.55)
         atr = np.full(n, 10.0)
         # SL hit at bar 30
-        df.loc[df.index[30], "low"] = 1985
-        df.loc[df.index[30], "high"] = 2005
+        df.loc[df.index[61], "low"] = 1985
+        df.loc[df.index[61], "high"] = 2005
         params = {
             "alpha_threshold": 0.55, "meta_threshold": 0.50,
             "risk_percent": 0.003, "sl_atr_multiplier": 1.0, "rr_target": 3.0,
@@ -195,12 +224,14 @@ class TestBacktestMonetaryReconciliation:
             "commission_per_lot": 7.0, "slippage_points": 0.5, "swap_per_bar": 0.0,
             "setup_class": "A_PLUS",
         }
-        orig = self._patch_ceo()
+        orig_ceo = self._patch_ceo()
+        orig_setup = self._patch_setup()
         try:
             trades, metrics = run_backtest_v3(df, alpha, meta, atr, params,
                                               instrument=_valid_xauusd_spec())
         finally:
-            self._restore(orig)
+            self._restore(orig_ceo)
+            self._restore_setup(orig_setup)
         assert len(trades) >= 1
         t = trades[0]
         assert t.exit_reason == "SL_HIT"
@@ -217,19 +248,20 @@ class TestBacktestMonetaryReconciliation:
     def test_tp_gross_r_approximately_3(self):
         """TP hit → gross R approximately configured RR (3.0)."""
         from titan.production.canonical_backtest import run_backtest_v3
-        n = 50
+        n = 100
         dates = pd.date_range("2024-01-01", periods=n, freq="h", tz="UTC")
-        prices = np.full(n, 2000.0)
+        np.random.seed(42)
+        prices = 2000.0 + np.cumsum(np.random.randn(n) * 0.3) + np.linspace(0, 5, n)
         df = pd.DataFrame({
             "open": prices, "high": prices.copy(), "low": prices.copy(),
             "close": prices, "volume": 100, "spread_usd": 0.0,  # no spread for exact calc
         }, index=dates)
-        alpha = np.full(n, 0.50); alpha[29] = 0.90
+        alpha = np.full(n, 0.50); alpha[60] = 0.90
         meta = np.full(n, 0.55)
         atr = np.full(n, 10.0)
         # TP hit at bar 30: high reaches 2030 (entry 2000, SL dist 10, TP 2030)
-        df.loc[df.index[30], "high"] = 2040
-        df.loc[df.index[30], "low"] = 1998
+        df.loc[df.index[61], "high"] = 2040
+        df.loc[df.index[61], "low"] = 1998
         params = {
             "alpha_threshold": 0.55, "meta_threshold": 0.50,
             "risk_percent": 0.003, "sl_atr_multiplier": 1.0, "rr_target": 3.0,
@@ -238,12 +270,14 @@ class TestBacktestMonetaryReconciliation:
             "commission_per_lot": 0, "slippage_points": 0, "swap_per_bar": 0,
             "setup_class": "A_PLUS",
         }
-        orig = self._patch_ceo()
+        orig_ceo = self._patch_ceo()
+        orig_setup = self._patch_setup()
         try:
             trades, metrics = run_backtest_v3(df, alpha, meta, atr, params,
                                               instrument=_valid_xauusd_spec())
         finally:
-            self._restore(orig)
+            self._restore(orig_ceo)
+            self._restore_setup(orig_setup)
         assert len(trades) >= 1
         t = trades[0]
         assert t.exit_reason == "TP_HIT"

@@ -1,0 +1,38 @@
+{
+  "fold_1_oos": {
+    "max_total_dd": 0.000722,
+    "net_profit": 4805.94,
+    "pf_net": 12.5162,
+    "sharpe": 4.9728
+  },
+  "fold_2_oos": {
+    "max_total_dd": 0.001241,
+    "net_profit": 4121.79,
+    "pf_net": 6.0419,
+    "sharpe": 4.1797
+  },
+  "fold_3_oos": {
+    "max_total_dd": 0.00102,
+    "net_profit": 1886.26,
+    "pf_net": 17.1124,
+    "sharpe": 2.8395
+  },
+  "fold_4_oos": {
+    "max_total_dd": 0.001179,
+    "net_profit": 5888.67,
+    "pf_net": 12.6848,
+    "sharpe": 5.7802
+  },
+  "fold_5_oos": {
+    "max_total_dd": 0.000865,
+    "net_profit": 4675.42,
+    "pf_net": 13.1027,
+    "sharpe": 6.3147
+  },
+  "fold_6_oos": {
+    "max_total_dd": 0.002761,
+    "net_profit": 4612.07,
+    "pf_net": 6.7488,
+    "sharpe": 6.2143
+  }
+}

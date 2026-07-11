@@ -35,15 +35,50 @@ def _make_safe_risk_input(**kwargs):
 
 
 def _patch_ceo():
-    from titan.production import ceo_ai_governance
-    orig = ceo_ai_governance.evaluate_ceo_decision
-    ceo_ai_governance.evaluate_ceo_decision = lambda **kw: type('C', (), {'allowed_to_trade': True})()
-    return orig
+    """Patch CEO to always pass. Patches both the source module AND the engine's local reference."""
+    from titan.production import ceo_ai_governance, canonical_decision_engine as cde
+    orig_ceo = ceo_ai_governance.evaluate_ceo_decision
+    orig_cde = cde.evaluate_ceo_decision
+    mock = lambda **kw: type('C', (), {'allowed_to_trade': True})()
+    ceo_ai_governance.evaluate_ceo_decision = mock
+    cde.evaluate_ceo_decision = mock
+    return (orig_ceo, orig_cde)
 
 
 def _restore_ceo(orig):
-    from titan.production import ceo_ai_governance
-    ceo_ai_governance.evaluate_ceo_decision = orig
+    from titan.production import ceo_ai_governance, canonical_decision_engine as cde
+    orig_ceo, orig_cde = orig
+    ceo_ai_governance.evaluate_ceo_decision = orig_ceo
+    cde.evaluate_ceo_decision = orig_cde
+
+
+def _patch_setup(direction="LONG"):
+    """Patch setup scanner to return a setup matching the given direction.
+
+    Patches the engine's local reference to scan_setups_governed.
+    """
+    from titan.production import canonical_decision_engine as cde
+    orig = cde.scan_setups_governed
+    from titan.production.corrected_setup_detector_v2 import (
+        SetupResultV2, CorrectedSetupTypeV2, ScanResultV2,
+    )
+    setup = SetupResultV2(
+        setup_type=CorrectedSetupTypeV2.PULLBACK,
+        direction=direction, confidence=0.75,
+        reason_codes=["mock"], evidence=["mock"],
+    )
+    mock_scan = ScanResultV2(
+        selected_setup=setup, alternatives=[],
+        rejection_reasons=[], ranking_evidence=["mock"],
+        all_candidates=[setup], decision="SELECTED",
+    )
+    cde.scan_setups_governed = lambda *a, **kw: mock_scan
+    return orig
+
+
+def _restore_setup(orig):
+    from titan.production import canonical_decision_engine as cde
+    cde.scan_setups_governed = orig
 
 
 def _valid_instrument_spec():
@@ -238,15 +273,16 @@ class TestInstrumentSpecAndLotSizing:
     def test_no_silent_instrument_default(self):
         """InstrumentSpec MUST be supplied explicitly — None must fail closed."""
         from titan.production.canonical_backtest import run_backtest_v3, BacktestResultV3
-        n = 50
+        n = 100
         dates = pd.date_range("2024-01-01", periods=n, freq="h", tz="UTC")
-        prices = np.full(n, 2000.0)
+        np.random.seed(42)
+        prices = 2000.0 + np.cumsum(np.random.randn(n) * 0.3) + np.linspace(0, 5, n)
         df = pd.DataFrame({
             "open": prices, "high": prices.copy(), "low": prices.copy(),
             "close": prices, "volume": 100, "spread_usd": 0.15,
         }, index=dates)
         alpha = np.full(n, 0.50)
-        alpha[29] = 0.90
+        alpha[60] = 0.90
         meta = np.full(n, 0.55)
         atr = np.full(n, 10.0)
         params = {"alpha_threshold": 0.55, "meta_threshold": 0.50, "risk_percent": 0.003,
@@ -351,31 +387,34 @@ class TestExactCostLedger:
     def test_total_cost_reconciles_exactly(self):
         """abs((pnl_gross - total_cost) - pnl_net) <= 0.01 — EXACT assertion."""
         from titan.production.canonical_backtest import run_backtest_v3, InstrumentSpec
-        n = 50
+        n = 100
         dates = pd.date_range("2024-01-01", periods=n, freq="h", tz="UTC")
-        prices = np.full(n, 2000.0)
+        np.random.seed(42)
+        prices = 2000.0 + np.cumsum(np.random.randn(n) * 0.3) + np.linspace(0, 5, n)
         df = pd.DataFrame({
             "open": prices, "high": prices.copy(), "low": prices.copy(),
             "close": prices, "volume": 100, "spread_usd": 0.0,
         }, index=dates)
         alpha = np.full(n, 0.50)
-        alpha[29] = 0.90
+        alpha[60] = 0.90
         meta = np.full(n, 0.55)
         atr = np.full(n, 10.0)
-        df.loc[df.index[30], "high"] = 2040
-        df.loc[df.index[30], "low"] = 1998
+        df.loc[df.index[61], "high"] = 2040
+        df.loc[df.index[61], "low"] = 1998
         params = {"alpha_threshold": 0.55, "meta_threshold": 0.50, "risk_percent": 0.003,
                   "sl_atr_multiplier": 1.0, "rr_target": 3.0,
                   "max_holding_bars": 3, "max_trades_per_day": 2,
                   "cooldown_after_loss": 0, "spread_filter": 1.0,
                   "commission_per_lot": 7.0, "slippage_points": 0.5, "swap_per_bar": 0.0,
                   "setup_class": "A_PLUS"}
-        orig = _patch_ceo()
+        orig_ceo = _patch_ceo()
+        orig_setup = _patch_setup()
         try:
             trades, metrics = run_backtest_v3(df, alpha, meta, atr, params,
                                               instrument=_valid_instrument_spec())
         finally:
-            _restore_ceo(orig)
+            _restore_ceo(orig_ceo)
+            _restore_setup(orig_setup)
         assert len(trades) > 0
         for t in trades:
             reconstructed = t.pnl_gross - t.total_cost
@@ -385,31 +424,34 @@ class TestExactCostLedger:
     def test_r_net_uses_exact_pnl_net(self):
         """r_net = pnl_net / risk_amount — EXACT assertion."""
         from titan.production.canonical_backtest import run_backtest_v3, InstrumentSpec
-        n = 50
+        n = 100
         dates = pd.date_range("2024-01-01", periods=n, freq="h", tz="UTC")
-        prices = np.full(n, 2000.0)
+        np.random.seed(42)
+        prices = 2000.0 + np.cumsum(np.random.randn(n) * 0.3) + np.linspace(0, 5, n)
         df = pd.DataFrame({
             "open": prices, "high": prices.copy(), "low": prices.copy(),
             "close": prices, "volume": 100, "spread_usd": 0.15,
         }, index=dates)
         alpha = np.full(n, 0.50)
-        alpha[29] = 0.90
+        alpha[60] = 0.90
         meta = np.full(n, 0.55)
         atr = np.full(n, 10.0)
-        df.loc[df.index[30], "high"] = 2040
-        df.loc[df.index[30], "low"] = 1998
+        df.loc[df.index[61], "high"] = 2040
+        df.loc[df.index[61], "low"] = 1998
         params = {"alpha_threshold": 0.55, "meta_threshold": 0.50, "risk_percent": 0.003,
                   "sl_atr_multiplier": 1.0, "rr_target": 3.0,
                   "max_holding_bars": 3, "max_trades_per_day": 2,
                   "cooldown_after_loss": 0, "spread_filter": 1.0,
                   "commission_per_lot": 7.0, "slippage_points": 0.5, "swap_per_bar": 0.0,
                   "setup_class": "A_PLUS"}
-        orig = _patch_ceo()
+        orig_ceo = _patch_ceo()
+        orig_setup = _patch_setup()
         try:
             trades, metrics = run_backtest_v3(df, alpha, meta, atr, params,
                                               instrument=_valid_instrument_spec())
         finally:
-            _restore_ceo(orig)
+            _restore_ceo(orig_ceo)
+            _restore_setup(orig_setup)
         assert len(trades) > 0
         for t in trades:
             expected_r_net = t.pnl_net / max(t.risk_amount, 0.001)
@@ -419,31 +461,34 @@ class TestExactCostLedger:
     def test_no_double_counting_spread_in_pnl(self):
         """Spread cost must not be embedded in price AND subtracted as cost."""
         from titan.production.canonical_backtest import run_backtest_v3, InstrumentSpec
-        n = 50
+        n = 100
         dates = pd.date_range("2024-01-01", periods=n, freq="h", tz="UTC")
-        prices = np.full(n, 2000.0)
+        np.random.seed(42)
+        prices = 2000.0 + np.cumsum(np.random.randn(n) * 0.3) + np.linspace(0, 5, n)
         df = pd.DataFrame({
             "open": prices, "high": prices.copy(), "low": prices.copy(),
             "close": prices, "volume": 100, "spread_usd": 0.50,  # Large spread
         }, index=dates)
         alpha = np.full(n, 0.50)
-        alpha[29] = 0.90
+        alpha[60] = 0.90
         meta = np.full(n, 0.55)
         atr = np.full(n, 10.0)
-        df.loc[df.index[30], "high"] = 2040
-        df.loc[df.index[30], "low"] = 1998
+        df.loc[df.index[61], "high"] = 2040
+        df.loc[df.index[61], "low"] = 1998
         params = {"alpha_threshold": 0.55, "meta_threshold": 0.50, "risk_percent": 0.003,
                   "sl_atr_multiplier": 1.0, "rr_target": 3.0,
                   "max_holding_bars": 3, "max_trades_per_day": 2,
                   "cooldown_after_loss": 0, "spread_filter": 1.0,
                   "commission_per_lot": 0, "slippage_points": 0, "swap_per_bar": 0,
                   "setup_class": "A_PLUS"}
-        orig = _patch_ceo()
+        orig_ceo = _patch_ceo()
+        orig_setup = _patch_setup()
         try:
             trades, metrics = run_backtest_v3(df, alpha, meta, atr, params,
                                               instrument=_valid_instrument_spec())
         finally:
-            _restore_ceo(orig)
+            _restore_ceo(orig_ceo)
+            _restore_setup(orig_setup)
         assert len(trades) > 0
         t = trades[0]
         # Reconciliation must hold
@@ -456,11 +501,13 @@ class TestExactCostLedger:
 # ===== E: Backtest gap logic =====
 
 class TestBacktestGapLogic:
-    def _setup(self, n=50, signal_bar=29, sl_dist=10, tp_dist=30, spread=0.15):
+    def _setup(self, n=100, signal_bar=60, sl_dist=10, tp_dist=30, spread=0.15):
         dates = pd.date_range("2024-01-01", periods=n, freq="h", tz="UTC")
-        prices = np.full(n, 2000.0)
+        # Add small upward trend to avoid VOLATILITY_COMPRESSION regime (risk_modifier=0.0)
+        np.random.seed(42)
+        prices = 2000.0 + np.cumsum(np.random.randn(n) * 0.3) + np.linspace(0, 5, n)
         df = pd.DataFrame({
-            "open": prices, "high": prices.copy(), "low": prices.copy(),
+            "open": prices, "high": prices + 1, "low": prices - 1,
             "close": prices, "volume": 100, "spread_usd": spread,
         }, index=dates)
         alpha = np.full(n, 0.50)
@@ -478,14 +525,16 @@ class TestBacktestGapLogic:
     def test_entry_bar_sl_hit(self):
         from titan.production.canonical_backtest import run_backtest_v3
         df, alpha, meta, atr, params = self._setup()
-        df.loc[df.index[30], "low"] = 1985
-        df.loc[df.index[30], "high"] = 2005
-        orig = _patch_ceo()
+        df.loc[df.index[61], "low"] = 1985
+        df.loc[df.index[61], "high"] = 2005
+        orig_ceo = _patch_ceo()
+        orig_setup = _patch_setup()
         try:
             trades, metrics = run_backtest_v3(df, alpha, meta, atr, params,
                                               instrument=_valid_instrument_spec())
         finally:
-            _restore_ceo(orig)
+            _restore_ceo(orig_ceo)
+            _restore_setup(orig_setup)
         assert len(trades) >= 1
         assert trades[0].exit_reason == "SL_HIT"
         assert trades[0].holding_bars == 1
@@ -493,14 +542,16 @@ class TestBacktestGapLogic:
     def test_entry_bar_tp_hit(self):
         from titan.production.canonical_backtest import run_backtest_v3
         df, alpha, meta, atr, params = self._setup()
-        df.loc[df.index[30], "high"] = 2040
-        df.loc[df.index[30], "low"] = 1998
-        orig = _patch_ceo()
+        df.loc[df.index[61], "high"] = 2040
+        df.loc[df.index[61], "low"] = 1998
+        orig_ceo = _patch_ceo()
+        orig_setup = _patch_setup()
         try:
             trades, metrics = run_backtest_v3(df, alpha, meta, atr, params,
                                               instrument=_valid_instrument_spec())
         finally:
-            _restore_ceo(orig)
+            _restore_ceo(orig_ceo)
+            _restore_setup(orig_setup)
         assert len(trades) >= 1
         assert trades[0].exit_reason == "TP_HIT"
         assert trades[0].holding_bars == 1
@@ -508,29 +559,33 @@ class TestBacktestGapLogic:
     def test_both_sl_tp_conservative(self):
         from titan.production.canonical_backtest import run_backtest_v3
         df, alpha, meta, atr, params = self._setup()
-        df.loc[df.index[30], "low"] = 1985
-        df.loc[df.index[30], "high"] = 2040
-        orig = _patch_ceo()
+        df.loc[df.index[61], "low"] = 1985
+        df.loc[df.index[61], "high"] = 2040
+        orig_ceo = _patch_ceo()
+        orig_setup = _patch_setup()
         try:
             trades, metrics = run_backtest_v3(df, alpha, meta, atr, params,
                                               instrument=_valid_instrument_spec())
         finally:
-            _restore_ceo(orig)
+            _restore_ceo(orig_ceo)
+            _restore_setup(orig_setup)
         assert len(trades) >= 1
         assert trades[0].exit_reason == "SL_HIT"
 
     def test_holding_bar_gap_through_sl(self):
         from titan.production.canonical_backtest import run_backtest_v3
         df, alpha, meta, atr, params = self._setup()
-        df.loc[df.index[31], "open"] = 1985
-        df.loc[df.index[31], "low"] = 1980
-        df.loc[df.index[31], "high"] = 1995
-        orig = _patch_ceo()
+        df.loc[df.index[62], "open"] = 1985
+        df.loc[df.index[62], "low"] = 1980
+        df.loc[df.index[62], "high"] = 1995
+        orig_ceo = _patch_ceo()
+        orig_setup = _patch_setup()
         try:
             trades, metrics = run_backtest_v3(df, alpha, meta, atr, params,
                                               instrument=_valid_instrument_spec())
         finally:
-            _restore_ceo(orig)
+            _restore_ceo(orig_ceo)
+            _restore_setup(orig_setup)
         assert len(trades) >= 1
         assert trades[0].exit_reason == "SL_GAP"
         assert trades[0].r_gross < -1.0
@@ -538,15 +593,17 @@ class TestBacktestGapLogic:
     def test_timeout_exit(self):
         from titan.production.canonical_backtest import run_backtest_v3
         df, alpha, meta, atr, params = self._setup()
-        for i in range(30, 35):
+        for i in range(61, 66):
             df.loc[df.index[i], "high"] = 2005
             df.loc[df.index[i], "low"] = 1998
-        orig = _patch_ceo()
+        orig_ceo = _patch_ceo()
+        orig_setup = _patch_setup()
         try:
             trades, metrics = run_backtest_v3(df, alpha, meta, atr, params,
                                               instrument=_valid_instrument_spec())
         finally:
-            _restore_ceo(orig)
+            _restore_ceo(orig_ceo)
+            _restore_setup(orig_setup)
         assert len(trades) >= 1
         assert trades[0].exit_reason == "TIMEOUT"
 

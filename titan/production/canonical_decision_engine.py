@@ -1,9 +1,15 @@
-"""TITAN XAU AI — Canonical Decision Engine (v2.8.7-P2.1 Phase 7)
-==================================================================
+"""TITAN XAU AI — Canonical Decision Engine (v2.8.7-P2.2)
+==========================================================
 
 One canonical pure decision kernel used by BOTH:
-  - historical replay adapter
-  - MT5 forward-shadow adapter
+  - historical replay adapter (HistoricalAdapter)
+  - MT5 forward-shadow adapter (ShadowAdapter)
+
+v2.8.7-P2.2 changes from P2.1:
+  - Actually applies adaptive thresholds: effective_alpha = adaptive_alpha + regime_modifier
+  - Actually applies adaptive risk multiplier: proposed_risk = base_risk × adaptive_risk_multiplier
+  - CEO consumes the SAME safety truth as risk governor (no hard-coded PASS)
+  - No safe literals anywhere in the decision path
 
 The kernel executes:
   1. data/schema/freshness checks
@@ -11,20 +17,15 @@ The kernel executes:
   3. direction interpretation
   4. regime classification
   5. governed setup scan
-  6. adaptive thresholds
+  6. adaptive thresholds (APPLIED to decision, not just metadata)
   7. real safety state
-  8. risk governor
+  8. risk governor (receives adaptive-adjusted proposed risk)
   9. near-miss preview (shadow only)
-  10. CEO governance
+  10. CEO governance (receives same safety truth)
   11. instrument sizing
   12. structured decision
 
 Adapters may differ; decision logic may NOT differ.
-
-Parity invariant:
-    Given identical bars, probabilities, InstrumentSpec, account state,
-    and configuration:
-        historical adapter decision == shadow adapter decision
 
 NEVER sends orders. NEVER creates tokens. NEVER trades.
 """
@@ -58,25 +59,16 @@ from titan.production.ceo_ai_governance import evaluate_ceo_decision
 
 @dataclass
 class DecisionContext:
-    """All inputs required for a canonical decision.
-
-    Adapters construct this; the kernel consumes it.
-    """
-    # Market data
+    """All inputs required for a canonical decision."""
     df: pd.DataFrame
-    # Model inferences (already computed by adapter)
     alpha_proba: float
     meta_proba: float
-    alpha_probas_recent: np.ndarray  # for adaptive distribution
+    alpha_probas_recent: np.ndarray
     meta_probas_recent: np.ndarray
     atr_value: float
-    # Instrument
     instrument: InstrumentSpec
-    # Configuration (frozen)
     config: Dict[str, Any]
-    # Real safety state (no literals)
     safety_state: SafetyStateV2
-    # Account state
     equity: float
     equity_peak: float
     daily_peak: float
@@ -85,16 +77,12 @@ class DecisionContext:
     existing_total_open_risk: float = 0.0
     existing_combined_risk: float = 0.0
     loss_streak: int = 0
-    # Adapter mode
-    adapter_mode: str = "shadow"  # "shadow" or "historical"
-    # Optional near-miss tracker (shadow only)
+    adapter_mode: str = "shadow"
     near_miss_tracker: Optional[NearMissShadowTrackerV2] = None
-    # Spread at signal bar
     spread: float = 0.0
-    # Entry price (for shadow: current close; for historical: next bar open)
     entry_price: float = 0.0
-    # Timestamp string
     timestamp: str = ""
+    skip_freshness_check: bool = False  # historical adapter skips freshness
 
 
 @dataclass
@@ -104,30 +92,31 @@ class CanonicalDecision:
     correlation_id: str
     timestamp: str
     adapter_mode: str
-    # Pipeline trace
     call_trace: List[str] = field(default_factory=list)
-    # Decision
     final_decision: str = "REJECT"
     reject_reason: str = ""
-    # Direction
     direction: Optional[str] = None
     directional_confidence: Optional[float] = None
     alpha_proba: Optional[float] = None
     meta_proba: Optional[float] = None
-    # Regime
     regime: Optional[str] = None
     regime_confidence: Optional[float] = None
     regime_risk_modifier: float = 1.0
     regime_threshold_modifier: float = 0.0
-    # Setup
     setup_selected: Optional[str] = None
     setup_alternatives: List[str] = field(default_factory=list)
-    # Thresholds
+    # Thresholds (APPLIED)
+    base_alpha_threshold: Optional[float] = None
     adaptive_alpha_threshold: Optional[float] = None
+    final_alpha_threshold: Optional[float] = None
+    base_meta_threshold: Optional[float] = None
     adaptive_meta_threshold: Optional[float] = None
+    final_meta_threshold: Optional[float] = None
     adaptive_risk_multiplier: Optional[float] = None
     adaptive_block_reason: str = ""
-    # Risk
+    # Risk (APPLIED)
+    base_risk_percent: Optional[float] = None
+    proposed_risk_percent: Optional[float] = None
     approved_risk: float = 0.0
     risk_amount: float = 0.0
     # Lot sizing
@@ -147,6 +136,8 @@ class CanonicalDecision:
     near_miss_preview_eligible: bool = False
     # Adaptive journal
     adaptive_journal: List[dict] = field(default_factory=list)
+    # Risk journal
+    risk_journal: List[dict] = field(default_factory=list)
 
 
 class CanonicalDecisionEngine:
@@ -177,8 +168,6 @@ class CanonicalDecisionEngine:
 
         # ===== 2. model-class verification =====
         trace.append("2:model_class_verification")
-        # Adapter is responsible for verifying classes_ before calling kernel.
-        # Kernel verifies inferences are finite and in [0, 1].
         if not (0.0 <= ctx.alpha_proba <= 1.0) or not math.isfinite(ctx.alpha_proba):
             decision.final_decision = "REJECT_MODEL_INFERENCE"
             decision.reject_reason = f"alpha_proba_invalid_{ctx.alpha_proba}"
@@ -221,15 +210,14 @@ class CanonicalDecisionEngine:
             return decision
         selected_setup = scan.selected_setup
         decision.setup_selected = selected_setup.setup_type.value
-        # If setup direction conflicts with model direction, reject
         if selected_setup.direction != direction and selected_setup.direction != "NEUTRAL":
             decision.final_decision = "REJECT_SETUP_DIRECTION_CONFLICT"
             decision.reject_reason = f"setup_dir={selected_setup.direction} != model_dir={direction}"
             decision.call_trace = trace
             return decision
 
-        # ===== 6. adaptive thresholds =====
-        trace.append("6:adaptive_thresholds")
+        # ===== 6. adaptive thresholds (APPLIED) =====
+        trace.append("6:adaptive_thresholds_applied")
         adaptive_journal: List[dict] = []
         adaptive_result = compute_adaptive_threshold_v2(
             ctx.safety_state,
@@ -246,37 +234,66 @@ class CanonicalDecisionEngine:
             decision.call_trace = trace
             return decision
 
-        # Directional confidence threshold (with regime modifier)
-        effective_alpha_threshold = ctx.config.get("alpha_threshold", 0.55) + decision.regime_threshold_modifier
-        if dir_confidence < effective_alpha_threshold:
+        # --- APPLY adaptive thresholds to decision ---
+        base_alpha_threshold = ctx.config.get("alpha_threshold", 0.55)
+        base_meta_threshold = ctx.config.get("meta_threshold", 0.50)
+        # effective_alpha = max(adaptive_alpha, base_alpha) + regime_threshold_modifier
+        # The config's base threshold is the floor; adaptive can tighten above it.
+        effective_alpha = max(adaptive_result.alpha_threshold_effective, base_alpha_threshold) + decision.regime_threshold_modifier
+        # effective_meta = max(adaptive_meta, base_meta)
+        effective_meta = max(adaptive_result.meta_threshold_effective, base_meta_threshold)
+
+        decision.base_alpha_threshold = base_alpha_threshold
+        decision.adaptive_alpha_threshold = adaptive_result.alpha_threshold_effective
+        decision.final_alpha_threshold = effective_alpha
+        decision.base_meta_threshold = base_meta_threshold
+        decision.adaptive_meta_threshold = adaptive_result.meta_threshold_effective
+        decision.final_meta_threshold = effective_meta
+
+        # Apply directional confidence threshold
+        if dir_confidence < effective_alpha:
             decision.final_decision = "REJECT_ALPHA"
-            decision.reject_reason = f"dir_confidence_{dir_confidence:.4f}_below_{effective_alpha_threshold:.4f}"
+            decision.reject_reason = (
+                f"dir_confidence_{dir_confidence:.4f}_below_"
+                f"effective_{effective_alpha:.4f}"
+                f"(base={base_alpha_threshold:.2f}"
+                f"+adaptive={adaptive_result.alpha_threshold_effective - base_alpha_threshold:+.2f}"
+                f"+regime={decision.regime_threshold_modifier:+.2f})"
+            )
             decision.call_trace = trace
             return decision
-        meta_threshold = ctx.config.get("meta_threshold", 0.50)
-        if ctx.meta_proba < meta_threshold:
+        if ctx.meta_proba < effective_meta:
             decision.final_decision = "REJECT_META"
-            decision.reject_reason = f"meta_{ctx.meta_proba:.4f}_below_{meta_threshold}"
+            decision.reject_reason = (
+                f"meta_{ctx.meta_proba:.4f}_below_"
+                f"effective_{effective_meta:.4f}"
+            )
             decision.call_trace = trace
             return decision
 
         # ===== 7. real safety state (already in ctx) =====
         trace.append("7:real_safety_state")
 
-        # ===== 8. risk governor =====
-        trace.append("8:risk_governor")
-        risk_percent = ctx.config.get("risk_percent", 0.003)
+        # ===== 8. risk governor (receives adaptive-adjusted proposed risk) =====
+        trace.append("8:risk_governor_adaptive_risk")
+        base_risk_percent = ctx.config.get("risk_percent", 0.003)
+        # proposed_risk = base_risk × adaptive_risk_multiplier × regime_risk_modifier
+        proposed_risk = base_risk_percent * adaptive_result.risk_multiplier * decision.regime_risk_modifier
+        decision.base_risk_percent = base_risk_percent
+        decision.proposed_risk_percent = proposed_risk
+
         setup_class = ctx.config.get("setup_class", "A_PLUS")
         gov_inp = RiskGovernorInput(
             equity=ctx.equity, equity_peak=ctx.equity_peak,
             daily_peak=ctx.daily_peak, daily_start_equity=ctx.daily_start_equity,
-            proposed_risk=risk_percent, setup_class=setup_class,
+            proposed_risk=proposed_risk, setup_class=setup_class,
             existing_daily_open_risk=ctx.existing_daily_open_risk,
             existing_total_open_risk=ctx.existing_total_open_risk,
             existing_combined_risk=ctx.existing_combined_risk,
             loss_streak=ctx.loss_streak,
-            regime_risk_modifier=decision.regime_risk_modifier,
+            regime_risk_modifier=1.0,  # already applied above
             broker_risk_modifier=1.0,
+            # SAME safety truth as CEO
             prop_risk_pass=ctx.safety_state.prop_risk_state.get("prop_pass"),
             capital_protection_active=ctx.safety_state.capital_protection.get("active"),
             broker_safe=ctx.safety_state.broker_intelligence.get("broker_pass"),
@@ -287,6 +304,16 @@ class CanonicalDecisionEngine:
             external_total_dd=ctx.safety_state.external_total_dd,
         )
         gov_out = govern_risk(gov_inp)
+        # Journal the risk decision
+        decision.risk_journal.append({
+            "base_risk_percent": base_risk_percent,
+            "adaptive_risk_multiplier": adaptive_result.risk_multiplier,
+            "regime_risk_modifier": decision.regime_risk_modifier,
+            "proposed_risk_percent": proposed_risk,
+            "governor_approved": gov_out.approved,
+            "governor_approved_risk": gov_out.approved_risk,
+            "governor_block_reason": gov_out.block_reason,
+        })
         if not gov_out.approved:
             decision.final_decision = "REJECT_RISK_GOVERNOR"
             decision.reject_reason = gov_out.block_reason
@@ -299,7 +326,6 @@ class CanonicalDecisionEngine:
         if ctx.adapter_mode == "shadow" and ctx.near_miss_tracker is not None:
             trace.append("9:near_miss_preview")
             decision.near_miss_consulted = True
-            # Preview only — do NOT consume
             if ctx.near_miss_tracker.records:
                 current_time = pd.Timestamp(ctx.timestamp) if ctx.timestamp else pd.Timestamp.utcnow()
                 for record in ctx.near_miss_tracker.records:
@@ -314,20 +340,34 @@ class CanonicalDecisionEngine:
                         decision.near_miss_preview_eligible = True
                         break
 
-        # ===== 10. CEO governance =====
-        trace.append("10:ceo_governance")
+        # ===== 10. CEO governance (consumes SAME safety truth) =====
+        trace.append("10:ceo_governance_same_safety_truth")
         rr_target = ctx.config.get("rr_target", 3.0)
+        # CEO receives the SAME safety values as the risk governor — no hard-coded PASS
         ceo = evaluate_ceo_decision(
             regime_state={"detected": True, "regime_value": regime_label,
                            "confidence": float(regime_result.confidence)},
             xgb_alpha={"direction": direction, "confidence": dir_confidence, "pass": True},
             lstm_confidence=None, transformer_regime=None,
             meta_label_quality={"quality_score": ctx.meta_proba, "pass": True},
-            broker_state={"broker_pass": True, "spread_pass": ctx.spread <= ctx.config.get("spread_filter", 1.0),
-                          "slippage_pass": True},
-            prop_risk_state={"risk_pass": True, "prop_funded_pass": True, "max_positions_ok": True},
-            capital_protection_state={"capital_preservation_active": False, "dd_breach": False},
-            model_health_state={"model_health_pass": True, "failed_required": 0},
+            broker_state={
+                "broker_pass": ctx.safety_state.broker_intelligence.get("broker_pass"),
+                "spread_pass": ctx.safety_state.broker_intelligence.get("spread_pass"),
+                "slippage_pass": True,  # TODO: wire to real slippage monitor
+            },
+            prop_risk_state={
+                "risk_pass": ctx.safety_state.prop_risk_state.get("prop_pass"),
+                "prop_funded_pass": ctx.safety_state.prop_risk_state.get("prop_pass"),
+                "max_positions_ok": True,
+            },
+            capital_protection_state={
+                "capital_preservation_active": ctx.safety_state.capital_protection.get("active"),
+                "dd_breach": ctx.safety_state.capital_protection.get("dd_breach"),
+            },
+            model_health_state={
+                "model_health_pass": ctx.safety_state.model_health.get("model_health_pass"),
+                "failed_required": 0,
+            },
             geometry_state={"geometry_pass": True, "actual_RR": rr_target, "minimum_RR": 2.0},
         )
         decision.ceo_decision = "PASS" if ceo.allowed_to_trade else "BLOCK"

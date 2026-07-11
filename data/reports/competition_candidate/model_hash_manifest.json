@@ -1,0 +1,41 @@
+{
+  "provenance": {
+    "model_path": "titan/data/models/xgboost_v2_feature_normalized.pkl",
+    "model_sha256": "5f5b981cf0bf01aa6bb72dd769728d7ab49cbbdd20bdffdb45f703916c5c5ef2",
+    "model_size_bytes": 2872209,
+    "scaler_path": "titan/data/features_v2/scaler_stats_v2.json",
+    "scaler_sha256": "f30461ab2919d74210672e09140616665e763364a7e434dbf6899337bbdb8e2b",
+    "feature_schema_path": "titan/data/features_v2/feature_schema_v2.json",
+    "feature_schema_sha256": "f75c9d03b8aef330a7a76bca3fd001ba237e59069dfc8111b1494cb1125eff2b",
+    "model_n_features": 55,
+    "model_classes": [
+      "0",
+      "1"
+    ],
+    "meta_model_path": "titan/data/models/meta_label_v2_feature_normalized.pkl",
+    "meta_model_sha256": "c9d39e0e8423728eadd4c4cd6bd74636c473a9e5e30109d06bd241c8bf17bca1",
+    "meta_n_features": 22,
+    "meta_classes": [
+      "0",
+      "1"
+    ],
+    "generated_at_utc": "2026-07-11T08:10:40.323297+00:00",
+    "profile_name": "v2_feature_normalized"
+  },
+  "calibration_evidence": {
+    "artifact_path": "data/audit/calibration/model_calibration_evidence.json",
+    "artifact_sha256": "8274aa7cb93581f5254289e52cd006675704363e63e99ead9be816a089ee96cd",
+    "model_sha256": "5f5b981cf0bf01aa6bb72dd769728d7ab49cbbdd20bdffdb45f703916c5c5ef2",
+    "scaler_sha256": "f30461ab2919d74210672e09140616665e763364a7e434dbf6899337bbdb8e2b",
+    "feature_schema_sha256": "f75c9d03b8aef330a7a76bca3fd001ba237e59069dfc8111b1494cb1125eff2b",
+    "generated_at_utc": "2026-07-11T11:34:39.698400+00:00",
+    "sample_period_start": "2020-01-02 01:00:00+00:00",
+    "sample_period_end": "2026-06-19 20:00:00+00:00",
+    "brier_score": 0.207016,
+    "calibration_slope": 0.16696,
+    "calibration_intercept": 0.5635,
+    "drift_status": "none",
+    "n_samples": 38233
+  },
+  "calibration_note": "slope=0.1670 \u2014 outside preferred [0.80, 1.20] but within acceptance [0.10, 10.0]"
+}

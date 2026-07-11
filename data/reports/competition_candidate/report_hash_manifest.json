@@ -1,0 +1,25 @@
+{
+  "artifacts": {
+    "baseline_metrics.json": "4daf71eef4bf3ba42a481b0aa361e562b19757445dd44a6d3434d018d6bb693a",
+    "broker_metrics.csv": "75fd26a446361ddc18dea35802fd5bc76c29bb56b7b7b923ced7d477bacc0cc3",
+    "cost_breakdown.json": "db0cd3fad2394915a39715c8156ca5ea52330b774315e242c144c094777a66b5",
+    "data_coverage.json": "d2b1e80189b2201d1231fd8a6335439376d4b4f602f3c9416011d9a3f54bbd51",
+    "final_verdict.json": "ee29f9b148e27e67bfccbeced76a313e408174743fe8e51a644a1382268c87be",
+    "frozen_config.yaml": "a1df8b8712aed496657a2b25bb8b31e87832e4f37d460ff0fbe4d373b74fbbd5",
+    "instrument_spec.json": "84dc192198a059bfda317d2f086d5a0a8afdfa403cf942567074f7c53a03d260",
+    "long_short_metrics.json": "dd95632c2130250ca089c32f9cd2d9bbc80b27d4868f90091fe1e849259ababe",
+    "mathematical_invariant_audit.json": "91dfeff202b36a7687749ad5bde206d16d08b968bb57739a128b4fbed223aa47",
+    "model_hash_manifest.json": "5f100c0659d52a6b87a0ee5c93f5eea7d5b7374b230e6197eefbeaae87137ef4",
+    "monte_carlo_metrics.json": "278b74a87fcfd3c5157154c9e31c73f93e76b74b9af66ae69094193db50ed40a",
+    "monthly_metrics.csv": "42adbeea9e4f6c0bf359c2ee789796a3d780e06daab5a1893d45ad8f2f538423",
+    "parameter_neighbourhood.json": "bb37c4c1fcecfe0ce92ab8962ebb55edbbb44885df60bdd9ecc47d0749d19e28",
+    "regime_setup_metrics.json": "21adff9945de5bdc43cd4e1d486180fb5200e2bf4b99380facdc33f12657cd39",
+    "reproduction_command.txt": "319dda18f3c09ac7f785795b65f8f8b7d0553e6e06a7bb111ebe01139b4ba1c4",
+    "schema_scaler_hash_manifest.json": "e2e47aef933038409b4a156ab9c72261e0f66b23a84c256b8b2fb03e3a817b4e",
+    "split_manifest.json": "5edc85dfdf0584a5a339730162f7ea5b184265167482d4098ebba1dc5488703b",
+    "stress_metrics.json": "35c8bea75cf7c91d6acd36c36631d0ab2df094aa8a19b2f6a3326f44c987589d",
+    "trade_ledger.csv": "03a5179d3992c12795605f52b07f3270150e5b60a44e8a4c74ca7c28ce629505",
+    "walk_forward_metrics.json": "2e0951f01568d6d5380be900befc52eeceee9cb8507c10c16b20d529350aad07"
+  },
+  "n_artifacts": 20
+}

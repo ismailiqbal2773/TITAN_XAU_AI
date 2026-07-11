@@ -1,0 +1,9 @@
+{
+  "normal_sl_gross_r_approx_minus_1": true,
+  "tp_gross_r_approx_rr": true,
+  "positive_gross_r_not_exceed_tp": true,
+  "net_r_not_exceed_gross_r": true,
+  "equity_ledger_sum_equals_final": true,
+  "cost_ledger_reconciles_per_trade": true,
+  "all_invariants_pass": true
+}

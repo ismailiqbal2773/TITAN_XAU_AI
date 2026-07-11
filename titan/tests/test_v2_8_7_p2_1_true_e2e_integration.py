@@ -275,13 +275,17 @@ class TestTrueEndToEndIntegrationV2_1:
             assert step in dec.call_trace, f"Missing step in trace: {step}. Trace: {dec.call_trace}"
 
     def test_alpha_below_threshold_rejected(self):
-        """alpha_proba=0.50 → dir_confidence=0.50 < 0.55 → REJECT_ALPHA."""
-        df = _build_synthetic_bars(n=300)
-        ctx = _build_context(df, alpha_proba=0.50, meta_proba=0.60)
+        """alpha_proba=0.52 → dir_confidence=0.52 < effective_threshold (0.55+) → REJECT_ALPHA.
+
+        Uses upward-trending bars so setup scanner returns LONG setup
+        (matching LONG direction from alpha=0.52), avoiding setup conflict.
+        """
+        df = _build_synthetic_bars(n=300, starting_price=2000.0, trend=0.5)
+        ctx = _build_context(df, alpha_proba=0.52, meta_proba=0.60)
         dec = _run_engine(ctx)
         assert dec.final_decision == "REJECT_ALPHA"
-        assert dec.direction == "LONG"  # interpret_direction returns LONG for 0.50
-        assert dec.directional_confidence == pytest.approx(0.50, abs=1e-6)
+        assert dec.direction == "LONG"
+        assert dec.directional_confidence == pytest.approx(0.52, abs=1e-6)
 
     def test_meta_below_threshold_rejected(self):
         """meta_proba=0.40 < 0.50 → REJECT_META."""
