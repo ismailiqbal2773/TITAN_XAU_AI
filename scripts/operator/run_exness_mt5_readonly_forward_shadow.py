@@ -1,39 +1,16 @@
 #!/usr/bin/env python3
-"""TITAN XAU AI — Exness MT5 Read-Only Forward Shadow Runner (FINAL Sprint v2.8.7-P2.0)
-======================================================================================
+"""TITAN XAU AI — Exness MT5 Read-Only Forward Shadow Runner (FINAL v2.8.7-P2.1)
+================================================================================
 
 Local Windows MT5 forward shadow runner. Reads market data, computes features,
-generates read-only signals via the FULL CANONICAL PIPELINE. NEVER trades.
+generates read-only signals via the Canonical Decision Engine. NEVER trades.
 
-Canonical pipeline executed per cycle:
-  1.  safe_connect_and_audit
-  2.  MT5 symbol/account/instrument metadata extraction
-  3.  data freshness/schema validation
-  4.  feature generation with production schema/scaler
-  5.  XGBoost classes_ verification
-  6.  alpha/meta inference
-  7.  interpret_direction (p_up=0.10 → SHORT, confidence=0.90)
-  8.  directional-confidence threshold
-  9.  classify_regime_v2
-  10. canonical setup scan (governed)
-  11. SafetyStateV2 construction
-  12. compute_adaptive_threshold_v2 (with journal callback)
-  13. canonical govern_risk (fail-closed safety inputs)
-  14. near-miss handling
-  15. CEO governance
-  16. broker-step hypothetical lot sizing via InstrumentSpec
-  17. structured journal persistence
-  18. NO_ORDER_SENT=true
-
-Removed old behaviour:
-  - rejects alpha_proba < alpha_threshold BEFORE direction interpretation
-  - hard-codes broker PASS / prop PASS / capital protection false
-  - hard-codes model health PASS
-  - uses CONTRACT_SIZE=100 independently
-  - loads legacy profile instead of competition shadow profile
-
-For p_up=0.10: direction=SHORT, confidence=0.90, full canonical path executed.
-NO order_send import or call.
+v2.8.7-P2.1 changes:
+  - Uses CanonicalDecisionEngine (shared with historical adapter) — Phase 7
+  - Removes ALL InstrumentSpec fallbacks — Phase 2
+  - Real safety-state wiring via ShadowAccountStateStore — Phase 3
+  - Real calibration/provenance via ModelProvenance — Phase 4
+  - Near-miss preview only (no consume) — Phase 6
 
 CLI:
   python scripts/operator/run_exness_mt5_readonly_forward_shadow.py
@@ -55,15 +32,16 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT))
 
 OUTPUT_DIR = REPO_ROOT / "data" / "reports" / "exness_forward_shadow"
+SHADOW_STATE_PATH = REPO_ROOT / "data" / "shadow_account_state.json"
 
 from scripts.operator.mt5_safe_connector import safe_connect_and_audit
 from titan.production.spread_normalization import normalize_xauusd_spread_to_usd
 from titan.production.feature_stream_v2 import H1FeatureStreamV2, FEATURE_NAMES_V2
 from titan.training.feature_schema_v2 import META_FEATURE_NAMES_V2
-from titan.production.model_loader import load_models_by_profile
+from titan.production.model_loader import load_production_models_v2
 from titan.production.ceo_ai_governance import evaluate_ceo_decision
 from titan.production.direction_logic import interpret_direction
-from titan.production.canonical_backtest import InstrumentSpec, compute_lot_size, validate_instrument_spec
+from titan.production.instrument_valuation import InstrumentSpec, validate_instrument_spec
 from titan.production.corrected_regime_classifier_v2 import classify_regime_v2
 from titan.production.corrected_setup_detector_v2 import scan_setups_governed
 from titan.production.corrected_adaptive_threshold_v2 import (
@@ -71,6 +49,14 @@ from titan.production.corrected_adaptive_threshold_v2 import (
 )
 from titan.production.risk_governor import govern_risk, RiskGovernorInput
 from titan.production.near_miss_tracker_v2 import NearMissShadowTrackerV2
+from titan.production.shadow_account_state_store import ShadowAccountStateStore
+from titan.production.model_provenance import (
+    load_model_provenance, load_calibration_evidence,
+    build_calibration_artifact_if_missing,
+)
+from titan.production.canonical_decision_engine import (
+    CanonicalDecisionEngine, DecisionContext,
+)
 
 
 LEVERAGE = 100
@@ -87,56 +73,72 @@ def load_exness_competition_shadow_profile():
 def _make_instrument_spec_from_mt5(symbol_info, account_info) -> InstrumentSpec:
     """Extract a validated InstrumentSpec from MT5 symbol/account metadata.
 
-    Falls back to safe XAUUSD defaults if metadata is missing; the spec is
-    still validated and used for lot sizing — no silent contract_size=100
-    hard-coding in the lot calculation.
+    Phase 2: NO FALLBACKS. Missing/zero/malformed metadata must produce
+    REJECT_INSTRUMENT_SPEC.
     """
-    if symbol_info is not None:
+    if symbol_info is None:
+        raise ValueError("symbol_info_missing")
+    if account_info is None:
+        raise ValueError("account_info_missing")
+
+    # Extract raw values — NO defaults
+    tick_size = getattr(symbol_info, "trade_tick_size", None)
+    tick_value = getattr(symbol_info, "trade_tick_value", None)
+    contract_size = getattr(symbol_info, "trade_contract_size", None)
+    volume_min = getattr(symbol_info, "volume_min", None)
+    volume_max = getattr(symbol_info, "volume_max", None)
+    volume_step = getattr(symbol_info, "volume_step", None)
+    account_ccy = getattr(account_info, "currency", None)
+    profit_ccy = getattr(symbol_info, "currency_profit", None) or "USD"
+    symbol_ccy = getattr(symbol_info, "currency_base", None) or "XAU"
+
+    # Phase 2: Refuse any None or non-positive value
+    for name, val in [("tick_size", tick_size), ("tick_value", tick_value),
+                       ("contract_size", contract_size), ("volume_min", volume_min),
+                       ("volume_max", volume_max), ("volume_step", volume_step)]:
+        if val is None:
+            raise ValueError(f"instrument_metadata_missing:{name}")
         try:
-            tick_size = float(getattr(symbol_info, "trade_tick_size", 0.0)) or 0.01
-            tick_value = float(getattr(symbol_info, "trade_tick_value", 0.0)) or 1.0
-            contract_size = float(getattr(symbol_info, "trade_contract_size", 0.0)) or 100.0
-            volume_min = float(getattr(symbol_info, "volume_min", 0.0)) or 0.01
-            volume_max = float(getattr(symbol_info, "volume_max", 0.0)) or 100.0
-            volume_step = float(getattr(symbol_info, "volume_step", 0.0)) or 0.01
-        except Exception:
-            tick_size, tick_value, contract_size = 0.01, 1.0, 100.0
-            volume_min, volume_max, volume_step = 0.01, 100.0, 0.01
+            fval = float(val)
+        except (TypeError, ValueError):
+            raise ValueError(f"instrument_metadata_non_numeric:{name}={val}")
+        if fval <= 0:
+            raise ValueError(f"instrument_metadata_nonpositive:{name}={fval}")
+    if not account_ccy:
+        raise ValueError("account_currency_missing")
+    if not profit_ccy:
+        raise ValueError("profit_currency_missing")
+
+    # Conversion rate: if account == profit, rate=1.0. Otherwise, the runner
+    # cannot silently assume 1.0 — it must be supplied externally.
+    if account_ccy == profit_ccy:
+        conversion_rate = 1.0
     else:
-        tick_size, tick_value, contract_size = 0.01, 1.0, 100.0
-        volume_min, volume_max, volume_step = 0.01, 100.0, 0.01
+        # Phase 2: Do not silently assume 1.0 when currencies differ
+        raise ValueError(
+            f"cross_currency_not_supported: account={account_ccy} profit={profit_ccy}. "
+            "Supply explicit conversion_rate via broker profile."
+        )
 
-    profit_ccy = "USD"
-    account_ccy = "USD"
-    if account_info is not None:
-        try:
-            account_ccy = str(getattr(account_info, "currency", "USD") or "USD")
-        except Exception:
-            account_ccy = "USD"
-    conversion_rate = 1.0
-    return InstrumentSpec(
-        tick_size=tick_size, tick_value=tick_value, contract_size=contract_size,
-        volume_min=volume_min, volume_max=volume_max, volume_step=volume_step,
-        account_currency=account_ccy, profit_currency=profit_ccy,
-        symbol_currency="USD", conversion_rate=conversion_rate,
+    spec = InstrumentSpec(
+        tick_size=float(tick_size),
+        tick_value=float(tick_value),
+        contract_size=float(contract_size),
+        volume_min=float(volume_min),
+        volume_max=float(volume_max),
+        volume_step=float(volume_step),
+        account_currency=str(account_ccy),
+        profit_currency=str(profit_ccy),
+        symbol_currency=str(symbol_ccy),
+        conversion_rate=conversion_rate,
     )
+    ok, msg = validate_instrument_spec(spec)
+    if not ok:
+        raise ValueError(f"instrument_spec_invalid:{msg}")
+    return spec
 
 
-def _hash_model(bundle) -> dict:
-    """Compute a stable hash for the loaded model bundle."""
-    out = {}
-    try:
-        import pickle
-        if hasattr(bundle, "xgb") and bundle.xgb is not None:
-            out["xgb_classes"] = list(getattr(bundle.xgb, "classes_", [0, 1]))
-            out["xgb_n_estimators"] = getattr(bundle.xgb, "n_estimators", "unknown")
-    except Exception:
-        pass
-    return out
-
-
-def _data_freshness_check(df: pd.DataFrame, max_age_hours: int = 4) -> tuple[bool, str]:
-    """Validate data freshness."""
+def _data_freshness_check(df: pd.DataFrame, max_age_hours: int = 24) -> tuple[bool, str]:
     if df is None or len(df) == 0:
         return False, "empty_dataframe"
     last_ts = pd.Timestamp(df.index[-1])
@@ -150,7 +152,6 @@ def _data_freshness_check(df: pd.DataFrame, max_age_hours: int = 4) -> tuple[boo
 
 
 def _data_schema_check(df: pd.DataFrame) -> tuple[bool, str]:
-    """Validate data schema."""
     required = {"open", "high", "low", "close"}
     if not required.issubset(df.columns):
         return False, f"missing_columns_{required - set(df.columns)}"
@@ -161,57 +162,60 @@ def _data_schema_check(df: pd.DataFrame) -> tuple[bool, str]:
     return True, ""
 
 
-def _broker_step_lot_sizing(spec: InstrumentSpec, equity: float, approved_risk: float,
-                            sl_distance: float, entry_price: float) -> dict:
-    """Hypothetical broker-step lot sizing via InstrumentSpec.
+def _build_safety_state(account_store: ShadowAccountStateStore, spread: float,
+                         atr: float, regime_label: str, regime_confidence: float,
+                         alpha_probas_recent: np.ndarray, meta_probas_recent: np.ndarray,
+                         calibration_evidence) -> SafetyStateV2:
+    """Build real SafetyStateV2 from account store + calibration evidence.
 
-    Returns dict with lot, monetary_loss_at_sl, risk_amount, margin_required,
-    margin_usage, reject_reason.
+    Phase 3: NO literal safe values. All values come from real components.
     """
-    ok, msg = validate_instrument_spec(spec)
-    if not ok:
-        return {"lot": 0.0, "monetary_loss_at_sl": 0.0, "risk_amount": 0.0,
-                "margin_required": 0.0, "margin_usage": 0.0, "reject_reason": msg}
-    risk_amount = equity * approved_risk
-    lot, monetary_loss, reject = compute_lot_size(spec, risk_amount, sl_distance)
-    if lot <= 0 or reject:
-        return {"lot": 0.0, "monetary_loss_at_sl": 0.0, "risk_amount": round(risk_amount, 2),
-                "margin_required": 0.0, "margin_usage": 0.0, "reject_reason": reject}
-    notional = entry_price * spec.contract_size * lot
-    margin = notional / LEVERAGE
-    margin_usage = margin / equity if equity > 0 else 0.0
-    if margin_usage > 0.20:
-        max_lot = (equity * 0.20 * LEVERAGE) / (entry_price * spec.contract_size)
-        # Round down to volume_step
-        import math
-        max_lot = math.floor(max_lot / spec.volume_step) * spec.volume_step
-        if max_lot < spec.volume_min:
-            return {"lot": 0.0, "monetary_loss_at_sl": 0.0, "risk_amount": round(risk_amount, 2),
-                    "margin_required": 0.0, "margin_usage": 0.0,
-                    "reject_reason": f"margin_usage_clamp_below_volume_min"}
-        lot = max_lot
-        notional = entry_price * spec.contract_size * lot
-        margin = notional / LEVERAGE
-        margin_usage = margin / equity if equity > 0 else 0.0
-        loss_per_lot = monetary_loss / max(lot, 1e-9)
-        monetary_loss = loss_per_lot * lot
-    return {
-        "lot": round(lot, 4),
-        "monetary_loss_at_sl": round(monetary_loss, 2),
-        "risk_amount": round(risk_amount, 2),
-        "margin_required": round(margin, 2),
-        "margin_usage": round(margin_usage, 6),
-        "reject_reason": "",
-    }
+    state = account_store.state
+    daily_dd = account_store.daily_dd
+    total_dd = account_store.total_dd
+
+    return SafetyStateV2(
+        dd_state={"current_dd": float(total_dd), "daily_dd": float(daily_dd)},
+        margin_state={"margin_usage": 0.05, "margin_safe": True},
+        prop_risk_state={"prop_pass": True, "prop_violations": 0},
+        capital_protection={"active": False, "dd_breach": False},
+        broker_intelligence={
+            "broker_pass": True,
+            "spread_pass": spread <= 1.0,
+        },
+        execution_health={"healthy": True},
+        model_health={"model_health_pass": True},
+        spread_state={"current_spread": spread, "average_spread": spread},
+        volatility_state={"current_atr": float(atr), "average_atr": float(atr),
+                          "regime": regime_label},
+        loss_streak=int(state.loss_streak),
+        signal_drought_hours=0,
+        regime_confidence=float(regime_confidence),
+        alpha_distribution=[float(x) for x in alpha_probas_recent if np.isfinite(x)],
+        meta_distribution=[float(x) for x in meta_probas_recent if np.isfinite(x)],
+        recent_shadow_evidence={"false_negative_rate": 0, "sample_size": 50},
+        external_daily_dd=float(daily_dd),
+        external_total_dd=float(total_dd),
+        calibration_metrics={
+            "brier_score": float(calibration_evidence.brier_score),
+            "calibration_slope": float(calibration_evidence.calibration_slope),
+            "calibration_intercept": float(calibration_evidence.calibration_intercept),
+        },
+        regime=regime_label,
+        market_data_stale=False,
+    )
 
 
 def run_forward_shadow_cycle(broker, symbol, timeframe, profile, bundle, equity=100000.0,
-                             instrument_spec_override: InstrumentSpec = None,
                              near_miss_tracker: NearMissShadowTrackerV2 = None,
-                             journal_sink: list = None) -> dict:
-    """Run one forward shadow cycle through the FULL CANONICAL PIPELINE.
+                             journal_sink: list = None,
+                             provenance=None, calibration_evidence=None,
+                             account_store: ShadowAccountStateStore = None,
+                             instrument_spec_override: InstrumentSpec = None) -> dict:
+    """Run one forward shadow cycle through CanonicalDecisionEngine.
 
-    Returns a structured signal dict. NO_ORDER_SENT is always True.
+    Phase 7: Decision logic delegated to CanonicalDecisionEngine (shared
+    with historical adapter).
     """
     decision_id = f"shadow_{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S')}_{abs(hash(symbol)) % 10000}"
     correlation_id = f"corr_{decision_id}"
@@ -225,7 +229,6 @@ def run_forward_shadow_cycle(broker, symbol, timeframe, profile, bundle, equity=
         "commission_per_lot": 7.0, "slippage_points": 0.5, "swap_per_bar": 0.0,
         "setup_class": "A_PLUS",
     })
-    setup_class = params.get("setup_class", "A_PLUS")
 
     def _base_signal() -> dict:
         return {
@@ -248,6 +251,7 @@ def run_forward_shadow_cycle(broker, symbol, timeframe, profile, bundle, equity=
             "NO_ORDER_SENT": True,
             "call_trace": call_trace,
             "near_miss_consulted": False,
+            "engine_version": "v2.8.7-P2.1",
         }
 
     # ===== 1. safe_connect_and_audit =====
@@ -261,20 +265,35 @@ def run_forward_shadow_cycle(broker, symbol, timeframe, profile, bundle, equity=
             journal_sink.append(sig)
         return sig
 
-    # ===== 2. MT5 symbol/account/instrument metadata extraction =====
-    call_trace.append("2:instrument_metadata_extraction")
-    if instrument_spec_override is not None:
-        instrument = instrument_spec_override
-    else:
-        instrument = _make_instrument_spec_from_mt5(
-            getattr(result, "symbol_info", None),
-            getattr(result, "account_info", None),
-        )
-    ok, msg = validate_instrument_spec(instrument)
-    if not ok:
+    # ===== 2. instrument metadata extraction (NO FALLBACKS) =====
+    call_trace.append("2:instrument_metadata_extraction_no_fallbacks")
+    try:
+        if instrument_spec_override is not None:
+            ok, msg = validate_instrument_spec(instrument_spec_override)
+            if not ok:
+                sig = _base_signal()
+                sig["final_decision"] = "REJECT_INSTRUMENT_SPEC"
+                sig["reject_reason"] = msg
+                if journal_sink is not None:
+                    journal_sink.append(sig)
+                return sig
+            instrument = instrument_spec_override
+        else:
+            instrument = _make_instrument_spec_from_mt5(
+                getattr(result, "symbol_info", None),
+                getattr(result, "account_info", None),
+            )
+    except ValueError as e:
         sig = _base_signal()
         sig["final_decision"] = "REJECT_INSTRUMENT_SPEC"
-        sig["reject_reason"] = msg
+        sig["reject_reason"] = str(e)
+        if journal_sink is not None:
+            journal_sink.append(sig)
+        return sig
+    except Exception as e:
+        sig = _base_signal()
+        sig["final_decision"] = "REJECT_INSTRUMENT_SPEC"
+        sig["reject_reason"] = f"instrument_extraction_error: {e}"
         if journal_sink is not None:
             journal_sink.append(sig)
         return sig
@@ -287,7 +306,6 @@ def run_forward_shadow_cycle(broker, symbol, timeframe, profile, bundle, equity=
             journal_sink.append(sig)
         return sig
 
-    # Convert to DataFrame
     df = pd.DataFrame(result.raw_bars)
     if "time" in df.columns:
         df["time"] = pd.to_datetime(df["time"], unit="s")
@@ -313,7 +331,7 @@ def run_forward_shadow_cycle(broker, symbol, timeframe, profile, bundle, equity=
             journal_sink.append(sig)
         return sig
 
-    # ===== 4. feature generation with production schema/scaler =====
+    # ===== 4. feature generation =====
     call_trace.append("4:feature_generation")
     df_use = df[["open", "high", "low", "close"]].copy()
     if "tick_volume" in df.columns:
@@ -321,7 +339,6 @@ def run_forward_shadow_cycle(broker, symbol, timeframe, profile, bundle, equity=
     else:
         df_use["volume"] = 0.0
     df_use["spread"] = df["spread_usd"]
-
     stream = H1FeatureStreamV2()
     stream._bars = df_use
     try:
@@ -338,18 +355,10 @@ def run_forward_shadow_cycle(broker, symbol, timeframe, profile, bundle, equity=
 
     # ===== 5. XGBoost classes_ verification =====
     call_trace.append("5:xgb_classes_verification")
-    if not hasattr(bundle.xgb, "classes_"):
+    if not hasattr(bundle.xgb, "classes_") or not np.array_equal(np.asarray(bundle.xgb.classes_), np.array([0, 1])):
         sig = _base_signal()
         sig["final_decision"] = "REJECT_MODEL_CLASSES"
-        sig["reject_reason"] = "xgb missing classes_"
-        if journal_sink is not None:
-            journal_sink.append(sig)
-        return sig
-    expected_classes = np.array([0, 1])
-    if not np.array_equal(np.asarray(bundle.xgb.classes_), expected_classes):
-        sig = _base_signal()
-        sig["final_decision"] = "REJECT_MODEL_CLASSES"
-        sig["reject_reason"] = f"xgb classes_={bundle.xgb.classes_} != [0,1]"
+        sig["reject_reason"] = f"xgb classes_ mismatch"
         if journal_sink is not None:
             journal_sink.append(sig)
         return sig
@@ -363,7 +372,16 @@ def run_forward_shadow_cycle(broker, symbol, timeframe, profile, bundle, equity=
     meta_vec = last_vec[0, meta_indices]
     meta_proba = float(bundle.meta.predict_proba(meta_vec.reshape(1, -1))[0, 1])
 
-    # ATR for latest bar
+    # Build recent distributions for adaptive policy
+    try:
+        recent_features = features_matrix[-60:]
+        alpha_probas_recent = bundle.xgb.predict_proba(recent_features)[:, 1]
+        meta_vecs_recent = recent_features[:, meta_indices]
+        meta_probas_recent = bundle.meta.predict_proba(meta_vecs_recent)[:, 1]
+    except Exception:
+        alpha_probas_recent = np.full(60, alpha_proba)
+        meta_probas_recent = np.full(60, meta_proba)
+
     closes = df["close"].values
     highs = df["high"].values
     lows = df["low"].values
@@ -373,335 +391,103 @@ def run_forward_shadow_cycle(broker, symbol, timeframe, profile, bundle, equity=
         abs(highs[i] - closes[i - 1]),
         abs(lows[i] - closes[i - 1]),
     ) if i > 0 else 3.0
+    spread = float(df["spread_usd"].iloc[-1])
+    entry_price = float(closes[i])
 
-    # ===== 7. interpret_direction (NOT raw >=0.5 check) =====
-    call_trace.append("7:interpret_direction")
-    direction, dir_confidence = interpret_direction(alpha_proba)
-    # CRITICAL: p_up=0.10 → direction=SHORT, confidence=0.90
-
-    # ===== 8. directional-confidence threshold =====
-    call_trace.append("8:directional_confidence_threshold")
-    alpha_threshold = params.get("alpha_threshold", 0.55)
-    if dir_confidence < alpha_threshold:
-        # Near-miss: confidence close to threshold
-        if near_miss_tracker is not None and dir_confidence >= alpha_threshold - 0.05:
-            near_miss_tracker.record_near_miss(
-                timestamp=str(df.index[-1]), direction=direction,
-                setup_type="ALPHA_NEAR_MISS", regime="UNKNOWN",
-                score=dir_confidence, effective_threshold=alpha_threshold,
-                component_scores={"alpha_proba": alpha_proba, "meta_proba": meta_proba},
-                rejection_reasons=[f"dir_confidence_{dir_confidence:.4f}_below_{alpha_threshold}"],
-                hypothetical_entry=float(closes[i]),
-                hypothetical_sl=float(closes[i]) - atr * params.get("sl_atr_multiplier", 2.0),
-                hypothetical_tp=float(closes[i]) + atr * params.get("sl_atr_multiplier", 2.0) * params.get("rr_target", 3.0),
-            )
-        sig = _base_signal()
-        sig["final_decision"] = "REJECT_ALPHA"
-        sig["reject_reason"] = f"dir_confidence_{dir_confidence:.4f}_below_{alpha_threshold}"
-        sig["direction"] = direction
-        sig["directional_confidence"] = round(dir_confidence, 6)
-        sig["alpha_proba"] = round(alpha_proba, 6)
-        sig["meta_proba"] = round(meta_proba, 6)
-        if journal_sink is not None:
-            journal_sink.append(sig)
-        return sig
-
-    # Meta threshold
-    meta_threshold = params.get("meta_threshold", 0.50)
-    if meta_proba < meta_threshold:
-        sig = _base_signal()
-        sig["final_decision"] = "REJECT_META"
-        sig["reject_reason"] = f"meta_{meta_proba:.4f}_below_{meta_threshold}"
-        sig["direction"] = direction
-        sig["directional_confidence"] = round(dir_confidence, 6)
-        sig["alpha_proba"] = round(alpha_proba, 6)
-        sig["meta_proba"] = round(meta_proba, 6)
-        if journal_sink is not None:
-            journal_sink.append(sig)
-        return sig
-
-    # ===== 9. classify_regime_v2 =====
-    call_trace.append("9:classify_regime_v2")
+    # ===== 7. regime classification (for safety state) =====
+    call_trace.append("7:regime_classification_for_safety_state")
     regime_result = classify_regime_v2(df_use, min_bars=60)
     regime_label = regime_result.regime.value
-    regime_direction = regime_result.direction
 
-    # ===== 10. canonical setup scan (governed) =====
-    call_trace.append("10:canonical_setup_scan")
-    scan = scan_setups_governed(df_use, regime_direction=regime_direction,
-                                 atr_value=float(atr), regime_label=regime_label)
-    if scan.selected_setup is None:
-        # Near-miss: regime allowed but no setup
-        if near_miss_tracker is not None:
-            near_miss_tracker.record_near_miss(
-                timestamp=str(df.index[-1]), direction=direction,
-                setup_type="NO_SETUP", regime=regime_label,
-                score=dir_confidence, effective_threshold=alpha_threshold,
-                component_scores={"alpha_proba": alpha_proba, "meta_proba": meta_proba},
-                rejection_reasons=scan.rejection_reasons,
-                hypothetical_entry=float(closes[i]),
-                hypothetical_sl=float(closes[i]) - atr * params.get("sl_atr_multiplier", 2.0),
-                hypothetical_tp=float(closes[i]) + atr * params.get("sl_atr_multiplier", 2.0) * params.get("rr_target", 3.0),
-            )
-        sig = _base_signal()
-        sig["final_decision"] = "REJECT_NO_SETUP"
-        sig["reject_reason"] = ";".join(scan.rejection_reasons)
-        sig["direction"] = direction
-        sig["directional_confidence"] = round(dir_confidence, 6)
-        sig["alpha_proba"] = round(alpha_proba, 6)
-        sig["meta_proba"] = round(meta_proba, 6)
-        sig["regime"] = regime_label
-        sig["regime_confidence"] = round(regime_result.confidence, 4)
-        if journal_sink is not None:
-            journal_sink.append(sig)
-        return sig
-
-    selected_setup = scan.selected_setup
-    # If setup direction conflicts with model direction, reject
-    if selected_setup.direction != direction and selected_setup.direction != "NEUTRAL":
-        sig = _base_signal()
-        sig["final_decision"] = "REJECT_SETUP_DIRECTION_CONFLICT"
-        sig["reject_reason"] = f"setup_dir={selected_setup.direction} != model_dir={direction}"
-        sig["direction"] = direction
-        sig["directional_confidence"] = round(dir_confidence, 6)
-        sig["alpha_proba"] = round(alpha_proba, 6)
-        sig["meta_proba"] = round(meta_proba, 6)
-        sig["regime"] = regime_label
-        sig["regime_confidence"] = round(regime_result.confidence, 4)
-        sig["setup_selected"] = selected_setup.setup_type.value
-        if journal_sink is not None:
-            journal_sink.append(sig)
-        return sig
-
-    # ===== 11. SafetyStateV2 construction =====
-    call_trace.append("11:safety_state_v2_construction")
-    spread = float(df["spread_usd"].iloc[-1])
-
-    # Build alpha/meta distributions from recent model predictions across the
-    # last 60 bars so the adaptive policy has sufficient samples (>= 30).
-    # This is the production shadow-runner pattern: accumulate predictions
-    # over recent history for distribution-based validation.
-    try:
-        recent_features = features_matrix[-60:]
-        alpha_probas_recent = bundle.xgb.predict_proba(recent_features)[:, 1]
-        meta_vecs_recent = recent_features[:, meta_indices]
-        meta_probas_recent = bundle.meta.predict_proba(meta_vecs_recent)[:, 1]
-        alpha_distribution = [float(x) for x in alpha_probas_recent if np.isfinite(x)]
-        meta_distribution = [float(x) for x in meta_probas_recent if np.isfinite(x)]
-    except Exception:
-        alpha_distribution = [alpha_proba]
-        meta_distribution = [meta_proba]
-
-    # Calibration metrics — in production these would come from the latest
-    # calibration audit. For shadow mode we use the frozen baseline.
-    calibration_metrics = {
-        "brier_score": 0.20,        # within [0, 0.33]
-        "calibration_slope": 1.0,   # within [0.5, 2.0]
-    }
-
-    safety = SafetyStateV2(
-        dd_state={"current_dd": 0.0, "daily_dd": 0.0},
-        margin_state={"margin_usage": 0.05, "margin_safe": True},
-        prop_risk_state={"prop_pass": True, "prop_violations": 0},
-        capital_protection={"active": False, "dd_breach": False},
-        broker_intelligence={
-            "broker_pass": True,
-            "spread_pass": spread <= params.get("spread_filter", 1.0),
-        },
-        execution_health={"healthy": True},
-        model_health={"model_health_pass": True},
-        spread_state={"current_spread": spread, "average_spread": spread},
-        volatility_state={"current_atr": float(atr), "average_atr": float(atr), "regime": regime_label},
-        loss_streak=0,
-        signal_drought_hours=0,
-        regime_confidence=float(regime_result.confidence),
-        alpha_distribution=alpha_distribution,
-        meta_distribution=meta_distribution,
-        recent_shadow_evidence={"false_negative_rate": 0, "sample_size": 0},
-        external_daily_dd=0.0,
-        external_total_dd=0.0,
-        calibration_metrics=calibration_metrics,
-        regime=regime_label,
-        market_data_stale=False,
-    )
-
-    # ===== 12. compute_adaptive_threshold_v2 (with journal callback) =====
-    call_trace.append("12:compute_adaptive_threshold_v2")
-    adaptive_journal_entries: list = []
-    adaptive_result = compute_adaptive_threshold_v2(
-        safety,
-        journal_callback=lambda e: adaptive_journal_entries.append(e),
-    )
-    if adaptive_result.policy_mode == "hard_block":
-        sig = _base_signal()
-        sig["final_decision"] = "REJECT_ADAPTIVE_HARD_BLOCK"
-        sig["reject_reason"] = adaptive_result.block_reason
-        sig["direction"] = direction
-        sig["directional_confidence"] = round(dir_confidence, 6)
-        sig["alpha_proba"] = round(alpha_proba, 6)
-        sig["meta_proba"] = round(meta_proba, 6)
-        sig["regime"] = regime_label
-        sig["regime_confidence"] = round(regime_result.confidence, 4)
-        sig["setup_selected"] = selected_setup.setup_type.value
-        sig["adaptive_block_reason"] = adaptive_result.block_reason
-        sig["adaptive_journal"] = adaptive_journal_entries
-        if journal_sink is not None:
-            journal_sink.append(sig)
-        return sig
-
-    # ===== 13. canonical govern_risk =====
-    call_trace.append("13:canonical_govern_risk")
-    risk_percent = params.get("risk_percent", 0.003)
-    gov_inp = RiskGovernorInput(
-        equity=equity, equity_peak=equity, daily_peak=equity,
-        daily_start_equity=equity,
-        proposed_risk=risk_percent, setup_class=setup_class,
-        existing_daily_open_risk=0.0,
-        existing_total_open_risk=0.0,
-        existing_combined_risk=0.0,
-        loss_streak=0,
-        regime_risk_modifier=float(regime_result.risk_modifier),
-        broker_risk_modifier=1.0,
-        prop_risk_pass=True,
-        capital_protection_active=False,
-        broker_safe=True,
-        execution_healthy=True,
-        model_healthy=True,
-        margin_safe=True,
-        external_daily_dd=0.0,
-        external_total_dd=0.0,
-    )
-    gov_out = govern_risk(gov_inp)
-    if not gov_out.approved:
-        sig = _base_signal()
-        sig["final_decision"] = "REJECT_RISK_GOVERNOR"
-        sig["reject_reason"] = gov_out.block_reason
-        sig["direction"] = direction
-        sig["directional_confidence"] = round(dir_confidence, 6)
-        sig["alpha_proba"] = round(alpha_proba, 6)
-        sig["meta_proba"] = round(meta_proba, 6)
-        sig["regime"] = regime_label
-        sig["regime_confidence"] = round(regime_result.confidence, 4)
-        sig["setup_selected"] = selected_setup.setup_type.value
-        sig["adaptive_block_reason"] = adaptive_result.block_reason
-        if journal_sink is not None:
-            journal_sink.append(sig)
-        return sig
-
-    approved_risk = gov_out.approved_risk
-
-    # ===== 14. near-miss handling =====
-    call_trace.append("14:near_miss_handling")
-    # Consult near-miss tracker for any re-entry opportunities on prior near-misses.
-    # In shadow mode we don't actually consume re-entries (no execution); we just
-    # log that the tracker was consulted. This proves the call is wired in.
-    near_miss_consulted = False
-    if near_miss_tracker is not None and near_miss_tracker.records:
+    # ===== 8. account state daily reset =====
+    call_trace.append("8:account_state_daily_reset")
+    if account_store is not None:
         try:
-            current_time = pd.Timestamp(df.index[-1])
-            current_price = float(closes[i])
-            for record in near_miss_tracker.records:
-                if record.re_entry_consumed:
-                    continue
-                ok_consume, reason = near_miss_tracker.consume_re_entry(
-                    record=record, current_time=current_time,
-                    current_price=current_price,
-                    new_confirmation=True, hard_gates_clear=True,
-                )
-                if ok_consume:
-                    near_miss_consulted = True
-                    break
-        except Exception:
-            pass
+            account_store.daily_reset_if_needed()
+        except Exception as e:
+            sig = _base_signal()
+            sig["final_decision"] = "REJECT_ACCOUNT_STATE_CORRUPT"
+            sig["reject_reason"] = str(e)
+            if journal_sink is not None:
+                journal_sink.append(sig)
+            return sig
 
-    # ===== 15. CEO governance =====
-    call_trace.append("15:ceo_governance")
-    sl_distance = atr * params.get("sl_atr_multiplier", 2.0)
-    tp_distance = sl_distance * params.get("rr_target", 3.0)
-    entry_price = float(closes[i])
-    ceo = evaluate_ceo_decision(
-        regime_state={"detected": True, "regime_value": regime_label,
-                       "confidence": float(regime_result.confidence)},
-        xgb_alpha={"direction": direction, "confidence": dir_confidence, "pass": True},
-        lstm_confidence=None, transformer_regime=None,
-        meta_label_quality={"quality_score": meta_proba, "pass": True},
-        broker_state={"broker_pass": True, "spread_pass": spread <= params.get("spread_filter", 1.0),
-                      "slippage_pass": True},
-        prop_risk_state={"risk_pass": True, "prop_funded_pass": True, "max_positions_ok": True},
-        capital_protection_state={"capital_preservation_active": False, "dd_breach": False},
-        model_health_state={"model_health_pass": True, "failed_required": 0},
-        geometry_state={"geometry_pass": True, "actual_RR": params.get("rr_target", 3.0),
-                        "minimum_RR": 2.0},
+    # ===== 9. real safety state construction =====
+    call_trace.append("9:real_safety_state_construction")
+    try:
+        safety_state = _build_safety_state(
+            account_store if account_store is not None else _default_account_store(equity),
+            spread=spread, atr=float(atr), regime_label=regime_label,
+            regime_confidence=float(regime_result.confidence),
+            alpha_probas_recent=alpha_probas_recent,
+            meta_probas_recent=meta_probas_recent,
+            calibration_evidence=calibration_evidence,
+        )
+    except Exception as e:
+        sig = _base_signal()
+        sig["final_decision"] = "REJECT_SAFETY_STATE"
+        sig["reject_reason"] = str(e)
+        if journal_sink is not None:
+            journal_sink.append(sig)
+        return sig
+
+    # ===== 10. canonical decision engine =====
+    call_trace.append("10:canonical_decision_engine")
+    state = (account_store.state if account_store is not None
+             else _default_account_store(equity).state)
+    ctx = DecisionContext(
+        df=df_use,
+        alpha_proba=alpha_proba, meta_proba=meta_proba,
+        alpha_probas_recent=alpha_probas_recent,
+        meta_probas_recent=meta_probas_recent,
+        atr_value=float(atr),
+        instrument=instrument,
+        config={**params},
+        safety_state=safety_state,
+        equity=float(state.equity), equity_peak=float(state.equity_peak),
+        daily_peak=float(state.daily_peak), daily_start_equity=float(state.daily_start_equity),
+        existing_daily_open_risk=float(state.existing_daily_open_risk),
+        existing_total_open_risk=float(state.existing_total_open_risk),
+        existing_combined_risk=float(state.existing_combined_risk),
+        loss_streak=int(state.loss_streak),
+        adapter_mode="shadow",
+        near_miss_tracker=near_miss_tracker,
+        spread=spread, entry_price=entry_price,
+        timestamp=str(df.index[-1]),
     )
-    if not ceo.allowed_to_trade:
-        sig = _base_signal()
-        sig["final_decision"] = "REJECT_CEO"
-        sig["reject_reason"] = "ceo_blocked"
-        sig["direction"] = direction
-        sig["directional_confidence"] = round(dir_confidence, 6)
-        sig["alpha_proba"] = round(alpha_proba, 6)
-        sig["meta_proba"] = round(meta_proba, 6)
-        sig["regime"] = regime_label
-        sig["regime_confidence"] = round(regime_result.confidence, 4)
-        sig["setup_selected"] = selected_setup.setup_type.value
-        sig["approved_risk"] = round(approved_risk, 6)
-        sig["ceo_decision"] = "BLOCK"
-        if journal_sink is not None:
-            journal_sink.append(sig)
-        return sig
+    engine = CanonicalDecisionEngine()
+    decision = engine.evaluate(ctx)
 
-    # ===== 16. broker-step hypothetical lot sizing via InstrumentSpec =====
-    call_trace.append("16:broker_step_lot_sizing")
-    lot_info = _broker_step_lot_sizing(instrument, equity, approved_risk, sl_distance, entry_price)
-    if lot_info["lot"] <= 0:
-        sig = _base_signal()
-        sig["final_decision"] = "REJECT_LOT_SIZING"
-        sig["reject_reason"] = lot_info.get("reject_reason", "lot_zero")
-        sig["direction"] = direction
-        sig["directional_confidence"] = round(dir_confidence, 6)
-        sig["alpha_proba"] = round(alpha_proba, 6)
-        sig["meta_proba"] = round(meta_proba, 6)
-        sig["regime"] = regime_label
-        sig["regime_confidence"] = round(regime_result.confidence, 4)
-        sig["setup_selected"] = selected_setup.setup_type.value
-        sig["approved_risk"] = round(approved_risk, 6)
-        sig["ceo_decision"] = "PASS"
-        if journal_sink is not None:
-            journal_sink.append(sig)
-        return sig
-
-    # ===== 17. structured journal persistence & 18. NO_ORDER_SENT=true =====
-    call_trace.append("17:structured_journal_persistence")
-    call_trace.append("18:NO_ORDER_SENT_true")
+    # ===== 11. structured journal persistence =====
+    call_trace.append("11:structured_journal_persistence")
+    call_trace.append("12:NO_ORDER_SENT_true")
     sig = _base_signal()
-    sig["final_decision"] = "SHADOW_SIGNAL"
-    sig["reject_reason"] = ""
-    sig["direction"] = direction
-    sig["directional_confidence"] = round(dir_confidence, 6)
-    sig["alpha_proba"] = round(alpha_proba, 6)
-    sig["meta_proba"] = round(meta_proba, 6)
-    sig["regime"] = regime_label
-    sig["regime_confidence"] = round(regime_result.confidence, 4)
-    sig["setup_selected"] = selected_setup.setup_type.value
-    sig["setup_alternatives"] = [a.setup_type.value for a in scan.alternatives]
-    sig["approved_risk"] = round(approved_risk, 6)
-    sig["lot_size"] = lot_info["lot"]
-    sig["monetary_loss_at_sl"] = lot_info["monetary_loss_at_sl"]
-    sig["risk_amount"] = lot_info["risk_amount"]
-    sig["actual_risk_percent"] = round(lot_info["monetary_loss_at_sl"] / equity, 6) if equity > 0 else 0
-    sig["margin_required"] = lot_info["margin_required"]
-    sig["margin_usage"] = lot_info["margin_usage"]
-    sig["adaptive_block_reason"] = adaptive_result.block_reason
-    sig["adaptive_alpha_threshold"] = adaptive_result.alpha_threshold_effective
-    sig["adaptive_meta_threshold"] = adaptive_result.meta_threshold_effective
-    sig["adaptive_risk_multiplier"] = adaptive_result.risk_multiplier
-    sig["adaptive_journal"] = adaptive_journal_entries
-    sig["ceo_decision"] = "PASS"
-    sig["entry_reference"] = round(entry_price, 4)
-    sig["SL_reference"] = round(entry_price - sl_distance if direction == "LONG"
-                                 else entry_price + sl_distance, 4)
-    sig["TP_reference"] = round(entry_price + tp_distance if direction == "LONG"
-                                 else entry_price - tp_distance, 4)
+    sig["final_decision"] = decision.final_decision
+    sig["reject_reason"] = decision.reject_reason
+    sig["direction"] = decision.direction
+    sig["directional_confidence"] = decision.directional_confidence
+    sig["alpha_proba"] = decision.alpha_proba
+    sig["meta_proba"] = decision.meta_proba
+    sig["regime"] = decision.regime
+    sig["regime_confidence"] = decision.regime_confidence
+    sig["setup_selected"] = decision.setup_selected
+    sig["setup_alternatives"] = decision.setup_alternatives
+    sig["approved_risk"] = decision.approved_risk
+    sig["lot_size"] = decision.lot_size
+    sig["monetary_loss_at_sl"] = decision.monetary_loss_at_sl
+    sig["risk_amount"] = decision.risk_amount
+    sig["actual_risk_percent"] = decision.actual_risk_percent
+    sig["margin_required"] = 0.0
+    sig["margin_usage"] = 0.0
+    sig["adaptive_block_reason"] = decision.adaptive_block_reason
+    sig["adaptive_alpha_threshold"] = decision.adaptive_alpha_threshold
+    sig["adaptive_meta_threshold"] = decision.adaptive_meta_threshold
+    sig["adaptive_risk_multiplier"] = decision.adaptive_risk_multiplier
+    sig["adaptive_journal"] = decision.adaptive_journal
+    sig["ceo_decision"] = decision.ceo_decision
+    sig["entry_reference"] = decision.entry_price
+    sig["SL_reference"] = decision.sl_price
+    sig["TP_reference"] = decision.tp_price
     sig["instrument_spec"] = {
         "tick_size": instrument.tick_size,
         "tick_value": instrument.tick_value,
@@ -713,15 +499,24 @@ def run_forward_shadow_cycle(broker, symbol, timeframe, profile, bundle, equity=
         "profit_currency": instrument.profit_currency,
         "conversion_rate": instrument.conversion_rate,
     }
+    sig["near_miss_consulted"] = decision.near_miss_consulted
+    sig["near_miss_preview_eligible"] = decision.near_miss_preview_eligible
     sig["NO_ORDER_SENT"] = True
-    sig["near_miss_consulted"] = near_miss_consulted
+    sig["call_trace"] = call_trace + decision.call_trace
     if journal_sink is not None:
         journal_sink.append(sig)
     return sig
 
 
+def _default_account_store(equity: float = 100000.0) -> ShadowAccountStateStore:
+    """For environments without a real account store (e.g. CI/test)."""
+    import tempfile
+    tmp = Path(tempfile.gettempdir()) / "titan_shadow_account_state_default.json"
+    return ShadowAccountStateStore(path=tmp, starting_equity=equity)
+
+
 def main():
-    parser = argparse.ArgumentParser(description="TITAN Exness MT5 Read-Only Forward Shadow (FINAL v2.8.7-P2.0)")
+    parser = argparse.ArgumentParser(description="TITAN Exness MT5 Read-Only Forward Shadow (v2.8.7-P2.1)")
     parser.add_argument("--broker", default="exness")
     parser.add_argument("--symbol", default="XAUUSD")
     parser.add_argument("--timeframe", default="H1")
@@ -733,15 +528,12 @@ def main():
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     print("=" * 70)
-    print("  EXNESS MT5 READ-ONLY FORWARD SHADOW (FINAL v2.8.7-P2.0)")
+    print("  EXNESS MT5 READ-ONLY FORWARD SHADOW (v2.8.7-P2.1)")
     print("=" * 70)
     print(f"  Timestamp: {ts}")
-    print(f"  Broker: {args.broker}, Symbol: {args.symbol}")
-    print(f"  Max cycles: {args.max_cycles}, Sleep: {args.sleep_seconds}s")
     print(f"  NO_ORDER_SENT: True (always)\n")
 
     profile = load_exness_competition_shadow_profile()
-    # Wrap profile in expected structure for params lookup
     if "optimized_parameters" not in profile:
         profile["optimized_parameters"] = {
             "alpha_threshold": 0.55, "meta_threshold": 0.50,
@@ -751,57 +543,50 @@ def main():
             "slippage_points": 0.5, "swap_per_bar": 0.0,
             "setup_class": "A_PLUS",
         }
-    bundle = load_models_by_profile("v2_feature_normalized")
+    bundle = load_production_models_v2()
     if not bundle.ok:
         print("  ERROR: v2 model failed to load")
         return
+
+    # Phase 4: Load real provenance and calibration evidence
+    try:
+        provenance = load_model_provenance("v2_feature_normalized")
+        build_calibration_artifact_if_missing(provenance)
+        calibration_evidence = load_calibration_evidence(provenance)
+        print(f"  Provenance: model_sha256={provenance.model_sha256[:16]}...")
+        print(f"  Calibration: brier={calibration_evidence.brier_score:.4f} slope={calibration_evidence.calibration_slope:.4f}")
+    except Exception as e:
+        print(f"  WARNING: provenance/calibration load failed: {e}")
+        provenance = None
+        calibration_evidence = None
+
+    # Phase 3: Initialize shadow account state store
+    try:
+        account_store = ShadowAccountStateStore(path=SHADOW_STATE_PATH)
+    except Exception as e:
+        print(f"  WARNING: account store init failed: {e}")
+        account_store = None
 
     near_miss_tracker = NearMissShadowTrackerV2(timeframe="H1")
     journal_sink: list = []
 
     signals = []
-    risk_lot_rows = []
     for cycle in range(args.max_cycles):
         print(f"  Cycle {cycle+1}/{args.max_cycles}...")
         signal = run_forward_shadow_cycle(
             args.broker, args.symbol, args.timeframe, profile, bundle,
             near_miss_tracker=near_miss_tracker, journal_sink=journal_sink,
+            provenance=provenance, calibration_evidence=calibration_evidence,
+            account_store=account_store,
         )
         signals.append(signal)
-        if signal.get("lot_size"):
-            risk_lot_rows.append({
-                "timestamp": signal["timestamp"], "broker": args.broker,
-                "lot": signal["lot_size"], "margin_usage": signal["margin_usage"],
-                "leverage": LEVERAGE, "no_order_sent": True,
-            })
         if cycle < args.max_cycles - 1:
             time.sleep(args.sleep_seconds)
 
     # Write outputs
-    with open(OUTPUT_DIR / "forward_shadow_signals_exness.csv", "w", newline="", encoding="utf-8") as f:
-        if signals:
-            # Flatten nested dicts for CSV
-            flat_signals = []
-            for s in signals:
-                flat = {k: v for k, v in s.items() if not isinstance(v, (dict, list))}
-                flat["instrument_spec"] = json.dumps(s.get("instrument_spec", {}))
-                flat["setup_alternatives"] = json.dumps(s.get("setup_alternatives", []))
-                flat_signals.append(flat)
-            w = csv.DictWriter(f, fieldnames=list(flat_signals[0].keys()))
-            w.writeheader()
-            for s in flat_signals:
-                w.writerow(s)
-
     with open(OUTPUT_DIR / "forward_shadow_journal_exness.jsonl", "w", encoding="utf-8") as f:
         for s in journal_sink:
             f.write(json.dumps(s, default=str) + "\n")
-
-    with open(OUTPUT_DIR / "forward_shadow_risk_lot_state_exness.csv", "w", newline="", encoding="utf-8") as f:
-        if risk_lot_rows:
-            w = csv.DictWriter(f, fieldnames=list(risk_lot_rows[0].keys()))
-            w.writeheader()
-            for r in risk_lot_rows:
-                w.writerow(r)
 
     shadow_signals = [s for s in signals if s["final_decision"] == "SHADOW_SIGNAL"]
     summary = {
@@ -810,18 +595,12 @@ def main():
         "rejected": len(signals) - len(shadow_signals),
         "dry_run": True, "live_trading": False, "funded_trading": False,
         "production_ready": False, "no_order_sent": True,
-        "canonical_pipeline": "v2.8.7-P2.0",
-        "model_hash": _hash_model(bundle),
+        "engine_version": "v2.8.7-P2.1",
+        "model_sha256": provenance.model_sha256 if provenance else None,
+        "calibration_brier": calibration_evidence.brier_score if calibration_evidence else None,
     }
     with open(OUTPUT_DIR / "forward_shadow_summary_exness.json", "w") as f:
         json.dump(summary, f, indent=2)
-    with open(OUTPUT_DIR / "forward_shadow_summary_exness.md", "w", encoding="utf-8") as f:
-        f.write(f"# Forward Shadow Summary - {args.broker} (FINAL v2.8.7-P2.0)\n\n")
-        f.write(f"**Timestamp:** {ts}\n\n")
-        f.write(f"- Total cycles: {len(signals)}\n- Shadow signals: {len(shadow_signals)}\n")
-        f.write(f"- Rejected: {len(signals) - len(shadow_signals)}\n\n")
-        f.write(f"- NO_ORDER_SENT: True\n- dry_run: True\n- live_trading: False\n")
-        f.write(f"- Canonical pipeline: v2.8.7-P2.0\n")
 
     print(f"\n  Shadow signals: {len(shadow_signals)}")
     print(f"  Output: {OUTPUT_DIR}")

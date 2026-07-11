@@ -61,30 +61,90 @@ class ScanResultV2:
 
 
 # Regime → allowed setup types mapping
+# EVERY RegimeTypeV2 value has an EXACT policy (Phase 5).
+# Empty allowed set means NO setups allowed (not all setups).
 REGIME_ALLOWED_SETUPS: Dict[str, set] = {
     "STRONG_BULL_TREND": {"PULLBACK", "BREAKOUT", "BREAKOUT_RETEST", "BULLISH_BREAK_OF_STRUCTURE",
                           "LIQUIDITY_SWEEP", "CONTINUATION", "FAIR_VALUE_GAP"},
-    "BULL_TREND": {"PULLBACK", "BREAKOUT_RETEST", "BULLISH_BREAK_OF_STRUCTURE",
-                   "CONTINUATION", "FAIR_VALUE_GAP"},
-    "BULL_PULLBACK": {"PULLBACK", "FAIR_VALUE_GAP"},
-    "RANGE_BOUND": {"RANGE_EDGE_REJECTION", "FAILED_BREAKOUT", "FAIR_VALUE_GAP"},
-    "BEAR_PULLBACK": {"PULLBACK", "FAIR_VALUE_GAP"},
-    "BEAR_TREND": {"PULLBACK", "BREAKOUT_RETEST", "BEARISH_BREAK_OF_STRUCTURE",
-                   "CONTINUATION", "FAIR_VALUE_GAP"},
+    "WEAK_BULL_TREND": {"PULLBACK", "BREAKOUT_RETEST", "BULLISH_BREAK_OF_STRUCTURE",
+                         "CONTINUATION", "FAIR_VALUE_GAP"},
     "STRONG_BEAR_TREND": {"PULLBACK", "BREAKOUT", "BREAKOUT_RETEST", "BEARISH_BREAK_OF_STRUCTURE",
                           "LIQUIDITY_SWEEP", "CONTINUATION", "FAIR_VALUE_GAP"},
-    "UNKNOWN_UNSAFE": set(),
+    "WEAK_BEAR_TREND": {"PULLBACK", "BREAKOUT_RETEST", "BEARISH_BREAK_OF_STRUCTURE",
+                         "CONTINUATION", "FAIR_VALUE_GAP"},
+    "STABLE_RANGE": {"RANGE_EDGE_REJECTION", "FAILED_BREAKOUT", "FAIR_VALUE_GAP"},
+    "VOLATILITY_COMPRESSION": set(),  # unsafe — no setups
+    "BREAKOUT_EXPANSION": {"BREAKOUT", "BREAKOUT_RETEST", "FAIR_VALUE_GAP"},
+    "TRANSITION_CHOP": set(),  # unsafe — no setups
+    "SPREAD_STRESS": set(),  # unsafe — no setups
+    "LIQUIDITY_STRESS": set(),  # unsafe — no setups
+    "UNKNOWN_UNSAFE": set(),  # unsafe — no setups
 }
 
 REGIME_BLOCKED_SETUPS: Dict[str, set] = {
-    "STRONG_BULL_TREND": {"RANGE_EDGE_REJECTION", "BEARISH_BREAK_OF_STRUCTURE"},
-    "BULL_TREND": {"RANGE_EDGE_REJECTION", "BEARISH_BREAK_OF_STRUCTURE", "FAILED_BREAKOUT"},
-    "BULL_PULLBACK": {"BEARISH_BREAK_OF_STRUCTURE", "FAILED_BREAKOUT"},
-    "RANGE_BOUND": {"BULLISH_BREAK_OF_STRUCTURE", "BEARISH_BREAK_OF_STRUCTURE", "CONTINUATION"},
-    "BEAR_PULLBACK": {"BULLISH_BREAK_OF_STRUCTURE", "FAILED_BREAKOUT"},
-    "BEAR_TREND": {"RANGE_EDGE_REJECTION", "BULLISH_BREAK_OF_STRUCTURE", "FAILED_BREAKOUT"},
-    "STRONG_BEAR_TREND": {"RANGE_EDGE_REJECTION", "BULLISH_BREAK_OF_STRUCTURE"},
-    "UNKNOWN_UNSAFE": set(),
+    "STRONG_BULL_TREND": {"RANGE_EDGE_REJECTION", "BEARISH_BREAK_OF_STRUCTURE", "FAILED_BREAKOUT"},
+    "WEAK_BULL_TREND": {"RANGE_EDGE_REJECTION", "BEARISH_BREAK_OF_STRUCTURE", "FAILED_BREAKOUT"},
+    "STRONG_BEAR_TREND": {"RANGE_EDGE_REJECTION", "BULLISH_BREAK_OF_STRUCTURE", "FAILED_BREAKOUT"},
+    "WEAK_BEAR_TREND": {"RANGE_EDGE_REJECTION", "BULLISH_BREAK_OF_STRUCTURE", "FAILED_BREAKOUT"},
+    "STABLE_RANGE": {"BULLISH_BREAK_OF_STRUCTURE", "BEARISH_BREAK_OF_STRUCTURE", "CONTINUATION"},
+    "VOLATILITY_COMPRESSION": {"PULLBACK", "BREAKOUT", "BREAKOUT_RETEST",
+                                 "BULLISH_BREAK_OF_STRUCTURE", "BEARISH_BREAK_OF_STRUCTURE",
+                                 "LIQUIDITY_SWEEP", "RANGE_EDGE_REJECTION", "CONTINUATION",
+                                 "FAIR_VALUE_GAP", "FAILED_BREAKOUT"},
+    "BREAKOUT_EXPANSION": {"RANGE_EDGE_REJECTION", "PULLBACK", "BULLISH_BREAK_OF_STRUCTURE",
+                            "BEARISH_BREAK_OF_STRUCTURE", "CONTINUATION"},
+    "TRANSITION_CHOP": {"PULLBACK", "BREAKOUT", "BREAKOUT_RETEST",
+                          "BULLISH_BREAK_OF_STRUCTURE", "BEARISH_BREAK_OF_STRUCTURE",
+                          "LIQUIDITY_SWEEP", "RANGE_EDGE_REJECTION", "CONTINUATION",
+                          "FAIR_VALUE_GAP", "FAILED_BREAKOUT"},
+    "SPREAD_STRESS": {"PULLBACK", "BREAKOUT", "BREAKOUT_RETEST",
+                       "BULLISH_BREAK_OF_STRUCTURE", "BEARISH_BREAK_OF_STRUCTURE",
+                       "LIQUIDITY_SWEEP", "RANGE_EDGE_REJECTION", "CONTINUATION",
+                       "FAIR_VALUE_GAP", "FAILED_BREAKOUT"},
+    "LIQUIDITY_STRESS": {"PULLBACK", "BREAKOUT", "BREAKOUT_RETEST",
+                          "BULLISH_BREAK_OF_STRUCTURE", "BEARISH_BREAK_OF_STRUCTURE",
+                          "LIQUIDITY_SWEEP", "RANGE_EDGE_REJECTION", "CONTINUATION",
+                          "FAIR_VALUE_GAP", "FAILED_BREAKOUT"},
+    "UNKNOWN_UNSAFE": {"PULLBACK", "BREAKOUT", "BREAKOUT_RETEST",
+                        "BULLISH_BREAK_OF_STRUCTURE", "BEARISH_BREAK_OF_STRUCTURE",
+                        "LIQUIDITY_SWEEP", "RANGE_EDGE_REJECTION", "CONTINUATION",
+                        "FAIR_VALUE_GAP", "FAILED_BREAKOUT"},
+}
+
+# Risk modifier per regime (Phase 5 — every regime has an exact tested value)
+REGIME_RISK_MODIFIERS: Dict[str, float] = {
+    "STRONG_BULL_TREND": 1.0,
+    "WEAK_BULL_TREND": 0.85,
+    "STRONG_BEAR_TREND": 1.0,
+    "WEAK_BEAR_TREND": 0.85,
+    "STABLE_RANGE": 0.70,
+    "VOLATILITY_COMPRESSION": 0.0,   # blocked
+    "BREAKOUT_EXPANSION": 0.90,
+    "TRANSITION_CHOP": 0.0,           # blocked
+    "SPREAD_STRESS": 0.0,             # blocked
+    "LIQUIDITY_STRESS": 0.0,          # blocked
+    "UNKNOWN_UNSAFE": 0.0,            # blocked
+}
+
+# Threshold modifier per regime (added to alpha_threshold)
+REGIME_THRESHOLD_MODIFIERS: Dict[str, float] = {
+    "STRONG_BULL_TREND": 0.0,
+    "WEAK_BULL_TREND": 0.02,
+    "STRONG_BEAR_TREND": 0.0,
+    "WEAK_BEAR_TREND": 0.02,
+    "STABLE_RANGE": 0.05,
+    "VOLATILITY_COMPRESSION": 0.10,
+    "BREAKOUT_EXPANSION": 0.0,
+    "TRANSITION_CHOP": 0.10,
+    "SPREAD_STRESS": 0.10,
+    "LIQUIDITY_STRESS": 0.10,
+    "UNKNOWN_UNSAFE": 0.20,
+}
+
+# Regimes that are unsafe — selected_setup must be None
+UNSAFE_REGIMES: set = {
+    "VOLATILITY_COMPRESSION", "TRANSITION_CHOP", "SPREAD_STRESS",
+    "LIQUIDITY_STRESS", "UNKNOWN_UNSAFE",
 }
 
 
@@ -462,14 +522,35 @@ def scan_setups_governed(df: pd.DataFrame, regime_direction: str, atr_value: flo
     # 2. Enforce regime allowed/blocked
     if regime_label is None:
         regime_label = _infer_regime_label(regime_direction)
-    allowed = REGIME_ALLOWED_SETUPS.get(regime_label, set())
-    blocked = REGIME_BLOCKED_SETUPS.get(regime_label, set())
-    if regime_label == "UNKNOWN_UNSAFE":
-        rejection_reasons.append(f"regime_unknown_unsafe_blocks_all_setups")
+    # Phase 5: Unmapped regime → fail closed
+    if regime_label not in REGIME_ALLOWED_SETUPS:
+        rejection_reasons.append(f"regime_unmapped:{regime_label}")
         return ScanResultV2(
             selected_setup=None, alternatives=[],
             rejection_reasons=rejection_reasons,
-            ranking_evidence=["regime=UNKNOWN_UNSAFE → no candidates allowed"],
+            ranking_evidence=[f"regime={regime_label} not in policy matrix → fail closed"],
+            all_candidates=candidates,
+            decision="REGIME_BLOCKED",
+        )
+    allowed = REGIME_ALLOWED_SETUPS[regime_label]
+    blocked = REGIME_BLOCKED_SETUPS[regime_label]
+    # Phase 5: Unsafe regime → no setups allowed
+    if regime_label in UNSAFE_REGIMES:
+        rejection_reasons.append(f"regime_unsafe:{regime_label}")
+        return ScanResultV2(
+            selected_setup=None, alternatives=[],
+            rejection_reasons=rejection_reasons,
+            ranking_evidence=[f"regime={regime_label} is unsafe → no candidates allowed"],
+            all_candidates=candidates,
+            decision="REGIME_BLOCKED",
+        )
+    # Phase 5: Empty allowed set means NO setups allowed (not all)
+    if not allowed:
+        rejection_reasons.append(f"regime_empty_allowed_set:{regime_label}")
+        return ScanResultV2(
+            selected_setup=None, alternatives=[],
+            rejection_reasons=rejection_reasons,
+            ranking_evidence=[f"regime={regime_label} has empty allowed set → no candidates"],
             all_candidates=candidates,
             decision="REGIME_BLOCKED",
         )
@@ -556,13 +637,17 @@ def scan_setups_governed(df: pd.DataFrame, regime_direction: str, atr_value: flo
 
 
 def _infer_regime_label(regime_direction: str) -> str:
-    """Map simple regime_direction strings to regime labels for allowed/blocked enforcement."""
+    """Map simple regime_direction strings to regime labels for allowed/blocked enforcement.
+
+    Phase 5: This is ONLY a fallback. Real callers should pass the actual
+    RegimeTypeV2.value as regime_label. Unmapped → UNKNOWN_UNSAFE (fail closed).
+    """
     if regime_direction == "BULL":
-        return "BULL_TREND"
+        return "WEAK_BULL_TREND"
     if regime_direction == "BEAR":
-        return "BEAR_TREND"
+        return "WEAK_BEAR_TREND"
     if regime_direction in ("RANGE", "NEUTRAL"):
-        return "RANGE_BOUND"
+        return "STABLE_RANGE"
     return "UNKNOWN_UNSAFE"
 
 
@@ -575,4 +660,6 @@ __all__ = [
     "detect_break_of_structure",
     "scan_setups_v2", "scan_setups_governed",
     "REGIME_ALLOWED_SETUPS", "REGIME_BLOCKED_SETUPS",
+    "REGIME_RISK_MODIFIERS", "REGIME_THRESHOLD_MODIFIERS",
+    "UNSAFE_REGIMES",
 ]

@@ -139,29 +139,86 @@ class NearMissShadowTrackerV2:
             record.post_cost_hypothetical_outcome -= record.commission * lot_size / (sl_dist * 100)
             record.evaluated = True
 
-    def consume_re_entry(self, record: NearMissRecordV2, current_time: pd.Timestamp,
-                          current_price: float, new_confirmation: bool,
-                          hard_gates_clear: bool = True) -> tuple[bool, str]:
-        """DG10: Atomic consume_re_entry — validates and marks consumed internally."""
+    def preview_re_entry_eligibility(self, record: NearMissRecordV2, current_time: pd.Timestamp,
+                                       current_price: float, new_confirmation: bool,
+                                       hard_gates_clear: bool = False) -> tuple[bool, str]:
+        """v2.8.7-P2.1 Phase 6: Preview re-entry eligibility WITHOUT mutating the record.
+
+        Shadow mode may call this method. It does NOT mark the record as consumed.
+
+        Args:
+            record: The near-miss record to evaluate.
+            current_time: Current timestamp.
+            current_price: Current price.
+            new_confirmation: Whether a new market confirmation has occurred.
+            hard_gates_clear: Whether hard gates have cleared. Default False
+                (fail-closed). Shadow mode should pass False since shadow has
+                no real hard-gates transaction.
+
+        Returns:
+            (eligible, reason) — eligible=True means a future authorized
+            execution transaction COULD consume this re-entry. eligible=False
+            means the record is ineligible for the given reason.
+        """
         if record.re_entry_consumed:
             return False, "re_entry_already_consumed"
         if not hard_gates_clear:
             return False, "hard_gates_not_clear"
-        expiry = pd.Timestamp(record.expiry_time)
-        if current_time > expiry:
-            return False, "setup_expired"
+        try:
+            expiry = pd.Timestamp(record.expiry_time)
+            if pd.Timestamp(current_time) > expiry:
+                return False, "setup_expired"
+        except Exception as e:
+            return False, f"expiry_check_error:{e}"
         if not new_confirmation:
             return False, "no_new_confirmation"
-        # Chase distance
-        price_diff = abs(current_price - record.hypothetical_entry)
-        max_chase = abs(record.hypothetical_entry - record.hypothetical_sl) * 0.3
-        if price_diff > max_chase:
-            return False, "price_chasing"
-        # Post-cost reward
-        rr = abs(record.hypothetical_tp - current_price) / max(abs(current_price - record.hypothetical_sl), 0.001)
-        if rr < 1.5:
-            return False, "insufficient_post_cost_reward"
-        # DG10: Atomically mark consumed
+        try:
+            price_diff = abs(float(current_price) - float(record.hypothetical_entry))
+            max_chase = abs(float(record.hypothetical_entry) - float(record.hypothetical_sl)) * 0.3
+            if price_diff > max_chase:
+                return False, "price_chasing"
+            rr = abs(float(record.hypothetical_tp) - float(current_price)) / \
+                 max(abs(float(current_price) - float(record.hypothetical_sl)), 0.001)
+            if rr < 1.5:
+                return False, "insufficient_post_cost_reward"
+        except Exception as e:
+            return False, f"eligibility_check_error:{e}"
+        return True, "eligible_for_re_entry"
+
+    def consume_re_entry(self, record: NearMissRecordV2, current_time: pd.Timestamp,
+                          current_price: float, new_confirmation: bool,
+                          hard_gates_clear: bool = False,
+                          authorized_execution_transaction: bool = False) -> tuple[bool, str]:
+        """v2.8.7-P2.1 Phase 6: Atomic consume_re_entry.
+
+        May ONLY be called during a future authorized execution transaction
+        with actual hard gates, actual new confirmation, atomic
+        decision/position transaction, and audit journal.
+
+        Args:
+            record: The near-miss record to consume.
+            current_time: Current timestamp.
+            current_price: Current price.
+            new_confirmation: Whether a new market confirmation has occurred.
+            hard_gates_clear: Whether hard gates have cleared. Default False
+                (fail-closed).
+            authorized_execution_transaction: Must be True to consume. This
+                flag ensures the caller is in an actual execution transaction
+                (not shadow mode).
+
+        Returns:
+            (consumed, reason). consumed=True means the record was atomically
+            marked as consumed.
+        """
+        if not authorized_execution_transaction:
+            return False, "not_in_authorized_execution_transaction"
+        # Preview eligibility first (without mutating)
+        eligible, reason = self.preview_re_entry_eligibility(
+            record, current_time, current_price, new_confirmation, hard_gates_clear
+        )
+        if not eligible:
+            return False, reason
+        # Atomically mark consumed
         record.re_entry_consumed = True
         return True, "re_entry_consumed"
 

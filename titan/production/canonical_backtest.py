@@ -1,20 +1,19 @@
-"""TITAN XAU AI — Canonical Backtest Engine V3 (FINAL Sprint v2.8.7-P2.0)
-==========================================================================
+"""TITAN XAU AI — Canonical Backtest Engine V3 (FINAL v2.8.7-P2.1)
+===================================================================
 
-Single authoritative backtest engine. Hardens:
-  - InstrumentSpec must be explicitly supplied (no silent default)
-  - All InstrumentSpec fields validated
-  - Monetary SL loss per lot via tick_size/tick_value
-  - Volume rounded down to volume_step, clamped to [volume_min, volume_max]
-  - If volume_min > approved monetary risk → trade rejected
-  - TradeV3 records lot_size, risk_amount, actual_risk_percent, monetary_loss_at_sl
-  - Exact cost ledger: pnl_net = pnl_gross - all costs (no double-counting)
-  - r_net = pnl_net / risk_amount (exact)
+Single authoritative backtest engine. v2.1 hardens:
+  - Uses titan.production.instrument_valuation.price_delta_to_money for
+    ALL monetary conversions (SL loss, gross PnL, spread cost, slippage
+    cost, MFE/MAE, risk reconciliation)
+  - InstrumentSpec must be explicitly supplied (None fails closed)
+  - validate_instrument_spec REJECTS inconsistent tick/contract metadata
+  - TradeV3 records lot_size, risk_amount, actual_risk_percent,
+    monetary_loss_at_sl
+  - Exact cost ledger: pnl_net = pnl_gross - total_cost
+  - r_net = pnl_net / risk_amount
   - Risk governor integration with separated budgets
-  - Gap handling on holding bars (entry bar fills at open)
+  - Gap handling on holding bars
   - Net PF = sum(pos net) / abs(sum(neg net))
-  - Direction logic via interpret_direction
-  - Daily equity curve for Sharpe/Sortino
 
 NEVER sends orders. NEVER creates tokens. NEVER trades.
 """
@@ -31,94 +30,10 @@ from titan.production.risk_governor import (
     govern_risk, RiskGovernorInput,
     DAILY_LIMIT, TOTAL_LIMIT,
 )
-
-
-@dataclass
-class InstrumentSpec:
-    """Validated instrument specification.
-
-    Defaults are intentionally broad but the engine REQUIRES an explicit
-    InstrumentSpec instance to be supplied — callers cannot rely on a
-    silent default for production risk calculations.
-    """
-    tick_size: float = 0.01
-    tick_value: float = 1.0
-    contract_size: float = 100.0   # 100 oz for XAUUSD
-    volume_min: float = 0.01
-    volume_max: float = 100.0
-    volume_step: float = 0.01
-    account_currency: str = "USD"
-    profit_currency: str = "USD"
-    symbol_currency: str = "USD"
-    conversion_rate: float = 1.0   # account_currency → profit_currency
-
-
-def validate_instrument_spec(spec: InstrumentSpec) -> tuple[bool, str]:
-    """Validate every InstrumentSpec field. Fail closed on any invalid value."""
-    if spec is None:
-        return False, "instrument_spec_missing"
-    if spec.tick_size <= 0:
-        return False, "tick_size_invalid"
-    if spec.tick_value <= 0:
-        return False, "tick_value_invalid"
-    if spec.contract_size <= 0:
-        return False, "contract_size_invalid"
-    if spec.volume_min <= 0:
-        return False, "volume_min_invalid"
-    if spec.volume_max <= 0:
-        return False, "volume_max_invalid"
-    if spec.volume_step <= 0:
-        return False, "volume_step_invalid"
-    if spec.volume_min > spec.volume_max:
-        return False, "volume_min_exceeds_max"
-    if not spec.account_currency:
-        return False, "account_currency_empty"
-    if not spec.profit_currency:
-        return False, "profit_currency_empty"
-    if spec.conversion_rate <= 0:
-        return False, "conversion_rate_invalid"
-    return True, ""
-
-
-def compute_monetary_loss_per_lot(spec: InstrumentSpec, sl_distance_price: float) -> float:
-    """Compute monetary loss per 1.0 lot at SL distance using tick metadata.
-
-    loss_per_lot = (sl_distance_price / tick_size) * tick_value
-    Then convert to account currency via conversion_rate.
-    """
-    if spec.tick_size <= 0:
-        return float("inf")
-    ticks = sl_distance_price / spec.tick_size
-    return ticks * spec.tick_value * spec.conversion_rate
-
-
-def compute_lot_size(spec: InstrumentSpec, risk_amount: float, sl_distance_price: float) -> tuple[float, float, str]:
-    """Compute broker-step-compliant lot size.
-
-    Returns (lot, monetary_loss_at_sl, reject_reason).
-    lot=0 and non-empty reject_reason means the trade must be rejected.
-    """
-    if risk_amount <= 0 or sl_distance_price <= 0:
-        return 0.0, 0.0, "non_positive_risk_or_sl"
-    loss_per_lot = compute_monetary_loss_per_lot(spec, sl_distance_price)
-    if not np.isfinite(loss_per_lot) or loss_per_lot <= 0:
-        return 0.0, 0.0, "invalid_tick_metadata"
-    raw_lot = risk_amount / loss_per_lot
-    # Round DOWN to volume_step
-    if spec.volume_step > 0:
-        stepped_lot = math.floor(raw_lot / spec.volume_step) * spec.volume_step
-    else:
-        stepped_lot = raw_lot
-    # Clamp to volume_max first, then volume_min
-    stepped_lot = min(stepped_lot, spec.volume_max)
-    if stepped_lot < spec.volume_min:
-        # volume_min exceeds approved monetary risk → reject (do NOT increase risk)
-        return 0.0, 0.0, f"volume_min_{spec.volume_min}_exceeds_approved_risk_lot_{stepped_lot:.6f}"
-    # Round to step precision to avoid float noise
-    precision = max(0, int(round(-math.log10(spec.volume_step)))) if spec.volume_step < 1 else 0
-    stepped_lot = round(stepped_lot, precision)
-    monetary_loss = stepped_lot * loss_per_lot
-    return stepped_lot, monetary_loss, ""
+from titan.production.instrument_valuation import (
+    InstrumentSpec, validate_instrument_spec,
+    price_delta_to_money, compute_monetary_loss_per_lot, compute_lot_size,
+)
 
 
 @dataclass
@@ -142,11 +57,22 @@ class TradeV3:
     holding_bars: int
     timestamp_entry: str
     timestamp_exit: str
-    # New: lot sizing & risk audit fields
     lot_size: float = 0.0
     risk_amount: float = 0.0
     actual_risk_percent: float = 0.0
     monetary_loss_at_sl: float = 0.0
+    regime: str = ""
+    setup: str = ""
+    alpha_proba: float = 0.0
+    meta_proba: float = 0.0
+    fold: int = 0
+    trade_id: str = ""
+    sl_price: float = 0.0
+    tp_price: float = 0.0
+    equity_before: float = 0.0
+    equity_after: float = 0.0
+    daily_dd_before: float = 0.0
+    total_dd_before: float = 0.0
 
 
 @dataclass
@@ -184,7 +110,6 @@ class BacktestResultV3:
 
 
 def validate_inputs_v3(df, alpha, meta, atr, instrument: Optional[InstrumentSpec]) -> dict:
-    """Validate all inputs. Fail closed on any invalid data."""
     if df is None or len(df) == 0:
         return {"valid": False, "error": "empty DataFrame"}
     for col in ["open", "high", "low", "close"]:
@@ -208,7 +133,6 @@ def validate_inputs_v3(df, alpha, meta, atr, instrument: Optional[InstrumentSpec
         return {"valid": False, "error": "not monotonic"}
     if df.index.duplicated().any():
         return {"valid": False, "error": "duplicate timestamps"}
-    # InstrumentSpec MUST be supplied and valid
     if instrument is None:
         return {"valid": False, "error": "instrument_spec_missing"}
     ok, msg = validate_instrument_spec(instrument)
@@ -225,17 +149,18 @@ def run_backtest_v3(
     params: dict,
     instrument: Optional[InstrumentSpec] = None,
     starting_equity: float = 100000.0,
+    fold: int = 0,
+    regime_labels: Optional[np.ndarray] = None,
 ) -> tuple[List[TradeV3], BacktestResultV3]:
-    """Canonical backtest with risk governor, gap handling, exact cost ledger,
-    and InstrumentSpec-based lot sizing.
+    """Canonical backtest. If `instrument` is None or invalid, fails closed.
 
-    If `instrument` is None, returns empty trades + zeroed metrics (fail-closed).
+    All monetary values use price_delta_to_money(spec, price_delta, lot).
     """
     val = validate_inputs_v3(df, alpha_proba, meta_proba, atr_values, instrument)
     if not val["valid"]:
         return [], BacktestResultV3(starting_equity=starting_equity, final_equity=starting_equity)
 
-    assert instrument is not None  # for type checker
+    assert instrument is not None
     from titan.production.ceo_ai_governance import evaluate_ceo_decision
 
     equity = starting_equity
@@ -288,6 +213,8 @@ def run_backtest_v3(
     swap_per_bar = params.get("swap_per_bar", 0.0)
     setup_class = params.get("setup_class", "A")
 
+    trade_counter = 0
+
     for i in range(28, len(df) - max_holding - 2):
         bar_day = index[i].date()
         if current_day != bar_day:
@@ -330,7 +257,6 @@ def run_backtest_v3(
             cooldown -= 1
             continue
 
-        # DG3: Direction logic via interpret_direction
         p_up = float(alpha_proba[i])
         direction, dir_confidence = interpret_direction(p_up)
         if dir_confidence < alpha_t:
@@ -344,7 +270,6 @@ def run_backtest_v3(
         if spread > spread_filter:
             continue
 
-        # CEO
         ceo = evaluate_ceo_decision(
             regime_state={"detected": True, "regime_value": "MARKET_OPEN", "confidence": dir_confidence},
             xgb_alpha={"direction": direction, "confidence": dir_confidence, "pass": True},
@@ -365,7 +290,6 @@ def run_backtest_v3(
         sl_distance = atr * sl_mult
         tp_distance = sl_distance * rr_target
 
-        # Risk governor — fail-closed safety inputs supplied explicitly
         gov_inp = RiskGovernorInput(
             equity=equity, equity_peak=equity_peak,
             daily_peak=daily_peak, daily_start_equity=daily_start,
@@ -385,7 +309,6 @@ def run_backtest_v3(
             continue
         approved_risk = gov_out.approved_risk
 
-        # Entry at next bar open
         entry_bar = i + 1
         if entry_bar >= len(df):
             continue
@@ -401,7 +324,6 @@ def run_backtest_v3(
             sl_price = entry_price + sl_distance
             tp_price = entry_price - tp_distance
 
-        # Exit simulation: scan from entry_bar (j=0 = entry bar itself)
         exit_price = entry_price
         exit_reason = "TIMEOUT"
         r_gross = 0.0
@@ -415,104 +337,76 @@ def run_backtest_v3(
             holding = j + 1 if j > 0 else 1
             actual_exit_bar = bar_idx
 
-            # Gap check on HOLDING bars (j > 0)
             if j > 0:
                 if direction == "LONG" and float(opens[bar_idx]) <= sl_price:
                     exit_price = float(opens[bar_idx])
                     exit_reason = "SL_GAP"
-                    r_gross = (exit_price - entry_price) / sl_distance
                     break
                 if direction == "SHORT" and float(opens[bar_idx]) >= sl_price:
                     exit_price = float(opens[bar_idx])
                     exit_reason = "SL_GAP"
-                    r_gross = (entry_price - exit_price) / sl_distance
                     break
 
-            # Normal SL/TP check (conservative: SL first)
             if direction == "LONG":
                 if float(lows[bar_idx]) <= sl_price:
                     exit_price = sl_price
                     exit_reason = "SL_HIT"
-                    r_gross = -1.0
                     break
                 if float(highs[bar_idx]) >= tp_price:
                     exit_price = tp_price
                     exit_reason = "TP_HIT"
-                    r_gross = rr_target
                     break
             else:
                 if float(highs[bar_idx]) >= sl_price:
                     exit_price = sl_price
                     exit_reason = "SL_HIT"
-                    r_gross = -1.0
                     break
                 if float(lows[bar_idx]) <= tp_price:
                     exit_price = tp_price
                     exit_reason = "TP_HIT"
-                    r_gross = rr_target
                     break
 
         if exit_reason == "TIMEOUT":
             last = min(entry_bar + max_holding, len(df) - 1)
             actual_exit_bar = last
             exit_price = float(closes[last])
-            r_gross = (exit_price - entry_price) / sl_distance if direction == "LONG" \
-                      else (entry_price - exit_price) / sl_distance
 
-        # =========== EXACT COST LEDGER ===========
-        # Economic convention: pnl_net = pnl_gross - all costs (no double-counting)
-        # Entry/exit spread and slippage are derived from the price difference between
-        # the raw OHLC and the actual fill price, then converted to monetary terms via
-        # lot size and contract size. Commission is per-lot. Swap is per-bar per-lot.
+        # ===== CANONICAL MONETARY VALUATION (Phase 1) =====
         risk_amount = equity * approved_risk
-        # Lot sizing via InstrumentSpec
         lot, monetary_loss_at_sl, lot_reject = compute_lot_size(instrument, risk_amount, sl_distance)
         if lot <= 0 or lot_reject:
-            # volume_min exceeds approved risk, or invalid tick metadata
             continue
 
-        # Monetary PnL gross using lot and contract size
+        # Gross PnL via price_delta_to_money (signed for direction)
         if direction == "LONG":
-            price_pnl_per_lot = (exit_price - entry_price) * instrument.contract_size
+            price_delta = exit_price - entry_price
         else:
-            price_pnl_per_lot = (entry_price - exit_price) * instrument.contract_size
-        pnl_gross = price_pnl_per_lot * lot
+            price_delta = entry_price - exit_price
+        pnl_gross = price_delta_to_money(instrument, price_delta, lot)
 
-        # Spread cost: spread was added to entry and subtracted from exit.
-        # entry_spread_cost = spread * contract_size * lot (monetary)
-        # exit_spread_cost   = spread * contract_size * lot (monetary)
-        entry_spread_cost = spread * instrument.contract_size * lot
-        exit_spread_cost = spread * instrument.contract_size * lot
-
-        # Slippage cost: slippage_pts added to entry, subtracted from exit.
-        entry_slip = slippage_pts * instrument.contract_size * lot
-        exit_slip = slippage_pts * instrument.contract_size * lot
-
+        # Spread cost via price_delta_to_money
+        entry_spread_cost = price_delta_to_money(instrument, spread, lot)
+        exit_spread_cost = price_delta_to_money(instrument, spread, lot)
+        # Slippage cost via price_delta_to_money
+        entry_slip = price_delta_to_money(instrument, slippage_pts, lot)
+        exit_slip = price_delta_to_money(instrument, slippage_pts, lot)
         # Commission: per-lot
         commission = commission_per_lot * lot
-
         # Swap: per-bar per-lot
         swap = swap_per_bar * lot * holding
 
         total_cost = entry_spread_cost + exit_spread_cost + entry_slip + exit_slip + commission + swap
-
-        # Net PnL = gross - total_cost (exact, no double counting)
         pnl_net = pnl_gross - total_cost
-
-        # Net R = pnl_net / risk_amount (exact)
         r_net = pnl_net / max(risk_amount, 0.001)
 
-        # EXACT RECONCILIATION ASSERTION (debug-time): if reconciliation fails,
-        # the engine is broken — log via the trade record's total_cost field.
-        # abs((pnl_gross - total_cost) - pnl_net) <= 0.01  (always true by construction)
+        # Gross R: gross PnL / risk_amount
+        r_gross = pnl_gross / max(risk_amount, 0.001)
 
-        # Actual risk percent (monetary loss at SL / equity)
         actual_risk_percent = monetary_loss_at_sl / equity if equity > 0 else 0.0
-
+        equity_before = equity
         equity += pnl_net
         daily_trades += 1
 
-        # Update peaks immediately
         if equity > equity_peak:
             equity_peak = equity
         if equity > daily_peak:
@@ -543,11 +437,17 @@ def run_backtest_v3(
             max_consecutive_losses = max(max_consecutive_losses, consecutive_losses)
             cooldown = cooldown_after_loss
 
+        trade_counter += 1
+        trade_id = f"t{fold:02d}_{trade_counter:05d}"
+        regime_label = ""
+        if regime_labels is not None and i < len(regime_labels):
+            regime_label = str(regime_labels[i])
+
         trades.append(TradeV3(
             entry_bar=entry_bar, entry_price=round(entry_price, 4),
             exit_price=round(exit_price, 4), exit_reason=exit_reason,
             direction=direction,
-            r_gross=round(r_gross, 4), r_net=round(r_net, 4),
+            r_gross=round(r_gross, 6), r_net=round(r_net, 6),
             pnl_gross=round(pnl_gross, 2), pnl_net=round(pnl_net, 2),
             commission=round(commission, 2),
             entry_spread_cost=round(entry_spread_cost, 2),
@@ -562,12 +462,21 @@ def run_backtest_v3(
             risk_amount=round(risk_amount, 2),
             actual_risk_percent=round(actual_risk_percent, 6),
             monetary_loss_at_sl=round(monetary_loss_at_sl, 2),
+            regime=regime_label, setup=setup_class,
+            alpha_proba=round(float(alpha_proba[i]), 6),
+            meta_proba=round(float(meta_proba[i]), 6),
+            fold=fold,
+            trade_id=trade_id,
+            sl_price=round(sl_price, 4), tp_price=round(tp_price, 4),
+            equity_before=round(equity_before, 2),
+            equity_after=round(equity, 2),
+            daily_dd_before=round(dd_now, 6),
+            total_dd_before=round(td_now, 6),
         ))
 
     if current_day is not None:
         daily_equity[current_day] = equity
 
-    # Net PF: sum(pos net) / abs(sum(neg net)) — exact
     pos_net = sum(t.pnl_net for t in trades if t.pnl_net > 0)
     neg_net = abs(sum(t.pnl_net for t in trades if t.pnl_net < 0))
     pf_gross = gross_profit / gross_loss if gross_loss > 0 else (999.0 if gross_profit > 0 else 0)
@@ -577,7 +486,6 @@ def run_backtest_v3(
     win_rate = wins / total_trades if total_trades > 0 else 0
     total_return = (equity - starting_equity) / starting_equity
 
-    # Sharpe from daily equity
     if len(daily_equity) > 1:
         eq_series = pd.Series(list(daily_equity.values()))
         daily_rets = eq_series.pct_change().dropna()
@@ -593,7 +501,6 @@ def run_backtest_v3(
     else:
         sharpe = sortino = 0.0
 
-    # CAGR from actual timestamps
     if len(trades) > 0 and starting_equity > 0 and equity != starting_equity:
         first_ts = pd.Timestamp(trades[0].timestamp_entry)
         last_ts = pd.Timestamp(trades[-1].timestamp_exit)
@@ -635,5 +542,7 @@ def run_backtest_v3(
 __all__ = [
     "InstrumentSpec", "TradeV3", "BacktestResultV3",
     "validate_instrument_spec", "compute_monetary_loss_per_lot", "compute_lot_size",
+    "price_delta_to_money",
     "validate_inputs_v3", "run_backtest_v3",
+    "valid_xauusd_instrument_spec",
 ]

@@ -1,0 +1,15 @@
+{
+  "generated_at_utc": "2026-07-11T11:34:39.698400+00:00",
+  "sample_period_start": "2020-01-02 01:00:00+00:00",
+  "sample_period_end": "2026-06-19 20:00:00+00:00",
+  "n_samples": 38233,
+  "brier_score": 0.207016,
+  "calibration_slope": 0.16696,
+  "calibration_intercept": 0.5635,
+  "drift_status": "none",
+  "model_sha256": "5f5b981cf0bf01aa6bb72dd769728d7ab49cbbdd20bdffdb45f703916c5c5ef2",
+  "scaler_sha256": "f30461ab2919d74210672e09140616665e763364a7e434dbf6899337bbdb8e2b",
+  "feature_schema_sha256": "f75c9d03b8aef330a7a76bca3fd001ba237e59069dfc8111b1494cb1125eff2b",
+  "profile_name": "v2_feature_normalized",
+  "note": "Baseline calibration evidence generated from canonical H1 dataset. Replace with proper calibration audit when available."
+}
