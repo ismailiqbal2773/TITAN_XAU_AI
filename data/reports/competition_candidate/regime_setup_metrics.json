@@ -1,8 +1,3 @@
 {
-  "regimes": {
-    "unknown": {
-      "trades": 552,
-      "net_profit": 28542.01
-    }
-  }
+  "note": "see trade_ledger.csv for per-trade regime"
 }

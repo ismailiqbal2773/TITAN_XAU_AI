@@ -1,0 +1,2 @@
+# Reproduction command
+python scripts/run_v2_5_evaluation.py

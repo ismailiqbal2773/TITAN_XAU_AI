@@ -1,10 +1,2 @@
-# v2.8.7-P2.5 frozen config
-version: v2.8.7-P2.5
-alpha_threshold: 0.55
-meta_threshold: 0.5
-risk_percent: 0.003
-sl_atr_multiplier: 2.5
-rr_target: 2.0
-max_holding_bars: 2
-cooldown_after_loss: 3
-setup_class: A_PLUS
+# v2.8.7-P2.5.1 frozen config
+version: v2.8.7-P2.5.1

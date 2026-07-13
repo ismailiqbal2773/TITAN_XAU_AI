@@ -1,0 +1,30 @@
+{
+  "invalidated_verdict": "TRUTH_ENGINE_PASS_BASELINE_EDGE_PASS",
+  "invalidation_timestamp": "2026-07-13T00:00:00Z",
+  "invalidating_commit": "4a2863dbe94b01f3652c2f251acfe3527d4994b8",
+  "exact_reasons": [
+    "P2.5 did NOT implement true fold-specific walk-forward training. It generated full-dataset predictions from the existing model and sliced those predictions into outer folds.",
+    "The existing model was trained through December 2024. It was then used to evaluate folds beginning in March 2021. Those folds are contaminated by future-trained model information.",
+    "cross_fitted_meta: true was written into the report without implementing cross-fitted meta-model training.",
+    "Every outer fold used the same model and scaler hashes — no fold-specific training occurred.",
+    "Fold 5 incorrectly included a 2026 timestamp in the development WFO period.",
+    "Runtime feature_stream_v2.py still uses np.nan_to_num and a zero-vector fallback.",
+    "The actual Exness shadow runner still contains hard-coded safe-state values and imports automatic calibration generation.",
+    "P2.5 stress reports contain notes/placeholders instead of executed stress scenarios.",
+    "P2.5 calibrated only the alpha probability stream and did not implement separate fold-specific alpha and meta calibration.",
+    "GitHub Actions did not pass."
+  ],
+  "affected_metrics": {
+    "pf_net": 9.5775,
+    "sharpe": 3.9568,
+    "sortino": 4.6908,
+    "trades": 496,
+    "win_rate": 0.8246,
+    "max_total_dd": 0.002565
+  },
+  "statement": "PF 9.5775 and Sharpe 3.9568 are NOT valid nested-WFO evidence. They were computed from a single model trained on 2020-2024 data, then sliced into folds that begin in 2021 — this is OOS contamination. The metrics are invalid and must not be used as competition evidence.",
+  "original_report_hashes": {
+    "final_verdict_sha256": "see data/reports/invalidated/p2_5_single_model_slicing/final_verdict.json",
+    "walk_forward_metrics_sha256": "see data/reports/invalidated/p2_5_single_model_slicing/walk_forward_metrics.json"
+  }
+}

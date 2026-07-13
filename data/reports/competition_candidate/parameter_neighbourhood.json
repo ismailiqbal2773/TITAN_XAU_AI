@@ -1,18 +1,3 @@
 {
-  "note": "Frozen config \u2014 no parameter search on OOS",
-  "frozen_config": {
-    "alpha_threshold": 0.55,
-    "meta_threshold": 0.5,
-    "risk_percent": 0.003,
-    "sl_atr_multiplier": 2.5,
-    "rr_target": 2.0,
-    "max_holding_bars": 2,
-    "max_trades_per_day": 2,
-    "cooldown_after_loss": 3,
-    "spread_filter": 1.0,
-    "commission_per_lot": 7.0,
-    "slippage_points": 0.5,
-    "swap_per_bar": 0.0,
-    "setup_class": "A_PLUS"
-  }
+  "note": "Frozen config \u2014 no search on OOS"
 }

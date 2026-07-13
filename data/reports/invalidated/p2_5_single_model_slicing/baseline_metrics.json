@@ -1,0 +1,23 @@
+{
+  "trades": 496,
+  "wins": 409,
+  "losses": 87,
+  "win_rate": 0.8246,
+  "pf_net": 9.5775,
+  "pf_gross": 9.5775,
+  "sharpe": 3.9568,
+  "sortino": 4.6908,
+  "max_total_dd": 0.002565,
+  "max_daily_dd": 0.002565,
+  "expectancy": 0.1997,
+  "total_return": 0.263865,
+  "net_profit": 26386.47,
+  "final_equity": 126386.47,
+  "long_trades": 459,
+  "short_trades": 37,
+  "max_consecutive_losses": 4,
+  "monthly_max_share": 0.0479,
+  "cagr": 0.0504,
+  "calmar": 19.6331,
+  "recovery_factor": 389.8849
+}
