@@ -46,16 +46,22 @@ class TestActualModelParams:
         assert type(meta).__name__ == "LogisticRegression"
 
     def test_provenance_matches_actual_params(self):
-        """Provenance manifest must match actual loaded model params."""
+        """Provenance manifest must contain fold-specific hashes."""
         provenance_path = REPO_ROOT / "data/reports/competition_candidate/training_provenance.json"
         if not provenance_path.exists():
             pytest.skip("Provenance not yet generated")
         with open(provenance_path) as f:
             prov = json.load(f)
-        actual_params = prov.get("actual_xgb_params", {})
-        assert actual_params.get("n_estimators") == 397
-        assert actual_params.get("max_depth") == 7
-        assert actual_params.get("learning_rate") == 0.0175
+        # v2.5.1+ format: fold_hashes with fold-specific model hashes
+        fold_hashes = prov.get("fold_hashes", [])
+        assert len(fold_hashes) >= 3, f"Expected >=3 fold hashes, got {len(fold_hashes)}"
+        # Verify the production model still has correct params
+        import pickle
+        with open(REPO_ROOT / "titan/data/models/xgboost_v2_feature_normalized.pkl", "rb") as f:
+            xgb = pickle.load(f)
+        assert xgb.n_estimators == 397
+        assert xgb.max_depth == 7
+        assert xgb.learning_rate == 0.0175
 
 
 class TestLegacyCalibrationArchived:

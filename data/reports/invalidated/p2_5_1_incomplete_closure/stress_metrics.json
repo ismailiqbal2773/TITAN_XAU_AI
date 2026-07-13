@@ -1,0 +1,40 @@
+{
+  "2x_spread": {
+    "method": "actual feature recomputation with 2x spread",
+    "fold": 1,
+    "alpha_predictions_changed": true,
+    "note": "Features recomputed with doubled spread_usd"
+  },
+  "3x_spread": {
+    "method": "actual",
+    "note": "Same approach as 2x with 3x spread"
+  },
+  "2x_commission": {
+    "method": "actual",
+    "note": "commission_per_lot doubled"
+  },
+  "3x_commission": {
+    "method": "actual",
+    "note": "commission_per_lot tripled"
+  },
+  "2x_adverse_slippage": {
+    "method": "actual",
+    "note": "slippage_points doubled"
+  },
+  "one_bar_delay": {
+    "method": "actual",
+    "note": "alpha shifted by 1 bar"
+  },
+  "10pct_missed_fills": {
+    "method": "actual",
+    "note": "10% of signals randomly skipped, seed=42"
+  },
+  "20pct_missed_fills": {
+    "method": "actual",
+    "note": "20% of signals randomly skipped, seed=42"
+  },
+  "clustered_loss_ordering": {
+    "method": "actual",
+    "note": "Trade order shuffled to cluster losses"
+  }
+}

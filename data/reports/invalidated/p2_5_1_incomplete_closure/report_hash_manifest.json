@@ -1,0 +1,29 @@
+{
+  "artifacts": {
+    "baseline_metrics.json": "e8339ec7638374dbea51f42f2d8bb01b0ee9d18ab1b5f0afd49d50c952195494",
+    "broker_metrics.csv": "f9e02143ce2858d82f5a4b00b4775f7402b8571a50d253e39b25f2f756462adf",
+    "calibration_assessment.json": "6bc5253380b531ced13cd3b77130dd6251b753a95dbd673e4c2d265effe83921",
+    "cost_breakdown.json": "f42181e7e446d1ea269ab7bc0890f4fec1e54232a28d291fa9f356a6252a970a",
+    "data_coverage.json": "0e2b1330ec4428e2ca9da705018fa8b014b212a18b476617f82b57ab62f9fd42",
+    "final_verdict.json": "dab890da73c011b48b2752fcbde39d3fc5373e57297eebf19e9255169756b62b",
+    "frozen_config.yaml": "0a6e6b2ff8494db50deed33b12824ef29f300a0368ebd579d1c8bea847842b6a",
+    "instrument_spec.json": "84dc192198a059bfda317d2f086d5a0a8afdfa403cf942567074f7c53a03d260",
+    "long_short_metrics.json": "8cc0eac4dde39f27851df72ba93c5b4e8a663bdf4e5174573aa75461fe6da68b",
+    "mathematical_invariant_audit.json": "cb31e215792e630890fb8dba034880e1c774c2dc4792051ecf00cf86a74cf401",
+    "model_hash_manifest.json": "013f30c649b44b5bee370c51bb4ba23395cbaa3a7406465097955d0c486e33d0",
+    "monte_carlo_metrics.json": "cbab0f4ed71070339b45fc9afe7c27f5d1a50e27452a1f6f937cfcf3cb675423",
+    "monthly_metrics.csv": "462b0f9199c0d09ddbcb5e411e2ce656b21d89c9c7b88926dc8ebb5842b4c319",
+    "parameter_neighbourhood.json": "85ae0d0b64ff79e751230fb204d547f2be38c80890e5fa59cc0741b0e7cb9545",
+    "regime_setup_metrics.json": "f178a48edb3385470cf30fe357a2b5ab7b898d6f0d9ae54bb26f603c6436341b",
+    "reproduction_command.txt": "25e2b284c546d3094d86f3775078cc88a04a0ac5baac3861ee67f3b59841249f",
+    "retrospective_2026_metrics.json": "b6e23769a0ba406e749ea5e7555134ee83480ecf55afa54236870e4ee70d743a",
+    "schema_scaler_hash_manifest.json": "5a0e62b5b126e0d0c76447300dd71f119ff48c72de721adc96ebd25821dee0bf",
+    "split_manifest.json": "425c0861129d50d5247205c682954bdb769572dbf2afa4bcd4f3de0833434762",
+    "stress_metrics.json": "4b8ff4142e05e43a10b4997427ecd1b9c7d2364ab424f551fd36c65a6c4c3864",
+    "trade_ledger.csv": "da66a9f585ba5db712bc6bf0102dd87afb88b4c04f760a591ba062f4c2e50cdb",
+    "training_provenance.json": "836228283bc96929eafb9c6904bfd099a171315aec7b5adcb4efc0cbb9d64180",
+    "walk_forward_metrics.json": "5da9c2a988b5d2a2280c4fe5430255b5b3b6d0aa065c0328101f87c8b91231c1"
+  },
+  "n_artifacts": 23,
+  "self_excluded": true
+}

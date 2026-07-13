@@ -1,0 +1,24 @@
+{
+  "invalidated_verdict": "TRUTH_ENGINE_PASS_BASELINE_EDGE_WEAK",
+  "invalidation_timestamp": "2026-07-13T12:00:00Z",
+  "invalidating_commit": "a862db6c778dd28e3b188f229a72e3bf72b17464",
+  "exact_reasons": [
+    "Only three outer folds were created although at least five were required.",
+    "Development sample contained only 107 trades — below the 200 minimum.",
+    "Only one SHORT trade occurred in the entire development WFO — direction not meaningfully supported.",
+    "Most stress scenarios were not executed — reports contain notes/proxies instead of actual results.",
+    "Principal runtime parity was not implemented — no test invoking actual run_forward_shadow_cycle() and actual historical replay without mocks.",
+    "Actual shadow runner was not repaired — still contains hard-coded safe-state values and imports automatic calibration generation.",
+    "GitHub Actions did not succeed — jobs fail with 0 steps (infrastructure issue).",
+    "Report values do match committed fold provenance (verified), but the verdict is weak due to insufficient sample size and incomplete closure."
+  ],
+  "fold_count_actual": 3,
+  "fold_count_required": 5,
+  "dev_trades": 107,
+  "short_trades": 1,
+  "stress_executed": false,
+  "runtime_parity_implemented": false,
+  "shadow_runner_repaired": false,
+  "ci_passed": false,
+  "statement": "The P2.5.1 verdict TRUTH_ENGINE_PASS_BASELINE_EDGE_WEAK is invalidated because: (1) only 3 of 5 required folds were created, (2) only 107 trades is below the 200 minimum, (3) only 1 SHORT trade is insufficient, (4) stress tests were not executed, (5) runtime parity was not implemented, (6) shadow runner was not repaired, (7) CI did not pass. The fold-specific training pipeline and cross-fitted meta-labeling implementation were correct, but the sprint is incomplete."
+}

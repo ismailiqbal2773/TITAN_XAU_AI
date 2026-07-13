@@ -47,6 +47,7 @@ class FeatureVectorV2:
     schema_version: str = "v2"
     is_valid: bool = True
     error: Optional[str] = None
+    invalid_features: Optional[list] = None  # v2.8.7-P2.5.2: feature names with NaN/inf
 
 
 class H1FeatureStreamV2:
@@ -182,10 +183,21 @@ class H1FeatureStreamV2:
                 self.load_canonical()
             feats = self._compute_features()
             last_row = feats.iloc[-1]
-            vec = np.nan_to_num(
-                last_row.values.astype(np.float64),
-                nan=0.0, posinf=0.0, neginf=0.0,
-            )
+            vec = last_row.values.astype(np.float64)
+            # v2.8.7-P2.5.2: No nan_to_num — fail closed on invalid features
+            if not np.all(np.isfinite(vec)):
+                # Find which features are invalid
+                invalid_names = [FEATURE_NAMES_V2[i] for i in range(len(vec))
+                                  if not np.isfinite(vec[i])]
+                return FeatureVectorV2(
+                    timestamp=feats.index[-1],
+                    features=vec,
+                    feature_names=FEATURE_NAMES_V2.copy(),
+                    n_bars_used=len(self._bars),
+                    source=source,
+                    is_valid=False,
+                    invalid_features=invalid_names,
+                )
             vec = self._standardize(vec)
             return FeatureVectorV2(
                 timestamp=feats.index[-1],

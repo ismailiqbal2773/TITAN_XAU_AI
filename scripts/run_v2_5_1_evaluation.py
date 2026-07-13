@@ -782,7 +782,7 @@ def main():
 
     # Build folds (all OOS before 2026)
     log("Building fold boundaries...")
-    folds = build_folds(df, n_folds=3)
+    folds = build_folds(df, n_folds=5)
     log(f"Built {len(folds)} folds")
 
     # ===== TRAIN EACH FOLD =====
@@ -1124,7 +1124,11 @@ def main():
     if not calib_ok:
         verdict = "CALIBRATION_FAIL"
     elif dev_edge["positive_net_expectancy"] and dev_edge["pf_above_1"] and dev_edge["adequate_trade_sample"]:
-        verdict = "TRUTH_ENGINE_PASS_BASELINE_EDGE_PASS"
+        # Check if SHORT is materially supported
+        if dev_metrics["short_trades"] >= 30:
+            verdict = "TRUTH_ENGINE_PASS_BASELINE_EDGE_PASS"
+        else:
+            verdict = "TRUTH_ENGINE_PASS_BASELINE_EDGE_WEAK"
     else:
         verdict = "TRUTH_ENGINE_PASS_BASELINE_EDGE_WEAK"
 

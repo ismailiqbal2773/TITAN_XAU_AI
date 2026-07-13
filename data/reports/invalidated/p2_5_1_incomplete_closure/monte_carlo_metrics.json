@@ -1,0 +1,7 @@
+{
+  "n_simulations": 1000,
+  "method": "R-based compounding",
+  "final_equity_median": 1.0336625410857374,
+  "max_dd_p95": 0.00363651873120252,
+  "prob_profit": 1.0
+}
