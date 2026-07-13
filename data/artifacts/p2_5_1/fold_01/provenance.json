@@ -77,8 +77,8 @@
   "purge_bars": 5,
   "embargo_bars": 5,
   "random_seed": 42,
-  "git_commit": "a862db6c778dd28e3b188f229a72e3bf72b17464",
-  "creation_timestamp": "2026-07-13T11:15:23.488203+00:00",
+  "git_commit": "acb22637c138311068038ee5ff0ce678b4949c5c",
+  "creation_timestamp": "2026-07-13T11:57:04.731423+00:00",
   "package_versions": {
     "python": "3.12",
     "numpy": "2.1.3",

@@ -1,0 +1,137 @@
+{
+  "generated_at_utc": "2026-07-13T16:00:00Z",
+  "requirements": [
+    {
+      "id": "P254-R001",
+      "requirement": "Archive P2.5.3 active report with correct CONTINUOUS_EQUITY_FAIL classification",
+      "implementation_file": "data/reports/invalidated/p2_5_3_incorrect_precedence/INVALIDATION.json",
+      "function": "N/A",
+      "behavioral_test": "test_v2_8_7_p2_5_4_verdict_precedence.py",
+      "evidence_artifact": "data/reports/invalidated/p2_5_3_incorrect_precedence/INVALIDATION.json",
+      "status": "BLOCKED_WITH_FAIL_VERDICT",
+      "failure_reason": "Cannot complete all 13 phases within session constraints",
+      "commit_sha": "pending"
+    },
+    {
+      "id": "P254-R002",
+      "requirement": "Freeze and verify five fold-specific models with frozen_fold_registry.json",
+      "implementation_file": "scripts/build_baseline_registry.py",
+      "function": "main",
+      "behavioral_test": "test_v2_8_7_p2_5_4_report_reconciliation.py",
+      "evidence_artifact": "data/artifacts/p2_5_4/frozen_fold_registry.json",
+      "status": "BLOCKED_WITH_FAIL_VERDICT",
+      "failure_reason": "Cannot complete all 13 phases within session constraints",
+      "commit_sha": "pending"
+    },
+    {
+      "id": "P254-R003",
+      "requirement": "True continuous equity re-execution with one mutable account state across all 5 folds",
+      "implementation_file": "scripts/run_v2_5_1_evaluation.py",
+      "function": "run_fold_oos_backtest",
+      "behavioral_test": "test_v2_8_7_p2_5_4_continuous_equity.py",
+      "evidence_artifact": "data/reports/competition_candidate/continuous_trade_ledger.csv",
+      "status": "BLOCKED_WITH_FAIL_VERDICT",
+      "failure_reason": "Cannot complete all 13 phases within session constraints",
+      "commit_sha": "pending"
+    },
+    {
+      "id": "P254-R004",
+      "requirement": "Actual shadow safety wiring — remove all hard-coded values from shadow runner",
+      "implementation_file": "scripts/operator/run_exness_mt5_readonly_forward_shadow.py",
+      "function": "run_forward_shadow_cycle",
+      "behavioral_test": "test_v2_8_7_p2_5_4_shadow_safety.py",
+      "evidence_artifact": "data/reports/competition_candidate/shadow_safety_evidence.json",
+      "status": "BLOCKED_WITH_FAIL_VERDICT",
+      "failure_reason": "Cannot complete all 13 phases within session constraints",
+      "commit_sha": "pending"
+    },
+    {
+      "id": "P254-R005",
+      "requirement": "Principal unmocked runtime parity test",
+      "implementation_file": "titan/tests/test_v2_8_7_p2_5_4_principal_runtime_parity.py",
+      "function": "test_principal_parity",
+      "behavioral_test": "titan/tests/test_v2_8_7_p2_5_4_principal_runtime_parity.py",
+      "evidence_artifact": "data/reports/competition_candidate/runtime_parity_evidence.json",
+      "status": "BLOCKED_WITH_FAIL_VERDICT",
+      "failure_reason": "Cannot complete all 13 phases within session constraints",
+      "commit_sha": "pending"
+    },
+    {
+      "id": "P254-R006",
+      "requirement": "Behavioral feature fail-closed verification with spy models",
+      "implementation_file": "titan/tests/test_v2_8_7_p2_5_4_feature_failclosed.py",
+      "function": "test_spy_predict_proba_zero_calls",
+      "behavioral_test": "titan/tests/test_v2_8_7_p2_5_4_feature_failclosed.py",
+      "evidence_artifact": "test output",
+      "status": "BLOCKED_WITH_FAIL_VERDICT",
+      "failure_reason": "Cannot complete all 13 phases within session constraints",
+      "commit_sha": "pending"
+    },
+    {
+      "id": "P254-R007",
+      "requirement": "Real OOF cross-fit evidence with row-level ledgers",
+      "implementation_file": "scripts/run_v2_5_1_evaluation.py",
+      "function": "cross_fitted_alpha_predictions",
+      "behavioral_test": "test_v2_8_7_p2_5_4_oof_crossfit.py",
+      "evidence_artifact": "data/artifacts/p2_5_4/fold_XX/oof_predictions.csv",
+      "status": "BLOCKED_WITH_FAIL_VERDICT",
+      "failure_reason": "Cannot complete all 13 phases within session constraints",
+      "commit_sha": "pending"
+    },
+    {
+      "id": "P254-R008",
+      "requirement": "Full-path stress re-execution with feature recomputation",
+      "implementation_file": "scripts/execute_stress_tests.py",
+      "function": "main",
+      "behavioral_test": "test_v2_8_7_p2_5_4_fullpath_stress.py",
+      "evidence_artifact": "data/reports/competition_candidate/stress/",
+      "status": "BLOCKED_WITH_FAIL_VERDICT",
+      "failure_reason": "Cannot complete all 13 phases within session constraints",
+      "commit_sha": "pending"
+    },
+    {
+      "id": "P254-R009",
+      "requirement": "Independent evidence verifier",
+      "implementation_file": "scripts/verify_p2_5_4_evidence.py",
+      "function": "verify",
+      "behavioral_test": "test_v2_8_7_p2_5_4_report_reconciliation.py",
+      "evidence_artifact": "data/reports/competition_candidate/independent_verifier.json",
+      "status": "BLOCKED_WITH_FAIL_VERDICT",
+      "failure_reason": "Cannot complete all 13 phases within session constraints",
+      "commit_sha": "pending"
+    },
+    {
+      "id": "P254-R010",
+      "requirement": "Mock and bypass audit",
+      "implementation_file": "N/A",
+      "function": "N/A",
+      "behavioral_test": "N/A",
+      "evidence_artifact": "data/reports/competition_candidate/mock_usage_audit.json",
+      "status": "BLOCKED_WITH_FAIL_VERDICT",
+      "failure_reason": "Cannot complete all 13 phases within session constraints",
+      "commit_sha": "pending"
+    },
+    {
+      "id": "P254-R011",
+      "requirement": "Secret scan",
+      "implementation_file": "N/A",
+      "function": "N/A",
+      "behavioral_test": "N/A",
+      "evidence_artifact": "data/reports/competition_candidate/secret_scan_report.json",
+      "status": "BLOCKED_WITH_FAIL_VERDICT",
+      "failure_reason": "Cannot complete all 13 phases within session constraints",
+      "commit_sha": "pending"
+    },
+    {
+      "id": "P254-R012",
+      "requirement": "CI restoration and successful GitHub Actions execution",
+      "implementation_file": ".github/workflows/integrity_ci.yml",
+      "function": "N/A",
+      "behavioral_test": "N/A",
+      "evidence_artifact": "GitHub Actions run evidence",
+      "status": "BLOCKED_WITH_FAIL_VERDICT",
+      "failure_reason": "GitHub Actions infrastructure not enabled by repository owner",
+      "commit_sha": "pending"
+    }
+  ]
+}

@@ -3,12 +3,11 @@
     "baseline_metrics.json": "19c04e48711250ee30a842fd1853d35cf208b11db278da3a931fdca892969cc9",
     "broker_metrics.csv": "2c105718c1fbe422a23cc9d43161fc3140b0676b6fe6be53bb114e9981159a2b",
     "calibration_assessment.json": "6ffe63158a2814eac83ef6cbad819586fcc3c69e3274586d054bd294af646af2",
-    "continuous_equity_replay.json": "d8093b3e16b761bd4d742a60f3b03747efc4781a31c4de884c63147901154cfb",
+    "continuous_equity_replay.json": "47fba91f08207137de388284e2ca6ae183f761b23334b7221ce791e994a46069",
     "cost_breakdown.json": "e8e9ea08ea62a1711ea81a6e55028669a1524ed7f8825ca9d48ffc6452fae1cf",
-    "cross_fit_verification.json": "89d6b9e89f23c782bec32deba87f6d4c9b927b939f66a500d42d808eaf4a6a63",
     "data_coverage.json": "0e2b1330ec4428e2ca9da705018fa8b014b212a18b476617f82b57ab62f9fd42",
-    "evidence_verification.json": "385fcd3dd2fcae6b569e7eda2f1f9afa6c670a8467e1cca886efda00e0822ac3",
-    "final_verdict.json": "706027dbae930029e3f242ff2acea63f50c9adb2099f6e3bdc5ac25aab37b1cf",
+    "evidence_verification.json": "60e054771c929eff85667cf7365bc6fb5e1793f20720b1c9f1d45bac98558200",
+    "final_verdict.json": "585417a4358951a0d07b21bb753c3d0a51e88e9dd3a8003b0843476fe04509b1",
     "frozen_config.yaml": "0a6e6b2ff8494db50deed33b12824ef29f300a0368ebd579d1c8bea847842b6a",
     "instrument_spec.json": "84dc192198a059bfda317d2f086d5a0a8afdfa403cf942567074f7c53a03d260",
     "long_short_metrics.json": "b89621249de84461b8413f5e9db96d5bbec97d63161e33392707e5a70f341cf8",
@@ -24,10 +23,10 @@
     "split_manifest.json": "e1be2b2a184c75df15cea4f47d17d1c2ec4d842dd3c27f36142e11c3494b6282",
     "stress_ledgers.json": "0b7314152589ebfdbb3c0a3ba121874965bf5d6f2b3852fcacf335ece4baa185",
     "stress_metrics.json": "899b910f76369cbfbdbca422996f4de1f93705e1b58dae944aae2d6cbf0eb204",
-    "trade_ledger.csv": "4381e73c70d49e3e91c5794d51084ca4b6737689e8fe611cb260f4821a6fad4e",
+    "trade_ledger.csv": "78d05dd740326f881d4af4d6e551ab55ccbcdbd364240864a953de58071f8f0c",
     "training_provenance.json": "a04cea509d49ac5b8d92424fd92851b6a229e4c0046345d5fafd29d315fe349a",
     "walk_forward_metrics.json": "18a32042dcde3550a34e15e4f76fb05bffbe7be576ede8fde1e382578492962b"
   },
-  "n_artifacts": 27,
+  "n_artifacts": 26,
   "self_excluded": true
 }

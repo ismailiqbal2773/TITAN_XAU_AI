@@ -829,22 +829,22 @@ def main():
         alpha_for_dist = alpha_oos
         meta_for_dist = meta_oos
 
-        trades, continuous_equity, continuous_loss_streak = run_fold_oos_backtest(
+        fold_start_equity = continuous_equity
+        trades, fold_final_equity, continuous_loss_streak = run_fold_oos_backtest(
             df_oos, alpha_oos, meta_oos, atr_oos, params, spec,
             calib_ev, alpha_for_dist, meta_for_dist,
-            fold.fold, continuous_equity, continuous_loss_streak,
+            fold.fold, fold_start_equity, continuous_loss_streak,
         )
 
-        fold_metrics = compute_metrics_from_trades(trades, FROZEN_CONFIG["starting_equity"])
+        fold_metrics = compute_metrics_from_trades(trades, fold_start_equity)
         log(f"  Fold {fold.fold} OOS: {fold_metrics['trades']} trades, "
             f"pf_net={fold_metrics['pf_net']:.2f}, pf_gross={fold_metrics['pf_gross']:.2f}")
 
-        # Append trades to continuous ledger (adjust equity_before/after for continuity)
-        equity_offset = continuous_equity - FROZEN_CONFIG["starting_equity"] - sum(t.pnl_net for t in trades)
-        for t in trades:
-            t.equity_before += equity_offset
-            t.equity_after += equity_offset
+        # v2.8.7-P2.5.4: True continuous equity — trades already have correct equity
+        # because run_backtest_v3 was called with fold_start_equity as starting_equity.
+        # No offset adjustment needed — equity_before/after are already continuous.
         all_dev_trades.extend(trades)
+        continuous_equity = fold_final_equity
 
     # ===== DEVELOPMENT WFO METRICS (continuous equity) =====
     dev_metrics = compute_metrics_from_trades(all_dev_trades, FROZEN_CONFIG["starting_equity"])

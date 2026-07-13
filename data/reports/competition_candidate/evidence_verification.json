@@ -1,11 +1,8 @@
 {
-  "verified_at_utc": "2026-07-13T11:33:49.317149+00:00",
+  "verified_at_utc": "2026-07-13T11:58:52.517821+00:00",
   "errors": [
     "Report hash mismatch: monte_carlo_metrics.json",
-    "Report hash mismatch: stress_metrics.json",
-    "Equity discontinuity at trade 39: after=100706.76 before_next=101413.52",
-    "Equity discontinuity at trade 164: after=104719.71 before_next=108025.86",
-    "Equity discontinuity at trade 191: after=109117.32 before_next=110208.79"
+    "Report hash mismatch: stress_metrics.json"
   ],
   "warnings": [],
   "pass": false

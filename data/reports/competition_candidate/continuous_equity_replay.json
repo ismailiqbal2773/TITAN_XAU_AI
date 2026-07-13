@@ -1,37 +1,7 @@
 {
   "transitions_checked": 486,
-  "mismatches": [
-    {
-      "trade_index": 39,
-      "equity_after": 100706.76,
-      "equity_before_next": 101413.52,
-      "diff": 706.7600000000093
-    },
-    {
-      "trade_index": 164,
-      "equity_after": 104719.71,
-      "equity_before_next": 108025.86,
-      "diff": 3306.149999999994
-    },
-    {
-      "trade_index": 191,
-      "equity_after": 109117.32,
-      "equity_before_next": 110208.79,
-      "diff": 1091.4699999999866
-    },
-    {
-      "trade_index": 351,
-      "equity_after": 116063.07,
-      "equity_before_next": 121917.4,
-      "diff": 5854.329999999987
-    }
-  ],
-  "first_mismatch": {
-    "trade_index": 39,
-    "equity_after": 100706.76,
-    "equity_before_next": 101413.52,
-    "diff": 706.7600000000093
-  },
-  "final_recomputed_equity": 126371.95,
-  "pass": false
+  "mismatches": [],
+  "first_mismatch": null,
+  "final_recomputed_equity": 115413.24,
+  "pass": true
 }

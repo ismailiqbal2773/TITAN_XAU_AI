@@ -1,0 +1,48 @@
+{
+  "verdict": "CI_FAIL",
+  "invalidated_p2_5_2_verdict": "TRUTH_ENGINE_PASS_BASELINE_EDGE_WEAK (INVALIDATED)",
+  "correct_pre_repair_classification": "STRESS_EXECUTION_FAIL",
+  "verdict_precedence_applied": true,
+  "blocking_conditions": {
+    "stress_executed": true,
+    "runtime_parity_implemented": false,
+    "ci_passing": false,
+    "short_materially_supported": false
+  },
+  "baseline_metrics_from_committed_evidence": {
+    "trades": 487,
+    "wins": 357,
+    "losses": 130,
+    "win_rate": 0.7331,
+    "pf_net": 4.3991,
+    "pf_gross": 8.5069,
+    "gross_profit": 25146.88,
+    "gross_loss": 2956.04,
+    "sharpe": 3.0124,
+    "sortino": 2.375,
+    "max_total_dd": 0.003847,
+    "max_daily_dd": 0.000837,
+    "expectancy": 0.1178,
+    "total_return": 0.154133,
+    "net_profit": 15413.29,
+    "final_equity": 115413.29,
+    "long_trades": 486,
+    "short_trades": 1,
+    "max_consecutive_losses": 4,
+    "monthly_max_share": 0.0844,
+    "cagr": 0.0317,
+    "calmar": 8.2287,
+    "recovery_factor": 259.9032
+  },
+  "stress_all_executed": true,
+  "directional_classification": "DIRECTION_NOT_MATERIALLY_VALIDATED",
+  "long_trades": 486,
+  "short_trades": 1,
+  "remaining_blockers": [
+    "CI_FAIL \u2014 GitHub Actions jobs have 0 steps (infrastructure issue, not test failure)",
+    "RUNTIME_PARITY \u2014 principal unmocked test not implemented (adapter parity tests exist)",
+    "DIRECTION_NOT_MATERIALLY_VALIDATED \u2014 only 1 SHORT trade (minimum 30 required)"
+  ],
+  "evaluated_at_utc": "2026-07-13T15:30:00Z",
+  "version": "v2.8.7-P2.5.3"
+}
