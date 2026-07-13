@@ -47,7 +47,7 @@ jobs:
         run: python -m pytest titan/tests/test_v2_8_7_p2_1_regime_policy_matrix.py -v --tb=short
 
   runtime-parity:
-    name: Runtime Parity & Adaptive Policy
+    name: Runtime Parity and Adaptive Policy
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
