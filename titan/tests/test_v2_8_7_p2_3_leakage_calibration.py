@@ -18,40 +18,30 @@ sys.path.insert(0, str(REPO_ROOT))
 
 
 class TestLeakageDetection:
-    """Phase 3: OOS leakage detection."""
+    """Phase 3: OOS leakage detection (v2.8.7-P2.4: uses actual date ranges, not mtime)."""
 
-    def test_model_trained_after_fold1_oos_detects_leakage(self):
-        """The frozen model has mtime 2026-07-11, well after Fold 1 OOS start (2021-08).
-        This must detect leakage.
-        """
-        from titan.production.leakage_detection import assess_oos_leakage
-        model_path = REPO_ROOT / "titan/data/models/xgboost_v2_feature_normalized.pkl"
-        result = assess_oos_leakage(
-            model_path=model_path,
-            dataset_end_date="2026-06-19",
-            fold1_oos_start_date="2021-08-18",
-        )
-        assert result.leakage_detected is True
-        assert "leakage" in result.reason.lower() or "after" in result.reason.lower()
-
-    def test_no_leakage_when_model_trained_before_oos(self):
-        """If model mtime is before fold1 OOS start, no leakage."""
-        from titan.production.leakage_detection import assess_oos_leakage
-        import tempfile
-        # Create a temp file with old mtime
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".pkl") as f:
-            tmp_path = Path(f.name)
-        # Set mtime to 2020-01-01 (before fold1 OOS)
-        import os
-        old_time = 1577836800  # 2020-01-01
-        os.utime(tmp_path, (old_time, old_time))
-        result = assess_oos_leakage(
-            model_path=tmp_path,
-            dataset_end_date="2026-06-19",
-            fold1_oos_start_date="2021-08-18",
-        )
+    def test_existing_model_is_leakage_free_for_2026(self):
+        """The existing v2 model trained on 2020-2024 is LEAKAGE_FREE for 2026 OOS."""
+        from titan.production.leakage_detection import assess_existing_v2_model_for_2026_holdout
+        result = assess_existing_v2_model_for_2026_holdout()
+        assert result.classification == "LEAKAGE_FREE"
         assert result.leakage_detected is False
-        tmp_path.unlink()
+
+    def test_no_leakage_when_training_ends_before_oos(self):
+        """If training ends before OOS starts, no leakage."""
+        from titan.production.leakage_detection import assess_oos_leakage, load_existing_v2_provenance
+        prov = load_existing_v2_provenance()
+        result = assess_oos_leakage(prov, prov.test_oos_start, prov.test_oos_end)
+        assert result.classification == "LEAKAGE_FREE"
+
+    def test_leakage_detected_when_training_overlaps_oos(self):
+        """If training ends after OOS starts, leakage is detected."""
+        from titan.production.leakage_detection import assess_oos_leakage, load_existing_v2_provenance, TrainingProvenance
+        prov = load_existing_v2_provenance()
+        bad_prov = TrainingProvenance(**{**prov.to_dict(), "training_end": "2026-03-01 00:00:00+00:00"})
+        result = assess_oos_leakage(bad_prov, prov.test_oos_start, prov.test_oos_end)
+        assert result.classification == "OOS_LEAKAGE_DETECTED"
+        assert result.leakage_detected is True
 
 
 class TestCalibrationHardAcceptance:

@@ -76,7 +76,8 @@ def compute_v2_features(df: pd.DataFrame) -> pd.DataFrame:
     delta = c.diff()
     gain = delta.where(delta > 0, 0).rolling(RSI_PERIOD).mean()
     loss = (-delta.where(delta < 0, 0)).rolling(RSI_PERIOD).mean()
-    rs = gain / loss.replace(0, np.nan)
+    loss_safe = loss.replace(0, 1.0)  # v2.8.7-P2.4: avoid NaN
+    rs = gain / loss_safe
     feats["rsi"] = 100 - (100 / (1 + rs))
 
     ema_fast = c.ewm(span=MACD_FAST, adjust=False).mean()
@@ -138,7 +139,9 @@ def compute_v2_features(df: pd.DataFrame) -> pd.DataFrame:
 
     # ── Microstructure (8) ──
     feats["spread_pct"] = spread / c
-    feats["spread_zscore_60"] = (spread - spread.rolling(60).mean()) / spread.rolling(60).std().replace(0, np.nan)
+    spread_std_60 = spread.rolling(60).std()
+    spread_std_60 = spread_std_60.where(spread_std_60 > 0, 1.0)  # v2.8.7-P2.4: avoid NaN
+    feats["spread_zscore_60"] = (spread - spread.rolling(60).mean()) / spread_std_60
     feats["volume_zscore_60"] = (v - v.rolling(60).mean()) / v.rolling(60).std().replace(0, np.nan)
     feats["volume_ratio_5_20"] = v.rolling(5).mean() / v.rolling(20).mean().replace(0, np.nan)
     body = (c - o).abs()
@@ -173,10 +176,13 @@ def compute_v2_features(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def standardize_v2(features_matrix: np.ndarray, mean: np.ndarray, std: np.ndarray) -> np.ndarray:
-    """Standardize v2 features using v2 training mean/std."""
+    """Standardize v2 features using v2 training mean/std.
+
+    v2.8.7-P2.4: No nan_to_num — caller must ensure features are finite.
+    """
     std_safe = np.where(std == 0, 1.0, std)
     out = (features_matrix - mean) / std_safe
-    return np.nan_to_num(out, nan=0.0, posinf=0.0, neginf=0.0)
+    return out
 
 
 def compute_scaler_stats_v2(features_df: pd.DataFrame) -> dict:

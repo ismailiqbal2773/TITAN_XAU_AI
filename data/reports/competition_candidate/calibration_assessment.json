@@ -3,7 +3,5 @@
   "reason": "REJECT_CALIBRATION:calibration_slope_0.1670_out_of_[0.50,2.00]",
   "brier_score": 0.207016,
   "calibration_slope": 0.16696,
-  "hard_acceptance": "slope must be in [0.50, 2.00]; preferred [0.80, 1.20]",
-  "actual_slope": 0.167,
-  "verdict": "REJECT_CALIBRATION"
+  "hard_acceptance": "slope must be in [0.50, 2.00]; preferred [0.80, 1.20]"
 }

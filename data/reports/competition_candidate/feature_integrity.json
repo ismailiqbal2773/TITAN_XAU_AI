@@ -1,5 +1,6 @@
 {
   "feature_integrity_pass": false,
-  "reason": "feature_integrity_fail: 1913 NaN, 0 inf after warm-up. Cannot use nan_to_num to hide invalid features.",
+  "reason": "Input X contains NaN.\nLogisticRegression does not accept missing values encoded as NaN natively. For supervised learning, you might want to consider sklearn.ensemble.HistGradientBoostingClassifier and Regressor which accept missing values encoded as NaNs natively. Alternatively, it is possible to preprocess the data, for instance by using an imputer transformer in a pipeline or drop samples with missing values. See https://scikit-learn.org/stable/modules/impute.html You can find a list of all estimators that handle NaN values at the following page: https://scikit-learn.org/stable/modules/impute.html#estimators-that-handle-nan-values",
+  "required_warmup": 239,
   "nan_to_num_used": false
 }

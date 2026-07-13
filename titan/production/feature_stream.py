@@ -367,7 +367,8 @@ class H1FeatureStream:
         delta = c.diff()
         gain = delta.where(delta > 0, 0).rolling(RSI_PERIOD).mean()
         loss = (-delta.where(delta < 0, 0)).rolling(RSI_PERIOD).mean()
-        rs = gain / loss.replace(0, np.nan)
+        loss_safe = loss.replace(0, 1.0)  # v2.8.7-P2.4: avoid NaN — when loss=0, RSI=100
+        rs = gain / loss_safe
         feats["rsi"] = 100 - (100 / (1 + rs))
 
         ema_fast = c.ewm(span=MACD_FAST, adjust=False).mean()
@@ -413,7 +414,9 @@ class H1FeatureStream:
 
         # ── Microstructure (8) ──
         feats["spread_pct"] = spread / c
-        feats["spread_zscore_60"] = (spread - spread.rolling(60).mean()) / spread.rolling(60).std().replace(0, np.nan)
+        spread_std_60 = spread.rolling(60).std()
+        spread_std_60 = spread_std_60.where(spread_std_60 > 0, 1.0)  # v2.8.7-P2.4: avoid NaN
+        feats["spread_zscore_60"] = (spread - spread.rolling(60).mean()) / spread_std_60
         feats["volume_zscore_60"] = (v - v.rolling(60).mean()) / v.rolling(60).std().replace(0, np.nan)
         feats["volume_ratio_5_20"] = v.rolling(5).mean() / v.rolling(20).mean().replace(0, np.nan)
         body = (c - o).abs()

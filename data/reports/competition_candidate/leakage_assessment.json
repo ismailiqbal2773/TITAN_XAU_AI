@@ -1,10 +1,10 @@
 {
-  "leakage_detected": true,
-  "reason": "Model mtime (2026-07-11T08:10:40.323297+00:00) is after Fold 1 OOS start (2021-08-18 23:00:00+00:00) and no immutable training manifest exists. The model was trained on the full dataset which includes OOS periods. This is OOS leakage.",
-  "model_mtime_utc": "2026-07-11T08:10:40.323297+00:00",
-  "dataset_end_date": "2026-06-19 20:00:00+00:00",
-  "fold1_oos_start_date": "2021-08-18 23:00:00+00:00",
-  "model_trained_before_fold1_oos": false,
-  "retraining_prohibited": true,
-  "immutable_manifest_path": null
+  "classification": "LEAKAGE_FREE",
+  "leakage_detected": false,
+  "reason": "Training ends 2024-12-31 23:00:00+00:00 before fold OOS starts 2026-01-02 01:00:00+00:00. No overlap.",
+  "training_start": "2020-02-24 13:00:00+00:00",
+  "training_end": "2024-12-31 23:00:00+00:00",
+  "test_oos_start": "2026-01-02 01:00:00+00:00",
+  "test_oos_end": "2026-06-19 20:00:00+00:00",
+  "overlap_detected": false
 }

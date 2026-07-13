@@ -1,28 +1,16 @@
 {
   "artifacts": {
-    "baseline_metrics.json": "d15cddd90d5d716a53bc28442643a6b9174c042f54c8e9edb02a74ae3d0e180f",
-    "broker_metrics.csv": "97336ee239f92030641a2d3a773b45b353c5c2a6c17abdb5ca1dcb392975c84c",
-    "calibration_assessment.json": "b551c7b3554aab49923f04d7c6f5643ea010c8f8f70510eced5da8024bc7aa1b",
-    "cost_breakdown.json": "0a8cb7f25cc368ff7f7ae66bbb83c1053e4faa12eac2b28e4732a72aee779d3d",
-    "data_coverage.json": "d2b1e80189b2201d1231fd8a6335439376d4b4f602f3c9416011d9a3f54bbd51",
-    "feature_integrity.json": "54a0cc3c8743e0f6ab47132ea2d3063d73c28ee5c97e2c1823e83f305085d76a",
-    "final_verdict.json": "c7f788c2e8cbad1ed5241e581b4c81e2ef7728d021d8a2d003907a60da7fa4eb",
-    "frozen_config.yaml": "891a7c5a835f954f06a741a6f293cce8a9aec917e80a01d6afdd40c580d0be35",
+    "calibration_assessment.json": "c2520df856799b79976ee081ac438d6433e4d61434046c3c11865e0e7f0f1203",
+    "data_coverage.json": "982d3edae7e7bb4280156ff1dfac5dc80a555edab04a9581b2050892c0b8c53a",
+    "feature_integrity.json": "e8d9242c1d36fbaeb69978c8a5b8387d18a60423d414cd203d9960b0ad4f041b",
+    "frozen_config.yaml": "ef87279890b1375a0a8b9776d02f99c348dab2020b46073a48b1aec2931105a8",
     "instrument_spec.json": "84dc192198a059bfda317d2f086d5a0a8afdfa403cf942567074f7c53a03d260",
-    "leakage_assessment.json": "de0664a91700f445ab91dd3d04567870e6fa39a9be5cf51f4a1e9848dc26920a",
-    "long_short_metrics.json": "0a8cb7f25cc368ff7f7ae66bbb83c1053e4faa12eac2b28e4732a72aee779d3d",
-    "mathematical_invariant_audit.json": "35e6d7efead2fd73ae3b00837933628622eb38ed5c0ac1da69e1e864f896e990",
-    "model_hash_manifest.json": "958c34b04a4604fed07a997055fdc152669472c1d4e24aece3e6529a50c138b7",
-    "monte_carlo_metrics.json": "0a8cb7f25cc368ff7f7ae66bbb83c1053e4faa12eac2b28e4732a72aee779d3d",
-    "monthly_metrics.csv": "4ba81a588354cc4a0106fb46788d16f5e40616f15159a33acaa8b2b5138ef784",
-    "parameter_neighbourhood.json": "0a8cb7f25cc368ff7f7ae66bbb83c1053e4faa12eac2b28e4732a72aee779d3d",
-    "regime_setup_metrics.json": "0a8cb7f25cc368ff7f7ae66bbb83c1053e4faa12eac2b28e4732a72aee779d3d",
-    "reproduction_command.txt": "e531bd0bb3ee915c10218af2068ef7735731af3538105a4ce8c4ff4b326840e2",
+    "leakage_assessment.json": "f9f2bb13e5d4c2cc79d93dbd84edf54c1499e5c470bf2a26b8df3d63881f3f0d",
+    "model_hash_manifest.json": "645a7aecf1922c8e75c561763f7f637adab5a401cc15d298a6a35eb2a1ebcccf",
+    "reproduction_command.txt": "36938ccae10a2cef205ada301c62822cd843f93e57a9b9dab6578265a641743e",
     "schema_scaler_hash_manifest.json": "e2e47aef933038409b4a156ab9c72261e0f66b23a84c256b8b2fb03e3a817b4e",
-    "split_manifest.json": "5edc85dfdf0584a5a339730162f7ea5b184265167482d4098ebba1dc5488703b",
-    "stress_metrics.json": "d15cddd90d5d716a53bc28442643a6b9174c042f54c8e9edb02a74ae3d0e180f",
-    "trade_ledger.csv": "9767b74c85373f28a523feb71094ad731c2a7b3f011d2a0ca237f3335f7a9d15",
-    "walk_forward_metrics.json": "2abca59e345c9539ca6ca68f353a5ea1103940b643c77d2f91a6f524a8e33f4a"
+    "split_manifest.json": "4294a56afa76531a09892384108d8da9cb24bd151e4a4c297b48c98dea9ea32a",
+    "training_provenance.json": "4c3675b187b603e0134b29878e1a2f30897fde10b220f2fc0a76bb645b935cce"
   },
-  "n_artifacts": 23
+  "n_artifacts": 11
 }
