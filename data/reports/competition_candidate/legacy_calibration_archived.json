@@ -1,0 +1,7 @@
+{
+  "status": "ARCHIVED_INVALID",
+  "reason": "Covers 2020-01-02 through 2026-06-19 \u2014 NOT 2025-only calibration. Includes OOS period in calibration data.",
+  "original_period": "2020-01-02 01:00:00+00:00 to 2026-06-19 20:00:00+00:00",
+  "original_slope": 0.16696,
+  "original_brier": 0.207016
+}

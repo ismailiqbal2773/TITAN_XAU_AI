@@ -1,2 +1,2 @@
 # Reproduction command
-python scripts/run_v2_4_evaluation.py
+python scripts/run_v2_5_evaluation.py

@@ -1,0 +1,10 @@
+{
+  "n_simulations": 1000,
+  "method": "R-based compounding (not fixed dollar PnL)",
+  "final_equity_median": 1.345545398893301,
+  "final_equity_p5": 1.3455453988932982,
+  "final_equity_p95": 1.3455453988933037,
+  "max_dd_median": 0.003243385897299525,
+  "max_dd_p95": 0.0043589679517318765,
+  "prob_profit": 1.0
+}
