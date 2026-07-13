@@ -27,8 +27,8 @@
 
 | # | Item | Expected | Verified | Method |
 |---|---|---|---|---|
-| 2.1 | No GitHub PAT in tracked files | 0 actual tokens | YES | `git ls-files \| xargs grep -l "github_pat_11BZIGHBA0HUl9Sy"` → only placeholder `[REDACTED:github_token]...` in NEXT_SESSION_GUIDE.md |
-| 2.2 | No GitHub PAT in git history | 0 matches | YES | `git log --all -p \| grep -c "github_pat_11BZIGHBA0HUl9Sy"` → 0 |
+| 2.1 | No GitHub PAT in tracked files | 0 actual tokens | YES | `git ls-files \| xargs grep -l "[REDACTED_PAT]"` → only placeholder `[REDACTED:github_token]...` in NEXT_SESSION_GUIDE.md |
+| 2.2 | No GitHub PAT in git history | 0 matches | YES | `git log --all -p \| grep -c "[REDACTED_PAT]"` → 0 |
 | 2.3 | No `TITAN_DEMO_MICRO_ARMED=1` in tracked files | not stored | YES | env var is operator-set, not committed |
 | 2.4 | No `TITAN_LIVE_TRADING=1` in tracked files | not stored | YES | env var is operator-set, not committed |
 | 2.5 | No MT5 credentials in config | empty placeholders | YES | `config/runtime.yaml` mt5 section has `login: 0`, `password: ""`, `server: ""` |

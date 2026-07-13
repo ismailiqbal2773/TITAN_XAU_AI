@@ -1,0 +1,30 @@
+{
+  "generated_at_utc": "2026-07-13T12:27:34.992379+00:00",
+  "entries": [
+    {
+      "file": "titan/production/canonical_backtest.py",
+      "component": "CEO governance",
+      "bypassed": false,
+      "real_component_executed": true
+    },
+    {
+      "file": "titan/production/canonical_backtest.py",
+      "component": "setup scanner",
+      "bypassed": false,
+      "real_component_executed": true
+    },
+    {
+      "file": "titan/production/canonical_backtest.py",
+      "component": "adaptive policy",
+      "bypassed": false,
+      "real_component_executed": true
+    },
+    {
+      "file": "titan/production/canonical_backtest.py",
+      "component": "risk governor",
+      "bypassed": false,
+      "real_component_executed": true
+    }
+  ],
+  "prohibited_bypasses_found": 0
+}

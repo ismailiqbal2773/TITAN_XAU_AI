@@ -338,7 +338,7 @@ result = vf.run()
 ## 🔒 SECURITY NOTES
 
 ### GitHub Token
-- Old token: `github_pat_11BZIGHBA0UQTdrkCfF2wr_...` (may expire)
+- Old token: `[REDACTED_PAT]...` (may expire)
 - If push fails with 403, ask user for fresh PAT
 - Token scope needed: `Contents: Read and write` + `Metadata: Read-only`
 - Fine-grained PAT, repository access: only `TITAN_XAU_AI`

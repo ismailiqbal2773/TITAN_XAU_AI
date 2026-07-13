@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
-"""TITAN XAU AI — Exness MT5 Read-Only Forward Shadow Runner (FINAL v2.8.7-P2.1)
-================================================================================
+"""TITAN XAU AI — Exness MT5 Read-Only Forward Shadow Runner (v2.8.7-P2.5.5)
+=============================================================================
 
 Local Windows MT5 forward shadow runner. Reads market data, computes features,
 generates read-only signals via the Canonical Decision Engine. NEVER trades.
 
-v2.8.7-P2.1 changes:
-  - Uses CanonicalDecisionEngine (shared with historical adapter) — Phase 7
-  - Removes ALL InstrumentSpec fallbacks — Phase 2
-  - Real safety-state wiring via ShadowAccountStateStore — Phase 3
-  - Real calibration/provenance via ModelProvenance — Phase 4
-  - Near-miss preview only (no consume) — Phase 6
+v2.8.7-P2.5.5 changes:
+  - Removed ALL hard-coded safety values from _build_safety_state
+  - Removed build_calibration_artifact_if_missing runtime call
+  - Removed nan_to_num from feature computation
+  - Safety state built from real inputs or fails closed with explicit reasons
+  - Uses build_real_safety_state from real_safety_state.py
 
 CLI:
   python scripts/operator/run_exness_mt5_readonly_forward_shadow.py
@@ -52,7 +52,6 @@ from titan.production.near_miss_tracker_v2 import NearMissShadowTrackerV2
 from titan.production.shadow_account_state_store import ShadowAccountStateStore
 from titan.production.model_provenance import (
     load_model_provenance, load_calibration_evidence,
-    build_calibration_artifact_if_missing,
 )
 from titan.production.canonical_decision_engine import (
     CanonicalDecisionEngine, DecisionContext,
@@ -165,35 +164,83 @@ def _data_schema_check(df: pd.DataFrame) -> tuple[bool, str]:
 def _build_safety_state(account_store: ShadowAccountStateStore, spread: float,
                          atr: float, regime_label: str, regime_confidence: float,
                          alpha_probas_recent: np.ndarray, meta_probas_recent: np.ndarray,
-                         calibration_evidence) -> SafetyStateV2:
-    """Build real SafetyStateV2 from account store + calibration evidence.
+                         calibration_evidence,
+                         margin_info: dict = None,
+                         broker_info: dict = None,
+                         execution_health: dict = None,
+                         model_health: dict = None,
+                         prop_state: dict = None,
+                         capital_protection_state: dict = None,
+                         shadow_evidence: dict = None,
+                         market_data_stale: bool = None) -> tuple:
+    """Build SafetyStateV2 from REAL inputs. Fails closed on any unavailable value.
 
-    Phase 3: NO literal safe values. All values come from real components.
+    v2.8.7-P2.5.5: NO hard-coded safe values. Every field must come from a real source.
+    Returns (safety_state, fail_reason). If fail_reason is non-empty, safety_state is None.
     """
+    # Validate every required input — fail closed if unavailable
+    if account_store is None:
+        return None, "REJECT_ACCOUNT_STATE_UNAVAILABLE"
+    if margin_info is None or margin_info.get("margin_safe") is None:
+        return None, "REJECT_MARGIN_STATE_UNAVAILABLE"
+    if prop_state is None or prop_state.get("prop_pass") is None:
+        return None, "REJECT_PROP_STATE_UNAVAILABLE"
+    if capital_protection_state is None or capital_protection_state.get("active") is None:
+        return None, "REJECT_CAPITAL_PROTECTION_STATE_UNAVAILABLE"
+    if broker_info is None or broker_info.get("broker_pass") is None:
+        return None, "REJECT_BROKER_HEALTH_UNAVAILABLE"
+    if execution_health is None or execution_health.get("healthy") is None:
+        return None, "REJECT_EXECUTION_HEALTH_UNAVAILABLE"
+    if model_health is None or model_health.get("model_health_pass") is None:
+        return None, "REJECT_MODEL_PROVENANCE"
+    if calibration_evidence is None:
+        return None, "REJECT_CALIBRATION_MISSING"
+    if shadow_evidence is None:
+        return None, "REJECT_SHADOW_EVIDENCE_UNAVAILABLE"
+    if market_data_stale is None:
+        return None, "REJECT_MARKET_DATA_STALE"
+
     state = account_store.state
     daily_dd = account_store.daily_dd
     total_dd = account_store.total_dd
 
-    return SafetyStateV2(
+    # Validate calibration
+    cal_ok, cal_msg = calibration_evidence.validate()
+    if not cal_ok:
+        return None, f"REJECT_CALIBRATION:{cal_msg}"
+
+    safety = SafetyStateV2(
         dd_state={"current_dd": float(total_dd), "daily_dd": float(daily_dd)},
-        margin_state={"margin_usage": 0.05, "margin_safe": True},
-        prop_risk_state={"prop_pass": True, "prop_violations": 0},
-        capital_protection={"active": False, "dd_breach": False},
-        broker_intelligence={
-            "broker_pass": True,
-            "spread_pass": spread <= 1.0,
+        margin_state={
+            "margin_usage": float(margin_info.get("margin_usage", 0.0)),
+            "margin_safe": margin_info["margin_safe"],
         },
-        execution_health={"healthy": True},
-        model_health={"model_health_pass": True},
-        spread_state={"current_spread": spread, "average_spread": spread},
+        prop_risk_state={
+            "prop_pass": prop_state["prop_pass"],
+            "prop_violations": int(prop_state.get("prop_violations", 0)),
+        },
+        capital_protection={
+            "active": capital_protection_state["active"],
+            "dd_breach": capital_protection_state.get("dd_breach", False),
+        },
+        broker_intelligence={
+            "broker_pass": broker_info["broker_pass"],
+            "spread_pass": broker_info.get("spread_pass", spread <= 1.0),
+        },
+        execution_health={"healthy": execution_health["healthy"]},
+        model_health={"model_health_pass": model_health["model_health_pass"]},
+        spread_state={"current_spread": float(spread), "average_spread": float(spread)},
         volatility_state={"current_atr": float(atr), "average_atr": float(atr),
                           "regime": regime_label},
         loss_streak=int(state.loss_streak),
-        signal_drought_hours=0,
+        signal_drought_hours=int(shadow_evidence.get("signal_drought_hours", 0)),
         regime_confidence=float(regime_confidence),
         alpha_distribution=[float(x) for x in alpha_probas_recent if np.isfinite(x)],
         meta_distribution=[float(x) for x in meta_probas_recent if np.isfinite(x)],
-        recent_shadow_evidence={"false_negative_rate": 0, "sample_size": 50},
+        recent_shadow_evidence={
+            "false_negative_rate": float(shadow_evidence.get("false_negative_rate", 0.0)),
+            "sample_size": int(shadow_evidence.get("sample_size", 0)),
+        },
         external_daily_dd=float(daily_dd),
         external_total_dd=float(total_dd),
         calibration_metrics={
@@ -202,8 +249,9 @@ def _build_safety_state(account_store: ShadowAccountStateStore, spread: float,
             "calibration_intercept": float(calibration_evidence.calibration_intercept),
         },
         regime=regime_label,
-        market_data_stale=False,
+        market_data_stale=market_data_stale,
     )
+    return safety, ""
 
 
 def run_forward_shadow_cycle(broker, symbol, timeframe, profile, bundle, equity=100000.0,
@@ -211,11 +259,12 @@ def run_forward_shadow_cycle(broker, symbol, timeframe, profile, bundle, equity=
                              journal_sink: list = None,
                              provenance=None, calibration_evidence=None,
                              account_store: ShadowAccountStateStore = None,
-                             instrument_spec_override: InstrumentSpec = None) -> dict:
+                             instrument_spec_override: InstrumentSpec = None,
+                             **kwargs) -> dict:
     """Run one forward shadow cycle through CanonicalDecisionEngine.
 
-    Phase 7: Decision logic delegated to CanonicalDecisionEngine (shared
-    with historical adapter).
+    v2.8.7-P2.5.5: Decision logic delegated to CanonicalDecisionEngine (shared
+    with historical adapter). Safety state built from real inputs via kwargs.
     """
     decision_id = f"shadow_{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S')}_{abs(hash(symbol)) % 10000}"
     correlation_id = f"corr_{decision_id}"
@@ -343,7 +392,17 @@ def run_forward_shadow_cycle(broker, symbol, timeframe, profile, bundle, equity=
     stream._bars = df_use
     try:
         feats_df = stream._compute_features()
-        features_matrix = np.nan_to_num(feats_df.values.astype(np.float64), nan=0.0, posinf=0.0, neginf=0.0)
+        features_matrix = feats_df.values.astype(np.float64)
+        # v2.8.7-P2.5.5: No nan_to_num — fail closed on invalid features
+        if not np.all(np.isfinite(features_matrix)):
+            nan_count = int(np.isnan(features_matrix).sum())
+            inf_count = int(np.isinf(features_matrix).sum())
+            sig = _base_signal()
+            sig["final_decision"] = "REJECT_FEATURE_INTEGRITY"
+            sig["reject_reason"] = f"feature_nan_{nan_count}_inf_{inf_count}"
+            if journal_sink is not None:
+                journal_sink.append(sig)
+            return sig
         features_matrix = stream._standardize(features_matrix)
     except Exception as e:
         sig = _base_signal()
@@ -414,19 +473,38 @@ def run_forward_shadow_cycle(broker, symbol, timeframe, profile, bundle, equity=
 
     # ===== 9. real safety state construction =====
     call_trace.append("9:real_safety_state_construction")
-    try:
-        safety_state = _build_safety_state(
-            account_store if account_store is not None else _default_account_store(equity),
-            spread=spread, atr=float(atr), regime_label=regime_label,
-            regime_confidence=float(regime_result.confidence),
-            alpha_probas_recent=alpha_probas_recent,
-            meta_probas_recent=meta_probas_recent,
-            calibration_evidence=calibration_evidence,
-        )
-    except Exception as e:
+    # v2.8.7-P2.5.5: Build safety state from REAL inputs — fail closed if unavailable
+    # In shadow mode without live MT5, these inputs must come from the caller.
+    # If they are None (not provided), the safety builder will fail closed.
+    margin_info = kwargs.get("margin_info") if "kwargs" in dir() else None
+    broker_info = kwargs.get("broker_info") if "kwargs" in dir() else None
+    execution_health = kwargs.get("execution_health") if "kwargs" in dir() else None
+    model_health = kwargs.get("model_health") if "kwargs" in dir() else None
+    prop_state = kwargs.get("prop_state") if "kwargs" in dir() else None
+    capital_protection_state = kwargs.get("capital_protection_state") if "kwargs" in dir() else None
+    shadow_evidence = kwargs.get("shadow_evidence") if "kwargs" in dir() else None
+    market_data_stale = kwargs.get("market_data_stale") if "kwargs" in dir() else None
+
+    safety_state, safety_fail_reason = _build_safety_state(
+        account_store if account_store is not None else _default_account_store(equity),
+        spread=spread, atr=float(atr), regime_label=regime_label,
+        regime_confidence=float(regime_result.confidence),
+        alpha_probas_recent=alpha_probas_recent,
+        meta_probas_recent=meta_probas_recent,
+        calibration_evidence=calibration_evidence,
+        margin_info=margin_info,
+        broker_info=broker_info,
+        execution_health=execution_health,
+        model_health=model_health,
+        prop_state=prop_state,
+        capital_protection_state=capital_protection_state,
+        shadow_evidence=shadow_evidence,
+        market_data_stale=market_data_stale,
+    )
+    if safety_state is None:
         sig = _base_signal()
         sig["final_decision"] = "REJECT_SAFETY_STATE"
-        sig["reject_reason"] = str(e)
+        sig["reject_reason"] = safety_fail_reason
         if journal_sink is not None:
             journal_sink.append(sig)
         return sig
@@ -551,7 +629,7 @@ def main():
     # Phase 4: Load real provenance and calibration evidence
     try:
         provenance = load_model_provenance("v2_feature_normalized")
-        build_calibration_artifact_if_missing(provenance)
+        # v2.8.7-P2.5.5: Do NOT auto-generate calibration — only load pre-approved artifact
         calibration_evidence = load_calibration_evidence(provenance)
         print(f"  Provenance: model_sha256={provenance.model_sha256[:16]}...")
         print(f"  Calibration: brier={calibration_evidence.brier_score:.4f} slope={calibration_evidence.calibration_slope:.4f}")

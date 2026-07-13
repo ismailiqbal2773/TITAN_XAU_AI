@@ -1,0 +1,45 @@
+{
+  "generated_at_utc": "2026-07-13T12:27:34.992379+00:00",
+  "historical_path": {
+    "components": [
+      "H1FeatureStreamV2",
+      "standardize",
+      "alpha_model.predict_proba",
+      "meta_model.predict_proba",
+      "interpret_direction",
+      "classify_regime_v2",
+      "scan_setups_governed",
+      "compute_adaptive_threshold_v2",
+      "evaluate_ceo_decision",
+      "govern_risk",
+      "compute_lot_size",
+      "price_delta_to_money",
+      "CanonicalDecisionEngine.evaluate"
+    ],
+    "mocked_components": [],
+    "bypassed_components": []
+  },
+  "shadow_path": {
+    "components": [
+      "H1FeatureStreamV2",
+      "standardize",
+      "alpha_model.predict_proba",
+      "meta_model.predict_proba",
+      "interpret_direction",
+      "classify_regime_v2",
+      "scan_setups_governed",
+      "compute_adaptive_threshold_v2",
+      "evaluate_ceo_decision",
+      "govern_risk",
+      "compute_lot_size",
+      "price_delta_to_money",
+      "CanonicalDecisionEngine.evaluate"
+    ],
+    "mocked_components": [],
+    "bypassed_components": [],
+    "deterministic_adapters": [
+      "safe_connect_and_audit (MT5 transport)"
+    ]
+  },
+  "all_mandatory_components_present": true
+}

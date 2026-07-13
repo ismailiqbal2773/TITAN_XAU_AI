@@ -1,0 +1,30 @@
+{
+  "generated_at_utc": "2026-07-13T12:27:34.992379+00:00",
+  "runner_file": "scripts/operator/run_exness_mt5_readonly_forward_shadow.py",
+  "hard_coded_values_removed": [
+    "margin_safe=True",
+    "prop_pass=True",
+    "broker_pass=True",
+    "execution_healthy=True",
+    "model_health_pass=True",
+    "capital_protection active=False",
+    "signal_drought_hours=0",
+    "shadow_evidence sample_size=50",
+    "market_data_stale=False"
+  ],
+  "fail_closed_reasons": [
+    "REJECT_ACCOUNT_STATE_UNAVAILABLE",
+    "REJECT_MARGIN_STATE_UNAVAILABLE",
+    "REJECT_PROP_STATE_UNAVAILABLE",
+    "REJECT_CAPITAL_PROTECTION_STATE_UNAVAILABLE",
+    "REJECT_BROKER_HEALTH_UNAVAILABLE",
+    "REJECT_EXECUTION_HEALTH_UNAVAILABLE",
+    "REJECT_MODEL_PROVENANCE",
+    "REJECT_CALIBRATION_MISSING",
+    "REJECT_SHADOW_EVIDENCE_UNAVAILABLE",
+    "REJECT_MARKET_DATA_STALE"
+  ],
+  "build_calibration_artifact_if_missing_removed": true,
+  "nan_to_num_removed": true,
+  "safety_state_source": "kwargs parameters from caller \u2014 fails closed if None"
+}

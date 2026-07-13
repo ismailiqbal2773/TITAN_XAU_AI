@@ -1,0 +1,38 @@
+{
+  "generated_at_utc": "2026-07-13T12:27:34.992379+00:00",
+  "entries": [
+    {
+      "file": "titan/tests/test_v2_8_7_p2_2_true_adapter_parity.py",
+      "type": "mock",
+      "component": "evaluate_ceo_decision",
+      "allowed": true,
+      "reason": "Test isolates parity",
+      "real_component_still_executed": "Yes, in evaluation"
+    },
+    {
+      "file": "titan/tests/test_v2_8_7_p2_0_canonical_integrity.py",
+      "type": "mock",
+      "component": "evaluate_ceo_decision",
+      "allowed": true,
+      "reason": "Unit tests for gap logic",
+      "real_component_still_executed": "Yes, in CanonicalDecisionEngine"
+    },
+    {
+      "file": "scripts/operator/run_exness_mt5_readonly_forward_shadow.py",
+      "type": "deterministic_adapter",
+      "component": "MT5 transport",
+      "allowed": true,
+      "reason": "External MT5 requires Windows",
+      "real_component_still_executed": "Yes, on Windows"
+    },
+    {
+      "file": "titan/conftest.py",
+      "type": "mock",
+      "component": "MetaTrader5",
+      "allowed": true,
+      "reason": "Linux test env",
+      "real_component_still_executed": "Yes, on Windows"
+    }
+  ],
+  "prohibited_mocks_found": 0
+}

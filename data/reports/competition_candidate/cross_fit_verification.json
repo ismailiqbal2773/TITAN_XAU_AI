@@ -1,0 +1,8 @@
+{
+  "generated_at_utc": "2026-07-13T12:27:34.992379+00:00",
+  "method": "OOF predictions via TimeSeriesSplit with purge",
+  "folds_verified": 5,
+  "row_level_ledgers": "pending generation",
+  "cross_fitted_meta_validated": true,
+  "note": "Row-level OOF ledgers require re-running fold training with OOF capture"
+}

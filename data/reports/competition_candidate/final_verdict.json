@@ -1,6 +1,5 @@
 {
   "verdict": "RUNTIME_PARITY_FAIL",
-  "invalidated_p2_5_3_verdict": "CI_FAIL (INVALIDATED \u2014 correct was CONTINUOUS_EQUITY_FAIL, now fixed)",
   "verdict_precedence_applied": true,
   "gates": {
     "provenance": true,
@@ -47,11 +46,14 @@
   "directional_classification": "DIRECTION_NOT_MATERIALLY_VALIDATED",
   "long_trades": 486,
   "short_trades": 1,
+  "shadow_runner_repaired": true,
+  "nan_to_num_removed_from_shadow_runner": true,
+  "build_calibration_artifact_if_missing_removed": true,
   "remaining_blockers": [
     "RUNTIME_PARITY_FAIL \u2014 principal unmocked test not implemented",
-    "CI_FAIL \u2014 GitHub Actions not passing (0 steps \u2014 infrastructure issue)",
-    "DIRECTION_NOT_MATERIALLY_VALIDATED \u2014 only 1 SHORT trade (minimum 30)"
+    "CI_FAIL \u2014 GitHub Actions not passing",
+    "DIRECTION_NOT_MATERIALLY_VALIDATED \u2014 1 SHORT trade < 30"
   ],
-  "evaluated_at_utc": "2026-07-13T16:30:00Z",
-  "version": "v2.8.7-P2.5.4"
+  "evaluated_at_utc": "2026-07-13T12:27:34.992379+00:00",
+  "version": "v2.8.7-P2.5.5"
 }

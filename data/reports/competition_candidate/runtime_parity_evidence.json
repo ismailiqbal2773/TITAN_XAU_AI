@@ -1,0 +1,8 @@
+{
+  "generated_at_utc": "2026-07-13T12:27:34.992379+00:00",
+  "principal_test_implemented": false,
+  "reason": "Principal unmocked test requires shared decision input builder",
+  "adapter_parity_tests_exist": true,
+  "adapter_parity_tests_pass": true,
+  "verdict": "RUNTIME_PARITY_FAIL"
+}
