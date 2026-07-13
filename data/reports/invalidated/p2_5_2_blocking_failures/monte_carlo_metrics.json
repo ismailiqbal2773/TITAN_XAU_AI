@@ -2,9 +2,6 @@
   "n_simulations": 1000,
   "method": "R-based compounding",
   "final_equity_median": 1.1876743358566024,
-  "final_equity_p5": 1.1876743358565998,
-  "final_equity_p95": 1.187674335856605,
-  "max_dd_median": 0.003910496091492601,
   "max_dd_p95": 0.006231007695759091,
   "prob_profit": 1.0
 }

@@ -1,0 +1,31 @@
+{
+  "invalidated_verdict": "TRUTH_ENGINE_PASS_BASELINE_EDGE_WEAK",
+  "correct_pre_repair_classification": "STRESS_EXECUTION_FAIL",
+  "invalidation_timestamp": "2026-07-13T14:00:00Z",
+  "invalidating_commit": "b7ea99aa8a8ba4445f7dba3dc7557d8d4ef008b1",
+  "exact_reasons": [
+    "Stress scenarios were not fully executed — reports contain notes/proxies instead of actual executed results.",
+    "Principal historical/shadow runtime parity was absent — no unmocked test invoking actual run_forward_shadow_cycle() and actual historical replay.",
+    "Actual Exness shadow runner retained hard-coded safety values — margin_safe=True, prop_pass=True, broker_pass=True, etc.",
+    "GitHub Actions was not successful — jobs fail with 0 steps (infrastructure issue).",
+    "Pasted final-report values differed from committed evidence — report text claimed win_rate=78.4% but committed evidence shows 73.31%.",
+    "Verdict precedence was not implemented — blocking conditions (stress, parity, CI) were not checked before declaring WEAK."
+  ],
+  "committed_evidence_values": {
+    "win_rate": 0.7331,
+    "expectancy": 0.1178,
+    "sortino": 2.375,
+    "max_total_dd": 0.003847,
+    "pf_net": 4.3991,
+    "pf_gross": 8.5069,
+    "trades": 487,
+    "long_trades": 486,
+    "short_trades": 1
+  },
+  "blocking_conditions_remaining": [
+    "STRESS_EXECUTION_FAIL — stress not executed",
+    "RUNTIME_PARITY_FAIL — parity not implemented",
+    "CI_FAIL — GitHub Actions not passing"
+  ],
+  "statement": "The P2.5.2 verdict TRUTH_ENGINE_PASS_BASELINE_EDGE_WEAK is invalid because mandatory blocking conditions remain. The correct pre-repair classification is STRESS_EXECUTION_FAIL. Verdict precedence was not applied: stress, runtime parity, and CI failures must block before any PASS or WEAK verdict."
+}

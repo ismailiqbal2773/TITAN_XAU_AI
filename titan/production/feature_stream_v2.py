@@ -209,14 +209,17 @@ class H1FeatureStreamV2:
             )
         except Exception as e:
             logger.error(f"v2 feature computation failed: {e}")
+            # v2.8.7-P2.5.3: Return None features — NOT a zero vector
+            # This ensures predict_proba can never be called on invalid features
             return FeatureVectorV2(
                 timestamp=pd.Timestamp.utcnow(),
-                features=np.zeros(N_FEATURES_V2, dtype=np.float64),
+                features=None,  # No usable vector
                 feature_names=FEATURE_NAMES_V2.copy(),
                 n_bars_used=len(self._bars),
                 source=source,
                 is_valid=False,
                 error=str(e),
+                invalid_features=["computation_exception"],
             )
 
 

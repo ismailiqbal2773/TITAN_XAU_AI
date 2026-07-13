@@ -1,0 +1,81 @@
+{
+  "fold_hashes": [
+    {
+      "fold": 1,
+      "scaler_hash": "93f04934a9aca060",
+      "alpha_model_hash": "7e8ca7e79a5e9806",
+      "meta_model_hash": "95b899c0d4a366a0",
+      "alpha_calibrator_hash": "985c7d7e57a3692c",
+      "meta_calibrator_hash": "19f765b12a1a430d",
+      "alpha_cal_method": "identity",
+      "meta_cal_method": "identity",
+      "alpha_slope": 1.0433265375669152,
+      "meta_slope": 0.9100459680783457,
+      "oof_coverage": 0.7495264154914755,
+      "oos_start_date": "2021-05-19 18:00:00+00:00",
+      "oos_end_date": "2022-05-30 05:00:00+00:00"
+    },
+    {
+      "fold": 2,
+      "scaler_hash": "23c83409dd93fe62",
+      "alpha_model_hash": "fe41f0149879d00a",
+      "meta_model_hash": "232c3308cdd6fd9a",
+      "alpha_calibrator_hash": "9f0adcc8ae602657",
+      "meta_calibrator_hash": "2cdd13968bd2652b",
+      "alpha_cal_method": "identity",
+      "meta_cal_method": "identity",
+      "alpha_slope": 1.0453817031594768,
+      "meta_slope": 0.9488236631157672,
+      "oof_coverage": 0.75,
+      "oos_start_date": "2022-05-30 06:00:00+00:00",
+      "oos_end_date": "2023-06-08 17:00:00+00:00"
+    },
+    {
+      "fold": 3,
+      "scaler_hash": "3083b72abb101f1d",
+      "alpha_model_hash": "23897d5785c86a96",
+      "meta_model_hash": "ec3ed42518015256",
+      "alpha_calibrator_hash": "0441dda9115ce799",
+      "meta_calibrator_hash": "3e805ad96cc6ebac",
+      "alpha_cal_method": "isotonic",
+      "meta_cal_method": "isotonic",
+      "alpha_slope": 0.6860519045907766,
+      "meta_slope": 1.0489262058590894,
+      "oof_coverage": 0.7499557182499852,
+      "oos_start_date": "2023-06-08 18:00:00+00:00",
+      "oos_end_date": "2024-06-18 22:00:00+00:00"
+    },
+    {
+      "fold": 4,
+      "scaler_hash": "0ad13345644c9e65",
+      "alpha_model_hash": "e5e924fd069b2701",
+      "meta_model_hash": "3c6fe582643d6b06",
+      "alpha_calibrator_hash": "7ba1011541621930",
+      "meta_calibrator_hash": "72258d539c7f1199",
+      "alpha_cal_method": "identity",
+      "meta_cal_method": "isotonic",
+      "alpha_slope": 1.005018457160946,
+      "meta_slope": 0.8394890491110072,
+      "oof_coverage": 0.7499348675640469,
+      "oos_start_date": "2024-06-18 23:00:00+00:00",
+      "oos_end_date": "2025-06-27 23:00:00+00:00"
+    },
+    {
+      "fold": 5,
+      "scaler_hash": "b9207436958023c9",
+      "alpha_model_hash": "e8f5390671680d52",
+      "meta_model_hash": "2379e68ed8146c0b",
+      "alpha_calibrator_hash": "a6322c4269540a53",
+      "meta_calibrator_hash": "330474aa85272b07",
+      "alpha_cal_method": "identity",
+      "meta_cal_method": "platt",
+      "alpha_slope": 1.134543385924677,
+      "meta_slope": 1.0491215251864774,
+      "oof_coverage": 0.7499227414758095,
+      "oos_start_date": "2025-06-30 01:00:00+00:00",
+      "oos_end_date": "2025-12-31 23:00:00+00:00"
+    }
+  ],
+  "folds_have_different_hashes": true,
+  "all_oos_before_2026": true
+}
